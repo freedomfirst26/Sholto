@@ -1,6 +1,6 @@
 namespace OpenDJ.Library;
 
-public record Track(
+public sealed record Track(
     string FilePath,
     string Title,
     string Artist,

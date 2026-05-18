@@ -7,13 +7,19 @@ public static class TrackScanner
     private static readonly HashSet<string> SupportedExtensions =
         [".wav", ".mp3", ".flac", ".aiff", ".aif"];
 
-    public static IReadOnlyList<Track> Scan(string directory)
+    public static Task<IReadOnlyList<Track>> ScanAsync(
+        string directory,
+        CancellationToken cancellationToken = default) =>
+        Task.Run(() => Scan(directory, cancellationToken), cancellationToken);
+
+    private static IReadOnlyList<Track> Scan(string directory, CancellationToken ct)
     {
         if (!Directory.Exists(directory))
             return [];
 
         return Directory
             .EnumerateFiles(directory, "*.*", SearchOption.AllDirectories)
+            .TakeWhile(_ => !ct.IsCancellationRequested)
             .Where(f => SupportedExtensions.Contains(
                 Path.GetExtension(f).ToLowerInvariant()))
             .Select(ReadTrack)
@@ -29,7 +35,7 @@ public static class TrackScanner
         {
             var meta = new ATL.Track(path);
             return new Track(
-                FilePath: path,
+                FilePath: Path.GetFullPath(path),
                 Title: string.IsNullOrWhiteSpace(meta.Title)
                     ? Path.GetFileNameWithoutExtension(path)
                     : meta.Title,
@@ -39,6 +45,9 @@ public static class TrackScanner
                 Duration: TimeSpan.FromMilliseconds(meta.DurationMs)
             );
         }
-        catch { return null; }
+        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+        {
+            return null;
+        }
     }
 }

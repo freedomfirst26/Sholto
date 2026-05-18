@@ -1,4 +1,3 @@
-using System.IO;
 using Xunit;
 using OpenDJ.Library;
 
@@ -7,19 +6,19 @@ namespace OpenDJ.Library.Tests;
 public class TrackScannerTests
 {
     [Fact]
-    public void Scan_EmptyDirectory_ReturnsEmpty()
+    public async Task Scan_EmptyDirectory_ReturnsEmpty()
     {
         var dir = Directory.CreateTempSubdirectory("opendj_test_");
         try
         {
-            var tracks = TrackScanner.Scan(dir.FullName);
+            var tracks = await TrackScanner.ScanAsync(dir.FullName);
             Assert.Empty(tracks);
         }
         finally { dir.Delete(true); }
     }
 
     [Fact]
-    public void Scan_DirectoryWithWavFile_ReturnsOneTrack()
+    public async Task Scan_DirectoryWithWavFile_ReturnsOneTrack()
     {
         var dir = Directory.CreateTempSubdirectory("opendj_test_");
         try
@@ -27,22 +26,22 @@ public class TrackScannerTests
             var wavPath = Path.Combine(dir.FullName, "test.wav");
             WriteMinimalWav(wavPath);
 
-            var tracks = TrackScanner.Scan(dir.FullName);
+            var tracks = await TrackScanner.ScanAsync(dir.FullName);
             Assert.Single(tracks);
-            Assert.Equal(wavPath, tracks[0].FilePath);
+            Assert.Equal(Path.GetFullPath(wavPath), tracks[0].FilePath);
         }
         finally { dir.Delete(true); }
     }
 
     [Fact]
-    public void Scan_NonExistentDirectory_ReturnsEmpty()
+    public async Task Scan_NonExistentDirectory_ReturnsEmpty()
     {
-        var tracks = TrackScanner.Scan("/tmp/opendj_does_not_exist_xyz");
+        var tracks = await TrackScanner.ScanAsync("/tmp/opendj_does_not_exist_xyz");
         Assert.Empty(tracks);
     }
 
     [Fact]
-    public void Scan_IgnoresNonAudioFiles()
+    public async Task Scan_IgnoresNonAudioFiles()
     {
         var dir = Directory.CreateTempSubdirectory("opendj_test_");
         try
@@ -50,7 +49,7 @@ public class TrackScannerTests
             File.WriteAllText(Path.Combine(dir.FullName, "readme.txt"), "hello");
             File.WriteAllText(Path.Combine(dir.FullName, "image.jpg"), "fake");
 
-            var tracks = TrackScanner.Scan(dir.FullName);
+            var tracks = await TrackScanner.ScanAsync(dir.FullName);
             Assert.Empty(tracks);
         }
         finally { dir.Delete(true); }
