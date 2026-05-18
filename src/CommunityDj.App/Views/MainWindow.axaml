@@ -1,0 +1,117 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:CommunityDj.App.Controls"
+        xmlns:v="using:CommunityDj.App.Views"
+        xmlns:media="using:Avalonia.Media"
+        x:Class="CommunityDj.App.Views.MainWindow"
+        Title="CommunityDj"
+        Width="1200" Height="900"
+        Background="{DynamicResource CommunityDjBgDeep}">
+
+    <Window.Resources>
+        <!-- Default-theme brushes; overridden at runtime in MainWindow.axaml.cs when the
+             user switches themes. Use {DynamicResource CommunityDj…} in templates so colour
+             updates flow without going through $parent traversal (which goes stale on
+             menu/hover state changes under the Fluent theme). -->
+        <SolidColorBrush x:Key="CommunityDjBgDeep"        Color="#0B0918"/>
+        <SolidColorBrush x:Key="CommunityDjSurface"       Color="#16122B"/>
+        <SolidColorBrush x:Key="CommunityDjSurfaceRaised" Color="#1F1A3D"/>
+        <SolidColorBrush x:Key="CommunityDjBorder"        Color="#2D2752"/>
+        <SolidColorBrush x:Key="CommunityDjPrimary"       Color="#7C5CFF"/>
+        <SolidColorBrush x:Key="CommunityDjAccent"        Color="#FF4E9A"/>
+        <SolidColorBrush x:Key="CommunityDjAccentBg"      Color="#33FF4E9A"/>
+        <SolidColorBrush x:Key="CommunityDjMint"          Color="#34F0C6"/>
+        <SolidColorBrush x:Key="CommunityDjTextBright"    Color="#EEEAFF"/>
+        <SolidColorBrush x:Key="CommunityDjTextMuted"     Color="#8B7FB8"/>
+    </Window.Resources>
+
+    <DockPanel>
+        <Menu DockPanel.Dock="Top"
+              Background="{DynamicResource CommunityDjSurfaceRaised}"
+              Foreground="{DynamicResource CommunityDjTextBright}">
+            <MenuItem Header="Settings">
+                <MenuItem Header="Theme">
+                    <MenuItem Header="Plasma" Click="OnThemePlasma"/>
+                    <MenuItem Header="Classic" Click="OnThemeClassic"/>
+                    <MenuItem Header="Serato" Click="OnThemeSerato"/>
+                </MenuItem>
+                <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
+            </MenuItem>
+        </Menu>
+
+    <Grid RowDefinitions="*,200,200">
+
+        <!-- Track library, rendered as a fixed-column table. -->
+        <Grid Grid.Row="0" RowDefinitions="32,*" Background="{DynamicResource CommunityDjSurface}">
+
+            <!-- Column header -->
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="240,*,80,80,80"
+                  Background="{DynamicResource CommunityDjSurfaceRaised}">
+                <TextBlock Grid.Column="0" Text="ARTIST"
+                           Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="12,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="TRACK"
+                           Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="BPM"
+                           Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="KEY"
+                           Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="TIME"
+                           Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+            </Grid>
+
+            <ListBox Grid.Row="1"
+                     Name="TrackList"
+                     ItemsSource="{Binding Tracks}"
+                     SelectedIndex="{Binding SelectedTrackIndex, Mode=OneWay}"
+                     SelectionChanged="OnTrackSelectionChanged"
+                     Background="{DynamicResource CommunityDjSurface}">
+                <ListBox.Styles>
+                    <!-- Override Fluent's hover/selected backgrounds so they don't clobber
+                         our row foreground colors after the pointer leaves. -->
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource CommunityDjSurfaceRaised}"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource CommunityDjAccentBg}"/>
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="240,*,80,80,80">
+                            <TextBlock Grid.Column="0" Text="{Binding Artist}"
+                                       Foreground="{DynamicResource CommunityDjTextBright}"
+                                       Margin="12,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                       Foreground="{DynamicResource CommunityDjTextBright}"
+                                       Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding BpmDisplay}"
+                                       Foreground="{DynamicResource CommunityDjAccent}"
+                                       FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding Key}"
+                                       Foreground="{DynamicResource CommunityDjPrimary}"
+                                       FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" Text="{Binding DurationDisplay}"
+                                       Foreground="{DynamicResource CommunityDjTextMuted}"
+                                       Margin="8,4" VerticalAlignment="Center"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <v:DeckView Grid.Row="1" DataContext="{Binding Deck1}"/>
+        <v:DeckView Grid.Row="2" DataContext="{Binding Deck2}"/>
+
+    </Grid>
+    </DockPanel>
+</Window>

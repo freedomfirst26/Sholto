@@ -1,0 +1,92 @@
+# CommunityDj
+
+A community-built DJ application — a free, open-source alternative to Rekordbox / Serato.
+
+**Status:** currently developed and tested on **Linux** (Ubuntu / PipeWire) with the **Pioneer DDJ-FLX4** controller. Cross-platform support (Windows / macOS) and other controllers are next on the roadmap.
+
+![CommunityDj — Plasma theme with two decks](pictures/communitydj-ui.png)
+
+## Features
+
+### Library
+- Scans `~/Music` recursively (mp3, wav, flac, ogg, m4a, …) using ATL for tag metadata
+- **Track table** with Artist · Track · BPM · Key · Time columns
+- BPM column auto-uplifts as analyses come back from cache / madmom
+- **SQLite-backed analysis cache** at `~/.local/share/communitydj/library.db` — every track is analysed once and the result survives restarts
+- 3-tier lookup pipeline: in-memory → SQLite → compute, with automatic write-through
+
+### Audio analysis
+- **Best-in-class beat tracking** via [madmom](https://github.com/CPJKU/madmom)'s RNN + dynamic-Bayesian-network detector (the `madmom-onnx` fork — ONNX runtime, no Theano)
+- Pure-C# **Ellis-DP fallback** when madmom isn't installed (~librosa-quality)
+- **Real downbeats** drawn as taller / coloured ticks (not "every 4th")
+- **3-band frequency split** (low / mid / high) per waveform column via biquad filters with 5-tap smoothing
+
+### Playback
+- **Two decks** with independent playback, scrubbing, and analysis
+- **SoundFlow + miniaudio** under the hood — routes through PulseAudio / PipeWire on Linux
+- **Per-track audio cache**: load into either deck instantly the second time
+- Audio output device selectable at runtime from the Settings menu; chosen sink persists
+- **Sub-pixel-accurate playhead** read straight from the data provider (no drift between 44.1 kHz source and 48 kHz engine)
+
+### Visuals
+- **GPU-baked waveform** rendered once at load to a Skia surface; per-frame cost is one textured blit (no per-pixel re-paint)
+- **Rekordbox-style 3-colour bands** that stack low → mid → high outward from the centre line
+- **Beat-grid markers** along the top edge — downbeats highlighted
+- **Spinning vinyl disc** that rotates one revolution per bar at the track's BPM, with a mint-coloured needle peeking out from behind the album-art label
+- **Outer ring colour** transitions green → yellow → orange → red across the track length; **flashes** when within the last 10 %
+- **Effective-gain line** — a thin mint horizontal line across each waveform showing the combined channel × crossfader volume
+- Big track title + artist next to each deck's disc
+- BPM rendered both prominently in the deck readout and softly inside the spinning disc label
+- **Three themes** selectable from Settings → Theme:
+  - **Plasma** (default, 2026 violet / pink / mint)
+  - **Classic** (cyan / amber / Rekordbox-style waveform)
+  - **Serato** (Serato red / green / blue waveform)
+
+### Controller (Pioneer DDJ-FLX4)
+- **Play / pause** on each deck
+- **Jog wheels** — top platter (fast scrub) and side ring (fine seek), with different scrub-rate scaling per surface
+- **Channel volume faders** per deck (14-bit MSB CC, channels 1 / 2)
+- **Crossfader** with equal-power gain curve (14-bit MSB CC, channel 7)
+- **Top scroll wheel** — rotate to step through the track list (signed delta encoder)
+- **LOAD 1 / LOAD 2** buttons load the highlighted track into the corresponding deck
+- Works on Linux via either RtMidi or a built-in `/dev/snd/midi*` raw-MIDI fallback (handles cases where RtMidi can't see the device under PipeWire)
+- **Pluggable mappings** — drop a new `IControllerMapping` into `src/CommunityDj.Controller/Mappings/`, register it in `MappingRegistry.All`, and any controller can be supported the same way
+
+### Keyboard
+- **Space** play/pause Deck 1; hold **Shift** for Deck 2
+- **← / →** seek ±10 s on Deck 1; hold **Shift** for Deck 2
+- Arrow keys intercepted at the window level so the track-list ListBox doesn't eat them
+
+## Architecture
+
+```
+CommunityDj.Library     Track, TrackScanner                       — domain primitives
+CommunityDj.Analysis    WaveformPeaks, BasicAnalysis, beat        — pure analysis math, no deps
+                   trackers, AnalysisProvider, MemoryCache
+CommunityDj.Storage     CommunityDjDatabase, AnalysisCodec,            — persistence boundary (SQLite)
+                   DatabaseAnalysisCache
+CommunityDj.Audio       AudioEngine, DeckPlayer, AudioFileDecoder — playback I/O via SoundFlow / miniaudio
+CommunityDj.Controller  MIDI input + Mappings/                    — pluggable per-device mappings
+CommunityDj.App         Avalonia UI                               — everything visible
+```
+
+Built on **.NET 10**, **Avalonia 11**, **SoundFlow** (miniaudio under the hood, talks to PulseAudio / PipeWire on Linux). Audio decoding via NAudio + NLayer.
+
+## Running
+
+```bash
+# One-time on Linux for MP3 decoding by madmom:
+sudo apt install ffmpeg
+uv tool install madmom-onnx
+
+# Then:
+dotnet run --project src/CommunityDj.App
+# or with auto-reload:
+dotnet watch --project src/CommunityDj.App run --no-hot-reload
+```
+
+The library scans `~/Music` on startup. Click a track in the list to load it into Deck 1; press LOAD 2 on a DDJ-FLX4 to load into Deck 2.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

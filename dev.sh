@@ -1,5 +1,5 @@
 #!/bin/bash
-# OpenDJ dev environment setup
+# CommunityDj dev environment setup
 # Run once on a new machine: bash dev.sh
 # Safe to re-run — all steps are idempotent.
 set -e
@@ -162,7 +162,7 @@ print_summary() {
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 echo ""
-echo "OpenDJ — dev environment setup"
+echo "CommunityDj — dev environment setup"
 echo "================================================="
 
 install_dotnet

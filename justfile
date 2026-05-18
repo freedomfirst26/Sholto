@@ -5,7 +5,7 @@ test:
     dotnet test
 
 run:
-    dotnet run --project src/OpenDJ.App/OpenDJ.App.csproj
+    dotnet run --project src/CommunityDj.App/CommunityDj.App.csproj
 
 watch:
-    dotnet watch --project src/OpenDJ.App/OpenDJ.App.csproj run
+    dotnet watch --project src/CommunityDj.App/CommunityDj.App.csproj run

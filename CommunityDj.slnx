@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CommunityDj.Analysis/CommunityDj.Analysis.csproj" />
+    <Project Path="src/CommunityDj.App/CommunityDj.App.csproj" />
+    <Project Path="src/CommunityDj.Audio/CommunityDj.Audio.csproj" />
+    <Project Path="src/CommunityDj.Controller/CommunityDj.Controller.csproj" />
+    <Project Path="src/CommunityDj.Library/CommunityDj.Library.csproj" />
+    <Project Path="src/CommunityDj.Storage/CommunityDj.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CommunityDj.App.Tests/CommunityDj.App.Tests.csproj" />
+    <Project Path="tests/CommunityDj.Audio.Tests/CommunityDj.Audio.Tests.csproj" />
+    <Project Path="tests/CommunityDj.Controller.Tests/CommunityDj.Controller.Tests.csproj" />
+    <Project Path="tests/CommunityDj.Library.Tests/CommunityDj.Library.Tests.csproj" />
+  </Folder>
+</Solution>
