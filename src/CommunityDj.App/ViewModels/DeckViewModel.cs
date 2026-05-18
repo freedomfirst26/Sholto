@@ -162,6 +162,51 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     public bool IsLoaded => _player.IsLoaded;
 
+    /// <summary>Current playback time in seconds (drift-free, from the data provider).</summary>
+    public double PlaybackSeconds => _player.PositionFrames / 44100.0;
+
+    /// <summary>Time of the beat nearest the current playback position, or -1 if no beats.</summary>
+    public double NearestBeatSec()      => NearestIn(Analysis.Basic?.BeatTimes);
+    /// <summary>Time of the downbeat (bar-start) nearest the current playback position, or -1.</summary>
+    public double NearestDownbeatSec() => NearestIn(Analysis.Basic?.DownbeatTimes);
+
+    private double NearestIn(double[]? times)
+    {
+        if (times is null || times.Length == 0) return -1;
+        double pos = PlaybackSeconds;
+        int idx = Array.BinarySearch(times, pos);
+        if (idx >= 0) return times[idx];
+        idx = ~idx;
+        if (idx >= times.Length) return times[^1];
+        if (idx == 0)            return times[0];
+        return Math.Abs(times[idx] - pos) < Math.Abs(times[idx - 1] - pos)
+            ? times[idx] : times[idx - 1];
+    }
+
+    private bool _isScrubbing;
+    /// <summary>True while the user is actively turning the jog wheel on this deck.
+    /// Drives the full-height green guide line so the two decks' nearest downbeats
+    /// can be eyeballed into alignment during a manual sync.</summary>
+    public bool IsScrubbing
+    {
+        get => _isScrubbing;
+        set { if (_isScrubbing == value) return; _isScrubbing = value; Notify(); }
+    }
+
+    private double _magneticGlowSec = -1;
+    /// <summary>Time of the beat that should glow green (magnetism active), or -1 = off.
+    /// Driven from <see cref="MainViewModel"/> since magnetism crosses both decks.</summary>
+    public double MagneticGlowSec
+    {
+        get => _magneticGlowSec;
+        set
+        {
+            if (Math.Abs(_magneticGlowSec - value) < 0.001) return;
+            _magneticGlowSec = value;
+            Notify();
+        }
+    }
+
     // Volume model: deck output = channel fader × crossfade gain.
     private float _channelGain = 1.0f;
     private float _crossfadeGain = 1.0f;

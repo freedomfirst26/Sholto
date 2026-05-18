@@ -19,4 +19,9 @@ public abstract record ControllerEvent
     public record ChannelVolumeMoved(int Deck, double Value) : ControllerEvent;
     /// <summary>Jog wheel rotation. Delta is +/- ticks (1 tick = one click of the wheel).</summary>
     public record JogRotated(int Deck, int Delta, JogSource Source) : ControllerEvent;
+
+    /// <summary>One of the three EQ pots (HI / MID / LOW). Value 0..1, 0.5 = neutral / 0 dB.</summary>
+    public record EqMoved(int Deck, EqBand Band, double Value) : ControllerEvent;
 }
+
+public enum EqBand { Low, Mid, High }

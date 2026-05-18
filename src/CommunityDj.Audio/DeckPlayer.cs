@@ -2,6 +2,7 @@ using CommunityDj.Analysis;
 using SoundFlow.Abstracts;
 using SoundFlow.Components;
 using SoundFlow.Enums;
+using SoundFlow.Modifiers;
 using SoundFlow.Providers;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;
@@ -28,6 +29,8 @@ public sealed class DeckPlayer
     public AnalysisProvider? AnalysisProvider { get; set; }
 
     public TrackAnalysis Analysis { get; private set; } = new();
+
+    private BiquadEq3Band? _eq;
 
     private float _volume = 1.0f;
     /// <summary>Linear gain [0..1]. Applied to the SoundPlayer so the deck's output is scaled before the master mixer sums it with the other deck.</summary>
@@ -92,6 +95,11 @@ public sealed class DeckPlayer
 
         var provider = new RawDataProvider(stereoSamples, sampleRate);
         _player = new SoundPlayer(_engine, _format, provider);
+
+        // 3-band EQ in the deck's audio path. The EQ instance is reused across loads
+        // so current pot positions carry over to the next track.
+        _eq ??= new BiquadEq3Band(_engine, _format);
+        _player.AddModifier(_eq);
         _deckMixer.AddComponent(_player);
         Console.WriteLine($"[DeckPlayer] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
 
@@ -181,5 +189,24 @@ public sealed class DeckPlayer
         if (_player is null) return;
         double target = Math.Clamp(_player.Time + seconds, 0.0, _player.Duration);
         _player.Seek(TimeSpan.FromSeconds(target));
+    }
+
+    /// <summary>
+    /// Set one of the 3 EQ bands (0=Low, 1=Mid, 2=High). <paramref name="value"/> is 0..1,
+    /// 0.5 = unity. Below 0.5 cuts down to −26 dB (full kill); above 0.5 boosts up to +6 dB.
+    /// Safe to call from any thread — the audio thread sees the new gain on the next buffer.
+    /// </summary>
+    public void SetEq(int band, double value)
+    {
+        if (_eq is null && _engine is not null)
+            _eq = new BiquadEq3Band(_engine, _format);  // allow pot moves before load
+
+        // Isolator gain: 0 → mute, 0.5 → unity (1.0), 1 → +6 dB (2.0).
+        // Curve is intentionally linear so the centre detent at v=0.5 reads as flat.
+        double v = Math.Clamp(value, 0.0, 1.0);
+        float gain = v < 0.5
+            ? (float)(v * 2.0)
+            : (float)(1.0 + (v - 0.5) * 2.0);
+        _eq?.SetBandGain(band, gain);
     }
 }

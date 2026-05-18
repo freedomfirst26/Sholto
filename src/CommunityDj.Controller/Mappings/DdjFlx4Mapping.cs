@@ -38,6 +38,20 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Control == 0x13 && (msg.Channel == 1 || msg.Channel == 2))
             return new ControllerEvent.ChannelVolumeMoved(msg.Channel - 1, msg.Value / 127.0);
 
+        // Per-deck EQ pots (14-bit, MSB only here). FLX-4 sends HI on 0x07, MID on 0x0B,
+        // LOW on 0x0F — channel 1 = Deck 1, channel 2 = Deck 2.
+        if ((msg.Channel == 1 || msg.Channel == 2) &&
+            (msg.Control == 0x07 || msg.Control == 0x0B || msg.Control == 0x0F))
+        {
+            var band = msg.Control switch
+            {
+                0x07 => EqBand.High,
+                0x0B => EqBand.Mid,
+                _    => EqBand.Low,
+            };
+            return new ControllerEvent.EqMoved(msg.Channel - 1, band, msg.Value / 127.0);
+        }
+
         // Top scroll-wheel rotation: signed 7-bit delta.
         //   val 1..63   →  positive (forward, e.g. val 1 = +1 tick)
         //   val 65..127 →  negative (back, two's-complement)

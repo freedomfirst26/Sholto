@@ -37,6 +37,12 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<double> GainOverlayProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(GainOverlay), 1.0);
 
+    public static readonly StyledProperty<double> MagneticGlowSecProperty =
+        AvaloniaProperty.Register<WaveformControl, double>(nameof(MagneticGlowSec), -1.0);
+
+    public static readonly StyledProperty<bool> IsScrubbingProperty =
+        AvaloniaProperty.Register<WaveformControl, bool>(nameof(IsScrubbing), false);
+
     public static readonly StyledProperty<WaveformPalette> PaletteProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPalette>(nameof(Palette), WaveformPalette.Bands);
 
@@ -49,6 +55,8 @@ public sealed class WaveformControl : Control
     {
         AffectsRender<WaveformControl>(PlayPositionProperty);
         AffectsRender<WaveformControl>(GainOverlayProperty);
+        AffectsRender<WaveformControl>(MagneticGlowSecProperty);
+        AffectsRender<WaveformControl>(IsScrubbingProperty);
         PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         BeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         DownbeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
@@ -83,6 +91,21 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(GainOverlayProperty);
         set => SetValue(GainOverlayProperty, value);
+    }
+
+    public double MagneticGlowSec
+    {
+        get => GetValue(MagneticGlowSecProperty);
+        set => SetValue(MagneticGlowSecProperty, value);
+    }
+
+    /// <summary>When true and a magnetic beat is highlighted, draw a full-height green
+    /// line instead of the top/bottom stripes — much easier to eyeball alignment while
+    /// turning the jog wheel.</summary>
+    public bool IsScrubbing
+    {
+        get => GetValue(IsScrubbingProperty);
+        set => SetValue(IsScrubbingProperty, value);
     }
 
     public WaveformPalette Palette
@@ -205,6 +228,8 @@ public sealed class WaveformControl : Control
                     downbeatCols.Add((int)Math.Round(t / secondsPerPeak));
             }
 
+            // Non-downbeat beat ticks only — downbeats are drawn at full height in
+            // the live overlay (see BlitOperation) so they read as a fixed grid.
             for (int i = 0; i < beatTimes.Length; i++)
             {
                 int col = (int)Math.Round(beatTimes[i] / secondsPerPeak);
@@ -212,8 +237,8 @@ public sealed class WaveformControl : Control
                 bool downbeat = downbeatCols is not null
                     ? downbeatCols.Contains(col)
                     : (i % 4) == 0;
-                int tickH = downbeat ? 10 : 5;
-                canvas.DrawLine(col, 0, col, tickH, downbeat ? downbeatPaint : tickPaint);
+                if (downbeat) continue;
+                canvas.DrawLine(col, 0, col, 5, tickPaint);
             }
         }
 
@@ -222,7 +247,7 @@ public sealed class WaveformControl : Control
 
     public override void Render(DrawingContext context)
     {
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay));
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes));
     }
 
     private sealed class BlitOperation : ICustomDrawOperation
@@ -231,14 +256,20 @@ public sealed class WaveformControl : Control
         private readonly WaveformPeaks? _peaks;
         private readonly double _playPosition;
         private readonly double _gain;
+        private readonly double _magneticGlowSec;
+        private readonly bool _isScrubbing;
+        private readonly double[]? _downbeats;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats)
         {
             Bounds = bounds;
             _image = image;
             _peaks = peaks;
             _playPosition = playPosition;
             _gain = gain;
+            _magneticGlowSec = magneticGlowSec;
+            _isScrubbing = isScrubbing;
+            _downbeats = downbeats;
         }
 
         public Rect Bounds { get; }
@@ -290,6 +321,59 @@ public sealed class WaveformControl : Control
             float gainY = (float)((1.0 - Math.Clamp(_gain, 0, 1)) * dstH);
             using var gainPaint = new SKPaint { Color = new SKColor(0x34, 0xF0, 0xC6, 0xC0), StrokeWidth = 1, IsAntialias = false };
             canvas.DrawLine(0, gainY, dstW, gainY, gainPaint);
+
+            // Full-height downbeat guides — always on. Acts as a fixed yellow grid
+            // so the user can eyeball alignment between decks at a glance.
+            if (_downbeats is { Length: > 0 } && _peaks is not null && _peaks.Min.Length > 0)
+            {
+                double secondsPerPeak = _peaks.SamplesPerPeak / 44100.0;
+                int totalPeaks = _peaks.Min.Length;
+                float centerPeak = (float)(_playPosition * totalPeaks);
+                using var dbPaint = new SKPaint
+                {
+                    Color = new SKColor(0xFF, 0xCC, 0x00, 0xB0),
+                    StrokeWidth = 2,
+                    IsAntialias = true,
+                };
+                foreach (var t in _downbeats)
+                {
+                    float beatCol = (float)(t / secondsPerPeak);
+                    float x = (beatCol - centerPeak) + dstW / 2f;
+                    if (x >= -2 && x < dstW + 2)
+                        canvas.DrawLine(x, 0, x, dstH, dbPaint);
+                }
+            }
+
+            // Magnetic glow: when both decks are beat-locked-ish, paint a bright
+            // green stripe at the top and bottom of the nearest beat in each deck.
+            if (_magneticGlowSec >= 0 && _peaks is not null && _peaks.Min.Length > 0)
+            {
+                double secondsPerPeak = _peaks.SamplesPerPeak / 44100.0;
+                float beatCol = (float)(_magneticGlowSec / secondsPerPeak);
+                int totalPeaks = _peaks.Min.Length;
+                float centerPeak = (float)(_playPosition * totalPeaks);
+                float x = (beatCol - centerPeak) + dstW / 2f;
+                if (x >= -2 && x < dstW + 2)
+                {
+                    using var glow = new SKPaint
+                    {
+                        Color = new SKColor(0x34, 0xF0, 0x6F, 0xF0),
+                        StrokeWidth = _isScrubbing ? 3 : 4,
+                        IsAntialias = true,
+                    };
+                    if (_isScrubbing)
+                    {
+                        // Full-height guide line while the user is actively turning the
+                        // jog wheel — makes it obvious when the two decks' greens align.
+                        canvas.DrawLine(x, 0, x, dstH, glow);
+                    }
+                    else
+                    {
+                        canvas.DrawLine(x, 0, x, 16, glow);
+                        canvas.DrawLine(x, dstH - 16, x, dstH, glow);
+                    }
+                }
+            }
         }
     }
 }

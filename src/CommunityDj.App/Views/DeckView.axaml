@@ -12,6 +12,8 @@
                                       DownbeatTimes="{Binding DownbeatTimes}"
                                       PlayPosition="{Binding PlayPosition}"
                                       GainOverlay="{Binding EffectiveGain}"
+                                      MagneticGlowSec="{Binding MagneticGlowSec}"
+                                      IsScrubbing="{Binding IsScrubbing}"
                                       Palette="{Binding $parent[Window].DataContext.WaveformPalette}"/>
 
             <!-- Fade-to-background over the played half. -->

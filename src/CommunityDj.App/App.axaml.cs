@@ -63,7 +63,7 @@ public partial class App : Application
                 AnalysisProvider MakeProvider() => new(
                     caches: sharedCaches,
                     compute: (path, samples, rate, ct) =>
-                        BasicAnalysis.ComputeAsync(path, samples, channels: 2, sampleRate: rate, ct));
+                        BasicAnalysis.ComputeAsync(path, samples, channels: 2, sampleRate: rate, reporter: null, ct: ct));
                 vm.Deck1.Player.AnalysisProvider = MakeProvider();
                 vm.Deck2.Player.AnalysisProvider = MakeProvider();
 
@@ -141,6 +141,9 @@ public partial class App : Application
                     case ControllerEvent.ChannelVolumeMoved v:
                         vm.DeckFor(v.Deck).ChannelGain = v.Value;
                         break;
+                    case ControllerEvent.EqMoved e:
+                        vm.DeckFor(e.Deck).Player.SetEq((int)e.Band, e.Value);
+                        break;
                     case ControllerEvent.JogRotated j:
                     {
                         // Accumulate the jog delta; the 60 Hz timer below flushes it
@@ -150,6 +153,8 @@ public partial class App : Application
                         double secsPerTick = j.Source == JogSource.TopPlatter ? 0.05 : 0.005;
                         if (j.Deck == 0) _pendingJog1 += j.Delta * secsPerTick;
                         else             _pendingJog2 += j.Delta * secsPerTick;
+                        vm.LastJoggedDeck = j.Deck == 0 ? 1 : 2;
+                        vm.LastJogAt = DateTime.UtcNow;
                         break;
                     }
                 }
@@ -160,9 +165,20 @@ public partial class App : Application
         _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _positionTimer.Tick += (_, _) =>
         {
-            // Coalesce jog ticks since the last frame into one Seek per deck.
-            if (_pendingJog1 != 0) { vm.Deck1.Player.SeekRelative(_pendingJog1); _pendingJog1 = 0; }
-            if (_pendingJog2 != 0) { vm.Deck2.Player.SeekRelative(_pendingJog2); _pendingJog2 = 0; }
+            // Magnetic beat-snap: when both decks are playing and their nearest beats
+            // are close to in-phase, eat up to 90% of every jog tick so the user can
+            // "feel" the beat hold them in place.
+            double scale = 1 - vm.MagnetismFactor * 0.9;
+            if (_pendingJog1 != 0) { vm.Deck1.Player.SeekRelative(_pendingJog1 * scale); _pendingJog1 = 0; }
+            if (_pendingJog2 != 0) { vm.Deck2.Player.SeekRelative(_pendingJog2 * scale); _pendingJog2 = 0; }
+
+            // Mark the deck "scrubbing" while jog input was recent — the waveform uses
+            // this to switch from short top/bottom stripes to a full-height guide line.
+            var now = DateTime.UtcNow;
+            vm.Deck1.IsScrubbing = vm.LastJoggedDeck == 1 && (now - vm.LastJogAt) < TimeSpan.FromMilliseconds(250);
+            vm.Deck2.IsScrubbing = vm.LastJoggedDeck == 2 && (now - vm.LastJogAt) < TimeSpan.FromMilliseconds(250);
+
+            vm.UpdateMagnetism();
 
             // Always sync, even when paused or stopped, so keyboard / FLX-4 scrubs
             // are reflected immediately in the playhead.
