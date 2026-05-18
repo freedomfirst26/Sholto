@@ -14,11 +14,37 @@ namespace OpenDJ.App.Views;
 
 public partial class MainWindow : Window
 {
+    private readonly Avalonia.Threading.DispatcherTimer _flashTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(400),
+    };
+    private double _flashPhase;
+
     public MainWindow()
     {
         InitializeComponent();
         // Intercept keys before child controls (ListBox would otherwise eat arrows).
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+
+        _flashTimer.Tick += OnFlashTick;
+        _flashTimer.Start();
+    }
+
+    private void OnFlashTick(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        var ring = this.FindControl<Border>("DiscRing");
+        if (ring is null) return;
+
+        if (vm.DeckA.IsNearEnd)
+        {
+            _flashPhase = _flashPhase < 0.5 ? 1.0 : 0.35;
+            ring.Opacity = _flashPhase;
+        }
+        else if (ring.Opacity != 1.0)
+        {
+            ring.Opacity = 1.0;
+        }
     }
 
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)

@@ -51,7 +51,46 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public double PlayPosition
     {
         get => _playPosition;
-        set { _playPosition = value; Notify(); Notify(nameof(DiscAngle)); }
+        set
+        {
+            _playPosition = value;
+            Notify();
+            Notify(nameof(DiscAngle));
+            Notify(nameof(DiscRingBrush));
+            Notify(nameof(IsNearEnd));
+        }
+    }
+
+    /// <summary>True once the play position is past 90% — used to drive the end-of-track flash.</summary>
+    public bool IsNearEnd => _playPosition >= 0.9;
+
+    /// <summary>
+    /// Outer ring colour: green (0%) → yellow (50%) → orange (75%) → red (100%).
+    /// Linearly interpolated in RGB; rough but reads well at glance.
+    /// </summary>
+    public Avalonia.Media.IBrush DiscRingBrush
+    {
+        get
+        {
+            (byte r, byte g, byte b) green  = (0x34, 0xF0, 0x6F);
+            (byte r, byte g, byte b) yellow = (0xFF, 0xD6, 0x3D);
+            (byte r, byte g, byte b) orange = (0xFF, 0x8C, 0x2A);
+            (byte r, byte g, byte b) red    = (0xFF, 0x3D, 0x4E);
+
+            double p = Math.Clamp(_playPosition, 0, 1);
+            (byte r, byte g, byte b) lerp(double a, (byte r, byte g, byte b) c1, (byte r, byte g, byte b) c2, double t) =>
+                ((byte)(c1.r + (c2.r - c1.r) * t),
+                 (byte)(c1.g + (c2.g - c1.g) * t),
+                 (byte)(c1.b + (c2.b - c1.b) * t));
+
+            (byte r, byte g, byte b) c = p switch
+            {
+                < 0.5 => lerp(p, green,  yellow, p / 0.5),
+                < 0.75 => lerp(p, yellow, orange, (p - 0.5) / 0.25),
+                _ => lerp(p, orange, red, (p - 0.75) / 0.25),
+            };
+            return new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(c.r, c.g, c.b));
+        }
     }
 
     /// <summary>

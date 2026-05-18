@@ -110,44 +110,59 @@
                 <Border HorizontalAlignment="Left" Width="600" IsHitTestVisible="False"
                         Background="{Binding Theme.PlayedFadeGradient}"/>
 
-                <!-- Vinyl disc with rotation tied to BPM. -->
-                <Grid Width="140" Height="140"
-                      HorizontalAlignment="Left" VerticalAlignment="Center"
-                      Margin="20,0,0,0"
-                      IsHitTestVisible="False">
-                    <Ellipse Width="140" Height="140"
-                             Fill="{Binding Theme.BgDeep}"
-                             Stroke="{Binding Theme.Primary}" StrokeThickness="1"/>
-                    <Ellipse Width="124" Height="124" Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
-                    <Ellipse Width="108" Height="108" Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
-                    <Ellipse Width="92"  Height="92"  Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
+                <!-- Disc cluster: vinyl + rotating needle + title/artist on the side. -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Margin="20,0,0,0" Spacing="16"
+                            IsHitTestVisible="False">
 
-                    <!-- Fake album art -->
-                    <Ellipse Width="80" Height="80"
-                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                             Fill="{Binding Theme.AlbumArtBrush}"/>
+                    <!-- Vinyl disc with rotation tied to BPM. -->
+                    <Grid Width="140" Height="140">
+                        <!-- Outer progress ring: green → yellow → orange → red.
+                             Wrapped in a Border whose Opacity flashes when IsNearEnd. -->
+                        <Border Name="DiscRing" Width="140" Height="140">
+                            <Ellipse Width="140" Height="140"
+                                     Fill="{Binding Theme.BgDeep}"
+                                     Stroke="{Binding DeckA.DiscRingBrush}"
+                                     StrokeThickness="3"/>
+                        </Border>
+                        <Ellipse Width="124" Height="124" Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
+                        <Ellipse Width="108" Height="108" Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
+                        <Ellipse Width="92"  Height="92"  Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
 
-                    <!-- Rotation indicator -->
-                    <Border Width="140" Height="140"
-                            RenderTransformOrigin="0.5,0.5"
-                            Background="Transparent">
-                        <Border.RenderTransform>
-                            <RotateTransform Angle="{Binding DeckA.DiscAngle}" CenterX="70" CenterY="70"/>
-                        </Border.RenderTransform>
-                        <Rectangle Width="2" Height="60"
-                                   Fill="{Binding $parent[Window].DataContext.Theme.Mint}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Top"
-                                   Margin="0,10,0,0"/>
-                    </Border>
+                        <Ellipse Width="80" Height="80"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 Fill="{Binding Theme.AlbumArtBrush}"/>
 
-                    <!-- Track title overlay (static, sits on the album art) -->
-                    <TextBlock Text="{Binding DeckA.LoadedTrack.Title, FallbackValue=''}"
-                               FontSize="10" FontWeight="Bold"
-                               Foreground="{Binding Theme.TextBright}"
-                               TextAlignment="Center" TextWrapping="Wrap"
-                               MaxWidth="64"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Grid>
+                        <!-- Rotation needle -->
+                        <Border Width="140" Height="140"
+                                RenderTransformOrigin="0.5,0.5"
+                                Background="Transparent">
+                            <Border.RenderTransform>
+                                <RotateTransform Angle="{Binding DeckA.DiscAngle}" CenterX="70" CenterY="70"/>
+                            </Border.RenderTransform>
+                            <Rectangle Width="2" Height="60"
+                                       Fill="{Binding $parent[Window].DataContext.Theme.Mint}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Top"
+                                       Margin="0,10,0,0"/>
+                        </Border>
+
+                        <Ellipse Width="6" Height="6" Fill="{Binding Theme.BgDeep}"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Track title + artist, larger, beside the disc. -->
+                    <StackPanel VerticalAlignment="Center" Spacing="4" MaxWidth="320">
+                        <TextBlock Text="{Binding DeckA.LoadedTrack.Title, FallbackValue=''}"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{Binding Theme.TextBright}"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding DeckA.LoadedTrack.Artist, FallbackValue=''}"
+                                   FontSize="14"
+                                   Foreground="{Binding Theme.TextMuted}"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </StackPanel>
             </Panel>
         </Grid>
 
