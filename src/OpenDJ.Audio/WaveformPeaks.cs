@@ -5,7 +5,7 @@ public sealed record WaveformPeaks(float[] Min, float[] Max, int SamplesPerPeak)
     public static WaveformPeaks Empty { get; } = new([], [], 512);
 
     /// <summary>
-    /// Computes min/max peaks from interleaved float samples using only the left channel.
+    /// Computes min/max peaks from interleaved float samples across all channels.
     /// One peak per <paramref name="samplesPerPeak"/> frames.
     /// </summary>
     public static WaveformPeaks Compute(
