@@ -20,6 +20,8 @@ public partial class App : Application
     private DispatcherTimer? _positionTimer;
     private MainViewModel? _vm;
     private CommunityDjDatabase? _db;
+    // Jog-wheel scrubs are coalesced per frame so we issue one Seek per deck per ~16 ms.
+    private double _pendingJog1, _pendingJog2;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -141,20 +143,27 @@ public partial class App : Application
                         break;
                     case ControllerEvent.JogRotated j:
                     {
-                        // Top platter: fast scrub. Side ring: slow / fine seek.
-                        var deck = vm.DeckFor(j.Deck);
+                        // Accumulate the jog delta; the 60 Hz timer below flushes it
+                        // into a single Seek per frame. Each Seek causes SoundFlow to
+                        // flush its audio buffer; firing one per event (the wheel sends
+                        // ~100/sec) turns into audible glitching.
                         double secsPerTick = j.Source == JogSource.TopPlatter ? 0.05 : 0.005;
-                        deck.Player.SeekRelative(j.Delta * secsPerTick);
+                        if (j.Deck == 0) _pendingJog1 += j.Delta * secsPerTick;
+                        else             _pendingJog2 += j.Delta * secsPerTick;
                         break;
                     }
                 }
             });
         };
 
-        // Position sync only fires when the deck is actually playing
+        // Position sync + flush of pending jog scrubs, both at 60 Hz.
         _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _positionTimer.Tick += (_, _) =>
         {
+            // Coalesce jog ticks since the last frame into one Seek per deck.
+            if (_pendingJog1 != 0) { vm.Deck1.Player.SeekRelative(_pendingJog1); _pendingJog1 = 0; }
+            if (_pendingJog2 != 0) { vm.Deck2.Player.SeekRelative(_pendingJog2); _pendingJog2 = 0; }
+
             // Always sync, even when paused or stopped, so keyboard / FLX-4 scrubs
             // are reflected immediately in the playhead.
             if (vm.Deck1.Player.IsLoaded) vm.Deck1.SyncPlayPosition();

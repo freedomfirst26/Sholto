@@ -38,7 +38,10 @@ public sealed class MidiManager : IDisposable
 
     private void OnRawMidi(byte status, byte data1, byte data2)
     {
-        int channel = status & 0x0F;
+        // We pass the 1-indexed MIDI channel through to mappings so the numbers
+        // line up with what `LogAllMessages` prints (and what users read off the
+        // back of the controller). Wire 0 → channel 1, wire 15 → channel 16.
+        int channel = (status & 0x0F) + 1;
         int type = status & 0xF0;
 
         if (LogAllMessages)
@@ -50,7 +53,7 @@ public sealed class MidiManager : IDisposable
                 0xB0 => "CC",
                 _    => $"0x{type:X2}",
             };
-            Console.WriteLine($"[MIDI raw] ch={channel + 1:00} {kind,-7} key/cc=0x{data1:X2}({data1,3}) val={data2,3}");
+            Console.WriteLine($"[MIDI raw] ch={channel:00} {kind,-7} key/cc=0x{data1:X2}({data1,3}) val={data2,3}");
         }
 
         if (_mapping is null) return;

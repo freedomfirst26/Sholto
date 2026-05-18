@@ -51,12 +51,20 @@ public partial class MainWindow : Window
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainViewModel vm) return;
-
-        // Shift modifier switches all transport keys to Deck 2.
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+
+        switch (e.Key)
+        {
+            // 1 / 2 — load the highlighted track into Deck 1 / Deck 2.
+            case Key.D1: case Key.NumPad1:
+                LoadSelectedInto(vm, 0); e.Handled = true; return;
+            case Key.D2: case Key.NumPad2:
+                LoadSelectedInto(vm, 1); e.Handled = true; return;
+        }
+
+        // Transport keys — Shift switches to Deck 2.
         var deck = shift ? vm.Deck2 : vm.Deck1;
         if (!deck.Player.IsLoaded) return;
-
         switch (e.Key)
         {
             case Key.Space:
@@ -74,25 +82,27 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnTrackSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private static async void LoadSelectedInto(MainViewModel vm, int deckIndex)
     {
-        if (e.AddedItems is null || e.AddedItems.Count == 0) return;
-        if (e.AddedItems[0] is not TrackRow row) return;
-        var track = row.Track;
-        if (DataContext is not MainViewModel vm) return;
-
-        Console.WriteLine($"[Track] selected {track.Title}");
+        var track = vm.SelectedTrack;
+        if (track is null) return;
         try
         {
             var samples = await Task.Run(() => AudioFileDecoder.Decode(track.FilePath));
-            Console.WriteLine($"[Track] decoded {samples.Length} samples");
-            vm.Deck1.LoadTrack(track, track.FilePath, samples);
-            // Load only — user explicitly starts playback (Space, FLX-4 play, etc.)
+            vm.DeckFor(deckIndex).LoadTrack(track, track.FilePath, samples);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Track] FAILED: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"[Track] load into deck {deckIndex + 1} FAILED: {ex.Message}");
         }
+    }
+
+    private void OnTrackSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        // Selection only — no automatic load. User presses 1/2 (or FLX-4 LOAD 1/2)
+        // to put the highlighted track on a deck.
+        if (e.AddedItems is { Count: > 0 } && e.AddedItems[0] is TrackRow row)
+            Console.WriteLine($"[Track] selected {row.Title}");
     }
 
     private async void OnOutputDeviceClick(object? sender, RoutedEventArgs e)

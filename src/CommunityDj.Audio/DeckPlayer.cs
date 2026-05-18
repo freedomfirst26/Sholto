@@ -172,15 +172,14 @@ public sealed class DeckPlayer
     }
 
     /// <summary>Seek relative to current position by +/- seconds, clamped to track bounds.
-    /// Works whether the deck is playing, paused, or finished — reads our own
-    /// drift-free position rather than SoundPlayer.Time (which converts using the
-    /// engine rate, not the source rate).</summary>
+    /// Works whether the deck is playing, paused, or finished.
+    /// Uses SoundPlayer.Time / Duration for the math because SoundPlayer.Seek interprets
+    /// its TimeSpan in the same internal time domain — mixing in our drift-free
+    /// PositionFrames here would over-seek by the engine/source sample-rate ratio.</summary>
     public void SeekRelative(double seconds)
     {
-        if (_player is null || _sampleCount == 0) return;
-        double currentSecs = PositionFrames / (double)_sampleRate;
-        double totalSecs   = _sampleCount   / (double)_sampleRate;
-        double target = Math.Clamp(currentSecs + seconds, 0.0, totalSecs);
+        if (_player is null) return;
+        double target = Math.Clamp(_player.Time + seconds, 0.0, _player.Duration);
         _player.Seek(TimeSpan.FromSeconds(target));
     }
 }
