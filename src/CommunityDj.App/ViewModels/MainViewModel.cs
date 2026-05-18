@@ -145,45 +145,33 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// <summary>Wall-clock of last jog tick — used to detect "user let go" for quantize.</summary>
     public DateTime LastJogAt { get; set; } = DateTime.MinValue;
 
-    // Quantize lifecycle: arm when the magnets touch (factor ≈ 1), fire once the user
-    // stops jogging while still touching, then disarm until they drop out and re-approach.
-    private bool _quantizePrimed;   // magnets reached touching this engagement
-    private bool _quantizeFired;    // already snapped this engagement
-    // Visible "touching" corresponds to misalign ≈ window·(1 - t) with smoothstep —
-    // 0.85 ⇒ misalign ≈ 40ms, which is what the eye reads as "the greens met up".
-    private const double TouchingThreshold = 0.85;
-    private const double DisengageThreshold = 0.35;
+    // Quantize state: cleared when decks separate, set once they snap.
+    private bool _quantizeFired;
+    private const double EngageThreshold = 0.3;     // same as glow threshold — see one, fire one
+    private const double DisengageThreshold = 0.15; // hysteresis to avoid re-fire chatter
     private static readonly TimeSpan JogIdleForQuantize = TimeSpan.FromMilliseconds(180);
 
     /// <summary>Push current magnetism state into each deck's MagneticGlowSec for the UI.
-    /// Also runs the touch → release → quantize state machine.</summary>
+    /// Also runs the engaged → release → quantize state machine.</summary>
     public void UpdateMagnetism()
     {
         double f = MagnetismFactor;
 
-        // Reset the engagement once the user has clearly moved away.
         if (f < DisengageThreshold)
-        {
-            _quantizePrimed = false;
-            _quantizeFired  = false;
-        }
-        else if (f >= TouchingThreshold)
-        {
-            _quantizePrimed = true;  // they touched
-        }
+            _quantizeFired = false;  // user pulled them apart; re-arm
 
-        // Fire once: primed + user let go (no jog input for a beat) + still close enough.
-        if (_quantizePrimed && !_quantizeFired
-            && (DateTime.UtcNow - LastJogAt) > JogIdleForQuantize
-            && f > DisengageThreshold)
+        // Fire once: greens visible + user let go of the jog for a beat.
+        if (!_quantizeFired
+            && f >= EngageThreshold
+            && (DateTime.UtcNow - LastJogAt) > JogIdleForQuantize)
         {
             Quantize();
             _quantizeFired = true;
         }
 
-        // Green stripes are the "still snapping" indicator. After we've quantized this
-        // engagement the user has explicitly said "leave them alone" — kill the glow.
-        bool active = f > 0.3 && !_quantizeFired;
+        // Show greens whenever engaged AND we haven't snapped yet. Once snapped, the
+        // visuals collapse — that's the "locked, hands off" signal.
+        bool active = f >= EngageThreshold && !_quantizeFired;
         Deck1.MagneticGlowSec = active ? Deck1.NearestDownbeatSec() : -1;
         Deck2.MagneticGlowSec = active ? Deck2.NearestDownbeatSec() : -1;
     }
