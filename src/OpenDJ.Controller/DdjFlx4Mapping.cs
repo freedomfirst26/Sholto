@@ -16,11 +16,27 @@ public static class DdjFlx4Mapping
 
     public static ControllerEvent? Translate(ControlChangeMessage msg)
     {
+        // Browse rotary (mixer channel 11, CC 0x40).
         if (msg.Channel == Channel.Channel11 && msg.Control == 0x40)
         {
             int delta = msg.Value > 64 ? 1 : -1;
             return new ControllerEvent.BrowseRotated(delta);
         }
+
+        // Jog wheel rotation (free-spin, not touching the platter).
+        // FLX-4 sends CC 0x22 on the deck channel; value is centered at 0x40.
+        if (msg.Control == 0x22)
+        {
+            int deck = msg.Channel == Channel.Channel1 ? 0
+                     : msg.Channel == Channel.Channel2 ? 1
+                     : -1;
+            if (deck >= 0)
+            {
+                int delta = msg.Value - 64;
+                if (delta != 0) return new ControllerEvent.JogRotated(deck, delta);
+            }
+        }
+
         return null;
     }
 }

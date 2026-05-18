@@ -11,8 +11,8 @@
             <MenuItem Header="Settings">
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
                 <MenuItem Header="Waveform colors">
-                    <MenuItem Header="3-Band (blue / orange / white)" Click="OnPaletteBands"/>
-                    <MenuItem Header="Hot (pink / yellow / cyan)" Click="OnPaletteHot"/>
+                    <MenuItem Header="Rekordbox (blue / white / yellow)" Click="OnPaletteBands"/>
+                    <MenuItem Header="Serato (red / green / blue)" Click="OnPaletteHot"/>
                 </MenuItem>
             </MenuItem>
         </Menu>
@@ -58,7 +58,8 @@
             </Grid>
 
             <controls:WaveformControl Grid.Row="1"
-                                      Peaks="{Binding DeckA.Peaks}"
+                                      Peaks="{Binding DeckA.Analysis.Basic.Peaks}"
+                                      BeatTimes="{Binding DeckA.Analysis.Basic.BeatTimes}"
                                       PlayPosition="{Binding DeckA.PlayPosition}"
                                       Palette="{Binding WaveformPalette}"/>
         </Grid>

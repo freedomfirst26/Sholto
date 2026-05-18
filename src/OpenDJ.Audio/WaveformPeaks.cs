@@ -1,8 +1,8 @@
 namespace OpenDJ.Audio;
 
 /// <summary>
-/// Pre-computed waveform peaks for rendering.
-/// Min/Max give the outline; Low/Mid/High give per-band energy [0..1] for Rekordbox-style color rendering.
+/// Pre-computed waveform peaks for rendering. Pure visual data — one column per peak.
+/// Min/Max give the outline; Low/Mid/High give per-band energy [0..1] for color rendering.
 /// </summary>
 public sealed record WaveformPeaks(
     float[] Min,
@@ -10,23 +10,21 @@ public sealed record WaveformPeaks(
     float[] Low,
     float[] Mid,
     float[] High,
-    int SamplesPerPeak,
-    double Bpm,
-    double[] BeatTimes)
+    int SamplesPerPeak)
 {
-    public static WaveformPeaks Empty { get; } = new([], [], [], [], [], 512, 0.0, []);
+    public static WaveformPeaks Empty { get; } = new([], [], [], [], [], 512);
 
     /// <summary>
-    /// Computes min/max + per-band peak amplitudes from interleaved float samples.
-    /// Band split: low &lt; ~250 Hz, mid 250–4000 Hz, high &gt; ~4000 Hz, via 2-pole biquads.
+    /// Computes min/max + per-band peak amplitudes from interleaved float samples,
+    /// and the kick-band onset envelope (caller can use it for tempo estimation).
     /// </summary>
-    public static WaveformPeaks Compute(
+    internal static (WaveformPeaks Peaks, float[] KickEnvelope, int OnsetHopSamples) ComputeWithOnsets(
         float[] samples,
         int channels,
-        int sampleRate = 44100,
+        int sampleRate,
         int samplesPerPeak = 1024)
     {
-        if (samples.Length == 0) return Empty;
+        if (samples.Length == 0) return (Empty, [], sampleRate / 100);
 
         int frameCount = samples.Length / channels;
         int peakCount = (frameCount + samplesPerPeak - 1) / samplesPerPeak;
@@ -102,9 +100,8 @@ public sealed record WaveformPeaks(
         Normalize(midOut);
         Normalize(highOut);
 
-        var (bpm, beats) = EstimateTempo(lowEnv, onsetHop, sampleRate);
-
-        return new WaveformPeaks(min, max, lowOut, midOut, highOut, samplesPerPeak, bpm, beats);
+        var peaks = new WaveformPeaks(min, max, lowOut, midOut, highOut, samplesPerPeak);
+        return (peaks, lowEnv, onsetHop);
     }
 
     /// <summary>(2*radius + 1)-tap box smoothing in place.</summary>
@@ -130,7 +127,7 @@ public sealed record WaveformPeaks(
     /// Autocorrelate the half-wave-rectified derivative of the kick-band envelope
     /// to find the dominant tempo, then mark beats from the first downbeat.
     /// </summary>
-    private static (double Bpm, double[] BeatTimes) EstimateTempo(
+    internal static (double Bpm, double[] BeatTimes) EstimateTempo(
         float[] env, int hopSamples, int sampleRate)
     {
         int n = env.Length;

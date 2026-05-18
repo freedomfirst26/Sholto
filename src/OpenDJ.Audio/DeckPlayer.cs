@@ -1,3 +1,4 @@
+using OpenDJ.Audio.Analysis;
 using SoundFlow.Abstracts;
 using SoundFlow.Components;
 using SoundFlow.Enums;
@@ -20,7 +21,7 @@ public sealed class DeckPlayer
     private int _sampleRate = 48000;
     private long _sampleCount;
 
-    public WaveformPeaks Peaks { get; private set; } = WaveformPeaks.Empty;
+    public TrackAnalysis Analysis { get; private set; } = new();
 
     public bool IsLoaded => _player is not null;
     public bool IsPlaying => _player?.State == PlaybackState.Playing;
@@ -55,7 +56,8 @@ public sealed class DeckPlayer
         if (_engine is null || _deckMixer is null)
             throw new InvalidOperationException("AttachEngine must be called first.");
 
-        Peaks = WaveformPeaks.Compute(stereoSamples, channels: 2, sampleRate: sampleRate);
+        Analysis = new TrackAnalysis();
+        Analysis.Set(BasicAnalysis.Compute(stereoSamples, channels: 2, sampleRate: sampleRate));
         _sampleRate = sampleRate;
         _sampleCount = stereoSamples.Length / 2;
 

@@ -74,6 +74,10 @@ public partial class App : Application
                     case ControllerEvent.PlayPressed p:
                         vm.OnPlayPressed(p.Deck);
                         break;
+                    case ControllerEvent.JogRotated j:
+                        // ~50 ms per jog tick — comfortable scrub speed.
+                        if (j.Deck == 0) vm.DeckA.Player.SeekRelative(j.Delta * 0.05);
+                        break;
                 }
             });
         };

@@ -5,6 +5,7 @@ using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Avalonia.Threading;
 using OpenDJ.Audio;
+using OpenDJ.Audio.Analysis;
 using SkiaSharp;
 
 namespace OpenDJ.App.Controls;
@@ -24,6 +25,9 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<WaveformPeaks?> PeaksProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(Peaks));
 
+    public static readonly StyledProperty<double[]?> BeatTimesProperty =
+        AvaloniaProperty.Register<WaveformControl, double[]?>(nameof(BeatTimes));
+
     public static readonly StyledProperty<double> PlayPositionProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(PlayPosition));
 
@@ -39,6 +43,7 @@ public sealed class WaveformControl : Control
     {
         AffectsRender<WaveformControl>(PlayPositionProperty);
         PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+        BeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         PaletteProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
     }
 
@@ -46,6 +51,12 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(PeaksProperty);
         set => SetValue(PeaksProperty, value);
+    }
+
+    public double[]? BeatTimes
+    {
+        get => GetValue(BeatTimesProperty);
+        set => SetValue(BeatTimesProperty, value);
     }
 
     public double PlayPosition
@@ -76,9 +87,10 @@ public sealed class WaveformControl : Control
         _bakeCts = cts;
         var snapshot = peaks;
         var palette = Palette;
+        var beats = BeatTimes ?? [];
         Task.Run(() =>
         {
-            var img = BakeWaveform(snapshot, palette, cts.Token);
+            var img = BakeWaveform(snapshot, beats, palette, cts.Token);
             if (cts.IsCancellationRequested || img is null) { img?.Dispose(); return; }
             Dispatcher.UIThread.Post(() =>
             {
@@ -91,7 +103,7 @@ public sealed class WaveformControl : Control
         });
     }
 
-    private static SKImage? BakeWaveform(WaveformPeaks peaks, WaveformPalette palette, CancellationToken ct)
+    private static SKImage? BakeWaveform(WaveformPeaks peaks, double[] beatTimes, WaveformPalette palette, CancellationToken ct)
     {
         int width = peaks.Min.Length;
         if (width == 0) return null;
@@ -103,10 +115,12 @@ public sealed class WaveformControl : Control
         var canvas = surface.Canvas;
         canvas.Clear(BgColor);
 
+        // Bands: authentic Rekordbox color waveform — blue lows, white mids, yellow highs.
+        // Hot: Serato-style RGB — red lows, green mids, blue highs.
         var (lowColor, midColor, highColor) = palette switch
         {
-            WaveformPalette.Hot => (new SKColor(0xFF, 0x3D, 0x8B), new SKColor(0xFF, 0xD9, 0x3D), new SKColor(0x3D, 0xFF, 0xE1)),
-            _                   => (new SKColor(0x3D, 0xB7, 0xFF), new SKColor(0xFF, 0x8C, 0x2A), new SKColor(0xFF, 0xFF, 0xFF)),
+            WaveformPalette.Hot => (new SKColor(0xFF, 0x3D, 0x3D), new SKColor(0x3D, 0xFF, 0x7A), new SKColor(0x3D, 0x8B, 0xFF)),
+            _                   => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
         };
         using var lowPaint  = new SKPaint { Color = lowColor, StrokeWidth = 1, IsAntialias = false };
         using var midPaint  = new SKPaint { Color = midColor, StrokeWidth = 1, IsAntialias = false };
@@ -153,14 +167,14 @@ public sealed class WaveformControl : Control
 
         // Beat ticks at the top edge. Time → pixel-column using the same
         // peak-frame cadence we baked into the image.
-        if (peaks.BeatTimes.Length > 0)
+        if (beatTimes.Length > 0)
         {
             using var tickPaint     = new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xC0), StrokeWidth = 1, IsAntialias = false };
             using var downbeatPaint = new SKPaint { Color = new SKColor(0xFF, 0xCC, 0x00), StrokeWidth = 2, IsAntialias = false };
             double secondsPerPeak = peaks.SamplesPerPeak / 44100.0;
-            for (int i = 0; i < peaks.BeatTimes.Length; i++)
+            for (int i = 0; i < beatTimes.Length; i++)
             {
-                int col = (int)Math.Round(peaks.BeatTimes[i] / secondsPerPeak);
+                int col = (int)Math.Round(beatTimes[i] / secondsPerPeak);
                 if (col < 0 || col >= width) continue;
                 bool downbeat = (i % 4) == 0;
                 int tickH = downbeat ? 10 : 5;

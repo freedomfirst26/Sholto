@@ -12,7 +12,12 @@ public sealed class MidiManager : IDisposable
 
     public bool Connect()
     {
-        foreach (var info in MidiDeviceManager.Default.InputDevices)
+        var inputs = MidiDeviceManager.Default.InputDevices.ToList();
+        Console.WriteLine($"[MIDI] {inputs.Count} input device(s) visible to RtMidi:");
+        foreach (var info in inputs)
+            Console.WriteLine($"[MIDI]   - '{info.Name}'");
+
+        foreach (var info in inputs)
         {
             if (!info.Name.Contains("DDJ-FLX4", StringComparison.OrdinalIgnoreCase))
                 continue;
@@ -21,6 +26,7 @@ public sealed class MidiManager : IDisposable
             _device.NoteOn += OnNoteOn;
             _device.ControlChange += OnControlChange;
             _device.Open();
+            Console.WriteLine($"[MIDI] connected to '{info.Name}'");
             return true;
         }
         return false;

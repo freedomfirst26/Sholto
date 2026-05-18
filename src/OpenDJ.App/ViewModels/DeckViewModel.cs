@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using OpenDJ.Audio;
+using OpenDJ.Audio.Analysis;
 using OpenDJ.Library;
 
 namespace OpenDJ.App.ViewModels;
@@ -39,10 +40,11 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         set { _playPosition = value; Notify(); }
     }
 
-    public WaveformPeaks Peaks => _player.Peaks;
+    public TrackAnalysis Analysis => _player.Analysis;
+    public WaveformPeaks Peaks => Analysis.Basic?.Peaks ?? WaveformPeaks.Empty;
 
     public string BpmDisplay =>
-        _player.Peaks.Bpm > 0 ? $"{_player.Peaks.Bpm:F1} BPM" : "";
+        Analysis.Basic is { Bpm: > 0 } b ? $"{b.Bpm:F1} BPM" : "";
 
     public void LoadTrack(Track track, float[] samples)
     {
@@ -50,6 +52,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         LoadedTrack = track;
         IsPlaying = false;
         PlayPosition = 0;
+        Notify(nameof(Analysis));
         Notify(nameof(Peaks));
         Notify(nameof(BpmDisplay));
     }
