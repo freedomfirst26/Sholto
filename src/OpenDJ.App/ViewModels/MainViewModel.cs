@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using OpenDJ.App.Controls;
 using OpenDJ.Audio;
 using OpenDJ.Library;
 
@@ -9,12 +10,19 @@ namespace OpenDJ.App.ViewModels;
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     private int _selectedTrackIndex = -1;
+    private WaveformPalette _waveformPalette = WaveformPalette.Bands;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<Track> Tracks { get; } = [];
 
     public DeckViewModel DeckA { get; } = new DeckViewModel(new DeckPlayer());
+
+    public WaveformPalette WaveformPalette
+    {
+        get => _waveformPalette;
+        set { if (_waveformPalette == value) return; _waveformPalette = value; Notify(); }
+    }
 
     public int SelectedTrackIndex
     {

@@ -3,22 +3,43 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
+using Avalonia.Threading;
 using OpenDJ.Audio;
 using SkiaSharp;
 
 namespace OpenDJ.App.Controls;
 
+public enum WaveformPalette { Bands, Hot }
+
+/// <summary>
+/// Pre-renders the entire waveform to an offscreen SKImage at track load,
+/// then blits a window per frame. One textured rectangle per frame instead of
+/// thousands of DrawLine calls.
+/// </summary>
 public sealed class WaveformControl : Control
 {
+    private const int BakedHeight = 256;
+    private static readonly SKColor BgColor = new(0x11, 0x11, 0x11);
+
     public static readonly StyledProperty<WaveformPeaks?> PeaksProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(Peaks));
 
     public static readonly StyledProperty<double> PlayPositionProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(PlayPosition));
 
+    public static readonly StyledProperty<WaveformPalette> PaletteProperty =
+        AvaloniaProperty.Register<WaveformControl, WaveformPalette>(nameof(Palette), WaveformPalette.Bands);
+
+    private SKImage? _baked;
+    private WaveformPeaks? _bakedFor;
+    private WaveformPalette _bakedPalette;
+    private CancellationTokenSource? _bakeCts;
+
     static WaveformControl()
     {
-        AffectsRender<WaveformControl>(PeaksProperty, PlayPositionProperty);
+        AffectsRender<WaveformControl>(PlayPositionProperty);
+        PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+        PaletteProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
     }
 
     public WaveformPeaks? Peaks
@@ -33,19 +54,138 @@ public sealed class WaveformControl : Control
         set => SetValue(PlayPositionProperty, value);
     }
 
-    public override void Render(DrawingContext context)
+    public WaveformPalette Palette
     {
-        context.Custom(new WaveformDrawOperation(new Rect(Bounds.Size), Peaks, PlayPosition));
+        get => GetValue(PaletteProperty);
+        set => SetValue(PaletteProperty, value);
     }
 
-    private sealed class WaveformDrawOperation : ICustomDrawOperation
+    private void Rebake()
     {
+        var peaks = Peaks;
+        _bakeCts?.Cancel();
+        if (peaks is null || peaks.Min.Length == 0)
+        {
+            _baked = null;
+            _bakedFor = null;
+            InvalidateVisual();
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _bakeCts = cts;
+        var snapshot = peaks;
+        var palette = Palette;
+        Task.Run(() =>
+        {
+            var img = BakeWaveform(snapshot, palette, cts.Token);
+            if (cts.IsCancellationRequested || img is null) { img?.Dispose(); return; }
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (cts.IsCancellationRequested) { img.Dispose(); return; }
+                _baked = img;
+                _bakedFor = snapshot;
+                _bakedPalette = palette;
+                InvalidateVisual();
+            });
+        });
+    }
+
+    private static SKImage? BakeWaveform(WaveformPeaks peaks, WaveformPalette palette, CancellationToken ct)
+    {
+        int width = peaks.Min.Length;
+        if (width == 0) return null;
+        int height = BakedHeight;
+        float midY = height / 2f;
+
+        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Clear(BgColor);
+
+        var (lowColor, midColor, highColor) = palette switch
+        {
+            WaveformPalette.Hot => (new SKColor(0xFF, 0x3D, 0x8B), new SKColor(0xFF, 0xD9, 0x3D), new SKColor(0x3D, 0xFF, 0xE1)),
+            _                   => (new SKColor(0x3D, 0xB7, 0xFF), new SKColor(0xFF, 0x8C, 0x2A), new SKColor(0xFF, 0xFF, 0xFF)),
+        };
+        using var lowPaint  = new SKPaint { Color = lowColor, StrokeWidth = 1, IsAntialias = false };
+        using var midPaint  = new SKPaint { Color = midColor, StrokeWidth = 1, IsAntialias = false };
+        using var highPaint = new SKPaint { Color = highColor, StrokeWidth = 1, IsAntialias = false };
+
+        bool hasBands = peaks.Low.Length == width;
+
+        for (int x = 0; x < width; x++)
+        {
+            if (ct.IsCancellationRequested) return null;
+
+            float amp = MathF.Max(MathF.Abs(peaks.Max[x]), MathF.Abs(peaks.Min[x]));
+            float barHeight = amp * midY;
+            if (barHeight < 1f) continue;
+
+            if (!hasBands)
+            {
+                canvas.DrawLine(x, midY - barHeight, x, midY + barHeight, lowPaint);
+                continue;
+            }
+
+            float l = peaks.Low[x];
+            float m = peaks.Mid[x];
+            float h = peaks.High[x];
+            float sum = l + m + h;
+            if (sum <= 1e-5f) continue;
+
+            float hSeg = barHeight * (h / sum);
+            float mSeg = barHeight * (m / sum);
+            float lSeg = barHeight - hSeg - mSeg;
+
+            float lowEdge  = lSeg;
+            float midEdge  = lowEdge + mSeg;
+            float highEdge = midEdge + hSeg;
+
+            canvas.DrawLine(x, midY,           x, midY + lowEdge,  lowPaint);
+            canvas.DrawLine(x, midY + lowEdge, x, midY + midEdge,  midPaint);
+            canvas.DrawLine(x, midY + midEdge, x, midY + highEdge, highPaint);
+
+            canvas.DrawLine(x, midY,           x, midY - lowEdge,  lowPaint);
+            canvas.DrawLine(x, midY - lowEdge, x, midY - midEdge,  midPaint);
+            canvas.DrawLine(x, midY - midEdge, x, midY - highEdge, highPaint);
+        }
+
+        // Beat ticks at the top edge. Time → pixel-column using the same
+        // peak-frame cadence we baked into the image.
+        if (peaks.BeatTimes.Length > 0)
+        {
+            using var tickPaint     = new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xC0), StrokeWidth = 1, IsAntialias = false };
+            using var downbeatPaint = new SKPaint { Color = new SKColor(0xFF, 0xCC, 0x00), StrokeWidth = 2, IsAntialias = false };
+            double secondsPerPeak = peaks.SamplesPerPeak / 44100.0;
+            for (int i = 0; i < peaks.BeatTimes.Length; i++)
+            {
+                int col = (int)Math.Round(peaks.BeatTimes[i] / secondsPerPeak);
+                if (col < 0 || col >= width) continue;
+                bool downbeat = (i % 4) == 0;
+                int tickH = downbeat ? 10 : 5;
+                canvas.DrawLine(col, 0, col, tickH, downbeat ? downbeatPaint : tickPaint);
+            }
+        }
+
+        return surface.Snapshot();
+    }
+
+    public override void Render(DrawingContext context)
+    {
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition));
+    }
+
+    private sealed class BlitOperation : ICustomDrawOperation
+    {
+        private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
         private readonly double _playPosition;
 
-        public WaveformDrawOperation(Rect bounds, WaveformPeaks? peaks, double playPosition)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition)
         {
             Bounds = bounds;
+            _image = image;
             _peaks = peaks;
             _playPosition = playPosition;
         }
@@ -59,48 +199,40 @@ public sealed class WaveformControl : Control
         {
             var leaseFeature = (ISkiaSharpApiLeaseFeature?)context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature));
             if (leaseFeature is null) return;
-
             using var lease = leaseFeature.Lease();
             var canvas = lease.SkCanvas;
-            int width = (int)Bounds.Width;
-            int height = (int)Bounds.Height;
 
-            canvas.Clear(new SKColor(0x11, 0x11, 0x11));
+            int dstW = (int)Bounds.Width;
+            int dstH = (int)Bounds.Height;
+            canvas.Clear(BgColor);
 
-            var peaks = _peaks;
-            if (peaks is null || peaks.Min.Length == 0) return;
-
-            int totalPeaks = peaks.Min.Length;
-            int centerPeak = (int)(_playPosition * totalPeaks);
-            int half = width / 2;
-            float midY = height / 2f;
-
-            using var playedPaint = new SKPaint
+            if (_image is not null && _peaks is not null && _peaks.Min.Length > 0)
             {
-                Color = new SKColor(0x00, 0xFF, 0xCC, 0xCC),
-                StrokeWidth = 1,
-                IsAntialias = false
-            };
-            using var unplayedPaint = new SKPaint
-            {
-                Color = new SKColor(0x00, 0x88, 0x66, 0xCC),
-                StrokeWidth = 1,
-                IsAntialias = false
-            };
+                int totalPeaks = _peaks.Min.Length;
+                float centerPeak = (float)(_playPosition * totalPeaks); // keep sub-pixel precision
+                float half = dstW / 2f;
 
-            for (int x = 0; x < width; x++)
-            {
-                int peakIdx = centerPeak - half + x;
-                if (peakIdx < 0 || peakIdx >= totalPeaks) continue;
+                float srcXStart = centerPeak - half;
+                float srcXEnd   = centerPeak + half;
 
-                float top    = midY - (peaks.Max[peakIdx] * midY);
-                float bottom = midY - (peaks.Min[peakIdx] * midY);
-                var paint = peakIdx < centerPeak ? playedPaint : unplayedPaint;
-                canvas.DrawLine(x, top, x, bottom, paint);
+                float clipLeft  = srcXStart < 0 ? -srcXStart : 0;
+                float clipRight = srcXEnd > totalPeaks ? srcXEnd - totalPeaks : 0;
+
+                float validSrcW = (srcXEnd - srcXStart) - clipLeft - clipRight;
+                if (validSrcW > 0)
+                {
+                    var src = new SKRect(srcXStart + clipLeft, 0, srcXEnd - clipRight, _image.Height);
+                    var dst = new SKRect(clipLeft, 0, dstW - clipRight, dstH);
+                    // Bilinear filtering — smooths the sub-pixel scroll between
+                    // columns each frame so the waveform glides instead of stepping.
+                    using var paint = new SKPaint { FilterQuality = SKFilterQuality.Low };
+                    canvas.DrawImage(_image, src, dst, paint);
+                }
             }
 
             using var headPaint = new SKPaint { Color = SKColors.White, StrokeWidth = 2 };
-            canvas.DrawLine(half, 0, half, height, headPaint);
+            int halfX = dstW / 2;
+            canvas.DrawLine(halfX, 0, halfX, dstH, headPaint);
         }
     }
 }

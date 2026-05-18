@@ -10,6 +10,10 @@
         <Menu DockPanel.Dock="Top" Background="#222222">
             <MenuItem Header="Settings">
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
+                <MenuItem Header="Waveform colors">
+                    <MenuItem Header="3-Band (blue / orange / white)" Click="OnPaletteBands"/>
+                    <MenuItem Header="Hot (pink / yellow / cyan)" Click="OnPaletteHot"/>
+                </MenuItem>
             </MenuItem>
         </Menu>
 
@@ -40,18 +44,23 @@
         <!-- Deck A -->
         <Grid Grid.Row="1" Background="#2A2A2A" RowDefinitions="48,*">
 
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="12,0">
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" Margin="12,0">
                 <TextBlock Grid.Column="0" Text="DECK A" Foreground="#00FFCC"
                            FontWeight="Bold" FontSize="14"
                            VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1"
+                           Text="{Binding DeckA.BpmDisplay}"
+                           Foreground="#FFCC00" FontWeight="Bold" FontSize="14"
+                           VerticalAlignment="Center" Margin="16,0,0,0"/>
+                <TextBlock Grid.Column="2"
                            Text="{Binding DeckA.LoadedTrack.Title, FallbackValue='click a track to play'}"
                            Foreground="#CCCCCC" VerticalAlignment="Center" Margin="16,0"/>
             </Grid>
 
             <controls:WaveformControl Grid.Row="1"
                                       Peaks="{Binding DeckA.Peaks}"
-                                      PlayPosition="{Binding DeckA.PlayPosition}"/>
+                                      PlayPosition="{Binding DeckA.PlayPosition}"
+                                      Palette="{Binding WaveformPalette}"/>
         </Grid>
 
     </Grid>

@@ -41,6 +41,9 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     public WaveformPeaks Peaks => _player.Peaks;
 
+    public string BpmDisplay =>
+        _player.Peaks.Bpm > 0 ? $"{_player.Peaks.Bpm:F1} BPM" : "";
+
     public void LoadTrack(Track track, float[] samples)
     {
         _player.Load(samples, sampleRate: 44100);
@@ -48,6 +51,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         IsPlaying = false;
         PlayPosition = 0;
         Notify(nameof(Peaks));
+        Notify(nameof(BpmDisplay));
     }
 
     public void TogglePlay()

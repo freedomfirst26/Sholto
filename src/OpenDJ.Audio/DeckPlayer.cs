@@ -25,8 +25,11 @@ public sealed class DeckPlayer
     public bool IsLoaded => _player is not null;
     public bool IsPlaying => _player?.State == PlaybackState.Playing;
 
+    // Read provider.Position (raw samples consumed) directly — SoundPlayer.Time
+    // converts using the engine sample rate, which drifts when the source rate
+    // (44.1 kHz) differs from the engine rate (48 kHz).
     public long PositionFrames =>
-        _player is null ? 0 : (long)(_player.Time * _sampleRate);
+        _player is null ? 0 : _player.DataProvider.Position / 2;
 
     public double PlayPosition
     {
@@ -52,7 +55,7 @@ public sealed class DeckPlayer
         if (_engine is null || _deckMixer is null)
             throw new InvalidOperationException("AttachEngine must be called first.");
 
-        Peaks = WaveformPeaks.Compute(stereoSamples, channels: 2);
+        Peaks = WaveformPeaks.Compute(stereoSamples, channels: 2, sampleRate: sampleRate);
         _sampleRate = sampleRate;
         _sampleCount = stereoSamples.Length / 2;
 
@@ -98,5 +101,13 @@ public sealed class DeckPlayer
         if (_player.State == PlaybackState.Playing) _player.Pause();
         else _player.Play();
         Console.WriteLine($"[DeckPlayer] TogglePlay → state={_player.State}");
+    }
+
+    /// <summary>Seek relative to current position by +/- seconds, clamped to track bounds.</summary>
+    public void SeekRelative(double seconds)
+    {
+        if (_player is null) return;
+        double target = Math.Clamp(_player.Time + seconds, 0.0, _player.Duration);
+        _player.Seek(TimeSpan.FromSeconds(target));
     }
 }
