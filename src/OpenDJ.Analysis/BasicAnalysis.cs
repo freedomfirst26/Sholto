@@ -1,4 +1,4 @@
-namespace OpenDJ.Audio.Analysis;
+namespace OpenDJ.Analysis;
 
 /// <summary>
 /// First-pass track analysis: waveform peaks (with per-band amplitudes), BPM,

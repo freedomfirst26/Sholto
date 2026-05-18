@@ -1,4 +1,4 @@
-namespace OpenDJ.Audio.Analysis;
+namespace OpenDJ.Analysis;
 
 /// <summary>
 /// In-process Ellis 2007 beat tracker: onset envelope → autocorrelation → DP.

@@ -15,9 +15,26 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public ObservableCollection<Track> Tracks { get; } = [];
+    public ObservableCollection<TrackRow> Tracks { get; } = [];
 
-    public DeckViewModel DeckA { get; } = new DeckViewModel(new DeckPlayer());
+    public DeckViewModel DeckA { get; }
+
+    public MainViewModel()
+    {
+        DeckA = new DeckViewModel(new DeckPlayer());
+        DeckA.Player.AnalysisUpdated += () =>
+        {
+            // Push the freshly-computed BPM back into the matching row so the list uplifts.
+            var path = DeckA.LoadedTrack?.FilePath;
+            var bpm = DeckA.Analysis.Basic?.Bpm;
+            if (path is null || bpm is null) return;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                foreach (var row in Tracks)
+                    if (row.FilePath == path) row.Bpm = bpm;
+            });
+        };
+    }
 
     public OpenDjTheme Theme
     {
@@ -31,7 +48,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Convenience: the waveform palette that belongs to the current theme.</summary>
     public WaveformPalette WaveformPalette => _theme.WaveformPalette;
 
     public int SelectedTrackIndex
@@ -42,7 +58,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public Track? SelectedTrack =>
         SelectedTrackIndex >= 0 && SelectedTrackIndex < Tracks.Count
-            ? Tracks[SelectedTrackIndex]
+            ? Tracks[SelectedTrackIndex].Track
             : null;
 
     public void SelectTrack(int index)
@@ -68,6 +84,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public void OnPlayPressed(int deck)
     {
         if (deck == 0) DeckA.TogglePlay();
+    }
+
+    /// <summary>Apply a batch of cached BPMs (from the DB on startup) to whatever rows are loaded.</summary>
+    public void SetKnownBpms(IReadOnlyDictionary<string, double> bpms)
+    {
+        foreach (var row in Tracks)
+            if (bpms.TryGetValue(row.FilePath, out var bpm)) row.Bpm = bpm;
     }
 
     private void Notify([CallerMemberName] string? name = null) =>

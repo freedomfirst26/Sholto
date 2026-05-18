@@ -1,4 +1,4 @@
-namespace OpenDJ.Audio;
+namespace OpenDJ.Analysis;
 
 /// <summary>
 /// Pre-computed waveform peaks for rendering. Pure visual data — one column per peak.
@@ -13,6 +13,12 @@ public sealed record WaveformPeaks(
     int SamplesPerPeak)
 {
     public static WaveformPeaks Empty { get; } = new([], [], [], [], [], 512);
+
+    /// <summary>Convenience: just the peaks, no onset envelope. Used by tests + callers
+    /// that don't need beat analysis.</summary>
+    public static WaveformPeaks Compute(
+        float[] samples, int channels, int sampleRate = 44100, int samplesPerPeak = 1024)
+        => ComputeWithOnsets(samples, channels, sampleRate, samplesPerPeak).Peaks;
 
     /// <summary>
     /// Computes min/max + per-band peak amplitudes from interleaved float samples,

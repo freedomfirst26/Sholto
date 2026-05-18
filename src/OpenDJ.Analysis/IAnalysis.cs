@@ -1,4 +1,4 @@
-namespace OpenDJ.Audio.Analysis;
+namespace OpenDJ.Analysis;
 
 /// <summary>
 /// Marker interface for a single piece of track analysis (waveform, BPM, key, energy, …).

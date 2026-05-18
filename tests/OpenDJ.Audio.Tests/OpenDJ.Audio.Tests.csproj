@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OpenDJ.Audio\OpenDJ.Audio.csproj" />
+    <ProjectReference Include="..\..\src\OpenDJ.Analysis\OpenDJ.Analysis.csproj" />
   </ItemGroup>
 
 </Project>

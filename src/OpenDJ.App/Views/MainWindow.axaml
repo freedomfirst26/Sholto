@@ -22,30 +22,59 @@
 
     <Grid RowDefinitions="*,200">
 
-        <!-- Track library -->
-        <ListBox Grid.Row="0"
-                 Name="TrackList"
-                 ItemsSource="{Binding Tracks}"
-                 SelectedIndex="{Binding SelectedTrackIndex, Mode=OneWay}"
-                 SelectionChanged="OnTrackSelectionChanged"
-                 Background="{Binding Theme.Surface}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Grid ColumnDefinitions="*,200,100">
-                        <TextBlock Grid.Column="0" Text="{Binding Title}"
-                                   Foreground="{Binding $parent[Window].DataContext.Theme.TextBright}"
-                                   Margin="8,4"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Artist}"
-                                   Foreground="{Binding $parent[Window].DataContext.Theme.TextMuted}"
-                                   Margin="8,4"/>
-                        <TextBlock Grid.Column="2"
-                                   Text="{Binding Duration, StringFormat=\{0:mm\\:ss\}}"
-                                   Foreground="{Binding $parent[Window].DataContext.Theme.TextMuted}"
-                                   Margin="8,4"/>
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <!-- Track library, rendered as a fixed-column table. -->
+        <Grid Grid.Row="0" RowDefinitions="32,*" Background="{Binding Theme.Surface}">
+
+            <!-- Column header -->
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="240,*,80,80,80"
+                  Background="{Binding Theme.SurfaceRaised}">
+                <TextBlock Grid.Column="0" Text="ARTIST"
+                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="12,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="TRACK"
+                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="BPM"
+                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="KEY"
+                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="TIME"
+                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+            </Grid>
+
+            <ListBox Grid.Row="1"
+                     Name="TrackList"
+                     ItemsSource="{Binding Tracks}"
+                     SelectedIndex="{Binding SelectedTrackIndex, Mode=OneWay}"
+                     SelectionChanged="OnTrackSelectionChanged"
+                     Background="{Binding Theme.Surface}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="240,*,80,80,80">
+                            <TextBlock Grid.Column="0" Text="{Binding Artist}"
+                                       Foreground="{Binding $parent[Window].DataContext.Theme.TextBright}"
+                                       Margin="12,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                       Foreground="{Binding $parent[Window].DataContext.Theme.TextBright}"
+                                       Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding BpmDisplay}"
+                                       Foreground="{Binding $parent[Window].DataContext.Theme.Accent}"
+                                       FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding Key}"
+                                       Foreground="{Binding $parent[Window].DataContext.Theme.Primary}"
+                                       FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" Text="{Binding DurationDisplay}"
+                                       Foreground="{Binding $parent[Window].DataContext.Theme.TextMuted}"
+                                       Margin="8,4" VerticalAlignment="Center"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
 
         <!-- Deck A -->
         <Grid Grid.Row="1" Background="{Binding Theme.SurfaceRaised}" RowDefinitions="48,*">

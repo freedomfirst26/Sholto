@@ -3,10 +3,13 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using OpenDJ.Audio;
+using OpenDJ.Analysis;
+using OpenDJ.Storage;
 using OpenDJ.Controller;
 using OpenDJ.Library;
 using OpenDJ.App.ViewModels;
 using OpenDJ.App.Views;
+using TrackRow = OpenDJ.App.ViewModels.TrackRow;
 
 namespace OpenDJ.App;
 
@@ -16,6 +19,7 @@ public partial class App : Application
     private MidiManager? _midi;
     private DispatcherTimer? _positionTimer;
     private MainViewModel? _vm;
+    private OpenDjDatabase? _db;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -39,15 +43,47 @@ public partial class App : Application
 
     private void InitializeServices(MainViewModel vm, IClassicDesktopStyleApplicationLifetime desktop)
     {
+        // Open the library database; persists analysis across runs.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                _db = await OpenDjDatabase.OpenAsync();
+                Console.WriteLine($"[DB] opened {_db.DatabasePath}");
+
+                // Build a 3-tier provider: memory → SQLite → compute.
+                vm.DeckA.Player.AnalysisProvider = new AnalysisProvider(
+                    caches:  [ new MemoryAnalysisCache(), new DatabaseAnalysisCache(_db) ],
+                    compute: (path, samples, rate, ct) =>
+                        BasicAnalysis.ComputeAsync(path, samples, channels: 2, sampleRate: rate, ct));
+
+                // Pre-populate the UI's BPM map from cache so tracks light up immediately.
+                var bpms = await _db.GetAllBpmsAsync();
+                await Dispatcher.UIThread.InvokeAsync(() => vm.SetKnownBpms(bpms));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DB] failed to open: {ex.Message}");
+            }
+        });
+
         // Scan ~/Music in background
         var musicDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Music");
         _ = Task.Run(async () =>
         {
             var tracks = await TrackScanner.ScanAsync(musicDir);
+            // Persist track metadata to the DB so we have a full library record.
+            Dictionary<string, double>? cachedBpms = null;
+            if (_db is not null)
+            {
+                foreach (var t in tracks) await _db.UpsertTrackAsync(t);
+                cachedBpms = await _db.GetAllBpmsAsync();
+            }
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                foreach (var t in tracks) vm.Tracks.Add(t);
+                foreach (var t in tracks) vm.Tracks.Add(new TrackRow(t));
+                if (cachedBpms is not null) vm.SetKnownBpms(cachedBpms);
                 if (vm.Tracks.Count > 0) vm.SelectTrack(0);
             });
         });

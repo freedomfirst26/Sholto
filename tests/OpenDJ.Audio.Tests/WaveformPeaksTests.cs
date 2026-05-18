@@ -1,5 +1,5 @@
 using Xunit;
-using OpenDJ.Audio;
+using OpenDJ.Analysis;
 
 namespace OpenDJ.Audio.Tests;
 

@@ -5,7 +5,7 @@ using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Avalonia.Threading;
 using OpenDJ.Audio;
-using OpenDJ.Audio.Analysis;
+using OpenDJ.Analysis;
 using SkiaSharp;
 
 namespace OpenDJ.App.Controls;

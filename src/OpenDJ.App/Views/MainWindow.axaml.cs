@@ -45,7 +45,8 @@ public partial class MainWindow : Window
     private async void OnTrackSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (e.AddedItems is null || e.AddedItems.Count == 0) return;
-        if (e.AddedItems[0] is not Track track) return;
+        if (e.AddedItems[0] is not TrackRow row) return;
+        var track = row.Track;
         if (DataContext is not MainViewModel vm) return;
 
         Console.WriteLine($"[Track] selected {track.Title}");

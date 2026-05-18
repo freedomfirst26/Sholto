@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using OpenDJ.Audio;
-using OpenDJ.Audio.Analysis;
+using OpenDJ.Analysis;
 using OpenDJ.Library;
 
 namespace OpenDJ.App.ViewModels;

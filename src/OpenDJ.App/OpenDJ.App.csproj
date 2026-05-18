@@ -27,8 +27,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\OpenDJ.Analysis\OpenDJ.Analysis.csproj" />
     <ProjectReference Include="..\OpenDJ.Audio\OpenDJ.Audio.csproj" />
     <ProjectReference Include="..\OpenDJ.Controller\OpenDJ.Controller.csproj" />
     <ProjectReference Include="..\OpenDJ.Library\OpenDJ.Library.csproj" />
+    <ProjectReference Include="..\OpenDJ.Storage\OpenDJ.Storage.csproj" />
   </ItemGroup>
 </Project>

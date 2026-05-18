@@ -1,4 +1,4 @@
-namespace OpenDJ.Audio.Analysis;
+namespace OpenDJ.Analysis;
 
 /// <summary>
 /// Collection of analyses attached to a track. Each concrete IAnalysis type is

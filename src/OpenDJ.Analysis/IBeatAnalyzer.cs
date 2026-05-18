@@ -1,4 +1,4 @@
-namespace OpenDJ.Audio.Analysis;
+namespace OpenDJ.Analysis;
 
 /// <summary>
 /// Pluggable beat / tempo detector. Implementations vary in accuracy and cost:

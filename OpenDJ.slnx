@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/OpenDJ.Analysis/OpenDJ.Analysis.csproj" />
     <Project Path="src/OpenDJ.App/OpenDJ.App.csproj" />
     <Project Path="src/OpenDJ.Audio/OpenDJ.Audio.csproj" />
     <Project Path="src/OpenDJ.Controller/OpenDJ.Controller.csproj" />
     <Project Path="src/OpenDJ.Library/OpenDJ.Library.csproj" />
+    <Project Path="src/OpenDJ.Storage/OpenDJ.Storage.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OpenDJ.App.Tests/OpenDJ.App.Tests.csproj" />

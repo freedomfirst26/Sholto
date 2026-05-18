@@ -1,4 +1,4 @@
-using OpenDJ.Audio.Analysis;
+using OpenDJ.Analysis;
 using SoundFlow.Abstracts;
 using SoundFlow.Components;
 using SoundFlow.Enums;
@@ -20,6 +20,12 @@ public sealed class DeckPlayer
     private SoundPlayer? _player;
     private int _sampleRate = 48000;
     private long _sampleCount;
+
+    /// <summary>
+    /// Layered analysis cache (memory → db → compute). If unset, falls back to
+    /// computing inline on every load.
+    /// </summary>
+    public AnalysisProvider? AnalysisProvider { get; set; }
 
     public TrackAnalysis Analysis { get; private set; } = new();
 
@@ -76,15 +82,23 @@ public sealed class DeckPlayer
         _deckMixer.AddComponent(_player);
         Console.WriteLine($"[DeckPlayer] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
 
-        // Analysis runs off-thread; the deck plays immediately, beat grid appears
-        // when the analyzer finishes.
+        // Analysis runs off-thread; deck plays immediately, beat grid appears when ready.
         _ = Task.Run(async () =>
         {
             try
             {
-                var basic = await BasicAnalysis.ComputeAsync(filePath, stereoSamples, channels: 2, sampleRate: sampleRate);
+                BasicAnalysis basic; string source;
+                if (AnalysisProvider is not null)
+                {
+                    (basic, source) = await AnalysisProvider.GetAsync(filePath, stereoSamples, sampleRate);
+                }
+                else
+                {
+                    basic = await BasicAnalysis.ComputeAsync(filePath, stereoSamples, channels: 2, sampleRate: sampleRate);
+                    source = "computed";
+                }
+                Console.WriteLine($"[DeckPlayer] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {(basic.DownbeatTimes?.Length ?? 0)} downbeats");
                 Analysis.Set(basic);
-                Console.WriteLine($"[DeckPlayer] analyzed via {basic.AnalyzerName}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {(basic.DownbeatTimes?.Length ?? 0)} downbeats");
                 AnalysisUpdated?.Invoke();
             }
             catch (Exception ex)

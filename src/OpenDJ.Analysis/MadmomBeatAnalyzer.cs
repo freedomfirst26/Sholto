@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 
-namespace OpenDJ.Audio.Analysis;
+namespace OpenDJ.Analysis;
 
 /// <summary>
 /// Best-in-class beat / downbeat detection: shells out to madmom's
