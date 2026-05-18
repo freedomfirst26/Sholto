@@ -1,89 +1,93 @@
-using PortAudioSharp;
-using PAStream = PortAudioSharp.Stream;
+using SoundFlow.Abstracts.Devices;
+using SoundFlow.Backends.MiniAudio;
+using SoundFlow.Backends.MiniAudio.Enums;
+using SoundFlow.Enums;
+using SoundFlow.Structs;
+using SfEngine = SoundFlow.Abstracts.AudioEngine;
 
 namespace OpenDJ.Audio;
 
+/// <summary>
+/// Wraps a SoundFlow MiniAudioEngine + one playback device. The DeckPlayer's
+/// SoundFlow SoundPlayer is attached to the device's MasterMixer.
+/// </summary>
 public sealed class AudioEngine : IAudioOutput
 {
-    private const int SampleRate = 44100;
-    private const int FramesPerBuffer = 256;
-    private const int Channels = 2;
+    public static readonly AudioFormat Format = new()
+    {
+        SampleRate = 48000,
+        Channels = 2,
+        Format = SampleFormat.F32
+    };
 
     private readonly DeckPlayer _deckA;
-    private PAStream? _stream;
+    private readonly SfEngine _engine;
+    private AudioPlaybackDevice? _playbackDevice;
     private bool _running;
 
-    // Pre-allocated — never allocate on audio thread
-    private readonly float[] _mixBuffer = new float[FramesPerBuffer * Channels];
-
     public bool IsRunning => _running;
+    public SfEngine Engine => _engine;
 
     public AudioEngine(DeckPlayer deckA)
     {
         _deckA = deckA;
+        // Default backend selection — reports as "Oss" but actually routes via
+        // PulseAudio on Linux. Forcing PulseAudio explicitly flips enumeration
+        // to ALSA hardware names AND breaks audio (SoundFlow quirk on PipeWire).
+        var miniEngine = new MiniAudioEngine();
+        _engine = miniEngine;
+        Console.WriteLine($"[AudioEngine] active backend: {miniEngine.ActiveBackend}");
+        _deckA.AttachEngine(_engine, Format);
     }
 
-    public void Start()
+    public void Start() => Start(deviceName: null);
+
+    public void Start(string? deviceName)
     {
-        PortAudio.Initialize();
-
-        int device = PortAudio.DefaultOutputDevice;
-        if (device == PortAudio.NoDevice)
-            throw new InvalidOperationException("No audio output device found.");
-
-        var outParams = new StreamParameters
-        {
-            device = device,
-            channelCount = Channels,
-            sampleFormat = SampleFormat.Float32,
-            suggestedLatency = PortAudio.GetDeviceInfo(device).defaultLowOutputLatency
-        };
-
-        PAStream.Callback cb = AudioCallback;
-        _stream = new PAStream(
-            inParams: null,
-            outParams: outParams,
-            sampleRate: SampleRate,
-            framesPerBuffer: FramesPerBuffer,
-            streamFlags: StreamFlags.ClipOff,
-            callback: cb,
-            userData: IntPtr.Zero
-        );
-
-        _stream.Start();
+        var target = Resolve(deviceName);
+        _playbackDevice = _engine.InitializePlaybackDevice(target, Format);
+        _playbackDevice.MasterMixer.AddComponent(_deckA.Component);
+        _playbackDevice.Start();
         _running = true;
+        Console.WriteLine($"[AudioEngine] device={target.Name} started; deck component attached to master mixer");
+    }
+
+    public void SwitchDevice(string deviceName)
+    {
+        var target = Resolve(deviceName);
+        if (_playbackDevice is null) { Start(deviceName); return; }
+        _playbackDevice = _engine.SwitchDevice(_playbackDevice, target);
+    }
+
+    private DeviceInfo Resolve(string? deviceName)
+    {
+        _engine.UpdateAudioDevicesInfo();
+        if (deviceName is not null)
+        {
+            var match = _engine.PlaybackDevices.FirstOrDefault(d => d.Name == deviceName);
+            if (match.Name is not null) return match;
+            Console.WriteLine($"[AudioEngine] device '{deviceName}' not found; using default");
+        }
+        var def = _engine.PlaybackDevices.FirstOrDefault(d => d.IsDefault);
+        if (def.Name is null)
+            throw new InvalidOperationException("No playback devices found.");
+        return def;
     }
 
     public void Stop()
     {
-        _stream?.Stop();
-        _stream?.Dispose();
-        _stream = null;
+        if (_playbackDevice is not null)
+        {
+            _playbackDevice.MasterMixer.RemoveComponent(_deckA.Component);
+            _playbackDevice.Dispose();
+            _playbackDevice = null;
+        }
         _running = false;
-        PortAudio.Terminate();
     }
 
-    public void Dispose() => Stop();
-
-    private StreamCallbackResult AudioCallback(
-        IntPtr input, IntPtr output,
-        uint frameCount,
-        ref StreamCallbackTimeInfo timeInfo,
-        StreamCallbackFlags statusFlags,
-        IntPtr userData)
+    public void Dispose()
     {
-        int frames = (int)frameCount;
-        int sampleCount = frames * Channels;
-
-        _deckA.FillBuffer(_mixBuffer, frames);
-
-        unsafe
-        {
-            float* outBuf = (float*)(void*)output;
-            for (int i = 0; i < sampleCount; i++)
-                outBuf[i] = _mixBuffer[i];
-        }
-
-        return StreamCallbackResult.Continue;
+        Stop();
+        _engine.Dispose();
     }
 }

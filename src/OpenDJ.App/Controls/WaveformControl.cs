@@ -1,10 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using Avalonia.Platform;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
-using Avalonia.Threading;
 using OpenDJ.Audio;
 using SkiaSharp;
 
@@ -12,13 +10,16 @@ namespace OpenDJ.App.Controls;
 
 public sealed class WaveformControl : Control
 {
-    private DispatcherTimer? _timer;
-
     public static readonly StyledProperty<WaveformPeaks?> PeaksProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(Peaks));
 
     public static readonly StyledProperty<double> PlayPositionProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(PlayPosition));
+
+    static WaveformControl()
+    {
+        AffectsRender<WaveformControl>(PeaksProperty, PlayPositionProperty);
+    }
 
     public WaveformPeaks? Peaks
     {
@@ -32,25 +33,9 @@ public sealed class WaveformControl : Control
         set => SetValue(PlayPositionProperty, value);
     }
 
-    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnAttachedToVisualTree(e);
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        _timer.Tick += (_, _) => InvalidateVisual();
-        _timer.Start();
-    }
-
-    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        _timer?.Stop();
-        _timer = null;
-        base.OnDetachedFromVisualTree(e);
-    }
-
     public override void Render(DrawingContext context)
     {
-        context.Custom(new WaveformDrawOperation(
-            new Rect(Bounds.Size), Peaks, PlayPosition));
+        context.Custom(new WaveformDrawOperation(new Rect(Bounds.Size), Peaks, PlayPosition));
     }
 
     private sealed class WaveformDrawOperation : ICustomDrawOperation
@@ -72,7 +57,7 @@ public sealed class WaveformControl : Control
 
         public void Render(ImmediateDrawingContext context)
         {
-            var leaseFeature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
+            var leaseFeature = (ISkiaSharpApiLeaseFeature?)context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature));
             if (leaseFeature is null) return;
 
             using var lease = leaseFeature.Lease();

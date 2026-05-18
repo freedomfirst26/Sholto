@@ -1,52 +1,51 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:OpenDJ.App.ViewModels"
-        xmlns:lib="using:OpenDJ.Library"
         xmlns:controls="using:OpenDJ.App.Controls"
         x:Class="OpenDJ.App.Views.MainWindow"
-        x:DataType="vm:MainViewModel"
         Title="OpenDJ"
         Width="1200" Height="700"
         Background="#111111">
+
+    <DockPanel>
+        <Menu DockPanel.Dock="Top" Background="#222222">
+            <MenuItem Header="Settings">
+                <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
+            </MenuItem>
+        </Menu>
 
     <Grid RowDefinitions="*,200">
 
         <!-- Track library -->
         <ListBox Grid.Row="0"
+                 Name="TrackList"
                  ItemsSource="{Binding Tracks}"
-                 SelectedIndex="{Binding SelectedTrackIndex}"
+                 SelectedIndex="{Binding SelectedTrackIndex, Mode=OneWay}"
+                 SelectionChanged="OnTrackSelectionChanged"
                  Background="#1A1A1A">
             <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="lib:Track">
+                <DataTemplate>
                     <Grid ColumnDefinitions="*,200,100">
                         <TextBlock Grid.Column="0" Text="{Binding Title}"
                                    Foreground="White" Margin="8,4"/>
                         <TextBlock Grid.Column="1" Text="{Binding Artist}"
-                                   Foreground="#888888" Margin="8,4"/>
+                                   Foreground="#AAAAAA" Margin="8,4"/>
                         <TextBlock Grid.Column="2"
                                    Text="{Binding Duration, StringFormat=\{0:mm\\:ss\}}"
-                                   Foreground="#555555" Margin="8,4"/>
+                                   Foreground="#777777" Margin="8,4"/>
                     </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
 
         <!-- Deck A -->
-        <Grid Grid.Row="1" Background="#1E1E1E" RowDefinitions="48,*">
+        <Grid Grid.Row="1" Background="#2A2A2A" RowDefinitions="48,*">
 
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="12,0">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12"
-                            VerticalAlignment="Center">
-                    <TextBlock Text="DECK A" Foreground="#00FFCC"
-                               FontWeight="Bold" FontSize="14"/>
-                    <Button Name="PlayButton"
-                            Content="PLAY"
-                            Click="OnPlayButtonClick"
-                            Background="#333333" Foreground="White"
-                            Width="80" Height="32"/>
-                </StackPanel>
+                <TextBlock Grid.Column="0" Text="DECK A" Foreground="#00FFCC"
+                           FontWeight="Bold" FontSize="14"
+                           VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1"
-                           Text="{Binding DeckA.LoadedTrack.Title, FallbackValue='— no track loaded —'}"
+                           Text="{Binding DeckA.LoadedTrack.Title, FallbackValue='click a track to play'}"
                            Foreground="#CCCCCC" VerticalAlignment="Center" Margin="16,0"/>
             </Grid>
 
@@ -56,4 +55,5 @@
         </Grid>
 
     </Grid>
+    </DockPanel>
 </Window>

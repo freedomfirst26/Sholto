@@ -1,62 +1,102 @@
+using SoundFlow.Abstracts;
+using SoundFlow.Components;
+using SoundFlow.Enums;
+using SoundFlow.Providers;
+using SoundFlow.Structs;
+using SfEngine = SoundFlow.Abstracts.AudioEngine;
+
 namespace OpenDJ.Audio;
 
+/// <summary>
+/// One DJ deck. Holds a stable Mixer component that the AudioEngine attaches
+/// to the master mixer; the SoundPlayer inside is rebuilt on each track load.
+/// </summary>
 public sealed class DeckPlayer
 {
-    private float[] _samples = [];
-    private int _sampleRate = 44100;
-    private long _positionFrames;
-    private bool _isPlaying;
+    private SfEngine? _engine;
+    private AudioFormat _format;
+    private Mixer? _deckMixer;
+    private SoundPlayer? _player;
+    private int _sampleRate = 48000;
+    private long _sampleCount;
 
-    public bool IsLoaded => _samples.Length > 0;
-    public bool IsPlaying => _isPlaying;
-    public long PositionFrames => _positionFrames;
     public WaveformPeaks Peaks { get; private set; } = WaveformPeaks.Empty;
+
+    public bool IsLoaded => _player is not null;
+    public bool IsPlaying => _player?.State == PlaybackState.Playing;
+
+    public long PositionFrames =>
+        _player is null ? 0 : (long)(_player.Time * _sampleRate);
 
     public double PlayPosition
     {
         get
         {
-            long total = _samples.Length / 2;
-            return total == 0 ? 0.0 : Math.Clamp((double)_positionFrames / total, 0.0, 1.0);
+            if (_sampleCount == 0) return 0.0;
+            return Math.Clamp((double)PositionFrames / _sampleCount, 0.0, 1.0);
         }
+    }
+
+    public SoundComponent Component =>
+        _deckMixer ?? throw new InvalidOperationException("AttachEngine must be called first.");
+
+    public void AttachEngine(SfEngine engine, AudioFormat format)
+    {
+        _engine = engine;
+        _format = format;
+        _deckMixer = new Mixer(engine, format);
     }
 
     public void Load(float[] stereoSamples, int sampleRate)
     {
-        _isPlaying = false;
-        _positionFrames = 0;
-        _samples = stereoSamples;
-        _sampleRate = sampleRate;
+        if (_engine is null || _deckMixer is null)
+            throw new InvalidOperationException("AttachEngine must be called first.");
+
         Peaks = WaveformPeaks.Compute(stereoSamples, channels: 2);
+        _sampleRate = sampleRate;
+        _sampleCount = stereoSamples.Length / 2;
+
+        if (_player is not null)
+        {
+            _deckMixer.RemoveComponent(_player);
+            _player.Dispose();
+        }
+
+        var provider = new RawDataProvider(stereoSamples, sampleRate);
+        _player = new SoundPlayer(_engine, _format, provider);
+        _deckMixer.AddComponent(_player);
+        Console.WriteLine($"[DeckPlayer] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
     }
 
-    public void Play() => _isPlaying = true;
-    public void Pause() => _isPlaying = false;
-    public void TogglePlay() { if (_isPlaying) Pause(); else Play(); }
-
-    // Called on the audio thread — no allocations.
-    public void FillBuffer(float[] buffer, int frameCount)
+    public void Play()
     {
-        int sampleCount = frameCount * 2;
+        _player?.Play();
+        Console.WriteLine($"[DeckPlayer] Play() → state={_player?.State}");
+    }
 
-        if (!_isPlaying || _samples.Length == 0)
+    /// <summary>DIAGNOSTIC: play a 440Hz tone via SoundFlow Oscillator for 2 seconds.</summary>
+    public async Task PlayTestTone()
+    {
+        if (_engine is null || _deckMixer is null)
         {
-            Array.Clear(buffer, 0, sampleCount);
+            Console.WriteLine("[DeckPlayer] PlayTestTone: engine not attached");
             return;
         }
+        var osc = new Oscillator(_engine, _format) { Frequency = 440f, Volume = 0.3f };
+        _deckMixer.AddComponent(osc);
+        Console.WriteLine("[DeckPlayer] PlayTestTone: oscillator added");
+        await Task.Delay(2000);
+        _deckMixer.RemoveComponent(osc);
+        osc.Dispose();
+        Console.WriteLine("[DeckPlayer] PlayTestTone: done");
+    }
+    public void Pause() => _player?.Pause();
 
-        long available = (_samples.Length / 2) - _positionFrames;
-        long framesToCopy = Math.Min(frameCount, available);
-        long srcOffset = _positionFrames * 2;
-
-        Array.Copy(_samples, srcOffset, buffer, 0, framesToCopy * 2);
-
-        if (framesToCopy < frameCount)
-        {
-            Array.Clear(buffer, (int)(framesToCopy * 2), (int)((frameCount - framesToCopy) * 2));
-            _isPlaying = false;
-        }
-
-        _positionFrames += framesToCopy;
+    public void TogglePlay()
+    {
+        if (_player is null) { Console.WriteLine("[DeckPlayer] TogglePlay but no track loaded"); return; }
+        if (_player.State == PlaybackState.Playing) _player.Pause();
+        else _player.Play();
+        Console.WriteLine($"[DeckPlayer] TogglePlay → state={_player.State}");
     }
 }
