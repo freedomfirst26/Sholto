@@ -17,7 +17,6 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 
 ### Audio analysis
 - **Best-in-class beat tracking** via [madmom](https://github.com/CPJKU/madmom)'s RNN + dynamic-Bayesian-network detector (the `madmom-onnx` fork — ONNX runtime, no Theano)
-- Pure-C# **Ellis-DP fallback** when madmom isn't installed (~librosa-quality)
 - **Real downbeats** drawn as taller / coloured ticks (not "every 4th")
 - **3-band frequency split** (low / mid / high) per waveform column via biquad filters with 5-tap smoothing
 
@@ -72,16 +71,20 @@ CommunityDj.App         Avalonia UI                               — everything
 
 Built on **.NET 10**, **Avalonia 11**, **SoundFlow** (miniaudio under the hood, talks to PulseAudio / PipeWire on Linux). Audio decoding via NAudio + NLayer.
 
-## Running
+## Install + run
 
 ```bash
-# One-time on Linux for MP3 decoding by madmom:
-sudo apt install ffmpeg
-uv tool install madmom-onnx
-
-# Then:
+git clone https://github.com/sebastianpatten/CommunityDJ.git
+cd CommunityDJ
+bash dev.sh                                  # one-shot install — .NET 10, ffmpeg, madmom, libpulse symlink
 dotnet run --project src/CommunityDj.App
-# or with auto-reload:
+```
+
+`dev.sh` is idempotent — safe to re-run. It uses `sudo apt` for system packages and `uv` for madmom, both standard tools on modern Ubuntu / Mint / Pop! / Debian.
+
+For iterative development, use `dotnet watch` so changes auto-rebuild:
+
+```bash
 dotnet watch --project src/CommunityDj.App run --no-hot-reload
 ```
 

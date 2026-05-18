@@ -155,8 +155,10 @@ public partial class App : Application
         _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _positionTimer.Tick += (_, _) =>
         {
-            if (vm.Deck1.Player.IsPlaying) vm.Deck1.SyncPlayPosition();
-            if (vm.Deck2.Player.IsPlaying) vm.Deck2.SyncPlayPosition();
+            // Always sync, even when paused or stopped, so keyboard / FLX-4 scrubs
+            // are reflected immediately in the playhead.
+            if (vm.Deck1.Player.IsLoaded) vm.Deck1.SyncPlayPosition();
+            if (vm.Deck2.Player.IsLoaded) vm.Deck2.SyncPlayPosition();
         };
         _positionTimer.Start();
 

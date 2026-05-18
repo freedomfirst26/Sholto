@@ -110,7 +110,7 @@ public sealed class DeckPlayer
                     basic = await BasicAnalysis.ComputeAsync(filePath, stereoSamples, channels: 2, sampleRate: sampleRate);
                     source = "computed";
                 }
-                Console.WriteLine($"[DeckPlayer] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {(basic.DownbeatTimes?.Length ?? 0)} downbeats");
+                Console.WriteLine($"[DeckPlayer] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
                 Analysis.Set(basic);
                 AnalysisUpdated?.Invoke();
             }
@@ -171,11 +171,16 @@ public sealed class DeckPlayer
         Console.WriteLine($"[DeckPlayer] TogglePlay → state={_player.State}");
     }
 
-    /// <summary>Seek relative to current position by +/- seconds, clamped to track bounds.</summary>
+    /// <summary>Seek relative to current position by +/- seconds, clamped to track bounds.
+    /// Works whether the deck is playing, paused, or finished — reads our own
+    /// drift-free position rather than SoundPlayer.Time (which converts using the
+    /// engine rate, not the source rate).</summary>
     public void SeekRelative(double seconds)
     {
-        if (_player is null) return;
-        double target = Math.Clamp(_player.Time + seconds, 0.0, _player.Duration);
+        if (_player is null || _sampleCount == 0) return;
+        double currentSecs = PositionFrames / (double)_sampleRate;
+        double totalSecs   = _sampleCount   / (double)_sampleRate;
+        double target = Math.Clamp(currentSecs + seconds, 0.0, totalSecs);
         _player.Seek(TimeSpan.FromSeconds(target));
     }
 }

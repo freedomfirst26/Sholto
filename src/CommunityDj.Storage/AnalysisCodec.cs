@@ -53,7 +53,7 @@ public static class AnalysisCodec
         var beats = ReadDoubles(r);
         var downs = ReadDoubles(r);
         var peaks = new WaveformPeaks(min, max, low, mid, high, spp);
-        return new BasicAnalysis(peaks, bpm, beats, downs.Length == 0 ? null : downs, AnalyzerName: "cached");
+        return new BasicAnalysis(peaks, bpm, beats, downs);
     }
 
     private static void WriteFloats(BinaryWriter w, float[] arr)

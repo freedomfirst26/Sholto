@@ -4,33 +4,28 @@ using System.Globalization;
 namespace CommunityDj.Analysis;
 
 /// <summary>
-/// Best-in-class beat / downbeat detection: shells out to madmom's
-/// DBNDownBeatTracker (RNN + dynamic Bayesian network). Works when madmom
-/// is installed somewhere on PATH or under <c>~/.local/bin</c> and ffmpeg
-/// is available for decoding.
+/// Beat / downbeat detection — shells out to madmom's DBNDownBeatTracker
+/// (RNN + dynamic Bayesian network). Required, no fallback.
 ///
 /// Install once:
-///   uv tool install madmom-onnx
 ///   sudo apt install ffmpeg
+///   uv tool install madmom-onnx
 /// </summary>
-public sealed class MadmomBeatAnalyzer : IBeatAnalyzer
+public static class MadmomBeatAnalyzer
 {
-    public string? BinaryPath { get; }
+    /// <summary>Where DBNDownBeatTracker lives on this machine, or null if not installed.</summary>
+    public static string? BinaryPath { get; } = FindBinary("DBNDownBeatTracker");
 
-    public MadmomBeatAnalyzer()
-    {
-        BinaryPath = FindBinary("DBNDownBeatTracker");
-    }
+    public static bool IsAvailable => BinaryPath is not null;
 
-    public bool IsAvailable => BinaryPath is not null;
-
-    public async Task<BeatResult> AnalyzeAsync(string filePath, float[] _, int __, CancellationToken ct)
+    /// <summary>Run madmom on the file and return (bpm, beat times, downbeat times).</summary>
+    public static async Task<(double Bpm, double[] BeatTimes, double[] DownbeatTimes)> AnalyzeAsync(
+        string filePath, CancellationToken ct = default)
     {
         if (BinaryPath is null)
-            throw new InvalidOperationException("madmom DBNDownBeatTracker not found on this system.");
+            throw new InvalidOperationException(
+                "madmom DBNDownBeatTracker not found. Install once: `uv tool install madmom-onnx`.");
 
-        // madmom reads the file directly via ffmpeg, much faster than re-encoding
-        // our decoded float[] back to wav.
         var psi = new ProcessStartInfo
         {
             FileName = BinaryPath,
@@ -72,7 +67,7 @@ public sealed class MadmomBeatAnalyzer : IBeatAnalyzer
             bpm = Math.Round(60.0 / median * 10) / 10.0;
         }
 
-        return new BeatResult(bpm, beats.ToArray(), downbeats.ToArray());
+        return (bpm, beats.ToArray(), downbeats.ToArray());
     }
 
     private static string? FindBinary(string name)
@@ -86,7 +81,6 @@ public sealed class MadmomBeatAnalyzer : IBeatAnalyzer
         foreach (var c in candidates)
             if (File.Exists(c)) return c;
 
-        // Last resort: PATH search.
         var path = Environment.GetEnvironmentVariable("PATH") ?? "";
         foreach (var dir in path.Split(Path.PathSeparator))
         {
