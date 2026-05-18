@@ -133,6 +133,12 @@ public partial class App : Application
                     case ControllerEvent.PlayPressed p:
                         vm.OnPlayPressed(p.Deck);
                         break;
+                    case ControllerEvent.CrossfaderMoved c:
+                        vm.Crossfader = c.Position;
+                        break;
+                    case ControllerEvent.ChannelVolumeMoved v:
+                        vm.DeckFor(v.Deck).ChannelGain = v.Value;
+                        break;
                     case ControllerEvent.JogRotated j:
                     {
                         // Top platter: fast scrub. Side ring: slow / fine seek.

@@ -42,6 +42,7 @@
                                       BeatTimes="{Binding BeatTimes}"
                                       DownbeatTimes="{Binding DownbeatTimes}"
                                       PlayPosition="{Binding PlayPosition}"
+                                      GainOverlay="{Binding EffectiveGain}"
                                       Palette="{Binding $parent[Window].DataContext.WaveformPalette}"/>
 
             <!-- Fade-to-background over the played half. -->

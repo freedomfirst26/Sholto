@@ -29,6 +29,19 @@ public sealed class DeckPlayer
 
     public TrackAnalysis Analysis { get; private set; } = new();
 
+    private float _volume = 1.0f;
+    /// <summary>Linear gain [0..1]. Applied to the SoundPlayer so the deck's output is scaled before the master mixer sums it with the other deck.</summary>
+    public float Volume
+    {
+        get => _volume;
+        set
+        {
+            _volume = Math.Clamp(value, 0f, 1f);
+            if (_player is not null) _player.Volume = _volume;
+            Console.WriteLine($"[DeckPlayer] Volume = {_volume:F2}");
+        }
+    }
+
     public bool IsLoaded => _player is not null;
     public bool IsPlaying => _player?.State == PlaybackState.Playing;
 

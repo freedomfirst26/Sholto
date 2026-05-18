@@ -90,6 +90,25 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public DeckViewModel DeckFor(int deck) => deck == 1 ? Deck2 : Deck1;
 
+    private double _crossfader = 0.5;
+    /// <summary>0..1, 0 = full Deck 1, 1 = full Deck 2. Applies equal-power gains to each deck.</summary>
+    public double Crossfader
+    {
+        get => _crossfader;
+        set
+        {
+            _crossfader = Math.Clamp(value, 0.0, 1.0);
+            // Equal-power crossfade: cosine curve so the perceived loudness stays flat
+            // through the centre instead of dipping like a linear crossfade would.
+            // Equal-power crossfade: cosine curve so perceived loudness stays flat
+            // through the centre. Each deck combines this with its own channel-fader gain.
+            double angle = _crossfader * (Math.PI / 2);
+            Deck1.SetCrossfadeGain((float)Math.Cos(angle));
+            Deck2.SetCrossfadeGain((float)Math.Sin(angle));
+            Notify();
+        }
+    }
+
     public void OnPlayPressed(int deck) => DeckFor(deck).TogglePlay();
 
     public void SetKnownBpms(IReadOnlyDictionary<string, double> bpms)

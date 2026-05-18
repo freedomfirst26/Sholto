@@ -162,6 +162,40 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     public bool IsLoaded => _player.IsLoaded;
 
+    // Volume model: deck output = channel fader × crossfade gain.
+    private float _channelGain = 1.0f;
+    private float _crossfadeGain = 1.0f;
+
+    /// <summary>Channel fader 0..1 (the per-deck slider). Bound from UI + FLX-4 channel faders.</summary>
+    public double ChannelGain
+    {
+        get => _channelGain;
+        set
+        {
+            var v = (float)Math.Clamp(value, 0, 1);
+            if (Math.Abs(v - _channelGain) < 0.001f) return;
+            _channelGain = v;
+            ApplyVolume();
+            Notify();
+        }
+    }
+
+    /// <summary>Set by MainViewModel when the crossfader moves; not bound from UI.</summary>
+    internal void SetCrossfadeGain(float gain)
+    {
+        _crossfadeGain = Math.Clamp(gain, 0f, 1f);
+        ApplyVolume();
+    }
+
+    private void ApplyVolume()
+    {
+        _player.Volume = _channelGain * _crossfadeGain;
+        Notify(nameof(EffectiveGain));
+    }
+
+    /// <summary>Combined channel × crossfade gain, 0..1. Used to draw the gain line on the waveform.</summary>
+    public double EffectiveGain => _channelGain * _crossfadeGain;
+
     public void SyncPlayPosition()
     {
         PlayPosition = _player.PlayPosition;

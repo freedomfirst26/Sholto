@@ -34,6 +34,9 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<double> PlayPositionProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(PlayPosition));
 
+    public static readonly StyledProperty<double> GainOverlayProperty =
+        AvaloniaProperty.Register<WaveformControl, double>(nameof(GainOverlay), 1.0);
+
     public static readonly StyledProperty<WaveformPalette> PaletteProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPalette>(nameof(Palette), WaveformPalette.Bands);
 
@@ -45,6 +48,7 @@ public sealed class WaveformControl : Control
     static WaveformControl()
     {
         AffectsRender<WaveformControl>(PlayPositionProperty);
+        AffectsRender<WaveformControl>(GainOverlayProperty);
         PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         BeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         DownbeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
@@ -73,6 +77,12 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(PlayPositionProperty);
         set => SetValue(PlayPositionProperty, value);
+    }
+
+    public double GainOverlay
+    {
+        get => GetValue(GainOverlayProperty);
+        set => SetValue(GainOverlayProperty, value);
     }
 
     public WaveformPalette Palette
@@ -212,7 +222,7 @@ public sealed class WaveformControl : Control
 
     public override void Render(DrawingContext context)
     {
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition));
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay));
     }
 
     private sealed class BlitOperation : ICustomDrawOperation
@@ -220,13 +230,15 @@ public sealed class WaveformControl : Control
         private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
         private readonly double _playPosition;
+        private readonly double _gain;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain)
         {
             Bounds = bounds;
             _image = image;
             _peaks = peaks;
             _playPosition = playPosition;
+            _gain = gain;
         }
 
         public Rect Bounds { get; }
@@ -272,6 +284,12 @@ public sealed class WaveformControl : Control
             using var headPaint = new SKPaint { Color = SKColors.White, StrokeWidth = 2 };
             int halfX = dstW / 2;
             canvas.DrawLine(halfX, 0, halfX, dstH, headPaint);
+
+            // Gain overlay: a thin horizontal line where Y = 0 means 100% (top) and
+            // Y = dstH means 0%. So gain=1 → top, gain=0 → bottom.
+            float gainY = (float)((1.0 - Math.Clamp(_gain, 0, 1)) * dstH);
+            using var gainPaint = new SKPaint { Color = new SKColor(0x34, 0xF0, 0xC6, 0xC0), StrokeWidth = 1, IsAntialias = false };
+            canvas.DrawLine(0, gainY, dstW, gainY, gainPaint);
         }
     }
 }

@@ -33,6 +33,22 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
     public ControllerEvent? Translate(ControlChangeMessage msg)
     {
+        // Crossfader. FLX-4 sends 14-bit value as two CCs on channel 7:
+        //   0x1F = MSB (high 7 bits), 0x3F = LSB (low 7 bits, ignored — 128 steps is enough)
+        // val 0 = full Deck 1, val 127 = full Deck 2.
+        if (msg.Channel == Channel.Channel7 && msg.Control == 0x1F)
+            return new ControllerEvent.CrossfaderMoved(msg.Value / 127.0);
+
+        // Per-deck channel volume faders. Same 14-bit pattern:
+        //   ch 1 = Deck 1, ch 2 = Deck 2.   0x13 = MSB,  0x33 = LSB (ignored).
+        if (msg.Control == 0x13)
+        {
+            int deck = msg.Channel == Channel.Channel1 ? 0
+                     : msg.Channel == Channel.Channel2 ? 1
+                     : -1;
+            if (deck >= 0) return new ControllerEvent.ChannelVolumeMoved(deck, msg.Value / 127.0);
+        }
+
         // Top scroll-wheel rotation: signed 7-bit delta.
         //   val 1..63    →  positive (forward, e.g. val 1 = +1 tick)
         //   val 65..127  →  negative (back, two's-complement of value)
