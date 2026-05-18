@@ -98,7 +98,7 @@ public partial class App : Application
         // Pick audio output device (prompt user on first run or if saved device is gone)
         _ = StartAudioAsync(vm, desktop);
 
-        _midi = new MidiManager();
+        _midi = new MidiManager { LogAllMessages = true };  // TODO: turn off after mapping
         if (!_midi.Connect())
             Console.WriteLine("DDJ-FLX4 not found — use UI controls.");
 
@@ -112,8 +112,24 @@ public partial class App : Application
                         vm.OnBrowseRotated(r.Delta);
                         break;
                     case ControllerEvent.BrowsePressed:
-                        vm.OnBrowsePressed(t => AudioFileDecoder.Decode(t.FilePath));
+                        // Encoder press: bring focus to the track list; rotation moves selection.
+                        // (no track load — Load 1 / Load 2 buttons do that)
                         break;
+                    case ControllerEvent.LoadToDeck l:
+                    {
+                        var sel = vm.SelectedTrack;
+                        if (sel is not null)
+                        {
+                            var deck = vm.DeckFor(l.Deck);
+                            _ = Task.Run(async () =>
+                            {
+                                var samples = AudioFileDecoder.Decode(sel.FilePath);
+                                await Dispatcher.UIThread.InvokeAsync(() =>
+                                    deck.LoadTrack(sel, sel.FilePath, samples));
+                            });
+                        }
+                        break;
+                    }
                     case ControllerEvent.PlayPressed p:
                         vm.OnPlayPressed(p.Deck);
                         break;
