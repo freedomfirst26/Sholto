@@ -5,6 +5,7 @@ using Avalonia.Controls.Selection;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using OpenDJ.App.Controls;
+using OpenDJ.App.Theming;
 using OpenDJ.App.ViewModels;
 using OpenDJ.Audio;
 using OpenDJ.Library;
@@ -52,7 +53,7 @@ public partial class MainWindow : Window
         {
             var samples = await Task.Run(() => AudioFileDecoder.Decode(track.FilePath));
             Console.WriteLine($"[Track] decoded {samples.Length} samples");
-            vm.DeckA.LoadTrack(track, samples);
+            vm.DeckA.LoadTrack(track, track.FilePath, samples);
             if (!vm.DeckA.IsPlaying) vm.OnPlayPressed(deck: 0);
         }
         catch (Exception ex)
@@ -67,13 +68,12 @@ public partial class MainWindow : Window
             await app.ChangeOutputDeviceAsync(this);
     }
 
-    private void OnPaletteBands(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel vm) vm.WaveformPalette = WaveformPalette.Bands;
-    }
+    private void OnThemeClassic(object? sender, RoutedEventArgs e) => SetTheme(Themes.Classic);
+    private void OnThemePlasma (object? sender, RoutedEventArgs e) => SetTheme(Themes.Plasma);
+    private void OnThemeSerato (object? sender, RoutedEventArgs e) => SetTheme(Themes.Serato);
 
-    private void OnPaletteHot(object? sender, RoutedEventArgs e)
+    private void SetTheme(OpenDjTheme theme)
     {
-        if (DataContext is MainViewModel vm) vm.WaveformPalette = WaveformPalette.Hot;
+        if (DataContext is MainViewModel vm) vm.Theme = theme;
     }
 }

@@ -124,8 +124,13 @@ public sealed record WaveformPeaks(
     }
 
     /// <summary>
-    /// Autocorrelate the half-wave-rectified derivative of the kick-band envelope
-    /// to find the dominant tempo, then mark beats from the first downbeat.
+    /// Ellis 2007 beat tracker:
+    ///   1) Onset envelope from the kick-band signal (we get this for free upstream).
+    ///   2) Autocorrelation → global tempo period.
+    ///   3) Dynamic programming → the sequence of beat times that maximise
+    ///      onset strength while staying close to the global period.
+    /// Beats snap to real onsets, so the grid survives tempo wobble and intros
+    /// without a steady kick.
     /// </summary>
     internal static (double Bpm, double[] BeatTimes) EstimateTempo(
         float[] env, int hopSamples, int sampleRate)
@@ -133,17 +138,21 @@ public sealed record WaveformPeaks(
         int n = env.Length;
         if (n < 200) return (0.0, []);
 
-        // Onset signal: positive part of derivative.
+        // ── 1. Onset envelope: half-wave-rectified derivative, then normalised. ──
         var onset = new float[n];
         for (int i = 1; i < n; i++)
         {
             float d = env[i] - env[i - 1];
             onset[i] = d > 0 ? d : 0;
         }
+        // Local-mean subtraction to remove slow drift (helps in busy verses).
+        SubtractLocalMean(onset, radius: 8);
+        Normalize(onset);
 
+        // ── 2. Global tempo via autocorrelation in the 80–160 BPM band. ──
         double framesPerSec = (double)sampleRate / hopSamples;
-        int minLag = (int)Math.Round(framesPerSec * 60.0 / 180.0); // 180 BPM
-        int maxLag = (int)Math.Round(framesPerSec * 60.0 / 60.0);  // 60 BPM
+        int minLag = (int)Math.Round(framesPerSec * 60.0 / 180.0);
+        int maxLag = (int)Math.Round(framesPerSec * 60.0 / 60.0);
         if (maxLag >= n / 2) maxLag = n / 2 - 1;
 
         double bestScore = -1;
@@ -152,29 +161,91 @@ public sealed record WaveformPeaks(
         {
             double sum = 0;
             int limit = n - lag;
-            for (int i = 0; i < limit; i++)
-                sum += onset[i] * onset[i + lag];
+            for (int i = 0; i < limit; i++) sum += onset[i] * onset[i + lag];
             if (sum > bestScore) { bestScore = sum; bestLag = lag; }
         }
 
         double bpm = 60.0 * framesPerSec / bestLag;
-        // Fold to typical DJ range (80–160).
-        while (bpm < 80) { bpm *= 2; bestLag /= 2; }
+        while (bpm < 80)  { bpm *= 2; bestLag /= 2; }
         while (bpm > 160) { bpm /= 2; bestLag *= 2; }
 
-        // Phase: pick first beat by finding the strongest onset within the first period.
-        int phase = 0;
-        float phaseBest = 0f;
-        for (int i = 0; i < bestLag && i < n; i++)
-            if (onset[i] > phaseBest) { phaseBest = onset[i]; phase = i; }
+        // ── 3. Dynamic-programming beat sequence. ──
+        // For each frame t, find the previous beat τ in [t − 2P, t − P/2] that
+        // maximises  cumscore[τ]  −  tightness · ( ln(t − τ) − ln P )².
+        // The log-distance penalty (Ellis) pushes consecutive beats toward the
+        // global period without forcing them exactly there.
+        const double tightness = 100.0;
+        double lnP = Math.Log(bestLag);
+        int searchMin = Math.Max(1, bestLag / 2);
+        int searchMax = bestLag * 2;
 
-        // Generate beat times in seconds.
-        var beats = new List<double>();
+        var cumscore = new float[n];
+        var backlink = new int[n];
+        Array.Fill(backlink, -1);
+
+        for (int t = 0; t < n; t++)
+        {
+            int lo = Math.Max(0, t - searchMax);
+            int hi = t - searchMin;
+            double bestPrevScore = float.NegativeInfinity;
+            int bestPrev = -1;
+            for (int tau = lo; tau <= hi; tau++)
+            {
+                double dt = Math.Log(t - tau) - lnP;
+                double s = cumscore[tau] - tightness * dt * dt;
+                if (s > bestPrevScore) { bestPrevScore = s; bestPrev = tau; }
+            }
+            if (bestPrev < 0)
+            {
+                cumscore[t] = onset[t];
+                backlink[t] = -1;
+            }
+            else
+            {
+                cumscore[t] = onset[t] + (float)bestPrevScore;
+                backlink[t] = bestPrev;
+            }
+        }
+
+        // Trace-back from the strongest beat in the final stretch (avoids edge effects).
+        int tailStart = n - Math.Min(n, searchMax);
+        int endIdx = tailStart;
+        float endBest = float.NegativeInfinity;
+        for (int i = tailStart; i < n; i++)
+            if (cumscore[i] > endBest) { endBest = cumscore[i]; endIdx = i; }
+
+        var beatFrames = new List<int>();
+        for (int t = endIdx; t >= 0; t = backlink[t])
+        {
+            beatFrames.Add(t);
+            if (backlink[t] < 0) break;
+        }
+        beatFrames.Reverse();
+
+        var beats = new double[beatFrames.Count];
         double secsPerFrame = 1.0 / framesPerSec;
-        for (int i = phase; i < n; i += bestLag)
-            beats.Add(i * secsPerFrame);
+        for (int i = 0; i < beatFrames.Count; i++)
+            beats[i] = beatFrames[i] * secsPerFrame;
 
-        return (Math.Round(bpm * 10) / 10.0, beats.ToArray());
+        return (Math.Round(bpm * 10) / 10.0, beats);
+    }
+
+    private static void SubtractLocalMean(float[] arr, int radius)
+    {
+        int n = arr.Length;
+        if (n == 0) return;
+        var tmp = new float[n];
+        for (int i = 0; i < n; i++)
+        {
+            float sum = 0;
+            int count = 0;
+            int lo = Math.Max(0, i - radius);
+            int hi = Math.Min(n - 1, i + radius);
+            for (int j = lo; j <= hi; j++) { sum += arr[j]; count++; }
+            tmp[i] = arr[i] - sum / count;
+            if (tmp[i] < 0) tmp[i] = 0;
+        }
+        Array.Copy(tmp, arr, n);
     }
 
     private static void Normalize(float[] arr)

@@ -4,16 +4,19 @@
         x:Class="OpenDJ.App.Views.MainWindow"
         Title="OpenDJ"
         Width="1200" Height="700"
-        Background="#111111">
+        Background="{Binding Theme.BgDeep}">
 
     <DockPanel>
-        <Menu DockPanel.Dock="Top" Background="#222222">
+        <Menu DockPanel.Dock="Top"
+              Background="{Binding Theme.SurfaceRaised}"
+              Foreground="{Binding Theme.TextBright}">
             <MenuItem Header="Settings">
-                <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
-                <MenuItem Header="Waveform colors">
-                    <MenuItem Header="Rekordbox (blue / white / yellow)" Click="OnPaletteBands"/>
-                    <MenuItem Header="Serato (red / green / blue)" Click="OnPaletteHot"/>
+                <MenuItem Header="Theme">
+                    <MenuItem Header="Plasma" Click="OnThemePlasma"/>
+                    <MenuItem Header="Classic" Click="OnThemeClassic"/>
+                    <MenuItem Header="Serato" Click="OnThemeSerato"/>
                 </MenuItem>
+                <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
             </MenuItem>
         </Menu>
 
@@ -25,43 +28,98 @@
                  ItemsSource="{Binding Tracks}"
                  SelectedIndex="{Binding SelectedTrackIndex, Mode=OneWay}"
                  SelectionChanged="OnTrackSelectionChanged"
-                 Background="#1A1A1A">
+                 Background="{Binding Theme.Surface}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid ColumnDefinitions="*,200,100">
                         <TextBlock Grid.Column="0" Text="{Binding Title}"
-                                   Foreground="White" Margin="8,4"/>
+                                   Foreground="{Binding $parent[Window].DataContext.Theme.TextBright}"
+                                   Margin="8,4"/>
                         <TextBlock Grid.Column="1" Text="{Binding Artist}"
-                                   Foreground="#AAAAAA" Margin="8,4"/>
+                                   Foreground="{Binding $parent[Window].DataContext.Theme.TextMuted}"
+                                   Margin="8,4"/>
                         <TextBlock Grid.Column="2"
                                    Text="{Binding Duration, StringFormat=\{0:mm\\:ss\}}"
-                                   Foreground="#777777" Margin="8,4"/>
+                                   Foreground="{Binding $parent[Window].DataContext.Theme.TextMuted}"
+                                   Margin="8,4"/>
                     </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
 
         <!-- Deck A -->
-        <Grid Grid.Row="1" Background="#2A2A2A" RowDefinitions="48,*">
+        <Grid Grid.Row="1" Background="{Binding Theme.SurfaceRaised}" RowDefinitions="48,*">
 
             <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" Margin="12,0">
-                <TextBlock Grid.Column="0" Text="DECK A" Foreground="#00FFCC"
+                <TextBlock Grid.Column="0" Text="DECK A"
+                           Foreground="{Binding Theme.Primary}"
                            FontWeight="Bold" FontSize="14"
                            VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1"
-                           Text="{Binding DeckA.BpmDisplay}"
-                           Foreground="#FFCC00" FontWeight="Bold" FontSize="14"
-                           VerticalAlignment="Center" Margin="16,0,0,0"/>
+                <Border Grid.Column="1"
+                        Background="{Binding Theme.AccentBg}"
+                        CornerRadius="4" Padding="10,3" Margin="16,0,0,0"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding DeckA.HasBpm}">
+                    <TextBlock Text="{Binding DeckA.BpmDisplay}"
+                               Foreground="{Binding $parent[Window].DataContext.Theme.Accent}"
+                               FontWeight="Bold" FontSize="18"/>
+                </Border>
                 <TextBlock Grid.Column="2"
                            Text="{Binding DeckA.LoadedTrack.Title, FallbackValue='click a track to play'}"
-                           Foreground="#CCCCCC" VerticalAlignment="Center" Margin="16,0"/>
+                           Foreground="{Binding Theme.TextBright}"
+                           VerticalAlignment="Center" Margin="16,0"/>
             </Grid>
 
-            <controls:WaveformControl Grid.Row="1"
-                                      Peaks="{Binding DeckA.Analysis.Basic.Peaks}"
-                                      BeatTimes="{Binding DeckA.Analysis.Basic.BeatTimes}"
-                                      PlayPosition="{Binding DeckA.PlayPosition}"
-                                      Palette="{Binding WaveformPalette}"/>
+            <Panel Grid.Row="1">
+                <controls:WaveformControl Peaks="{Binding DeckA.Peaks}"
+                                          BeatTimes="{Binding DeckA.BeatTimes}"
+                                          DownbeatTimes="{Binding DeckA.DownbeatTimes}"
+                                          PlayPosition="{Binding DeckA.PlayPosition}"
+                                          Palette="{Binding WaveformPalette}"/>
+
+                <!-- Fade-to-background gradient over the played half. -->
+                <Border HorizontalAlignment="Left" Width="600" IsHitTestVisible="False"
+                        Background="{Binding Theme.PlayedFadeGradient}"/>
+
+                <!-- Vinyl disc with rotation tied to BPM. -->
+                <Grid Width="140" Height="140"
+                      HorizontalAlignment="Left" VerticalAlignment="Center"
+                      Margin="20,0,0,0"
+                      IsHitTestVisible="False">
+                    <Ellipse Width="140" Height="140"
+                             Fill="{Binding Theme.BgDeep}"
+                             Stroke="{Binding Theme.Primary}" StrokeThickness="1"/>
+                    <Ellipse Width="124" Height="124" Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
+                    <Ellipse Width="108" Height="108" Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
+                    <Ellipse Width="92"  Height="92"  Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
+
+                    <!-- Fake album art -->
+                    <Ellipse Width="80" Height="80"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                             Fill="{Binding Theme.AlbumArtBrush}"/>
+
+                    <!-- Rotation indicator -->
+                    <Border Width="140" Height="140"
+                            RenderTransformOrigin="0.5,0.5"
+                            Background="Transparent">
+                        <Border.RenderTransform>
+                            <RotateTransform Angle="{Binding DeckA.DiscAngle}" CenterX="70" CenterY="70"/>
+                        </Border.RenderTransform>
+                        <Rectangle Width="2" Height="60"
+                                   Fill="{Binding $parent[Window].DataContext.Theme.Mint}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Top"
+                                   Margin="0,10,0,0"/>
+                    </Border>
+
+                    <!-- Track title overlay (static, sits on the album art) -->
+                    <TextBlock Text="{Binding DeckA.LoadedTrack.Title, FallbackValue=''}"
+                               FontSize="10" FontWeight="Bold"
+                               Foreground="{Binding Theme.TextBright}"
+                               TextAlignment="Center" TextWrapping="Wrap"
+                               MaxWidth="64"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+            </Panel>
         </Grid>
 
     </Grid>

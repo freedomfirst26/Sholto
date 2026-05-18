@@ -51,13 +51,17 @@ public sealed class DeckPlayer
         _deckMixer = new Mixer(engine, format);
     }
 
-    public void Load(float[] stereoSamples, int sampleRate)
+    /// <summary>
+    /// Synchronous load (audio starts immediately). Beat analysis is kicked off in
+    /// the background; the AnalysisUpdated callback fires once it completes so the
+    /// view model can re-bake the waveform with real beats.
+    /// </summary>
+    public void Load(string filePath, float[] stereoSamples, int sampleRate)
     {
         if (_engine is null || _deckMixer is null)
             throw new InvalidOperationException("AttachEngine must be called first.");
 
         Analysis = new TrackAnalysis();
-        Analysis.Set(BasicAnalysis.Compute(stereoSamples, channels: 2, sampleRate: sampleRate));
         _sampleRate = sampleRate;
         _sampleCount = stereoSamples.Length / 2;
 
@@ -71,7 +75,27 @@ public sealed class DeckPlayer
         _player = new SoundPlayer(_engine, _format, provider);
         _deckMixer.AddComponent(_player);
         Console.WriteLine($"[DeckPlayer] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
+
+        // Analysis runs off-thread; the deck plays immediately, beat grid appears
+        // when the analyzer finishes.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var basic = await BasicAnalysis.ComputeAsync(filePath, stereoSamples, channels: 2, sampleRate: sampleRate);
+                Analysis.Set(basic);
+                Console.WriteLine($"[DeckPlayer] analyzed via {basic.AnalyzerName}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {(basic.DownbeatTimes?.Length ?? 0)} downbeats");
+                AnalysisUpdated?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DeckPlayer] analysis failed: {ex.Message}");
+            }
+        });
     }
+
+    /// <summary>Raised on the analysis thread once BasicAnalysis completes.</summary>
+    public event Action? AnalysisUpdated;
 
     public void Play()
     {

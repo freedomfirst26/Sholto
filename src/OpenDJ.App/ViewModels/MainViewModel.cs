@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using OpenDJ.App.Controls;
+using OpenDJ.App.Theming;
 using OpenDJ.Audio;
 using OpenDJ.Library;
 
@@ -10,7 +11,7 @@ namespace OpenDJ.App.ViewModels;
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     private int _selectedTrackIndex = -1;
-    private WaveformPalette _waveformPalette = WaveformPalette.Bands;
+    private OpenDjTheme _theme = Themes.Plasma;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -18,11 +19,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public DeckViewModel DeckA { get; } = new DeckViewModel(new DeckPlayer());
 
-    public WaveformPalette WaveformPalette
+    public OpenDjTheme Theme
     {
-        get => _waveformPalette;
-        set { if (_waveformPalette == value) return; _waveformPalette = value; Notify(); }
+        get => _theme;
+        set
+        {
+            if (_theme == value) return;
+            _theme = value;
+            Notify();
+            Notify(nameof(WaveformPalette));
+        }
     }
+
+    /// <summary>Convenience: the waveform palette that belongs to the current theme.</summary>
+    public WaveformPalette WaveformPalette => _theme.WaveformPalette;
 
     public int SelectedTrackIndex
     {
@@ -52,7 +62,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         if (SelectedTrack is null) return;
         var samples = decodeTrack(SelectedTrack);
-        DeckA.LoadTrack(SelectedTrack, samples);
+        DeckA.LoadTrack(SelectedTrack, SelectedTrack.FilePath, samples);
     }
 
     public void OnPlayPressed(int deck)
