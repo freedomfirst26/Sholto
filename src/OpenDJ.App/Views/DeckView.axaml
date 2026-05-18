@@ -4,40 +4,9 @@
              x:Class="OpenDJ.App.Views.DeckView"
              x:Name="Root">
 
-    <Grid Background="{DynamicResource OpenDjSurfaceRaised}" RowDefinitions="48,*">
+    <Grid Background="{DynamicResource OpenDjSurfaceRaised}">
 
-        <!-- Header strip: deck label + BPM badge + loaded-track title + eject -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="12,0">
-            <TextBlock Grid.Column="0"
-                       Text="{Binding Label, ElementName=Root}"
-                       Foreground="{DynamicResource OpenDjPrimary}"
-                       FontWeight="Bold" FontSize="14"
-                       VerticalAlignment="Center"/>
-            <Border Grid.Column="1"
-                    Background="{DynamicResource OpenDjAccentBg}"
-                    CornerRadius="4" Padding="10,3" Margin="16,0,0,0"
-                    VerticalAlignment="Center"
-                    IsVisible="{Binding HasBpm}">
-                <TextBlock Text="{Binding BpmDisplay}"
-                           Foreground="{DynamicResource OpenDjAccent}"
-                           FontWeight="Bold" FontSize="18"/>
-            </Border>
-            <TextBlock Grid.Column="2"
-                       Text="{Binding LoadedTrack.Title, FallbackValue='click a track to load'}"
-                       Foreground="{DynamicResource OpenDjTextBright}"
-                       VerticalAlignment="Center" Margin="16,0"/>
-            <Button Grid.Column="3" Content="⏏ EJECT"
-                    Click="OnEject"
-                    Background="Transparent"
-                    Foreground="{DynamicResource OpenDjTextMuted}"
-                    BorderBrush="{DynamicResource OpenDjBorder}"
-                    BorderThickness="1" Padding="10,3"
-                    FontSize="11" FontWeight="Bold"
-                    VerticalAlignment="Center" Margin="8,0"
-                    IsVisible="{Binding IsLoaded}"/>
-        </Grid>
-
-        <Panel Grid.Row="1">
+        <Panel>
             <controls:WaveformControl Peaks="{Binding Peaks}"
                                       BeatTimes="{Binding BeatTimes}"
                                       DownbeatTimes="{Binding DownbeatTimes}"

@@ -109,8 +109,8 @@
             </ListBox>
         </Grid>
 
-        <v:DeckView Grid.Row="1" Label="DECK 1" DataContext="{Binding Deck1}"/>
-        <v:DeckView Grid.Row="2" Label="DECK 2" DataContext="{Binding Deck2}"/>
+        <v:DeckView Grid.Row="1" DataContext="{Binding Deck1}"/>
+        <v:DeckView Grid.Row="2" DataContext="{Binding Deck2}"/>
 
     </Grid>
     </DockPanel>

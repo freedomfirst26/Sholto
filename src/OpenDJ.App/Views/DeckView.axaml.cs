@@ -1,7 +1,5 @@
 using System;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Threading;
 using OpenDJ.App.ViewModels;
 
@@ -9,16 +7,6 @@ namespace OpenDJ.App.Views;
 
 public partial class DeckView : UserControl
 {
-    public static readonly StyledProperty<string> LabelProperty =
-        AvaloniaProperty.Register<DeckView, string>(nameof(Label), "DECK");
-
-    /// <summary>Header text e.g. "DECK A", "DECK B".</summary>
-    public string Label
-    {
-        get => GetValue(LabelProperty);
-        set => SetValue(LabelProperty, value);
-    }
-
     private readonly DispatcherTimer _flashTimer = new()
     {
         Interval = TimeSpan.FromMilliseconds(400),
@@ -30,11 +18,6 @@ public partial class DeckView : UserControl
         InitializeComponent();
         _flashTimer.Tick += OnFlashTick;
         _flashTimer.Start();
-    }
-
-    private void OnEject(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is DeckViewModel vm) vm.Unload();
     }
 
     private void OnFlashTick(object? sender, EventArgs e)
