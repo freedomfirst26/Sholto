@@ -30,6 +30,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             Notify(nameof(BeatTimes));
             Notify(nameof(DownbeatTimes));
             Notify(nameof(BpmDisplay));
+            Notify(nameof(BpmDisplayShort));
             Notify(nameof(HasBpm));
         });
     }
@@ -116,6 +117,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     public string BpmDisplay =>
         Analysis.Basic is { Bpm: > 0 } b ? $"{b.Bpm:F1} BPM" : "";
+
+    /// <summary>Just the number, no "BPM" suffix — used inside the disc.</summary>
+    public string BpmDisplayShort =>
+        Analysis.Basic is { Bpm: > 0 } b ? $"{b.Bpm:F1}" : "";
 
     public bool HasBpm => Analysis.Basic is { Bpm: > 0 };
 
