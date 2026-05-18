@@ -111,6 +111,21 @@ public sealed class DeckPlayer
     /// <summary>Raised on the analysis thread once BasicAnalysis completes.</summary>
     public event Action? AnalysisUpdated;
 
+    /// <summary>Eject the current track: stop playback, detach the SoundPlayer, clear analysis.</summary>
+    public void Unload()
+    {
+        if (_player is not null)
+        {
+            _player.Stop();
+            _deckMixer?.RemoveComponent(_player);
+            _player.Dispose();
+            _player = null;
+        }
+        _sampleCount = 0;
+        Analysis = new TrackAnalysis();
+        AnalysisUpdated?.Invoke();
+    }
+
     public void Play()
     {
         _player?.Play();

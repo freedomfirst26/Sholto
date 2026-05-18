@@ -17,16 +17,23 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<TrackRow> Tracks { get; } = [];
 
-    public DeckViewModel DeckA { get; }
+    public DeckViewModel Deck1 { get; }
+    public DeckViewModel Deck2 { get; }
 
     public MainViewModel()
     {
-        DeckA = new DeckViewModel(new DeckPlayer());
-        DeckA.Player.AnalysisUpdated += () =>
+        Deck1 = new DeckViewModel(new DeckPlayer());
+        Deck2 = new DeckViewModel(new DeckPlayer());
+        WireDeck(Deck1);
+        WireDeck(Deck2);
+    }
+
+    private void WireDeck(DeckViewModel deck)
+    {
+        deck.Player.AnalysisUpdated += () =>
         {
-            // Push the freshly-computed BPM back into the matching row so the list uplifts.
-            var path = DeckA.LoadedTrack?.FilePath;
-            var bpm = DeckA.Analysis.Basic?.Bpm;
+            var path = deck.LoadedTrack?.FilePath;
+            var bpm = deck.Analysis.Basic?.Bpm;
             if (path is null || bpm is null) return;
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
@@ -78,15 +85,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         if (SelectedTrack is null) return;
         var samples = decodeTrack(SelectedTrack);
-        DeckA.LoadTrack(SelectedTrack, SelectedTrack.FilePath, samples);
+        Deck1.LoadTrack(SelectedTrack, SelectedTrack.FilePath, samples);
     }
 
-    public void OnPlayPressed(int deck)
-    {
-        if (deck == 0) DeckA.TogglePlay();
-    }
+    public DeckViewModel DeckFor(int deck) => deck == 1 ? Deck2 : Deck1;
 
-    /// <summary>Apply a batch of cached BPMs (from the DB on startup) to whatever rows are loaded.</summary>
+    public void OnPlayPressed(int deck) => DeckFor(deck).TogglePlay();
+
     public void SetKnownBpms(IReadOnlyDictionary<string, double> bpms)
     {
         foreach (var row in Tracks)

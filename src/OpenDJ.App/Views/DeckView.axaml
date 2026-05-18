@@ -1,0 +1,107 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:OpenDJ.App.Controls"
+             x:Class="OpenDJ.App.Views.DeckView"
+             x:Name="Root">
+
+    <Grid Background="{DynamicResource OpenDjSurfaceRaised}" RowDefinitions="48,*">
+
+        <!-- Header strip: deck label + BPM badge + loaded-track title + eject -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="12,0">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding Label, ElementName=Root}"
+                       Foreground="{DynamicResource OpenDjPrimary}"
+                       FontWeight="Bold" FontSize="14"
+                       VerticalAlignment="Center"/>
+            <Border Grid.Column="1"
+                    Background="{DynamicResource OpenDjAccentBg}"
+                    CornerRadius="4" Padding="10,3" Margin="16,0,0,0"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding HasBpm}">
+                <TextBlock Text="{Binding BpmDisplay}"
+                           Foreground="{DynamicResource OpenDjAccent}"
+                           FontWeight="Bold" FontSize="18"/>
+            </Border>
+            <TextBlock Grid.Column="2"
+                       Text="{Binding LoadedTrack.Title, FallbackValue='click a track to load'}"
+                       Foreground="{DynamicResource OpenDjTextBright}"
+                       VerticalAlignment="Center" Margin="16,0"/>
+            <Button Grid.Column="3" Content="⏏ EJECT"
+                    Click="OnEject"
+                    Background="Transparent"
+                    Foreground="{DynamicResource OpenDjTextMuted}"
+                    BorderBrush="{DynamicResource OpenDjBorder}"
+                    BorderThickness="1" Padding="10,3"
+                    FontSize="11" FontWeight="Bold"
+                    VerticalAlignment="Center" Margin="8,0"
+                    IsVisible="{Binding IsLoaded}"/>
+        </Grid>
+
+        <Panel Grid.Row="1">
+            <controls:WaveformControl Peaks="{Binding Peaks}"
+                                      BeatTimes="{Binding BeatTimes}"
+                                      DownbeatTimes="{Binding DownbeatTimes}"
+                                      PlayPosition="{Binding PlayPosition}"
+                                      Palette="{Binding $parent[Window].DataContext.WaveformPalette}"/>
+
+            <!-- Fade-to-background over the played half. -->
+            <Border HorizontalAlignment="Left" Width="600" IsHitTestVisible="False"
+                    Background="{Binding $parent[Window].DataContext.Theme.PlayedFadeGradient}"/>
+
+            <!-- Disc + title cluster -->
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                        Margin="20,0,0,0" Spacing="16"
+                        IsHitTestVisible="False">
+
+                <Grid Width="140" Height="140">
+                    <!-- Outer ring: colour by progress, opacity flashes near the end. -->
+                    <Border Name="DiscRing" Width="140" Height="140">
+                        <Ellipse Width="140" Height="140"
+                                 Fill="{DynamicResource OpenDjBgDeep}"
+                                 Stroke="{Binding DiscRingBrush}"
+                                 StrokeThickness="3"/>
+                    </Border>
+                    <Ellipse Width="124" Height="124" Stroke="{DynamicResource OpenDjBorder}" StrokeThickness="1"/>
+                    <Ellipse Width="108" Height="108" Stroke="{DynamicResource OpenDjBorder}" StrokeThickness="1"/>
+                    <Ellipse Width="92"  Height="92"  Stroke="{DynamicResource OpenDjBorder}" StrokeThickness="1"/>
+
+                    <!-- Needle (behind the album art so only the outer stub pokes out) -->
+                    <Border Width="140" Height="140"
+                            RenderTransformOrigin="0.5,0.5"
+                            Background="Transparent">
+                        <Border.RenderTransform>
+                            <RotateTransform Angle="{Binding DiscAngle}" CenterX="70" CenterY="70"/>
+                        </Border.RenderTransform>
+                        <Rectangle Width="2" Height="60"
+                                   Fill="{DynamicResource OpenDjMint}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Top"
+                                   Margin="0,10,0,0"/>
+                    </Border>
+
+                    <Ellipse Width="80" Height="80"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                             Fill="{Binding $parent[Window].DataContext.Theme.AlbumArtBrush}"/>
+
+                    <TextBlock Text="{Binding BpmDisplayShort}"
+                               FontSize="18" FontWeight="Bold"
+                               Foreground="{DynamicResource OpenDjTextBright}"
+                               Opacity="0.55"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding HasBpm}"/>
+                </Grid>
+
+                <StackPanel VerticalAlignment="Center" Spacing="4" MaxWidth="320">
+                    <TextBlock Text="{Binding LoadedTrack.Title, FallbackValue=''}"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{DynamicResource OpenDjTextBright}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding LoadedTrack.Artist, FallbackValue=''}"
+                               FontSize="14"
+                               Foreground="{DynamicResource OpenDjTextMuted}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </StackPanel>
+        </Panel>
+    </Grid>
+</UserControl>

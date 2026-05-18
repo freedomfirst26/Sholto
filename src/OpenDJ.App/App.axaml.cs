@@ -51,11 +51,19 @@ public partial class App : Application
                 _db = await OpenDjDatabase.OpenAsync();
                 Console.WriteLine($"[DB] opened {_db.DatabasePath}");
 
-                // Build a 3-tier provider: memory → SQLite → compute.
-                vm.DeckA.Player.AnalysisProvider = new AnalysisProvider(
-                    caches:  [ new MemoryAnalysisCache(), new DatabaseAnalysisCache(_db) ],
+                // Build one 3-tier provider per deck. They share the same memory + DB cache
+                // so analysing a track once benefits whichever deck loads it next.
+                var sharedCaches = new IAnalysisCache[]
+                {
+                    new MemoryAnalysisCache(),
+                    new DatabaseAnalysisCache(_db),
+                };
+                AnalysisProvider MakeProvider() => new(
+                    caches: sharedCaches,
                     compute: (path, samples, rate, ct) =>
                         BasicAnalysis.ComputeAsync(path, samples, channels: 2, sampleRate: rate, ct));
+                vm.Deck1.Player.AnalysisProvider = MakeProvider();
+                vm.Deck2.Player.AnalysisProvider = MakeProvider();
 
                 // Pre-populate the UI's BPM map from cache so tracks light up immediately.
                 var bpms = await _db.GetAllBpmsAsync();
@@ -84,7 +92,6 @@ public partial class App : Application
             {
                 foreach (var t in tracks) vm.Tracks.Add(new TrackRow(t));
                 if (cachedBpms is not null) vm.SetKnownBpms(cachedBpms);
-                if (vm.Tracks.Count > 0) vm.SelectTrack(0);
             });
         });
 
@@ -111,13 +118,13 @@ public partial class App : Application
                         vm.OnPlayPressed(p.Deck);
                         break;
                     case ControllerEvent.JogRotated j:
+                    {
                         // Top platter: fast scrub. Side ring: slow / fine seek.
-                        if (j.Deck == 0)
-                        {
-                            double secsPerTick = j.Source == JogSource.TopPlatter ? 0.05 : 0.005;
-                            vm.DeckA.Player.SeekRelative(j.Delta * secsPerTick);
-                        }
+                        var deck = vm.DeckFor(j.Deck);
+                        double secsPerTick = j.Source == JogSource.TopPlatter ? 0.05 : 0.005;
+                        deck.Player.SeekRelative(j.Delta * secsPerTick);
                         break;
+                    }
                 }
             });
         };
@@ -126,7 +133,8 @@ public partial class App : Application
         _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _positionTimer.Tick += (_, _) =>
         {
-            if (vm.DeckA.Player.IsPlaying) vm.DeckA.SyncPlayPosition();
+            if (vm.Deck1.Player.IsPlaying) vm.Deck1.SyncPlayPosition();
+            if (vm.Deck2.Player.IsPlaying) vm.Deck2.SyncPlayPosition();
         };
         _positionTimer.Start();
 
@@ -162,7 +170,7 @@ public partial class App : Application
         {
             try
             {
-                var engine = new AudioEngine(vm.DeckA.Player);
+                var engine = new AudioEngine(vm.Deck1.Player, vm.Deck2.Player);
                 engine.Start(chosen.Name);
                 _audioEngine = engine;
                 Console.WriteLine($"Audio engine started on: {chosen.Name}");
@@ -203,7 +211,7 @@ public partial class App : Application
             {
                 if (_audioEngine is null)
                 {
-                    var engine = new AudioEngine(_vm.DeckA.Player);
+                    var engine = new AudioEngine(_vm.Deck1.Player, _vm.Deck2.Player);
                     engine.Start(chosen.Name);
                     _audioEngine = engine;
                 }

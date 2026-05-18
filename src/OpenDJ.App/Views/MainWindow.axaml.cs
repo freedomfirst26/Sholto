@@ -14,55 +14,61 @@ namespace OpenDJ.App.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly Avalonia.Threading.DispatcherTimer _flashTimer = new()
-    {
-        Interval = TimeSpan.FromMilliseconds(400),
-    };
-    private double _flashPhase;
-
     public MainWindow()
     {
         InitializeComponent();
         // Intercept keys before child controls (ListBox would otherwise eat arrows).
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
 
-        _flashTimer.Tick += OnFlashTick;
-        _flashTimer.Start();
+        // Push the initial theme into the Window's dynamic-resource brushes so the
+        // first paint already has the right colors.
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is MainViewModel vm) ApplyThemeToResources(vm.Theme);
+        };
     }
 
-    private void OnFlashTick(object? sender, EventArgs e)
+    /// <summary>
+    /// Write the theme's colors into Window.Resources keyed under "OpenDj…" names.
+    /// Every UI element that needs a themed color references these via
+    /// {DynamicResource OpenDj…}, so the references re-evaluate without going
+    /// through visual-tree traversal (which goes stale under Fluent's hover/menu states).
+    /// </summary>
+    private void ApplyThemeToResources(OpenDjTheme theme)
     {
-        if (DataContext is not MainViewModel vm) return;
-        var ring = this.FindControl<Border>("DiscRing");
-        if (ring is null) return;
-
-        if (vm.DeckA.IsNearEnd)
-        {
-            _flashPhase = _flashPhase < 0.5 ? 1.0 : 0.35;
-            ring.Opacity = _flashPhase;
-        }
-        else if (ring.Opacity != 1.0)
-        {
-            ring.Opacity = 1.0;
-        }
+        Resources["OpenDjBgDeep"]        = theme.BgDeep;
+        Resources["OpenDjSurface"]       = theme.Surface;
+        Resources["OpenDjSurfaceRaised"] = theme.SurfaceRaised;
+        Resources["OpenDjBorder"]        = theme.Border;
+        Resources["OpenDjPrimary"]       = theme.Primary;
+        Resources["OpenDjAccent"]        = theme.Accent;
+        Resources["OpenDjAccentBg"]      = theme.AccentBg;
+        Resources["OpenDjMint"]          = theme.Mint;
+        Resources["OpenDjTextBright"]    = theme.TextBright;
+        Resources["OpenDjTextMuted"]     = theme.TextMuted;
     }
 
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {
-        if (DataContext is not MainViewModel vm || !vm.DeckA.Player.IsLoaded) return;
+        if (DataContext is not MainViewModel vm) return;
+
+        // Shift modifier switches all transport keys to Deck 2.
+        bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+        var deck = shift ? vm.Deck2 : vm.Deck1;
+        if (!deck.Player.IsLoaded) return;
 
         switch (e.Key)
         {
             case Key.Space:
-                vm.OnPlayPressed(deck: 0);
+                vm.OnPlayPressed(shift ? 1 : 0);
                 e.Handled = true;
                 break;
             case Key.Left:
-                vm.DeckA.Player.SeekRelative(-10.0);
+                deck.Player.SeekRelative(-10.0);
                 e.Handled = true;
                 break;
             case Key.Right:
-                vm.DeckA.Player.SeekRelative(+10.0);
+                deck.Player.SeekRelative(+10.0);
                 e.Handled = true;
                 break;
         }
@@ -80,8 +86,8 @@ public partial class MainWindow : Window
         {
             var samples = await Task.Run(() => AudioFileDecoder.Decode(track.FilePath));
             Console.WriteLine($"[Track] decoded {samples.Length} samples");
-            vm.DeckA.LoadTrack(track, track.FilePath, samples);
-            if (!vm.DeckA.IsPlaying) vm.OnPlayPressed(deck: 0);
+            vm.Deck1.LoadTrack(track, track.FilePath, samples);
+            // Load only — user explicitly starts playback (Space, FLX-4 play, etc.)
         }
         catch (Exception ex)
         {
@@ -102,5 +108,6 @@ public partial class MainWindow : Window
     private void SetTheme(OpenDjTheme theme)
     {
         if (DataContext is MainViewModel vm) vm.Theme = theme;
+        ApplyThemeToResources(theme);
     }
 }

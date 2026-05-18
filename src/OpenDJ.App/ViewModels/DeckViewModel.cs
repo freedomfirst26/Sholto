@@ -130,6 +130,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         LoadedTrack = track;
         IsPlaying = false;
         PlayPosition = 0;
+        Notify(nameof(IsLoaded));
         Notify(nameof(Analysis));
         Notify(nameof(Peaks));
         Notify(nameof(BeatTimes));
@@ -142,6 +143,24 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         _player.TogglePlay();
         IsPlaying = _player.IsPlaying;
     }
+
+    public void Unload()
+    {
+        _player.Unload();
+        LoadedTrack = null;
+        IsPlaying = false;
+        PlayPosition = 0;
+        Notify(nameof(Analysis));
+        Notify(nameof(Peaks));
+        Notify(nameof(BeatTimes));
+        Notify(nameof(DownbeatTimes));
+        Notify(nameof(BpmDisplay));
+        Notify(nameof(BpmDisplayShort));
+        Notify(nameof(HasBpm));
+        Notify(nameof(IsLoaded));
+    }
+
+    public bool IsLoaded => _player.IsLoaded;
 
     public void SyncPlayPosition()
     {

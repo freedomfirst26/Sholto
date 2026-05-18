@@ -8,8 +8,9 @@ using SfEngine = SoundFlow.Abstracts.AudioEngine;
 namespace OpenDJ.Audio;
 
 /// <summary>
-/// Wraps a SoundFlow MiniAudioEngine + one playback device. The DeckPlayer's
-/// SoundFlow SoundPlayer is attached to the device's MasterMixer.
+/// Wraps a SoundFlow MiniAudioEngine + one playback device. Every attached
+/// <see cref="DeckPlayer"/>'s component is added to the device's MasterMixer
+/// so their audio is summed at the output.
 /// </summary>
 public sealed class AudioEngine : IAudioOutput
 {
@@ -20,7 +21,7 @@ public sealed class AudioEngine : IAudioOutput
         Format = SampleFormat.F32
     };
 
-    private readonly DeckPlayer _deckA;
+    private readonly IReadOnlyList<DeckPlayer> _decks;
     private readonly SfEngine _engine;
     private AudioPlaybackDevice? _playbackDevice;
     private bool _running;
@@ -28,16 +29,13 @@ public sealed class AudioEngine : IAudioOutput
     public bool IsRunning => _running;
     public SfEngine Engine => _engine;
 
-    public AudioEngine(DeckPlayer deckA)
+    public AudioEngine(params DeckPlayer[] decks)
     {
-        _deckA = deckA;
-        // Default backend selection — reports as "Oss" but actually routes via
-        // PulseAudio on Linux. Forcing PulseAudio explicitly flips enumeration
-        // to ALSA hardware names AND breaks audio (SoundFlow quirk on PipeWire).
+        _decks = decks;
         var miniEngine = new MiniAudioEngine();
         _engine = miniEngine;
-        Console.WriteLine($"[AudioEngine] active backend: {miniEngine.ActiveBackend}");
-        _deckA.AttachEngine(_engine, Format);
+        Console.WriteLine($"[AudioEngine] active backend: {miniEngine.ActiveBackend}; decks={decks.Length}");
+        foreach (var deck in _decks) deck.AttachEngine(_engine, Format);
     }
 
     public void Start() => Start(deviceName: null);
@@ -46,10 +44,10 @@ public sealed class AudioEngine : IAudioOutput
     {
         var target = Resolve(deviceName);
         _playbackDevice = _engine.InitializePlaybackDevice(target, Format);
-        _playbackDevice.MasterMixer.AddComponent(_deckA.Component);
+        foreach (var deck in _decks) _playbackDevice.MasterMixer.AddComponent(deck.Component);
         _playbackDevice.Start();
         _running = true;
-        Console.WriteLine($"[AudioEngine] device={target.Name} started; deck component attached to master mixer");
+        Console.WriteLine($"[AudioEngine] device={target.Name} started; {_decks.Count} deck(s) attached to master mixer");
     }
 
     public void SwitchDevice(string deviceName)
@@ -78,7 +76,7 @@ public sealed class AudioEngine : IAudioOutput
     {
         if (_playbackDevice is not null)
         {
-            _playbackDevice.MasterMixer.RemoveComponent(_deckA.Component);
+            foreach (var deck in _decks) _playbackDevice.MasterMixer.RemoveComponent(deck.Component);
             _playbackDevice.Dispose();
             _playbackDevice = null;
         }

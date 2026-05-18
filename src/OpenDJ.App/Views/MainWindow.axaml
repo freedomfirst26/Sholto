@@ -1,15 +1,34 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:OpenDJ.App.Controls"
+        xmlns:v="using:OpenDJ.App.Views"
+        xmlns:media="using:Avalonia.Media"
         x:Class="OpenDJ.App.Views.MainWindow"
         Title="OpenDJ"
-        Width="1200" Height="700"
-        Background="{Binding Theme.BgDeep}">
+        Width="1200" Height="900"
+        Background="{DynamicResource OpenDjBgDeep}">
+
+    <Window.Resources>
+        <!-- Default-theme brushes; overridden at runtime in MainWindow.axaml.cs when the
+             user switches themes. Use {DynamicResource OpenDj…} in templates so colour
+             updates flow without going through $parent traversal (which goes stale on
+             menu/hover state changes under the Fluent theme). -->
+        <SolidColorBrush x:Key="OpenDjBgDeep"        Color="#0B0918"/>
+        <SolidColorBrush x:Key="OpenDjSurface"       Color="#16122B"/>
+        <SolidColorBrush x:Key="OpenDjSurfaceRaised" Color="#1F1A3D"/>
+        <SolidColorBrush x:Key="OpenDjBorder"        Color="#2D2752"/>
+        <SolidColorBrush x:Key="OpenDjPrimary"       Color="#7C5CFF"/>
+        <SolidColorBrush x:Key="OpenDjAccent"        Color="#FF4E9A"/>
+        <SolidColorBrush x:Key="OpenDjAccentBg"      Color="#33FF4E9A"/>
+        <SolidColorBrush x:Key="OpenDjMint"          Color="#34F0C6"/>
+        <SolidColorBrush x:Key="OpenDjTextBright"    Color="#EEEAFF"/>
+        <SolidColorBrush x:Key="OpenDjTextMuted"     Color="#8B7FB8"/>
+    </Window.Resources>
 
     <DockPanel>
         <Menu DockPanel.Dock="Top"
-              Background="{Binding Theme.SurfaceRaised}"
-              Foreground="{Binding Theme.TextBright}">
+              Background="{DynamicResource OpenDjSurfaceRaised}"
+              Foreground="{DynamicResource OpenDjTextBright}">
             <MenuItem Header="Settings">
                 <MenuItem Header="Theme">
                     <MenuItem Header="Plasma" Click="OnThemePlasma"/>
@@ -20,29 +39,29 @@
             </MenuItem>
         </Menu>
 
-    <Grid RowDefinitions="*,200">
+    <Grid RowDefinitions="*,200,200">
 
         <!-- Track library, rendered as a fixed-column table. -->
-        <Grid Grid.Row="0" RowDefinitions="32,*" Background="{Binding Theme.Surface}">
+        <Grid Grid.Row="0" RowDefinitions="32,*" Background="{DynamicResource OpenDjSurface}">
 
             <!-- Column header -->
             <Grid Grid.Row="0"
                   ColumnDefinitions="240,*,80,80,80"
-                  Background="{Binding Theme.SurfaceRaised}">
+                  Background="{DynamicResource OpenDjSurfaceRaised}">
                 <TextBlock Grid.Column="0" Text="ARTIST"
-                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Foreground="{DynamicResource OpenDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="12,8" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="TRACK"
-                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Foreground="{DynamicResource OpenDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" Text="BPM"
-                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Foreground="{DynamicResource OpenDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="3" Text="KEY"
-                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Foreground="{DynamicResource OpenDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="4" Text="TIME"
-                           Foreground="{Binding Theme.TextMuted}" FontWeight="Bold" FontSize="11"
+                           Foreground="{DynamicResource OpenDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
             </Grid>
 
@@ -51,24 +70,38 @@
                      ItemsSource="{Binding Tracks}"
                      SelectedIndex="{Binding SelectedTrackIndex, Mode=OneWay}"
                      SelectionChanged="OnTrackSelectionChanged"
-                     Background="{Binding Theme.Surface}">
+                     Background="{DynamicResource OpenDjSurface}">
+                <ListBox.Styles>
+                    <!-- Override Fluent's hover/selected backgrounds so they don't clobber
+                         our row foreground colors after the pointer leaves. -->
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource OpenDjSurfaceRaised}"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource OpenDjAccentBg}"/>
+                    </Style>
+                </ListBox.Styles>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid ColumnDefinitions="240,*,80,80,80">
                             <TextBlock Grid.Column="0" Text="{Binding Artist}"
-                                       Foreground="{Binding $parent[Window].DataContext.Theme.TextBright}"
+                                       Foreground="{DynamicResource OpenDjTextBright}"
                                        Margin="12,4" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="1" Text="{Binding Title}"
-                                       Foreground="{Binding $parent[Window].DataContext.Theme.TextBright}"
+                                       Foreground="{DynamicResource OpenDjTextBright}"
                                        Margin="8,4" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{Binding BpmDisplay}"
-                                       Foreground="{Binding $parent[Window].DataContext.Theme.Accent}"
+                                       Foreground="{DynamicResource OpenDjAccent}"
                                        FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="3" Text="{Binding Key}"
-                                       Foreground="{Binding $parent[Window].DataContext.Theme.Primary}"
+                                       Foreground="{DynamicResource OpenDjPrimary}"
                                        FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="4" Text="{Binding DurationDisplay}"
-                                       Foreground="{Binding $parent[Window].DataContext.Theme.TextMuted}"
+                                       Foreground="{DynamicResource OpenDjTextMuted}"
                                        Margin="8,4" VerticalAlignment="Center"/>
                         </Grid>
                     </DataTemplate>
@@ -76,102 +109,8 @@
             </ListBox>
         </Grid>
 
-        <!-- Deck A -->
-        <Grid Grid.Row="1" Background="{Binding Theme.SurfaceRaised}" RowDefinitions="48,*">
-
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" Margin="12,0">
-                <TextBlock Grid.Column="0" Text="DECK A"
-                           Foreground="{Binding Theme.Primary}"
-                           FontWeight="Bold" FontSize="14"
-                           VerticalAlignment="Center"/>
-                <Border Grid.Column="1"
-                        Background="{Binding Theme.AccentBg}"
-                        CornerRadius="4" Padding="10,3" Margin="16,0,0,0"
-                        VerticalAlignment="Center"
-                        IsVisible="{Binding DeckA.HasBpm}">
-                    <TextBlock Text="{Binding DeckA.BpmDisplay}"
-                               Foreground="{Binding $parent[Window].DataContext.Theme.Accent}"
-                               FontWeight="Bold" FontSize="18"/>
-                </Border>
-                <TextBlock Grid.Column="2"
-                           Text="{Binding DeckA.LoadedTrack.Title, FallbackValue='click a track to play'}"
-                           Foreground="{Binding Theme.TextBright}"
-                           VerticalAlignment="Center" Margin="16,0"/>
-            </Grid>
-
-            <Panel Grid.Row="1">
-                <controls:WaveformControl Peaks="{Binding DeckA.Peaks}"
-                                          BeatTimes="{Binding DeckA.BeatTimes}"
-                                          DownbeatTimes="{Binding DeckA.DownbeatTimes}"
-                                          PlayPosition="{Binding DeckA.PlayPosition}"
-                                          Palette="{Binding WaveformPalette}"/>
-
-                <!-- Fade-to-background gradient over the played half. -->
-                <Border HorizontalAlignment="Left" Width="600" IsHitTestVisible="False"
-                        Background="{Binding Theme.PlayedFadeGradient}"/>
-
-                <!-- Disc cluster: vinyl + rotating needle + title/artist on the side. -->
-                <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Left" VerticalAlignment="Center"
-                            Margin="20,0,0,0" Spacing="16"
-                            IsHitTestVisible="False">
-
-                    <!-- Vinyl disc with rotation tied to BPM. -->
-                    <Grid Width="140" Height="140">
-                        <!-- Outer progress ring: green → yellow → orange → red.
-                             Wrapped in a Border whose Opacity flashes when IsNearEnd. -->
-                        <Border Name="DiscRing" Width="140" Height="140">
-                            <Ellipse Width="140" Height="140"
-                                     Fill="{Binding Theme.BgDeep}"
-                                     Stroke="{Binding DeckA.DiscRingBrush}"
-                                     StrokeThickness="3"/>
-                        </Border>
-                        <Ellipse Width="124" Height="124" Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
-                        <Ellipse Width="108" Height="108" Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
-                        <Ellipse Width="92"  Height="92"  Stroke="{Binding Theme.Border}" StrokeThickness="1"/>
-
-                        <!-- Rotation needle — sits BEHIND the album-art label so only
-                             the outer portion pokes out of the disc. -->
-                        <Border Width="140" Height="140"
-                                RenderTransformOrigin="0.5,0.5"
-                                Background="Transparent">
-                            <Border.RenderTransform>
-                                <RotateTransform Angle="{Binding DeckA.DiscAngle}" CenterX="70" CenterY="70"/>
-                            </Border.RenderTransform>
-                            <Rectangle Width="2" Height="60"
-                                       Fill="{Binding $parent[Window].DataContext.Theme.Mint}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Top"
-                                       Margin="0,10,0,0"/>
-                        </Border>
-
-                        <!-- Album-art label covers the inner half of the needle. -->
-                        <Ellipse Width="80" Height="80"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                 Fill="{Binding Theme.AlbumArtBrush}"/>
-
-                        <!-- BPM number, dimmed, on top of the album art. -->
-                        <TextBlock Text="{Binding DeckA.BpmDisplayShort}"
-                                   FontSize="18" FontWeight="Bold"
-                                   Foreground="{Binding Theme.TextBright}"
-                                   Opacity="0.55"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   IsVisible="{Binding DeckA.HasBpm}"/>
-                    </Grid>
-
-                    <!-- Track title + artist, larger, beside the disc. -->
-                    <StackPanel VerticalAlignment="Center" Spacing="4" MaxWidth="320">
-                        <TextBlock Text="{Binding DeckA.LoadedTrack.Title, FallbackValue=''}"
-                                   FontSize="22" FontWeight="Bold"
-                                   Foreground="{Binding Theme.TextBright}"
-                                   TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="{Binding DeckA.LoadedTrack.Artist, FallbackValue=''}"
-                                   FontSize="14"
-                                   Foreground="{Binding Theme.TextMuted}"
-                                   TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
-                </StackPanel>
-            </Panel>
-        </Grid>
+        <v:DeckView Grid.Row="1" Label="DECK 1" DataContext="{Binding Deck1}"/>
+        <v:DeckView Grid.Row="2" Label="DECK 2" DataContext="{Binding Deck2}"/>
 
     </Grid>
     </DockPanel>
