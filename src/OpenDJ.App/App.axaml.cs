@@ -75,8 +75,12 @@ public partial class App : Application
                         vm.OnPlayPressed(p.Deck);
                         break;
                     case ControllerEvent.JogRotated j:
-                        // ~50 ms per jog tick — comfortable scrub speed.
-                        if (j.Deck == 0) vm.DeckA.Player.SeekRelative(j.Delta * 0.05);
+                        // Top platter: fast scrub. Side ring: slow / fine seek.
+                        if (j.Deck == 0)
+                        {
+                            double secsPerTick = j.Source == JogSource.TopPlatter ? 0.05 : 0.005;
+                            vm.DeckA.Player.SeekRelative(j.Delta * secsPerTick);
+                        }
                         break;
                 }
             });

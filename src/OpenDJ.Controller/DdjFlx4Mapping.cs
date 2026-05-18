@@ -23,9 +23,9 @@ public static class DdjFlx4Mapping
             return new ControllerEvent.BrowseRotated(delta);
         }
 
-        // Jog wheel rotation (free-spin, not touching the platter).
-        // FLX-4 sends CC 0x22 on the deck channel; value is centered at 0x40.
-        if (msg.Control == 0x22)
+        // Jog wheel rotation.
+        // FLX-4: CC 0x22 = top platter, CC 0x21 = side ring. Both centered at 0x40.
+        if (msg.Control == 0x22 || msg.Control == 0x21)
         {
             int deck = msg.Channel == Channel.Channel1 ? 0
                      : msg.Channel == Channel.Channel2 ? 1
@@ -33,7 +33,11 @@ public static class DdjFlx4Mapping
             if (deck >= 0)
             {
                 int delta = msg.Value - 64;
-                if (delta != 0) return new ControllerEvent.JogRotated(deck, delta);
+                if (delta != 0)
+                {
+                    var source = msg.Control == 0x22 ? JogSource.TopPlatter : JogSource.SideRing;
+                    return new ControllerEvent.JogRotated(deck, delta, source);
+                }
             }
         }
 
