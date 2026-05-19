@@ -4,7 +4,7 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 
 **Status:** currently developed and tested on **Linux** (Ubuntu / PipeWire) with the **Pioneer DDJ-FLX4** controller. Cross-platform support (Windows / macOS) and other controllers are next on the roadmap.
 
-![Sholto — Plasma theme with two decks](pictures/sholto-ui.png)
+![Sholto — Tokyo Night theme with two decks](pictures/sholto-ui.png)
 
 ## Features
 
