@@ -1,6 +1,8 @@
+<img src="pictures/sholto-icon.svg" width="120" align="right" alt="Sholto"/>
+
 # Sholto
 
-A community-built DJ application — a free, open-source alternative to Rekordbox / Serato.
+New DJ controller software — a free alternative to Rekordbox / Serato.
 
 **Status:** currently developed and tested on **Linux** (Ubuntu / PipeWire) with the **Pioneer DDJ-FLX4** controller. Cross-platform support (Windows / macOS) and other controllers are next on the roadmap.
 
@@ -19,6 +21,8 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 - **Best-in-class beat tracking** via [madmom](https://github.com/CPJKU/madmom)'s RNN + dynamic-Bayesian-network detector (the `madmom-onnx` fork — ONNX runtime, no Theano)
 - **Real downbeats** drawn as taller / coloured ticks (not "every 4th")
 - **3-band frequency split** (low / mid / high) per waveform column via biquad filters with 5-tap smoothing
+- **Stem separation** via [Demucs](https://github.com/facebookresearch/demucs) (htdemucs — Hybrid Transformer). One-time pass per track produces *vocals / drums / bass / other* WAVs, cached at `~/.local/share/sholto/stems/<hash>/` so re-loads are instant
+- **Live analysis reporter** — track rows show an indeterminate progress bar while analysing and a themed ✓ once basic + stems are both done
 
 ### Playback
 - **Two decks** with independent playback, scrubbing, and analysis
@@ -26,6 +30,9 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 - **Per-track audio cache**: load into either deck instantly the second time
 - Audio output device selectable at runtime from the Settings menu; chosen sink persists
 - **Sub-pixel-accurate playhead** read straight from the data provider (no drift between 44.1 kHz source and 48 kHz engine)
+- **Stem-mix playback** — once stems are ready, the deck transparently switches to a four-SoundPlayer mix (drums / vocals / bass / other) all sample-locked to the engine clock. Per-stem volume becomes live-mutable
+- **3-band Linkwitz–Riley isolator EQ** per deck (24 dB/oct crossovers at 250 Hz / 4 kHz). Full-cut all three bands → true silence, like a DJM hardware isolator. Lock-free `BiquadEq3Band` SoundModifier, atomic gain updates from MIDI
+- **Magnetic beat-snap** — when both decks are playing and their nearest downbeats approach alignment, jog ticks get scaled down by a smoothstep curve and a green glow lights both decks; once you let go, the adjusted deck quantises onto the reference deck's grid
 
 ### Visuals
 - **GPU-baked waveform** rendered once at load to a Skia surface; per-frame cost is one textured blit (no per-pixel re-paint)
@@ -36,10 +43,18 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 - **Effective-gain line** — a thin mint horizontal line across each waveform showing the combined channel × crossfader volume
 - Big track title + artist next to each deck's disc
 - BPM rendered both prominently in the deck readout and softly inside the spinning disc label
-- **Three themes** selectable from Settings → Theme:
-  - **Plasma** (default, 2026 violet / pink / mint)
-  - **Classic** (cyan / amber / Rekordbox-style waveform)
-  - **Serato** (Serato red / green / blue waveform)
+- **Stem activity chips** under each disc — coloured parallelogram tags
+  (DRMS / VOX / INST), filled when audible, hollow when muted
+- **Red mute tint** over the whole deck whenever its effective gain is 0
+  (channel fader down or crossfader fully on the other deck)
+- **Seven themes** selectable from Settings → Theme:
+  - **Tokyo Night** (default — navy + neon magenta/cyan)
+  - **Classic** (cyan / amber, Rekordbox-style)
+  - **Serato** (red / green / blue)
+  - **Smoke** (moody warm charcoal + whiskey amber)
+  - **Catppuccin Mocha** (soft pastel mauve/peach)
+  - **Glacier** (calm Nordic slate-blue)
+  - **Bloodmoon** (carbon + crimson + bone — high drama)
 
 ### Controller (Pioneer DDJ-FLX4)
 - **Play / pause** on each deck
@@ -48,6 +63,8 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 - **Crossfader** with equal-power gain curve (14-bit MSB CC, channel 7)
 - **Top scroll wheel** — rotate to step through the track list (signed delta encoder)
 - **LOAD 1 / LOAD 2** buttons load the highlighted track into the corresponding deck
+- **HI / MID / LOW EQ pots** drive the per-deck isolator (14-bit MSB CC `0x07` / `0x0B` / `0x0F` on channels 1 / 2)
+- **Hot-cue pads 1 / 2 / 3** temporarily repurposed as **stem mute toggles** — drums / vocals / instrumental on each deck (once Demucs analysis has landed)
 - Works on Linux via either RtMidi or a built-in `/dev/snd/midi*` raw-MIDI fallback (handles cases where RtMidi can't see the device under PipeWire)
 - **Pluggable mappings** — drop a new `IControllerMapping` into `src/Sholto.Controller/Mappings/`, register it in `MappingRegistry.All`, and any controller can be supported the same way
 
@@ -74,9 +91,9 @@ Built on **.NET 10**, **Avalonia 11**, **SoundFlow** (miniaudio under the hood, 
 ## Install + run
 
 ```bash
-git clone https://github.com/sebastianpatten/CommunityDJ.git
-cd CommunityDJ
-bash install.sh                                  # one-shot install — .NET 10, ffmpeg, madmom, libpulse symlink
+git clone https://github.com/sebastianpatten/Sholto.git
+cd Sholto
+bash install.sh                                  # one-shot install — .NET 10, ffmpeg, madmom-onnx, demucs, libpulse symlink
 dotnet run --project src/Sholto.App
 ```
 
