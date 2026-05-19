@@ -21,7 +21,7 @@ public sealed record StemPaths(string Vocals, string Drums, string Bass, string 
 /// the reporter.
 ///
 /// First analysis of a track is slow (~30–180 s on CPU); subsequent runs hit the cache
-/// instantly. The demucs binary must be on <c>PATH</c> (dev.sh installs it via uv).
+/// instantly. The demucs binary must be on <c>PATH</c> (install.sh installs it via uv).
 /// </summary>
 public static class DemucsStemAnalyzer
 {

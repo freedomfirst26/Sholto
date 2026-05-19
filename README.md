@@ -76,11 +76,11 @@ Built on **.NET 10**, **Avalonia 11**, **SoundFlow** (miniaudio under the hood, 
 ```bash
 git clone https://github.com/sebastianpatten/CommunityDJ.git
 cd CommunityDJ
-bash dev.sh                                  # one-shot install — .NET 10, ffmpeg, madmom, libpulse symlink
+bash install.sh                                  # one-shot install — .NET 10, ffmpeg, madmom, libpulse symlink
 dotnet run --project src/CommunityDj.App
 ```
 
-`dev.sh` is idempotent — safe to re-run. It uses `sudo apt` for system packages and `uv` for madmom, both standard tools on modern Ubuntu / Mint / Pop! / Debian.
+`install.sh` is idempotent — safe to re-run. It uses `sudo apt` for system packages and `uv` for madmom, both standard tools on modern Ubuntu / Mint / Pop! / Debian.
 
 For iterative development, use `dotnet watch` so changes auto-rebuild:
 
