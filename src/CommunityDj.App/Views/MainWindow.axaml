@@ -46,21 +46,24 @@
 
             <!-- Column header -->
             <Grid Grid.Row="0"
-                  ColumnDefinitions="240,*,80,80,80"
+                  ColumnDefinitions="80,240,*,80,80,80"
                   Background="{DynamicResource CommunityDjSurfaceRaised}">
-                <TextBlock Grid.Column="0" Text="ARTIST"
+                <TextBlock Grid.Column="0" Text="ANALYZED"
+                           Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="ARTIST"
                            Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="12,8" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="TRACK"
+                <TextBlock Grid.Column="2" Text="TRACK"
                            Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="BPM"
+                <TextBlock Grid.Column="3" Text="BPM"
                            Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="3" Text="KEY"
+                <TextBlock Grid.Column="4" Text="KEY"
                            Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="4" Text="TIME"
+                <TextBlock Grid.Column="5" Text="TIME"
                            Foreground="{DynamicResource CommunityDjTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
             </Grid>
@@ -87,20 +90,39 @@
                 </ListBox.Styles>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Grid ColumnDefinitions="240,*,80,80,80">
-                            <TextBlock Grid.Column="0" Text="{Binding Artist}"
+                        <Grid ColumnDefinitions="80,240,*,80,80,80">
+                            <Grid Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <!-- Done state. -->
+                                <TextBlock Text="✓"
+                                           Foreground="{DynamicResource CommunityDjTextMuted}"
+                                           FontSize="13" Opacity="0.8"
+                                           IsVisible="{Binding Analyzed}"/>
+                                <!-- Running state: indeterminate progress bar. Avalonia's
+                                     built-in animation, no fragile custom animators.
+                                     MinWidth=0 stops the default 100-px minimum from
+                                     bleeding into the artist column. -->
+                                <ProgressBar Width="28" Height="4"
+                                             MinWidth="0"
+                                             IsIndeterminate="True"
+                                             ShowProgressText="False"
+                                             HorizontalAlignment="Center"
+                                             Background="Transparent"
+                                             Foreground="{DynamicResource CommunityDjAccent}"
+                                             IsVisible="{Binding IsAnalyzing}"/>
+                            </Grid>
+                            <TextBlock Grid.Column="1" Text="{Binding Artist}"
                                        Foreground="{DynamicResource CommunityDjTextBright}"
                                        Margin="12,4" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Title}"
+                            <TextBlock Grid.Column="2" Text="{Binding Title}"
                                        Foreground="{DynamicResource CommunityDjTextBright}"
                                        Margin="8,4" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="{Binding BpmDisplay}"
+                            <TextBlock Grid.Column="3" Text="{Binding BpmDisplay}"
                                        Foreground="{DynamicResource CommunityDjAccent}"
                                        FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="3" Text="{Binding Key}"
+                            <TextBlock Grid.Column="4" Text="{Binding Key}"
                                        Foreground="{DynamicResource CommunityDjPrimary}"
                                        FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="4" Text="{Binding DurationDisplay}"
+                            <TextBlock Grid.Column="5" Text="{Binding DurationDisplay}"
                                        Foreground="{DynamicResource CommunityDjTextMuted}"
                                        Margin="8,4" VerticalAlignment="Center"/>
                         </Grid>

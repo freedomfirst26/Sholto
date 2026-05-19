@@ -22,6 +22,10 @@ public abstract record ControllerEvent
 
     /// <summary>One of the three EQ pots (HI / MID / LOW). Value 0..1, 0.5 = neutral / 0 dB.</summary>
     public record EqMoved(int Deck, EqBand Band, double Value) : ControllerEvent;
+
+    /// <summary>Hot-cue button press temporarily repurposed as a stem mute toggle.
+    /// <paramref name="Group"/>: 0=Drums, 1=Vocals, 2=Instrumental (bass+other).</summary>
+    public record StemToggle(int Deck, int Group) : ControllerEvent;
 }
 
 public enum EqBand { Low, Mid, High }

@@ -25,6 +25,16 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         // Legacy big browse rotary press (mixer section).
         (11, 0x15) => new ControllerEvent.BrowsePressed(),
 
+        // Hot-cue pads (temporarily): pads 1/2/3 mute Drums / Vocals / Instrumental.
+        //   Deck 1 (ch 8 wire): notes 0x00 / 0x01 / 0x02
+        //   Deck 2 (ch 10 wire): notes 0x30 / 0x31 / 0x32
+        (8,  0x00) => new ControllerEvent.StemToggle(Deck: 0, Group: 0),
+        (8,  0x01) => new ControllerEvent.StemToggle(Deck: 0, Group: 1),
+        (8,  0x02) => new ControllerEvent.StemToggle(Deck: 0, Group: 2),
+        (10, 0x30) => new ControllerEvent.StemToggle(Deck: 1, Group: 0),
+        (10, 0x31) => new ControllerEvent.StemToggle(Deck: 1, Group: 1),
+        (10, 0x32) => new ControllerEvent.StemToggle(Deck: 1, Group: 2),
+
         _ => null,
     };
 

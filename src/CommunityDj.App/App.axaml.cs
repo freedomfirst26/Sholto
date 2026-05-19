@@ -144,6 +144,18 @@ public partial class App : Application
                     case ControllerEvent.EqMoved e:
                         vm.DeckFor(e.Deck).Player.SetEq((int)e.Band, e.Value);
                         break;
+                    case ControllerEvent.StemToggle st:
+                    {
+                        var deckVm = vm.DeckFor(st.Deck);
+                        bool active = deckVm.Player.ToggleStemGroup(st.Group);
+                        switch (st.Group)
+                        {
+                            case 0: deckVm.DrumsActive       = active; break;
+                            case 1: deckVm.VocalsActive      = active; break;
+                            case 2: deckVm.InstrumentalActive = active; break;
+                        }
+                        break;
+                    }
                     case ControllerEvent.JogRotated j:
                     {
                         // Accumulate the jog delta; the 60 Hz timer below flushes it

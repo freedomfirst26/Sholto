@@ -3,6 +3,10 @@
 # Idempotent: safe to re-run.
 set -e
 
+# Run from the repo root no matter where the script was invoked from, so the
+# dotnet restore step finds CommunityDj.slnx.
+cd "$(dirname "$(readlink -f "$0")")"
+
 ok()   { echo "  ✓ $*"; }
 info() { echo "  · $*"; }
 
@@ -65,7 +69,18 @@ else
     ok "madmom-onnx installed at ~/.local/bin/"
 fi
 
-# ── 4. NuGet restore ──────────────────────────────────────────────────────────
+# ── 4. demucs (stem separation) ───────────────────────────────────────────────
+echo ""
+echo "── demucs (stem separation) ─────────────────────────────────────────────"
+if [ -x "$HOME/.local/bin/demucs" ]; then
+    ok "demucs already installed"
+else
+    info "Installing demucs (htdemucs 4-stem source separation)..."
+    uv tool install demucs
+    ok "demucs installed at ~/.local/bin/"
+fi
+
+# ── 5. NuGet restore ──────────────────────────────────────────────────────────
 echo ""
 echo "── NuGet packages ────────────────────────────────────────────────────────"
 dotnet restore CommunityDj.slnx

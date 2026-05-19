@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using CommunityDj.Analysis;
 using CommunityDj.App.Controls;
 using CommunityDj.App.Theming;
 using CommunityDj.Audio;
@@ -20,12 +21,26 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public DeckViewModel Deck1 { get; }
     public DeckViewModel Deck2 { get; }
 
+    /// <summary>Single reporter instance shared by both decks. Anywhere in the app can
+    /// listen to <see cref="AnalysisReporter.Updated"/> to surface per-track progress.</summary>
+    public AnalysisReporter Reporter { get; } = new();
+
     public MainViewModel()
     {
-        Deck1 = new DeckViewModel(new DeckPlayer());
-        Deck2 = new DeckViewModel(new DeckPlayer());
+        Deck1 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
+        Deck2 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
         WireDeck(Deck1);
         WireDeck(Deck2);
+
+        // Surface any analysis-in-progress on its row's spinner.
+        Reporter.Updated += report =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                foreach (var row in Tracks)
+                    if (row.FilePath == report.FilePath) row.IsAnalyzing = report.IsBusy;
+            });
+        };
     }
 
     private void WireDeck(DeckViewModel deck)
@@ -33,12 +48,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         deck.Player.AnalysisUpdated += () =>
         {
             var path = deck.LoadedTrack?.FilePath;
+            if (path is null) return;
             var bpm = deck.Analysis.Basic?.Bpm;
-            if (path is null || bpm is null) return;
+            var stems = deck.Analysis.Get<StemPaths>();
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 foreach (var row in Tracks)
-                    if (row.FilePath == path) row.Bpm = bpm;
+                {
+                    if (row.FilePath != path) continue;
+                    if (bpm is not null) row.Bpm = bpm;
+                    if (stems is not null) row.StemsReady = true;
+                }
             });
         };
     }
