@@ -5,7 +5,7 @@ test:
     dotnet test
 
 run:
-    dotnet run --project src/CommunityDj.App/CommunityDj.App.csproj
+    dotnet run --project src/Sholto.App/Sholto.App.csproj
 
 watch:
-    dotnet watch --project src/CommunityDj.App/CommunityDj.App.csproj run
+    dotnet watch --project src/Sholto.App/Sholto.App.csproj run

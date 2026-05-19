@@ -1,0 +1,398 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Rendering.SceneGraph;
+using Avalonia.Skia;
+using Avalonia.Threading;
+using Sholto.Audio;
+using Sholto.Analysis;
+using SkiaSharp;
+
+namespace Sholto.App.Controls;
+
+public enum WaveformPalette { Bands, Hot, Plasma, Smoke, Glacier, Bloodmoon }
+
+/// <summary>
+/// Pre-renders the entire waveform to an offscreen SKImage at track load,
+/// then blits a window per frame. One textured rectangle per frame instead of
+/// thousands of DrawLine calls.
+/// </summary>
+public sealed class WaveformControl : Control
+{
+    private const int BakedHeight = 256;
+    private static readonly SKColor BgColor = new(0x11, 0x11, 0x11);
+
+    public static readonly StyledProperty<WaveformPeaks?> PeaksProperty =
+        AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(Peaks));
+
+    public static readonly StyledProperty<double[]?> BeatTimesProperty =
+        AvaloniaProperty.Register<WaveformControl, double[]?>(nameof(BeatTimes));
+
+    public static readonly StyledProperty<double[]?> DownbeatTimesProperty =
+        AvaloniaProperty.Register<WaveformControl, double[]?>(nameof(DownbeatTimes));
+
+    public static readonly StyledProperty<double> PlayPositionProperty =
+        AvaloniaProperty.Register<WaveformControl, double>(nameof(PlayPosition));
+
+    public static readonly StyledProperty<double> GainOverlayProperty =
+        AvaloniaProperty.Register<WaveformControl, double>(nameof(GainOverlay), 1.0);
+
+    public static readonly StyledProperty<double> MagneticGlowSecProperty =
+        AvaloniaProperty.Register<WaveformControl, double>(nameof(MagneticGlowSec), -1.0);
+
+    public static readonly StyledProperty<bool> IsScrubbingProperty =
+        AvaloniaProperty.Register<WaveformControl, bool>(nameof(IsScrubbing), false);
+
+    public static readonly StyledProperty<WaveformPalette> PaletteProperty =
+        AvaloniaProperty.Register<WaveformControl, WaveformPalette>(nameof(Palette), WaveformPalette.Bands);
+
+    private SKImage? _baked;
+    private WaveformPeaks? _bakedFor;
+    private WaveformPalette _bakedPalette;
+    private CancellationTokenSource? _bakeCts;
+
+    static WaveformControl()
+    {
+        AffectsRender<WaveformControl>(PlayPositionProperty);
+        AffectsRender<WaveformControl>(GainOverlayProperty);
+        AffectsRender<WaveformControl>(MagneticGlowSecProperty);
+        AffectsRender<WaveformControl>(IsScrubbingProperty);
+        PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+        BeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+        DownbeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+        PaletteProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+    }
+
+    public WaveformPeaks? Peaks
+    {
+        get => GetValue(PeaksProperty);
+        set => SetValue(PeaksProperty, value);
+    }
+
+    public double[]? BeatTimes
+    {
+        get => GetValue(BeatTimesProperty);
+        set => SetValue(BeatTimesProperty, value);
+    }
+
+    public double[]? DownbeatTimes
+    {
+        get => GetValue(DownbeatTimesProperty);
+        set => SetValue(DownbeatTimesProperty, value);
+    }
+
+    public double PlayPosition
+    {
+        get => GetValue(PlayPositionProperty);
+        set => SetValue(PlayPositionProperty, value);
+    }
+
+    public double GainOverlay
+    {
+        get => GetValue(GainOverlayProperty);
+        set => SetValue(GainOverlayProperty, value);
+    }
+
+    public double MagneticGlowSec
+    {
+        get => GetValue(MagneticGlowSecProperty);
+        set => SetValue(MagneticGlowSecProperty, value);
+    }
+
+    /// <summary>When true and a magnetic beat is highlighted, draw a full-height green
+    /// line instead of the top/bottom stripes — much easier to eyeball alignment while
+    /// turning the jog wheel.</summary>
+    public bool IsScrubbing
+    {
+        get => GetValue(IsScrubbingProperty);
+        set => SetValue(IsScrubbingProperty, value);
+    }
+
+    public WaveformPalette Palette
+    {
+        get => GetValue(PaletteProperty);
+        set => SetValue(PaletteProperty, value);
+    }
+
+    private void Rebake()
+    {
+        var peaks = Peaks;
+        _bakeCts?.Cancel();
+        if (peaks is null || peaks.Min.Length == 0)
+        {
+            _baked = null;
+            _bakedFor = null;
+            InvalidateVisual();
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _bakeCts = cts;
+        var snapshot = peaks;
+        var palette = Palette;
+        var beats = BeatTimes ?? [];
+        var downbeats = DownbeatTimes ?? [];
+        Task.Run(() =>
+        {
+            var img = BakeWaveform(snapshot, beats, downbeats, palette, cts.Token);
+            if (cts.IsCancellationRequested || img is null) { img?.Dispose(); return; }
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (cts.IsCancellationRequested) { img.Dispose(); return; }
+                _baked = img;
+                _bakedFor = snapshot;
+                _bakedPalette = palette;
+                InvalidateVisual();
+            });
+        });
+    }
+
+    private static SKImage? BakeWaveform(WaveformPeaks peaks, double[] beatTimes, double[] downbeatTimes, WaveformPalette palette, CancellationToken ct)
+    {
+        int width = peaks.Min.Length;
+        if (width == 0) return null;
+        int height = BakedHeight;
+        float midY = height / 2f;
+
+        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        using var surface = SKSurface.Create(info);
+        var canvas = surface.Canvas;
+        canvas.Clear(BgColor);
+
+        // Bands: authentic Rekordbox — blue / white / yellow
+        // Hot:    Serato — red / green / blue
+        // Plasma: Sholto 2026 — violet / hot-pink / mint
+        // Smoke:  warm whiskey — coal / cream / amber
+        // Glacier: nordic — slate-blue / frost-white / aurora-violet
+        // Bloodmoon: dramatic — blood / amber / bone
+        var (lowColor, midColor, highColor) = palette switch
+        {
+            WaveformPalette.Hot       => (new SKColor(0xFF, 0x3D, 0x3D), new SKColor(0x3D, 0xFF, 0x7A), new SKColor(0x3D, 0x8B, 0xFF)),
+            WaveformPalette.Plasma    => (new SKColor(0x7C, 0x5C, 0xFF), new SKColor(0xFF, 0x4E, 0x9A), new SKColor(0x34, 0xF0, 0xC6)),
+            WaveformPalette.Smoke     => (new SKColor(0x6B, 0x4F, 0x3A), new SKColor(0xE8, 0xD9, 0xB8), new SKColor(0xD4, 0xA5, 0x74)),
+            WaveformPalette.Glacier   => (new SKColor(0x4C, 0x6B, 0x8A), new SKColor(0xEC, 0xF0, 0xF6), new SKColor(0xB4, 0x8E, 0xAD)),
+            WaveformPalette.Bloodmoon => (new SKColor(0xC8, 0x32, 0x4D), new SKColor(0xE8, 0xA5, 0x4B), new SKColor(0xF5, 0xE6, 0xD8)),
+            _                         => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
+        };
+        using var lowPaint  = new SKPaint { Color = lowColor, StrokeWidth = 1, IsAntialias = false };
+        using var midPaint  = new SKPaint { Color = midColor, StrokeWidth = 1, IsAntialias = false };
+        using var highPaint = new SKPaint { Color = highColor, StrokeWidth = 1, IsAntialias = false };
+
+        bool hasBands = peaks.Low.Length == width;
+
+        for (int x = 0; x < width; x++)
+        {
+            if (ct.IsCancellationRequested) return null;
+
+            float amp = MathF.Max(MathF.Abs(peaks.Max[x]), MathF.Abs(peaks.Min[x]));
+            float barHeight = amp * midY;
+            if (barHeight < 1f) continue;
+
+            if (!hasBands)
+            {
+                canvas.DrawLine(x, midY - barHeight, x, midY + barHeight, lowPaint);
+                continue;
+            }
+
+            float l = peaks.Low[x];
+            float m = peaks.Mid[x];
+            float h = peaks.High[x];
+            float sum = l + m + h;
+            if (sum <= 1e-5f) continue;
+
+            float hSeg = barHeight * (h / sum);
+            float mSeg = barHeight * (m / sum);
+            float lSeg = barHeight - hSeg - mSeg;
+
+            float lowEdge  = lSeg;
+            float midEdge  = lowEdge + mSeg;
+            float highEdge = midEdge + hSeg;
+
+            canvas.DrawLine(x, midY,           x, midY + lowEdge,  lowPaint);
+            canvas.DrawLine(x, midY + lowEdge, x, midY + midEdge,  midPaint);
+            canvas.DrawLine(x, midY + midEdge, x, midY + highEdge, highPaint);
+
+            canvas.DrawLine(x, midY,           x, midY - lowEdge,  lowPaint);
+            canvas.DrawLine(x, midY - lowEdge, x, midY - midEdge,  midPaint);
+            canvas.DrawLine(x, midY - midEdge, x, midY - highEdge, highPaint);
+        }
+
+        // Beat ticks at the top edge. Real downbeats from madmom if available,
+        // otherwise fall back to "every 4th beat".
+        if (beatTimes.Length > 0)
+        {
+            using var tickPaint     = new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xC0), StrokeWidth = 1, IsAntialias = false };
+            using var downbeatPaint = new SKPaint { Color = new SKColor(0xFF, 0xCC, 0x00), StrokeWidth = 2, IsAntialias = false };
+            double secondsPerPeak = peaks.SamplesPerPeak / 44100.0;
+
+            // Build a HashSet of downbeat column indices for fast lookup.
+            HashSet<int>? downbeatCols = null;
+            if (downbeatTimes.Length > 0)
+            {
+                downbeatCols = new HashSet<int>();
+                foreach (var t in downbeatTimes)
+                    downbeatCols.Add((int)Math.Round(t / secondsPerPeak));
+            }
+
+            // Non-downbeat beat ticks only — downbeats are drawn at full height in
+            // the live overlay (see BlitOperation) so they read as a fixed grid.
+            for (int i = 0; i < beatTimes.Length; i++)
+            {
+                int col = (int)Math.Round(beatTimes[i] / secondsPerPeak);
+                if (col < 0 || col >= width) continue;
+                bool downbeat = downbeatCols is not null
+                    ? downbeatCols.Contains(col)
+                    : (i % 4) == 0;
+                if (downbeat) continue;
+                canvas.DrawLine(col, 0, col, 5, tickPaint);
+            }
+        }
+
+        return surface.Snapshot();
+    }
+
+    public override void Render(DrawingContext context)
+    {
+        // Pick a downbeat-guide colour that contrasts the palette's high band so
+        // the grid stays visible even where the waveform itself is yellow.
+        SKColor downbeatColor = Palette switch
+        {
+            WaveformPalette.Hot       => new SKColor(0xFF, 0xD6, 0x3D, 0xC8), // yellow on red/green/blue
+            WaveformPalette.Plasma    => new SKColor(0xFF, 0xAA, 0x2A, 0xC8), // amber on violet/pink/mint
+            WaveformPalette.Smoke     => new SKColor(0xF2, 0xC8, 0x79, 0xD0), // candle gold on coal/cream/amber
+            WaveformPalette.Glacier   => new SKColor(0xA3, 0xBE, 0x8C, 0xD0), // sage on slate/frost/violet
+            WaveformPalette.Bloodmoon => new SKColor(0xF5, 0xE6, 0xD8, 0xD8), // bone on blood/amber/bone
+            _                         => new SKColor(0xE6, 0xF0, 0xFF, 0xD8), // cool white on Rekordbox bands
+        };
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes, downbeatColor));
+    }
+
+    private sealed class BlitOperation : ICustomDrawOperation
+    {
+        private readonly SKImage? _image;
+        private readonly WaveformPeaks? _peaks;
+        private readonly double _playPosition;
+        private readonly double _gain;
+        private readonly double _magneticGlowSec;
+        private readonly bool _isScrubbing;
+        private readonly double[]? _downbeats;
+        private readonly SKColor _downbeatColor;
+
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats, SKColor downbeatColor)
+        {
+            Bounds = bounds;
+            _image = image;
+            _peaks = peaks;
+            _playPosition = playPosition;
+            _gain = gain;
+            _magneticGlowSec = magneticGlowSec;
+            _isScrubbing = isScrubbing;
+            _downbeats = downbeats;
+            _downbeatColor = downbeatColor;
+        }
+
+        public Rect Bounds { get; }
+        public bool HitTest(Point p) => Bounds.Contains(p);
+        public bool Equals(ICustomDrawOperation? other) => false;
+        public void Dispose() { }
+
+        public void Render(ImmediateDrawingContext context)
+        {
+            var leaseFeature = (ISkiaSharpApiLeaseFeature?)context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature));
+            if (leaseFeature is null) return;
+            using var lease = leaseFeature.Lease();
+            var canvas = lease.SkCanvas;
+
+            int dstW = (int)Bounds.Width;
+            int dstH = (int)Bounds.Height;
+            canvas.Clear(BgColor);
+
+            if (_image is not null && _peaks is not null && _peaks.Min.Length > 0)
+            {
+                int totalPeaks = _peaks.Min.Length;
+                float centerPeak = (float)(_playPosition * totalPeaks); // keep sub-pixel precision
+                float half = dstW / 2f;
+
+                float srcXStart = centerPeak - half;
+                float srcXEnd   = centerPeak + half;
+
+                float clipLeft  = srcXStart < 0 ? -srcXStart : 0;
+                float clipRight = srcXEnd > totalPeaks ? srcXEnd - totalPeaks : 0;
+
+                float validSrcW = (srcXEnd - srcXStart) - clipLeft - clipRight;
+                if (validSrcW > 0)
+                {
+                    var src = new SKRect(srcXStart + clipLeft, 0, srcXEnd - clipRight, _image.Height);
+                    var dst = new SKRect(clipLeft, 0, dstW - clipRight, dstH);
+                    // Bilinear filtering — smooths the sub-pixel scroll between
+                    // columns each frame so the waveform glides instead of stepping.
+                    using var paint = new SKPaint { FilterQuality = SKFilterQuality.Low };
+                    canvas.DrawImage(_image, src, dst, paint);
+                }
+            }
+
+            using var headPaint = new SKPaint { Color = SKColors.White, StrokeWidth = 2 };
+            int halfX = dstW / 2;
+            canvas.DrawLine(halfX, 0, halfX, dstH, headPaint);
+
+            // Gain overlay: a thin horizontal line where Y = 0 means 100% (top) and
+            // Y = dstH means 0%. So gain=1 → top, gain=0 → bottom.
+            float gainY = (float)((1.0 - Math.Clamp(_gain, 0, 1)) * dstH);
+            using var gainPaint = new SKPaint { Color = new SKColor(0x34, 0xF0, 0xC6, 0xC0), StrokeWidth = 1, IsAntialias = false };
+            canvas.DrawLine(0, gainY, dstW, gainY, gainPaint);
+
+            // Full-height downbeat guides — always on. Acts as a fixed yellow grid
+            // so the user can eyeball alignment between decks at a glance.
+            if (_downbeats is { Length: > 0 } && _peaks is not null && _peaks.Min.Length > 0)
+            {
+                double secondsPerPeak = _peaks.SamplesPerPeak / 44100.0;
+                int totalPeaks = _peaks.Min.Length;
+                float centerPeak = (float)(_playPosition * totalPeaks);
+                using var dbPaint = new SKPaint
+                {
+                    Color = _downbeatColor,
+                    StrokeWidth = 2,
+                    IsAntialias = true,
+                };
+                foreach (var t in _downbeats)
+                {
+                    float beatCol = (float)(t / secondsPerPeak);
+                    float x = (beatCol - centerPeak) + dstW / 2f;
+                    if (x >= -2 && x < dstW + 2)
+                        canvas.DrawLine(x, 0, x, dstH, dbPaint);
+                }
+            }
+
+            // Magnetic glow: when both decks are beat-locked-ish, paint a bright
+            // green stripe at the top and bottom of the nearest beat in each deck.
+            if (_magneticGlowSec >= 0 && _peaks is not null && _peaks.Min.Length > 0)
+            {
+                double secondsPerPeak = _peaks.SamplesPerPeak / 44100.0;
+                float beatCol = (float)(_magneticGlowSec / secondsPerPeak);
+                int totalPeaks = _peaks.Min.Length;
+                float centerPeak = (float)(_playPosition * totalPeaks);
+                float x = (beatCol - centerPeak) + dstW / 2f;
+                if (x >= -2 && x < dstW + 2)
+                {
+                    using var glow = new SKPaint
+                    {
+                        Color = new SKColor(0x34, 0xF0, 0x6F, 0xF0),
+                        StrokeWidth = _isScrubbing ? 3 : 4,
+                        IsAntialias = true,
+                    };
+                    if (_isScrubbing)
+                    {
+                        // Full-height guide line while the user is actively turning the
+                        // jog wheel — makes it obvious when the two decks' greens align.
+                        canvas.DrawLine(x, 0, x, dstH, glow);
+                    }
+                    else
+                    {
+                        canvas.DrawLine(x, 0, x, 16, glow);
+                        canvas.DrawLine(x, dstH - 16, x, dstH, glow);
+                    }
+                }
+            }
+        }
+    }
+}

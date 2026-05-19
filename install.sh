@@ -1,17 +1,17 @@
 #!/bin/bash
-# CommunityDj — one-shot install script for Linux (Ubuntu / Mint / Pop! / Debian).
+# Sholto — one-shot install script for Linux (Ubuntu / Mint / Pop! / Debian).
 # Idempotent: safe to re-run.
 set -e
 
 # Run from the repo root no matter where the script was invoked from, so the
-# dotnet restore step finds CommunityDj.slnx.
+# dotnet restore step finds Sholto.slnx.
 cd "$(dirname "$(readlink -f "$0")")"
 
 ok()   { echo "  ✓ $*"; }
 info() { echo "  · $*"; }
 
 echo ""
-echo "CommunityDj — install"
+echo "Sholto — install"
 echo "====================="
 
 # ── 1. System packages ────────────────────────────────────────────────────────
@@ -83,9 +83,9 @@ fi
 # ── 5. NuGet restore ──────────────────────────────────────────────────────────
 echo ""
 echo "── NuGet packages ────────────────────────────────────────────────────────"
-dotnet restore CommunityDj.slnx
+dotnet restore Sholto.slnx
 ok "restored"
 
 echo ""
-echo "Done.  Run with:  dotnet run --project src/CommunityDj.App"
+echo "Done.  Run with:  dotnet run --project src/Sholto.App"
 echo ""

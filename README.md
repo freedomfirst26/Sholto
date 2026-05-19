@@ -1,10 +1,10 @@
-# CommunityDj
+# Sholto
 
 A community-built DJ application — a free, open-source alternative to Rekordbox / Serato.
 
 **Status:** currently developed and tested on **Linux** (Ubuntu / PipeWire) with the **Pioneer DDJ-FLX4** controller. Cross-platform support (Windows / macOS) and other controllers are next on the roadmap.
 
-![CommunityDj — Plasma theme with two decks](pictures/communitydj-ui.png)
+![Sholto — Plasma theme with two decks](pictures/sholto-ui.png)
 
 ## Features
 
@@ -12,7 +12,7 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 - Scans `~/Music` recursively (mp3, wav, flac, ogg, m4a, …) using ATL for tag metadata
 - **Track table** with Artist · Track · BPM · Key · Time columns
 - BPM column auto-uplifts as analyses come back from cache / madmom
-- **SQLite-backed analysis cache** at `~/.local/share/communitydj/library.db` — every track is analysed once and the result survives restarts
+- **SQLite-backed analysis cache** at `~/.local/share/sholto/library.db` — every track is analysed once and the result survives restarts
 - 3-tier lookup pipeline: in-memory → SQLite → compute, with automatic write-through
 
 ### Audio analysis
@@ -49,7 +49,7 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 - **Top scroll wheel** — rotate to step through the track list (signed delta encoder)
 - **LOAD 1 / LOAD 2** buttons load the highlighted track into the corresponding deck
 - Works on Linux via either RtMidi or a built-in `/dev/snd/midi*` raw-MIDI fallback (handles cases where RtMidi can't see the device under PipeWire)
-- **Pluggable mappings** — drop a new `IControllerMapping` into `src/CommunityDj.Controller/Mappings/`, register it in `MappingRegistry.All`, and any controller can be supported the same way
+- **Pluggable mappings** — drop a new `IControllerMapping` into `src/Sholto.Controller/Mappings/`, register it in `MappingRegistry.All`, and any controller can be supported the same way
 
 ### Keyboard
 - **Space** play/pause Deck 1; hold **Shift** for Deck 2
@@ -59,14 +59,14 @@ A community-built DJ application — a free, open-source alternative to Rekordbo
 ## Architecture
 
 ```
-CommunityDj.Library     Track, TrackScanner                       — domain primitives
-CommunityDj.Analysis    WaveformPeaks, BasicAnalysis, beat        — pure analysis math, no deps
+Sholto.Library     Track, TrackScanner                       — domain primitives
+Sholto.Analysis    WaveformPeaks, BasicAnalysis, beat        — pure analysis math, no deps
                    trackers, AnalysisProvider, MemoryCache
-CommunityDj.Storage     CommunityDjDatabase, AnalysisCodec,            — persistence boundary (SQLite)
+Sholto.Storage     SholtoDatabase, AnalysisCodec,            — persistence boundary (SQLite)
                    DatabaseAnalysisCache
-CommunityDj.Audio       AudioEngine, DeckPlayer, AudioFileDecoder — playback I/O via SoundFlow / miniaudio
-CommunityDj.Controller  MIDI input + Mappings/                    — pluggable per-device mappings
-CommunityDj.App         Avalonia UI                               — everything visible
+Sholto.Audio       AudioEngine, DeckPlayer, AudioFileDecoder — playback I/O via SoundFlow / miniaudio
+Sholto.Controller  MIDI input + Mappings/                    — pluggable per-device mappings
+Sholto.App         Avalonia UI                               — everything visible
 ```
 
 Built on **.NET 10**, **Avalonia 11**, **SoundFlow** (miniaudio under the hood, talks to PulseAudio / PipeWire on Linux). Audio decoding via NAudio + NLayer.
@@ -77,7 +77,7 @@ Built on **.NET 10**, **Avalonia 11**, **SoundFlow** (miniaudio under the hood, 
 git clone https://github.com/sebastianpatten/CommunityDJ.git
 cd CommunityDJ
 bash install.sh                                  # one-shot install — .NET 10, ffmpeg, madmom, libpulse symlink
-dotnet run --project src/CommunityDj.App
+dotnet run --project src/Sholto.App
 ```
 
 `install.sh` is idempotent — safe to re-run. It uses `sudo apt` for system packages and `uv` for madmom, both standard tools on modern Ubuntu / Mint / Pop! / Debian.
@@ -85,11 +85,22 @@ dotnet run --project src/CommunityDj.App
 For iterative development, use `dotnet watch` so changes auto-rebuild:
 
 ```bash
-dotnet watch --project src/CommunityDj.App run --no-hot-reload
+dotnet watch --project src/Sholto.App run --no-hot-reload
 ```
 
 The library scans `~/Music` on startup. Click a track in the list to load it into Deck 1; press LOAD 2 on a DDJ-FLX4 to load into Deck 2.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Dual-licensed — see [LICENSE](LICENSE):
+
+- **Individuals & noncommercial users**: free under the
+  [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
+  Fork it, modify it, gig with it, contribute back — all fine.
+- **Commercial use** (products, hosted services, large-company internal
+  deployment): requires a paid commercial license. Open an
+  [issue](https://github.com/sebastianpatten/Sholto/issues) to arrange.
+
+Small businesses under $1M annual revenue can deploy Sholto internally
+under the PolyForm terms. The goal is to keep Sholto free for individuals
+and small shops while asking large companies to contribute back.

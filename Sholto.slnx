@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sholto.Analysis/Sholto.Analysis.csproj" />
+    <Project Path="src/Sholto.App/Sholto.App.csproj" />
+    <Project Path="src/Sholto.Audio/Sholto.Audio.csproj" />
+    <Project Path="src/Sholto.Controller/Sholto.Controller.csproj" />
+    <Project Path="src/Sholto.Library/Sholto.Library.csproj" />
+    <Project Path="src/Sholto.Storage/Sholto.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sholto.App.Tests/Sholto.App.Tests.csproj" />
+    <Project Path="tests/Sholto.Audio.Tests/Sholto.Audio.Tests.csproj" />
+    <Project Path="tests/Sholto.Controller.Tests/Sholto.Controller.Tests.csproj" />
+    <Project Path="tests/Sholto.Library.Tests/Sholto.Library.Tests.csproj" />
+  </Folder>
+</Solution>

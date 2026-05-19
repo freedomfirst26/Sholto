@@ -1,0 +1,154 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Sholto.App.Controls"
+        xmlns:v="using:Sholto.App.Views"
+        xmlns:media="using:Avalonia.Media"
+        x:Class="Sholto.App.Views.MainWindow"
+        Title="Sholto"
+        Width="1200" Height="900"
+        Background="{DynamicResource SholtoBgDeep}">
+
+    <Window.Resources>
+        <!-- Default-theme brushes; overridden at runtime in MainWindow.axaml.cs when the
+             user switches themes. Use {DynamicResource Sholto…} in templates so colour
+             updates flow without going through $parent traversal (which goes stale on
+             menu/hover state changes under the Fluent theme). -->
+        <SolidColorBrush x:Key="SholtoBgDeep"        Color="#0B0918"/>
+        <SolidColorBrush x:Key="SholtoSurface"       Color="#16122B"/>
+        <SolidColorBrush x:Key="SholtoSurfaceRaised" Color="#1F1A3D"/>
+        <SolidColorBrush x:Key="SholtoBorder"        Color="#2D2752"/>
+        <SolidColorBrush x:Key="SholtoPrimary"       Color="#7C5CFF"/>
+        <SolidColorBrush x:Key="SholtoAccent"        Color="#FF4E9A"/>
+        <SolidColorBrush x:Key="SholtoAccentBg"      Color="#33FF4E9A"/>
+        <SolidColorBrush x:Key="SholtoMint"          Color="#34F0C6"/>
+        <SolidColorBrush x:Key="SholtoTextBright"    Color="#EEEAFF"/>
+        <SolidColorBrush x:Key="SholtoTextMuted"     Color="#8B7FB8"/>
+    </Window.Resources>
+
+    <DockPanel>
+        <Menu DockPanel.Dock="Top"
+              Background="{DynamicResource SholtoSurfaceRaised}"
+              Foreground="{DynamicResource SholtoTextBright}">
+            <MenuItem Header="Settings">
+                <MenuItem Header="Theme">
+                    <MenuItem Header="Classic" Click="OnThemeClassic"/>
+                    <MenuItem Header="Serato" Click="OnThemeSerato"/>
+                    <MenuItem Header="Smoke" Click="OnThemeSmoke"/>
+                    <MenuItem Header="Tokyo Night" Click="OnThemeTokyoNight"/>
+                    <MenuItem Header="Catppuccin Mocha" Click="OnThemeCatppuccin"/>
+                    <MenuItem Header="Glacier" Click="OnThemeGlacier"/>
+                    <MenuItem Header="Bloodmoon" Click="OnThemeBloodmoon"/>
+                </MenuItem>
+                <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
+            </MenuItem>
+        </Menu>
+
+    <Grid RowDefinitions="*,8,200,200">
+
+        <!-- Track library, rendered as a fixed-column table. -->
+        <Grid Grid.Row="0" RowDefinitions="32,*" Background="{DynamicResource SholtoSurface}">
+
+            <!-- Column header -->
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="80,240,*,80,80,80"
+                  Background="{DynamicResource SholtoSurfaceRaised}">
+                <TextBlock Grid.Column="0" Text="ANALYZED"
+                           Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="ARTIST"
+                           Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="12,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="TRACK"
+                           Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="BPM"
+                           Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="KEY"
+                           Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="5" Text="TIME"
+                           Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
+                           Margin="8,8" VerticalAlignment="Center"/>
+            </Grid>
+
+            <ListBox Grid.Row="1"
+                     Name="TrackList"
+                     ItemsSource="{Binding Tracks}"
+                     SelectedIndex="{Binding SelectedTrackIndex, Mode=TwoWay}"
+                     SelectionChanged="OnTrackSelectionChanged"
+                     Background="{DynamicResource SholtoSurface}">
+                <ListBox.Styles>
+                    <!-- Override Fluent's hover/selected backgrounds so they don't clobber
+                         our row foreground colors after the pointer leaves. -->
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource SholtoSurfaceRaised}"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource SholtoAccentBg}"/>
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="80,240,*,80,80,80">
+                            <Grid Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <!-- Done state — uses the theme accent so it reads as a positive
+                                     signal and changes colour with each theme. -->
+                                <TextBlock Text="✓"
+                                           Foreground="{DynamicResource SholtoAccent}"
+                                           FontSize="13" FontWeight="Bold"
+                                           IsVisible="{Binding Analyzed}"/>
+                                <!-- Running state: indeterminate progress bar. Avalonia's
+                                     built-in animation, no fragile custom animators.
+                                     MinWidth=0 stops the default 100-px minimum from
+                                     bleeding into the artist column. -->
+                                <ProgressBar Width="28" Height="4"
+                                             MinWidth="0"
+                                             IsIndeterminate="True"
+                                             ShowProgressText="False"
+                                             HorizontalAlignment="Center"
+                                             Background="Transparent"
+                                             Foreground="{DynamicResource SholtoAccent}"
+                                             IsVisible="{Binding IsAnalyzing}"/>
+                            </Grid>
+                            <TextBlock Grid.Column="1" Text="{Binding Artist}"
+                                       Foreground="{DynamicResource SholtoTextBright}"
+                                       Margin="12,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding Title}"
+                                       Foreground="{DynamicResource SholtoTextBright}"
+                                       Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding BpmDisplay}"
+                                       Foreground="{DynamicResource SholtoAccent}"
+                                       FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" Text="{Binding Key}"
+                                       Foreground="{DynamicResource SholtoPrimary}"
+                                       FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="5" Text="{Binding DurationDisplay}"
+                                       Foreground="{DynamicResource SholtoTextMuted}"
+                                       Margin="8,4" VerticalAlignment="Center"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <!-- Drop-shadow strip between the track list and the decks. -->
+        <Border Grid.Row="1" IsHitTestVisible="False">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#A0000000" Offset="0.0"/>
+                    <GradientStop Color="#00000000" Offset="1.0"/>
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <v:DeckView Grid.Row="2" DataContext="{Binding Deck1}"/>
+        <v:DeckView Grid.Row="3" DataContext="{Binding Deck2}"/>
+
+    </Grid>
+    </DockPanel>
+</Window>
