@@ -243,10 +243,15 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     {
         _player.Volume = _channelGain * _crossfadeGain;
         Notify(nameof(EffectiveGain));
+        Notify(nameof(IsMuted));
     }
 
     /// <summary>Combined channel × crossfade gain, 0..1. Used to draw the gain line on the waveform.</summary>
     public double EffectiveGain => _channelGain * _crossfadeGain;
+
+    /// <summary>True when the deck is effectively silent (channel fader at 0 or fully crossed away).
+    /// Drives the red mute tint over the deck area.</summary>
+    public bool IsMuted => EffectiveGain < 0.001;
 
     public void SyncPlayPosition()
     {

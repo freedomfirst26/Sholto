@@ -20,12 +20,20 @@
             <Border HorizontalAlignment="Left" Width="600" IsHitTestVisible="False"
                     Background="{Binding $parent[Window].DataContext.Theme.PlayedFadeGradient}"/>
 
+            <!-- Mute tint: full-deck red wash whenever EffectiveGain is 0 (channel fader
+                 fully down or crossfader fully on the other deck). Sits above the
+                 waveform but below the disc/title cluster so the indicators stay legible. -->
+            <Border IsHitTestVisible="False"
+                    Background="#FF3D4E" Opacity="0.18"
+                    IsVisible="{Binding IsMuted}"/>
+
             <!-- Disc + title cluster -->
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Left" VerticalAlignment="Center"
                         Margin="20,0,0,0" Spacing="16"
                         IsHitTestVisible="False">
 
+                <StackPanel Orientation="Vertical" Spacing="6">
                 <Grid Width="140" Height="140">
                     <!-- Outer ring: colour by progress, opacity flashes near the end. -->
                     <Border Name="DiscRing" Width="140" Height="140">
@@ -62,39 +70,56 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsVisible="{Binding HasBpm}"/>
 
-                    <!-- Stem activity arcs hugging the upper-left rim, just outside the 70px
-                         disc radius. Each arc spans 25° on a 76px-radius arc centered on the
-                         disc: vocals 95°–120°, instrumental 125°–150°, drums 155°–180°.
-                         Active = thick + glow; muted = thin ghost stroke. -->
-                    <Canvas Width="140" Height="140" IsHitTestVisible="False">
-                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="5" StrokeLineCap="Round"
-                              Stroke="#34F06F"
-                              IsVisible="{Binding VocalsActive}"
-                              Data="M 63.37 -5.71 A 76 76 0 0 0 32 4.18"/>
-                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="1.5" Opacity="0.35"
-                              Stroke="#34F06F"
-                              IsVisible="{Binding !VocalsActive}"
-                              Data="M 63.37 -5.71 A 76 76 0 0 0 32 4.18"/>
-
-                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="5" StrokeLineCap="Round"
-                              Stroke="#FF4E5E"
-                              IsVisible="{Binding InstrumentalActive}"
-                              Data="M 26.41 7.74 A 76 76 0 0 0 4.18 32"/>
-                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="1.5" Opacity="0.35"
-                              Stroke="#FF4E5E"
-                              IsVisible="{Binding !InstrumentalActive}"
-                              Data="M 26.41 7.74 A 76 76 0 0 0 4.18 32"/>
-
-                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="5" StrokeLineCap="Round"
-                              Stroke="#3D8BFF"
-                              IsVisible="{Binding DrumsActive}"
-                              Data="M 1.12 37.88 A 76 76 0 0 0 -6 70"/>
-                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="1.5" Opacity="0.35"
-                              Stroke="#3D8BFF"
-                              IsVisible="{Binding !DrumsActive}"
-                              Data="M 1.12 37.88 A 76 76 0 0 0 -6 70"/>
-                    </Canvas>
                 </Grid>
+
+                <!-- Stem labels below the disc as right-leaning parallelogram chips.
+                     Filled-color when the stem is active, hollow + colored text when muted.
+                     Mirrors the arcs above; same color codes.  -->
+                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                    <Grid Width="42" Height="16">
+                        <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
+                              Fill="#3D8BFF" Stroke="#3D8BFF" StrokeThickness="1"
+                              IsVisible="{Binding DrumsActive}"/>
+                        <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
+                              Stroke="#3D8BFF" StrokeThickness="1"
+                              IsVisible="{Binding !DrumsActive}"/>
+                        <TextBlock Text="DRMS" FontSize="9" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="Black" IsVisible="{Binding DrumsActive}"/>
+                        <TextBlock Text="DRMS" FontSize="9" FontWeight="Bold" Opacity="0.7"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#3D8BFF" IsVisible="{Binding !DrumsActive}"/>
+                    </Grid>
+                    <Grid Width="42" Height="16">
+                        <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
+                              Fill="#34F06F" Stroke="#34F06F" StrokeThickness="1"
+                              IsVisible="{Binding VocalsActive}"/>
+                        <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
+                              Stroke="#34F06F" StrokeThickness="1"
+                              IsVisible="{Binding !VocalsActive}"/>
+                        <TextBlock Text="VOX" FontSize="9" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="Black" IsVisible="{Binding VocalsActive}"/>
+                        <TextBlock Text="VOX" FontSize="9" FontWeight="Bold" Opacity="0.7"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#34F06F" IsVisible="{Binding !VocalsActive}"/>
+                    </Grid>
+                    <Grid Width="42" Height="16">
+                        <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
+                              Fill="#FF4E5E" Stroke="#FF4E5E" StrokeThickness="1"
+                              IsVisible="{Binding InstrumentalActive}"/>
+                        <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
+                              Stroke="#FF4E5E" StrokeThickness="1"
+                              IsVisible="{Binding !InstrumentalActive}"/>
+                        <TextBlock Text="INST" FontSize="9" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="Black" IsVisible="{Binding InstrumentalActive}"/>
+                        <TextBlock Text="INST" FontSize="9" FontWeight="Bold" Opacity="0.7"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#FF4E5E" IsVisible="{Binding !InstrumentalActive}"/>
+                    </Grid>
+                </StackPanel>
+                </StackPanel>
 
                 <StackPanel VerticalAlignment="Center" Spacing="4" MaxWidth="320">
                     <TextBlock Text="{Binding LoadedTrack.Title, FallbackValue=''}"
