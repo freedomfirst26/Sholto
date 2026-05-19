@@ -26,6 +26,11 @@ public abstract record ControllerEvent
     /// <summary>Hot-cue button press temporarily repurposed as a stem mute toggle.
     /// <paramref name="Group"/>: 0=Drums, 1=Vocals, 2=Instrumental (bass+other).</summary>
     public record StemToggle(int Deck, int Group) : ControllerEvent;
+
+    /// <summary>Tempo (pitch) fader position. <paramref name="Position"/> is 0..1,
+    /// 0.5 = neutral. The deck multiplies the offset by the currently selected
+    /// pitch range (±6 / ±10 / ±16 / wide).</summary>
+    public record TempoMoved(int Deck, double Position) : ControllerEvent;
 }
 
 public enum EqBand { Low, Mid, High }

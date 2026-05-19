@@ -48,6 +48,13 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Control == 0x13 && (msg.Channel == 1 || msg.Channel == 2))
             return new ControllerEvent.ChannelVolumeMoved(msg.Channel - 1, msg.Value / 127.0);
 
+        // Per-deck tempo fader: 14-bit, 0x00 = MSB on ch 1/2 (LSB 0x20 ignored;
+        // 128 steps is plenty for pitch fader resolution). Pioneer convention: top
+        // of the fader sends MSB = 0 (slow / negative pitch), bottom sends MSB =
+        // 127 (fast / positive pitch). Centre detent ≈ 64.
+        if (msg.Control == 0x00 && (msg.Channel == 1 || msg.Channel == 2))
+            return new ControllerEvent.TempoMoved(msg.Channel - 1, msg.Value / 127.0);
+
         // Per-deck EQ pots (14-bit, MSB only here). FLX-4 sends HI on 0x07, MID on 0x0B,
         // LOW on 0x0F — channel 1 = Deck 1, channel 2 = Deck 2.
         if ((msg.Channel == 1 || msg.Channel == 2) &&

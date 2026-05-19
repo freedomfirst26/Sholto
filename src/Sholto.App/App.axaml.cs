@@ -18,6 +18,7 @@ public partial class App : Application
     private AudioEngine? _audioEngine;
     private MidiManager? _midi;
     private DispatcherTimer? _positionTimer;
+    private DispatcherTimer? _statsTimer;
     private MainViewModel? _vm;
     private SholtoDatabase? _db;
     // Jog-wheel scrubs are coalesced per frame so we issue one Seek per deck per ~16 ms.
@@ -144,6 +145,9 @@ public partial class App : Application
                     case ControllerEvent.EqMoved e:
                         vm.DeckFor(e.Deck).Player.SetEq((int)e.Band, e.Value);
                         break;
+                    case ControllerEvent.TempoMoved t:
+                        vm.DeckFor(t.Deck).SetTempoPosition(t.Position);
+                        break;
                     case ControllerEvent.StemToggle st:
                     {
                         var deckVm = vm.DeckFor(st.Deck);
@@ -199,9 +203,21 @@ public partial class App : Application
         };
         _positionTimer.Start();
 
+        // SHOLTO_DEBUG_STATS=1 → top-right CPU/RAM readout, sampled once per second.
+        if (ProcessStats.Enabled)
+        {
+            // Warm-up read so the first displayed value isn't garbage from the
+            // long since-startup interval.
+            _ = ProcessStats.Sample();
+            _statsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _statsTimer.Tick += (_, _) => vm.DebugStats = ProcessStats.SampleString();
+            _statsTimer.Start();
+        }
+
         desktop.Exit += (_, _) =>
         {
             _positionTimer?.Stop();
+            _statsTimer?.Stop();
             _audioEngine?.Stop();
             _midi?.Dispose();
         };

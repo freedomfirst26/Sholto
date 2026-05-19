@@ -26,8 +26,19 @@
     </Window.Resources>
 
     <DockPanel>
-        <Menu DockPanel.Dock="Top"
-              Background="{DynamicResource SholtoSurfaceRaised}"
+        <!-- Top bar: Menu on the left, optional CPU/RAM readout on the right (visible
+             only when SHOLTO_DEBUG_STATS=1 has been set on launch). Both share the
+             SurfaceRaised background so the bar reads as a single strip. -->
+        <DockPanel DockPanel.Dock="Top"
+                   Background="{DynamicResource SholtoSurfaceRaised}">
+            <TextBlock DockPanel.Dock="Right"
+                       Text="{Binding DebugStats}"
+                       IsVisible="{Binding DebugStatsVisible}"
+                       FontFamily="monospace" FontSize="11"
+                       Foreground="{DynamicResource SholtoTextMuted}"
+                       VerticalAlignment="Center"
+                       Margin="0,0,12,0"/>
+        <Menu Background="Transparent"
               Foreground="{DynamicResource SholtoTextBright}">
             <MenuItem Header="Settings">
                 <MenuItem Header="Theme">
@@ -41,8 +52,15 @@
                 </MenuItem>
                 <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
+                <MenuItem Header="Tempo range">
+                    <MenuItem Header="±6 %"  Click="OnTempoRange6"/>
+                    <MenuItem Header="±10 %" Click="OnTempoRange10"/>
+                    <MenuItem Header="±16 %" Click="OnTempoRange16"/>
+                    <MenuItem Header="Wide (±50 %)" Click="OnTempoRangeWide"/>
+                </MenuItem>
             </MenuItem>
         </Menu>
+        </DockPanel>
 
     <Grid RowDefinitions="*,8,200,200">
 

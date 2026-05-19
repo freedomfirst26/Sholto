@@ -51,6 +51,39 @@ public sealed class DeckPlayer
     private IEnumerable<SoundPlayer> ActivePlayers =>
         _stemPlayers is not null ? _stemPlayers : (_player is not null ? new[] { _player } : Array.Empty<SoundPlayer>());
 
+    // Pitch (tempo) state. PitchRange is the ±range the fader spans (0.06 = ±6%).
+    // TempoPosition is the fader position 0..1 (0.5 = no shift). Effective playback
+    // speed = 1 + (TempoPosition - 0.5) * 2 * PitchRange.
+    // Pioneer convention: position 0.0 = top of fader = slower (negative shift),
+    // position 1.0 = bottom = faster. We invert so that "higher position = faster"
+    // matches the visual intuition of moving the fader down.
+    private double _pitchRange = 0.06;          // ±6% default
+    private double _tempoPosition = 0.5;        // centred = unity speed
+
+    public double PitchRange
+    {
+        get => _pitchRange;
+        set { _pitchRange = Math.Max(0, value); ApplyPlaybackSpeed(); }
+    }
+
+    /// <summary>0..1, 0.5 = no shift. The same value the FLX-4 fader sends.</summary>
+    public double TempoPosition
+    {
+        get => _tempoPosition;
+        set { _tempoPosition = Math.Clamp(value, 0, 1); ApplyPlaybackSpeed(); }
+    }
+
+    /// <summary>Live playback-speed multiplier (1.0 = unity).</summary>
+    public float PlaybackSpeed { get; private set; } = 1.0f;
+
+    private void ApplyPlaybackSpeed()
+    {
+        // Top of fader (pos=0) → slowdown, bottom (pos=1) → speedup.
+        // (-1 + 2 * pos) maps 0..1 → -1..+1, then scaled by range.
+        PlaybackSpeed = (float)(1.0 + (-1.0 + 2.0 * _tempoPosition) * _pitchRange);
+        foreach (var p in ActivePlayers) p.PlaybackSpeed = PlaybackSpeed;
+    }
+
     private float _volume = 1.0f;
     /// <summary>Linear gain [0..1]. Applied to the SoundPlayer so the deck's output is scaled before the master mixer sums it with the other deck.</summary>
     public float Volume
@@ -92,6 +125,13 @@ public sealed class DeckPlayer
         _engine = engine;
         _format = format;
         _deckMixer = new Mixer(engine, format);
+
+        // EQ is post-mix: a single instance processes the deck's summed signal.
+        // Putting one EqualizerBand-stateful filter on multiple players (one per
+        // stem) lets the 4 streams trample each other's biquad state — that
+        // shows up as scratchy / clipping audio.
+        _eq = new BiquadEq3Band(engine, format);
+        _deckMixer.AddModifier(_eq);
     }
 
     /// <summary>
@@ -113,11 +153,13 @@ public sealed class DeckPlayer
         var provider = new RawDataProvider(stereoSamples, sampleRate);
         _player = new SoundPlayer(_engine, _format, provider);
 
-        // 3-band EQ in the deck's audio path. The EQ instance is reused across loads
-        // so current pot positions carry over to the next track.
-        _eq ??= new BiquadEq3Band(_engine, _format);
-        _player.AddModifier(_eq);
+        // EQ lives on _deckMixer (post-mix) — see AttachEngine. Don't attach here.
         _deckMixer.AddComponent(_player);
+        // Vinyl-mode tempo: PlaybackSpeed uses linear interpolation (pitch shifts
+        // with speed, like a turntable). WSOLA / key-lock would be a separate
+        // opt-in per deck; deliberately not configuring it keeps the CPU cost
+        // tiny at any tempo.
+        _player.PlaybackSpeed = PlaybackSpeed;
         Console.WriteLine($"[DeckPlayer] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
 
         // Analysis runs off-thread; deck plays immediately, beat grid appears when ready.
@@ -224,9 +266,10 @@ public sealed class DeckPlayer
         {
             var prov = new RawDataProvider(samples[i], 44100);
             var p = new SoundPlayer(_engine, _format, prov);
-            // Single shared EQ in front of each stem — every stem sees the same isolator.
-            if (_eq is not null) p.AddModifier(_eq);
+            // EQ lives post-mix on _deckMixer (see AttachEngine) — don't attach here.
             _deckMixer.AddComponent(p);
+            // Vinyl-mode tempo on each stem too. Cheap linear-interp resample.
+            p.PlaybackSpeed = PlaybackSpeed;
             p.Seek(TimeSpan.FromSeconds(Math.Max(0, posSeconds)));
             players[i] = p;
         }
@@ -349,8 +392,9 @@ public sealed class DeckPlayer
     /// </summary>
     public void SetEq(int band, double value)
     {
-        if (_eq is null && _engine is not null)
-            _eq = new BiquadEq3Band(_engine, _format);  // allow pot moves before load
+        // _eq is created in AttachEngine and lives on _deckMixer for the deck's lifetime.
+        // If MIDI arrives before AttachEngine (shouldn't, but) just bail silently.
+        if (_eq is null) return;
 
         // Isolator gain: 0 → mute, 0.5 → unity (1.0), 1 → +6 dB (2.0).
         // Curve is intentionally linear so the centre detent at v=0.5 reads as flat.

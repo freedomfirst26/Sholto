@@ -117,6 +117,17 @@ public partial class MainWindow : Window
             await app.ChangeMusicDirAsync(this);
     }
 
+    private void SetTempoRange(double range)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        vm.Deck1.SetPitchRange(range);
+        vm.Deck2.SetPitchRange(range);
+    }
+    private void OnTempoRange6   (object? sender, RoutedEventArgs e) => SetTempoRange(0.06);
+    private void OnTempoRange10  (object? sender, RoutedEventArgs e) => SetTempoRange(0.10);
+    private void OnTempoRange16  (object? sender, RoutedEventArgs e) => SetTempoRange(0.16);
+    private void OnTempoRangeWide(object? sender, RoutedEventArgs e) => SetTempoRange(0.50);
+
     private void OnThemeClassic    (object? sender, RoutedEventArgs e) => SetTheme(Themes.Classic);
     private void OnThemeSerato     (object? sender, RoutedEventArgs e) => SetTheme(Themes.Serato);
     private void OnThemeSmoke      (object? sender, RoutedEventArgs e) => SetTheme(Themes.Smoke);

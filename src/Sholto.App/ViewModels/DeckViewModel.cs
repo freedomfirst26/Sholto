@@ -115,14 +115,58 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public double[] BeatTimes => Analysis.Basic?.BeatTimes ?? [];
     public double[] DownbeatTimes => Analysis.Basic?.DownbeatTimes ?? [];
 
+    /// <summary>Source BPM (from analysis), unscaled.</summary>
+    public double SourceBpm => Analysis.Basic?.Bpm ?? 0;
+
+    /// <summary>Source BPM × current playback speed — the BPM the user actually hears.</summary>
+    public double EffectiveBpm => SourceBpm * _player.PlaybackSpeed;
+
     public string BpmDisplay =>
-        Analysis.Basic is { Bpm: > 0 } b ? $"{b.Bpm:F1} BPM" : "";
+        SourceBpm > 0 ? $"{EffectiveBpm:F1} BPM" : "";
 
     /// <summary>Just the number, no "BPM" suffix — used inside the disc.</summary>
     public string BpmDisplayShort =>
-        Analysis.Basic is { Bpm: > 0 } b ? $"{b.Bpm:F1}" : "";
+        SourceBpm > 0 ? $"{EffectiveBpm:F1}" : "";
 
-    public bool HasBpm => Analysis.Basic is { Bpm: > 0 };
+    public bool HasBpm => SourceBpm > 0;
+
+    /// <summary>Forward the FLX-4 tempo fader to the player. Position 0..1, 0.5 = unity.</summary>
+    public void SetTempoPosition(double pos)
+    {
+        _player.TempoPosition = pos;
+        Notify(nameof(BpmDisplay));
+        Notify(nameof(BpmDisplayShort));
+        Notify(nameof(EffectiveBpm));
+        Notify(nameof(IsTempoShifted));
+        Notify(nameof(OriginalBpmDisplay));
+        Notify(nameof(OriginalBpmShort));
+    }
+
+    /// <summary>Forward a pitch-range change to the player and refresh UI.</summary>
+    public void SetPitchRange(double range)
+    {
+        _player.PitchRange = range;
+        Notify(nameof(BpmDisplay));
+        Notify(nameof(BpmDisplayShort));
+        Notify(nameof(EffectiveBpm));
+        Notify(nameof(IsTempoShifted));
+        Notify(nameof(PitchRangeDisplay));
+    }
+
+    /// <summary>True only when the tempo fader has actually been moved off-centre.</summary>
+    public bool IsTempoShifted => Math.Abs(_player.PlaybackSpeed - 1.0) > 0.0005;
+
+    /// <summary>Source BPM shown as e.g. "175.0 BPM" — used as the "original" label
+    /// above the disc's effective BPM when the tempo fader is engaged.</summary>
+    public string OriginalBpmDisplay =>
+        SourceBpm > 0 ? $"{SourceBpm:F1} BPM" : "";
+
+    /// <summary>Compact source BPM (no "BPM" suffix) for the inside-disc display.</summary>
+    public string OriginalBpmShort =>
+        SourceBpm > 0 ? $"{SourceBpm:F1}" : "";
+
+    /// <summary>"±6%" / "±10%" / "±16%" / "±50%" — the current pitch-range mode.</summary>
+    public string PitchRangeDisplay => $"±{_player.PitchRange * 100:F0}%";
 
     public void LoadTrack(Track track, string filePath, float[] samples)
     {

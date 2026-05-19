@@ -25,6 +25,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// listen to <see cref="AnalysisReporter.Updated"/> to surface per-track progress.</summary>
     public AnalysisReporter Reporter { get; } = new();
 
+    private string? _debugStats;
+    /// <summary>Top-bar CPU/RAM readout when SHOLTO_DEBUG_STATS=1. Null otherwise — the
+    /// bound TextBlock auto-hides via its IsVisible binding on string-empty.</summary>
+    public string? DebugStats
+    {
+        get => _debugStats;
+        set { _debugStats = value; Notify(); Notify(nameof(DebugStatsVisible)); }
+    }
+    public bool DebugStatsVisible => !string.IsNullOrEmpty(_debugStats);
+
     public MainViewModel()
     {
         Deck1 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
