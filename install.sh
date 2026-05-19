@@ -7,16 +7,25 @@ set -e
 # dotnet restore step finds Sholto.slnx.
 cd "$(dirname "$(readlink -f "$0")")"
 
-ok()   { echo "  ✓ $*"; }
-info() { echo "  · $*"; }
+# ANSI colours — auto-disabled when stdout isn't a TTY (e.g. piped to a file).
+if [ -t 1 ]; then
+    BOLD=$'\033[1m'; DIM=$'\033[2m'
+    GREEN=$'\033[1;32m'; CYAN=$'\033[1;36m'; YELLOW=$'\033[1;33m'
+    MAGENTA=$'\033[1;35m'; BLUE=$'\033[1;34m'; RESET=$'\033[0m'
+else
+    BOLD=''; DIM=''; GREEN=''; CYAN=''; YELLOW=''; MAGENTA=''; BLUE=''; RESET=''
+fi
+
+ok()      { echo "  ${GREEN}✓${RESET} $*"; }
+info()    { echo "  ${CYAN}·${RESET} ${DIM}$*${RESET}"; }
+section() { echo ""; echo "${MAGENTA}── $* ──────────────────────────────────────────────────${RESET}"; }
 
 echo ""
-echo "Sholto — install"
-echo "====================="
+echo "${BOLD}${BLUE}Sholto${RESET} — ${DIM}install${RESET}"
+echo "${DIM}=====================${RESET}"
 
 # ── 1. System packages ────────────────────────────────────────────────────────
-echo ""
-echo "── system packages ────────────────────────────────────────────────────────"
+section "system packages"
 sudo apt-get update -q
 
 # .NET 10 sometimes isn't in the default repos. Add the Microsoft feed first.
@@ -41,8 +50,7 @@ ok "ffmpeg $(ffmpeg -version | head -1 | awk '{print $3}')"
 # ── 2. libpulse.so symlink ────────────────────────────────────────────────────
 # miniaudio (under SoundFlow) dlopens "libpulse.so" first. Most distros ship
 # only the versioned libpulse.so.0, so we add the unversioned symlink.
-echo ""
-echo "── libpulse.so symlink ───────────────────────────────────────────────────"
+section "libpulse.so symlink"
 LIB="/usr/lib/x86_64-linux-gnu"
 if [ -f "$LIB/libpulse.so" ]; then
     ok "$LIB/libpulse.so already present"
@@ -52,8 +60,7 @@ else
 fi
 
 # ── 3. madmom (beat tracker) ──────────────────────────────────────────────────
-echo ""
-echo "── madmom (beat tracker) ─────────────────────────────────────────────────"
+section "madmom (beat tracker)"
 if ! command -v uv &>/dev/null; then
     info "Installing uv (Python tool manager)..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -70,8 +77,7 @@ else
 fi
 
 # ── 4. demucs (stem separation) ───────────────────────────────────────────────
-echo ""
-echo "── demucs (stem separation) ─────────────────────────────────────────────"
+section "demucs (stem separation)"
 if [ -x "$HOME/.local/bin/demucs" ]; then
     ok "demucs already installed"
 else
@@ -81,11 +87,23 @@ else
 fi
 
 # ── 5. NuGet restore ──────────────────────────────────────────────────────────
-echo ""
-echo "── NuGet packages ────────────────────────────────────────────────────────"
+section "NuGet packages"
 dotnet restore Sholto.slnx
 ok "restored"
 
+# ── 6. Build release binary ───────────────────────────────────────────────────
+# Self-contained single-file publish: bundles the .NET runtime so end users
+# don't need the SDK on PATH. Output goes to ./dist/linux-x64/Sholto.App.
+section "release build"
+DIST="$PWD/dist/linux-x64"
+dotnet publish src/Sholto.App/Sholto.App.csproj \
+    -c Release -r linux-x64 --self-contained \
+    -p:PublishSingleFile=true \
+    -p:IncludeNativeLibrariesForSelfExtract=true \
+    -o "$DIST" >/dev/null
+ok "published → $DIST/Sholto.App"
+
 echo ""
-echo "Done.  Run with:  dotnet run --project src/Sholto.App"
+echo "${BOLD}${GREEN}Done.${RESET}"
+echo "  ${DIM}Binary:${RESET} ${CYAN}$DIST/Sholto.App${RESET}"
 echo ""

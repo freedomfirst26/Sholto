@@ -39,6 +39,7 @@
                     <MenuItem Header="Glacier" Click="OnThemeGlacier"/>
                     <MenuItem Header="Bloodmoon" Click="OnThemeBloodmoon"/>
                 </MenuItem>
+                <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
             </MenuItem>
         </Menu>

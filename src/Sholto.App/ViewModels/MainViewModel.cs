@@ -137,6 +137,25 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (bpms.TryGetValue(row.FilePath, out var bpm)) row.Bpm = bpm;
     }
 
+    /// <summary>Walks every track and asks the stem cache if its 4 WAVs are already
+    /// on disk; flips <see cref="TrackRow.StemsReady"/> for the hits. Runs off the
+    /// UI thread because each check hashes 1 MiB of the file.</summary>
+    public Task HydrateStemStateAsync()
+    {
+        var rows = Tracks.ToArray();  // snapshot so we don't race the collection
+        return Task.Run(() =>
+        {
+            foreach (var row in rows)
+            {
+                bool cached;
+                try { cached = DemucsStemAnalyzer.AreCached(row.FilePath); }
+                catch { cached = false; }
+                if (cached)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => row.StemsReady = true);
+            }
+        });
+    }
+
     /// <summary>
     /// 0..1: 1 when both decks are playing and their nearest beats are in-phase,
     /// 0 when out of the magnetic window. Smoothstep curve.

@@ -77,24 +77,24 @@ public partial class App : Application
             }
         });
 
-        // Scan ~/Music in background
-        var musicDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Music");
+        // Resolve which folder to scan. Order: env var override → saved config →
+        // first-run picker. The picker fires on the UI thread once the main window
+        // is up so the user can see what they're choosing for.
         _ = Task.Run(async () =>
         {
-            var tracks = await TrackScanner.ScanAsync(musicDir);
-            // Persist track metadata to the DB so we have a full library record.
-            Dictionary<string, double>? cachedBpms = null;
-            if (_db is not null)
+            var musicDir = Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR")
+                           ?? AppConfig.Load().MusicDir;
+
+            if (string.IsNullOrEmpty(musicDir) || !Directory.Exists(musicDir))
             {
-                foreach (var t in tracks) await _db.UpsertTrackAsync(t);
-                cachedBpms = await _db.GetAllBpmsAsync();
+                musicDir = await Dispatcher.UIThread.InvokeAsync(async () =>
+                    await PickMusicDirAsync(desktop.MainWindow!, "Choose your music library"));
+                if (!string.IsNullOrEmpty(musicDir))
+                    AppConfig.Update(c => c.MusicDir = musicDir);
             }
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                foreach (var t in tracks) vm.Tracks.Add(new TrackRow(t));
-                if (cachedBpms is not null) vm.SetKnownBpms(cachedBpms);
-            });
+
+            if (string.IsNullOrEmpty(musicDir)) return;  // user cancelled — nothing to scan
+            await ScanLibraryAsync(vm, musicDir);
         });
 
         // Pick audio output device (prompt user on first run or if saved device is gone)
@@ -224,8 +224,7 @@ public partial class App : Application
 
         if (chosen is null) return;
 
-        config.OutputDeviceName = chosen.Name;
-        config.Save();
+        AppConfig.Update(c => c.OutputDeviceName = chosen.Name);
 
         await Task.Run(() =>
         {
@@ -251,6 +250,59 @@ public partial class App : Application
         return picker.SelectedDevice;
     }
 
+    /// <summary>Show the OS folder picker for the user's music library. Returns the
+    /// chosen absolute path, or null if they cancelled.</summary>
+    public static async Task<string?> PickMusicDirAsync(Avalonia.Controls.Window owner, string title)
+    {
+        var top = Avalonia.Controls.TopLevel.GetTopLevel(owner);
+        if (top is null) return null;
+        var folders = await top.StorageProvider.OpenFolderPickerAsync(
+            new Avalonia.Platform.Storage.FolderPickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+            });
+        if (folders.Count == 0) return null;
+        var uri = folders[0].Path;
+        return uri.IsFile ? uri.LocalPath : uri.ToString();
+    }
+
+    /// <summary>Run a full library scan from <paramref name="musicDir"/> and hydrate
+    /// the view-model with tracks, BPMs from cache, and stem-on-disk state.</summary>
+    private async Task ScanLibraryAsync(ViewModels.MainViewModel vm, string musicDir)
+    {
+        Console.WriteLine($"[Library] scanning {musicDir}");
+        var tracks = await TrackScanner.ScanAsync(musicDir);
+
+        Dictionary<string, double>? cachedBpms = null;
+        if (_db is not null)
+        {
+            foreach (var t in tracks) await _db.UpsertTrackAsync(t);
+            cachedBpms = await _db.GetAllBpmsAsync();
+        }
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            vm.Tracks.Clear();
+            foreach (var t in tracks) vm.Tracks.Add(new TrackRow(t));
+            if (cachedBpms is not null) vm.SetKnownBpms(cachedBpms);
+        });
+        await vm.HydrateStemStateAsync();
+    }
+
+    /// <summary>Menu entry point: prompt for a new music folder, persist it,
+    /// then re-scan. No-ops if the user cancels.</summary>
+    public async Task ChangeMusicDirAsync(Avalonia.Controls.Window owner)
+    {
+        if (_vm is null) return;
+        var picked = await PickMusicDirAsync(owner, "Choose your music library");
+        if (string.IsNullOrEmpty(picked)) return;
+
+        if (picked == AppConfig.Load().MusicDir) return;
+        AppConfig.Update(c => c.MusicDir = picked);
+
+        await ScanLibraryAsync(_vm, picked);
+    }
+
     public async Task ChangeOutputDeviceAsync(Avalonia.Controls.Window owner)
     {
         if (_vm is null) return;
@@ -262,8 +314,7 @@ public partial class App : Application
         var chosen = await PromptForDeviceAsync(devices, config.OutputDeviceName, owner);
         if (chosen is null || chosen.Name == config.OutputDeviceName) return;
 
-        config.OutputDeviceName = chosen.Name;
-        config.Save();
+        AppConfig.Update(c => c.OutputDeviceName = chosen.Name);
 
         // Use SoundFlow's runtime device switch (preserves the audio graph).
         await Task.Run(() =>

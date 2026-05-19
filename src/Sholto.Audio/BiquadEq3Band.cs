@@ -77,18 +77,33 @@ public sealed class BiquadEq3Band : SoundModifier
         }
     }
 
+    // One-pole gain smoothing coefficient. With α≈0.00045 at 44.1 kHz the gain
+    // reaches 63% of a step change in ~5 ms — fast enough to feel instant on a
+    // knob twist but slow enough that a bass-energy band doesn't pop.
+    private const float GainSmoothAlpha = 0.00045f;
+
     public override void Process(Span<float> buffer, int channels)
     {
-        _gain0 = Volatile.Read(ref _targetGain0);
-        _gain1 = Volatile.Read(ref _targetGain1);
-        _gain2 = Volatile.Read(ref _targetGain2);
+        float t0 = Volatile.Read(ref _targetGain0);
+        float t1 = Volatile.Read(ref _targetGain1);
+        float t2 = Volatile.Read(ref _targetGain2);
 
-        // All-unity fast path: bands sum to the input, so we can skip the filters.
-        if (_gain0 == 1f && _gain1 == 1f && _gain2 == 1f) return;
+        // Fast path: targets already match current gains and all are unity →
+        // bands sum back to the input, no filtering needed.
+        if (t0 == 1f && t1 == 1f && t2 == 1f
+            && _gain0 == 1f && _gain1 == 1f && _gain2 == 1f) return;
+
+        // Local copies so the JIT keeps them in registers across the inner loop.
+        float g0 = _gain0, g1 = _gain1, g2 = _gain2;
 
         int frames = buffer.Length / channels;
         for (int i = 0; i < frames; i++)
         {
+            // Smooth gains toward target sample-by-sample (one-pole IIR).
+            g0 += (t0 - g0) * GainSmoothAlpha;
+            g1 += (t1 - g1) * GainSmoothAlpha;
+            g2 += (t2 - g2) * GainSmoothAlpha;
+
             int baseIdx = i * channels;
             for (int ch = 0; ch < channels; ch++)
             {
@@ -101,9 +116,11 @@ public sealed class BiquadEq3Band : SoundModifier
                 // High band: HP → HP
                 float hi = _hpB.Step(_hpA.Step(x, ch), ch);
 
-                buffer[baseIdx + ch] = lo * _gain0 + mid * _gain1 + hi * _gain2;
+                buffer[baseIdx + ch] = lo * g0 + mid * g1 + hi * g2;
             }
         }
+
+        _gain0 = g0; _gain1 = g1; _gain2 = g2;
     }
 
     public override float ProcessSample(float sample, int channel)

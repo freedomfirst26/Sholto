@@ -111,6 +111,12 @@ public partial class MainWindow : Window
             await app.ChangeOutputDeviceAsync(this);
     }
 
+    private async void OnMusicFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (Avalonia.Application.Current is App app)
+            await app.ChangeMusicDirAsync(this);
+    }
+
     private void OnThemeClassic    (object? sender, RoutedEventArgs e) => SetTheme(Themes.Classic);
     private void OnThemeSerato     (object? sender, RoutedEventArgs e) => SetTheme(Themes.Serato);
     private void OnThemeSmoke      (object? sender, RoutedEventArgs e) => SetTheme(Themes.Smoke);

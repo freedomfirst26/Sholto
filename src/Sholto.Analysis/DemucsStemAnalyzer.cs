@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
 namespace Sholto.Analysis;
@@ -31,6 +30,44 @@ public static class DemucsStemAnalyzer
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "sholto", "stems");
 
+    /// <summary>
+    /// On-disk check: are the four stem WAVs already cached for this file? Pure
+    /// filesystem hit, no file reads — used at startup to flag rows as analysed.
+    /// </summary>
+    public static bool AreCached(string filePath)
+    {
+        var paths = StemPathsFor(filePath);
+        return paths.All.All(File.Exists);
+    }
+
+    /// <summary>Where stems for <paramref name="filePath"/> live. Deterministic from
+    /// the source path so we don't need a DB lookup or a content hash.</summary>
+    public static StemPaths StemPathsFor(string filePath)
+    {
+        var stemDir = Path.Combine(CacheRoot, DirNameFor(filePath), "htdemucs");
+        return new StemPaths(
+            Path.Combine(stemDir, "vocals.wav"),
+            Path.Combine(stemDir, "drums.wav"),
+            Path.Combine(stemDir, "bass.wav"),
+            Path.Combine(stemDir, "other.wav"));
+    }
+
+    /// <summary>Encode the absolute source path into one safe, stable directory
+    /// segment. Just the path with slashes / spaces / invalid chars replaced.
+    /// Stable across process restarts (unlike string.GetHashCode, which is
+    /// randomised per process in modern .NET). Rename a track and it'll be
+    /// re-analysed — acceptable.</summary>
+    private static string DirNameFor(string filePath)
+    {
+        var full = Path.GetFullPath(filePath);
+        var bad = Path.GetInvalidFileNameChars();
+        var sb = new System.Text.StringBuilder(full.Length);
+        foreach (var c in full)
+            sb.Append(c == '/' || c == '\\' || c == ' ' || bad.Contains(c) ? '_' : c);
+        // Trim a leading underscore from the root '/' on Linux for cosmetics.
+        return sb.ToString().TrimStart('_');
+    }
+
     // demucs prints lines like "  20%|██        | 5/25 [00:12<00:48,  ...]"
     // We only need the first percentage we see per buffer to drive progress.
     private static readonly Regex ProgressRx = new(@"(\d{1,3})\s*%", RegexOptions.Compiled);
@@ -44,19 +81,9 @@ public static class DemucsStemAnalyzer
         AnalysisReporter? reporter = null,
         CancellationToken ct = default)
     {
-        var key = CacheKey(filePath);
-        var dir = Path.Combine(CacheRoot, key);
+        var paths = StemPathsFor(filePath);
+        var dir = Path.GetDirectoryName(Path.GetDirectoryName(paths.Vocals))!;  // strip /htdemucs/<stem>.wav
         Directory.CreateDirectory(dir);
-
-        // demucs always nests output inside <out>/<model>/ regardless of --filename.
-        // htdemucs is the default model.
-        var stemDir = Path.Combine(dir, "htdemucs");
-
-        var paths = new StemPaths(
-            Path.Combine(stemDir, "vocals.wav"),
-            Path.Combine(stemDir, "drums.wav"),
-            Path.Combine(stemDir, "bass.wav"),
-            Path.Combine(stemDir, "other.wav"));
 
         if (paths.All.All(File.Exists))
         {
@@ -120,20 +147,4 @@ public static class DemucsStemAnalyzer
         reporter.Running(filePath, StepName, pct / 100.0, $"{pct}%");
     }
 
-    /// <summary>Cache key: SHA-1 of (size + first 1 MiB of bytes). Fast and stable
-    /// across file moves; cheap enough to compute on every load.</summary>
-    private static string CacheKey(string filePath)
-    {
-        var fi = new FileInfo(filePath);
-        using var sha = SHA1.Create();
-        using var fs = File.OpenRead(filePath);
-        Span<byte> sizeBytes = stackalloc byte[8];
-        BitConverter.TryWriteBytes(sizeBytes, fi.Length);
-        sha.TransformBlock(sizeBytes.ToArray(), 0, 8, null, 0);
-
-        var buf = new byte[1 << 20];
-        int read = fs.Read(buf, 0, buf.Length);
-        sha.TransformFinalBlock(buf, 0, read);
-        return Convert.ToHexString(sha.Hash!).ToLowerInvariant();
-    }
 }
