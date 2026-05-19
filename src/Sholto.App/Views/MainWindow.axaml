@@ -136,6 +136,28 @@
             </ListBox>
         </Grid>
 
+        <!-- Brand watermark — three offset coloured S's at the bottom-centre of the
+             track list, just above the decks. Avalonia-native primitives so we don't
+             pull in extra SkiaSharp versions. -->
+        <Grid Grid.Row="0"
+              Width="96" Height="96"
+              HorizontalAlignment="Center" VerticalAlignment="Bottom"
+              Margin="0,0,0,12"
+              Opacity="0.18"
+              IsHitTestVisible="False">
+            <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
+                       FontSize="84" Foreground="#3D8BFF"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Margin="-8,4,0,0"/>
+            <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
+                       FontSize="84" Foreground="#34F06F"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
+                       FontSize="84" Foreground="#FF4E5E"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Margin="8,-4,0,0"/>
+        </Grid>
+
         <!-- Drop-shadow strip between the track list and the decks. -->
         <Border Grid.Row="1" IsHitTestVisible="False">
             <Border.Background>
