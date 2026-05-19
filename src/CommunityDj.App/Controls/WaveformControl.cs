@@ -247,7 +247,15 @@ public sealed class WaveformControl : Control
 
     public override void Render(DrawingContext context)
     {
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes));
+        // Pick a downbeat-guide colour that contrasts the palette's high band so
+        // the grid stays visible even where the waveform itself is yellow.
+        SKColor downbeatColor = Palette switch
+        {
+            WaveformPalette.Hot    => new SKColor(0xFF, 0xD6, 0x3D, 0xC8), // yellow on red/green/blue
+            WaveformPalette.Plasma => new SKColor(0xFF, 0xAA, 0x2A, 0xC8), // amber on violet/pink/mint
+            _                      => new SKColor(0xE6, 0xF0, 0xFF, 0xD8), // cool white on blue/white/yellow Rekordbox bands
+        };
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes, downbeatColor));
     }
 
     private sealed class BlitOperation : ICustomDrawOperation
@@ -259,8 +267,9 @@ public sealed class WaveformControl : Control
         private readonly double _magneticGlowSec;
         private readonly bool _isScrubbing;
         private readonly double[]? _downbeats;
+        private readonly SKColor _downbeatColor;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats, SKColor downbeatColor)
         {
             Bounds = bounds;
             _image = image;
@@ -270,6 +279,7 @@ public sealed class WaveformControl : Control
             _magneticGlowSec = magneticGlowSec;
             _isScrubbing = isScrubbing;
             _downbeats = downbeats;
+            _downbeatColor = downbeatColor;
         }
 
         public Rect Bounds { get; }
@@ -331,7 +341,7 @@ public sealed class WaveformControl : Control
                 float centerPeak = (float)(_playPosition * totalPeaks);
                 using var dbPaint = new SKPaint
                 {
-                    Color = new SKColor(0xFF, 0xCC, 0x00, 0xB0),
+                    Color = _downbeatColor,
                     StrokeWidth = 2,
                     IsAntialias = true,
                 };

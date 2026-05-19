@@ -61,6 +61,39 @@
                                Opacity="0.55"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsVisible="{Binding HasBpm}"/>
+
+                    <!-- Stem activity arcs hugging the upper-left rim, just outside the 70px
+                         disc radius. Each arc spans 25° on a 76px-radius arc centered on the
+                         disc: vocals 95°–120°, instrumental 125°–150°, drums 155°–180°.
+                         Active = thick + glow; muted = thin ghost stroke. -->
+                    <Canvas Width="140" Height="140" IsHitTestVisible="False">
+                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="5" StrokeLineCap="Round"
+                              Stroke="#34F06F"
+                              IsVisible="{Binding VocalsActive}"
+                              Data="M 63.37 -5.71 A 76 76 0 0 0 32 4.18"/>
+                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="1.5" Opacity="0.35"
+                              Stroke="#34F06F"
+                              IsVisible="{Binding !VocalsActive}"
+                              Data="M 63.37 -5.71 A 76 76 0 0 0 32 4.18"/>
+
+                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="5" StrokeLineCap="Round"
+                              Stroke="#FF4E5E"
+                              IsVisible="{Binding InstrumentalActive}"
+                              Data="M 26.41 7.74 A 76 76 0 0 0 4.18 32"/>
+                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="1.5" Opacity="0.35"
+                              Stroke="#FF4E5E"
+                              IsVisible="{Binding !InstrumentalActive}"
+                              Data="M 26.41 7.74 A 76 76 0 0 0 4.18 32"/>
+
+                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="5" StrokeLineCap="Round"
+                              Stroke="#3D8BFF"
+                              IsVisible="{Binding DrumsActive}"
+                              Data="M 1.12 37.88 A 76 76 0 0 0 -6 70"/>
+                        <Path Canvas.Left="0" Canvas.Top="0" StrokeThickness="1.5" Opacity="0.35"
+                              Stroke="#3D8BFF"
+                              IsVisible="{Binding !DrumsActive}"
+                              Data="M 1.12 37.88 A 76 76 0 0 0 -6 70"/>
+                    </Canvas>
                 </Grid>
 
                 <StackPanel VerticalAlignment="Center" Spacing="4" MaxWidth="320">

@@ -183,6 +183,13 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             ? times[idx] : times[idx - 1];
     }
 
+    // Stem state — UI hint only for now; actual Demucs separation + per-stem mute
+    // will land later. Default ON so a freshly-loaded track shows all three filled.
+    private bool _vocalsActive = true, _instrumentalActive = true, _drumsActive = true;
+    public bool VocalsActive       { get => _vocalsActive;       set { if (_vocalsActive == value) return;       _vocalsActive = value;       Notify(); } }
+    public bool InstrumentalActive { get => _instrumentalActive; set { if (_instrumentalActive == value) return; _instrumentalActive = value; Notify(); } }
+    public bool DrumsActive        { get => _drumsActive;        set { if (_drumsActive == value) return;        _drumsActive = value;        Notify(); } }
+
     private bool _isScrubbing;
     /// <summary>True while the user is actively turning the jog wheel on this deck.
     /// Drives the full-height green guide line so the two decks' nearest downbeats
