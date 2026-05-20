@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia.Media;
+using Sholto.Analysis;
 using Sholto.Library;
 
 namespace Sholto.App.ViewModels;
@@ -66,8 +68,39 @@ public sealed class TrackRow : INotifyPropertyChanged
     public string? Key
     {
         get => _key;
-        set { if (_key == value) return; _key = value; Notify(); }
+        set { if (_key == value) return; _key = value; Notify(); Notify(nameof(HarmonyOpacity)); Notify(nameof(KeyBrush)); }
     }
+
+    /// <summary>Camelot key colored brush — same hue convention DJ apps use so
+    /// the eye can scan keys without reading the codes.</summary>
+    public IBrush KeyBrush => string.IsNullOrEmpty(_key)
+        ? Brushes.Transparent
+        : new SolidColorBrush(unchecked((uint)0xFF000000 | CamelotKeys.Rgb(_key!)));
+
+    private string? _referenceKey;
+    /// <summary>The active deck's Camelot key (or null/empty). When set, every
+    /// row recomputes <see cref="HarmonyOpacity"/> so the library lights up the
+    /// tracks that mix harmonically with what's currently playing.</summary>
+    public string? ReferenceKey
+    {
+        get => _referenceKey;
+        set { if (_referenceKey == value) return; _referenceKey = value; Notify(); Notify(nameof(HarmonyOpacity)); }
+    }
+
+    /// <summary>Opacity to apply to the whole row based on Camelot compatibility
+    /// with <see cref="ReferenceKey"/>. Perfect/no-reference = full, Close/boost
+    /// = slightly dim, Far = muted. Drives a one-binding row-level tint without
+    /// needing a value converter.</summary>
+    public double HarmonyOpacity =>
+        (string.IsNullOrEmpty(_referenceKey) || string.IsNullOrEmpty(_key))
+            ? 1.0
+            : CamelotKeys.Compatibility(_referenceKey!, _key!) switch
+            {
+                CamelotKeys.Harmony.Perfect     => 1.00,
+                CamelotKeys.Harmony.Close       => 0.85,
+                CamelotKeys.Harmony.EnergyBoost => 0.65,
+                _                               => 0.30,
+            };
 
     public string DurationDisplay => $"{(int)Duration.TotalMinutes:00}:{Duration.Seconds:00}";
 

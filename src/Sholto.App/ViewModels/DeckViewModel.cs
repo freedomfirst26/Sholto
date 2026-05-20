@@ -32,6 +32,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             Notify(nameof(BpmDisplay));
             Notify(nameof(BpmDisplayShort));
             Notify(nameof(HasBpm));
+            Notify(nameof(Camelot));
+            Notify(nameof(KeyName));
+            Notify(nameof(HasKey));
+            Notify(nameof(KeyBrush));
         });
     }
 
@@ -201,6 +205,22 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         SourceBpm > 0 ? $"{EffectiveBpm:F1}" : "";
 
     public bool HasBpm => SourceBpm > 0;
+
+    /// <summary>Camelot code for the loaded track (e.g. "8B"), or empty if key
+    /// analysis hasn't completed yet.</summary>
+    public string Camelot => Analysis.Get<Sholto.Analysis.KeyAnalysis>()?.Camelot ?? "";
+
+    /// <summary>Musical key name (e.g. "Cm"), shown as a secondary label under the Camelot code.</summary>
+    public string KeyName => Analysis.Get<Sholto.Analysis.KeyAnalysis>()?.KeyName ?? "";
+
+    public bool HasKey => !string.IsNullOrEmpty(Camelot);
+
+    /// <summary>Avalonia brush coloured by the Camelot key — used to tint the deck's
+    /// key chip so the same colour shows here and in the library row.</summary>
+    public Avalonia.Media.IBrush KeyBrush => string.IsNullOrEmpty(Camelot)
+        ? Avalonia.Media.Brushes.Transparent
+        : new Avalonia.Media.SolidColorBrush(
+            unchecked((uint)0xFF000000 | Sholto.Analysis.CamelotKeys.Rgb(Camelot)));
 
     /// <summary>Forward the FLX-4 tempo fader to the player. Position 0..1, 0.5 = unity.</summary>
     public void SetTempoPosition(double pos)

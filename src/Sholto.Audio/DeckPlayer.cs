@@ -28,6 +28,11 @@ public sealed class DeckPlayer
     /// </summary>
     public AnalysisProvider? AnalysisProvider { get; set; }
 
+    /// <summary>Optional key-analysis cache hook. App.axaml.cs wires this to the
+    /// SQLite-backed store so loads after the first one skip the chroma compute.</summary>
+    public Func<string, Task<KeyAnalysis?>>? KeyCacheGet { get; set; }
+    public Func<string, KeyAnalysis, Task>? KeyCachePut { get; set; }
+
     /// <summary>
     /// Shared reporter — receives waveform / beats / stems progress events. Optional.
     /// </summary>
@@ -178,16 +183,11 @@ public sealed class DeckPlayer
         {
             try
             {
-                BasicAnalysis basic; string source;
-                if (AnalysisProvider is not null)
-                {
-                    (basic, source) = await AnalysisProvider.GetAsync(filePath, stereoSamples, sampleRate);
-                }
-                else
-                {
-                    basic = await BasicAnalysis.ComputeAsync(filePath, stereoSamples, channels: 2, sampleRate: sampleRate, reporter: Reporter);
-                    source = "computed";
-                }
+                if (AnalysisProvider is null)
+                    throw new InvalidOperationException(
+                        "DeckPlayer.AnalysisProvider must be set before Load — without it, " +
+                        "analyses can't be persisted to disk.");
+                var (basic, source) = await AnalysisProvider.GetAsync(filePath, stereoSamples, sampleRate);
                 Console.WriteLine($"[DeckPlayer] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
                 Analysis.Set(basic);
                 AnalysisUpdated?.Invoke();
@@ -195,6 +195,40 @@ public sealed class DeckPlayer
             catch (Exception ex)
             {
                 Console.WriteLine($"[DeckPlayer] analysis failed: {ex.Message}");
+            }
+        });
+
+        // Key estimation is independent of beats and stems — reads the same decoded
+        // buffer the basic analysis used. Goertzel + Krumhansl-Schmuckler in-process,
+        // no subprocess. Cached to the SQLite analyses table; on cache hit we skip the
+        // chroma compute and just publish.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                KeyAnalysis? key = null;
+                if (KeyCacheGet is not null)
+                {
+                    try { key = await KeyCacheGet(filePath); }
+                    catch (Exception ex) { Console.WriteLine($"[DeckPlayer] key cache lookup failed: {ex.Message}"); }
+                }
+                if (key is null)
+                {
+                    key = await KeyAnalyzer.AnalyzeAsync(filePath, stereoSamples, channels: 2,
+                        sampleRate: sampleRate, reporter: Reporter);
+                    if (KeyCachePut is not null)
+                    {
+                        try { await KeyCachePut(filePath, key); }
+                        catch (Exception ex) { Console.WriteLine($"[DeckPlayer] key cache write failed: {ex.Message}"); }
+                    }
+                }
+                Console.WriteLine($"[DeckPlayer] key: {key.KeyName} ({key.Camelot})");
+                Analysis.Set(key);
+                AnalysisUpdated?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DeckPlayer] key analysis failed: {ex.Message}");
             }
         });
 

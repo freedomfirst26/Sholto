@@ -167,6 +167,7 @@
                                        Foreground="{DynamicResource SholtoAccent}"
                                        HorizontalAlignment="Center"/>
                         </Border>
+
                     </StackPanel>
 
                 </Grid>
@@ -229,6 +230,19 @@
                                FontSize="14"
                                Foreground="{DynamicResource SholtoTextMuted}"
                                TextTrimming="CharacterEllipsis"/>
+                    <!-- Camelot key chip — Camelot-coloured background so the
+                         same hue shows here and in the library row. Hidden until
+                         KeyAnalysis lands. Dark text on the saturated chip stays
+                         legible across the whole 24-key palette. -->
+                    <Border CornerRadius="6" Padding="8,2"
+                            Background="{Binding KeyBrush}"
+                            HorizontalAlignment="Left"
+                            Margin="0,4,0,0"
+                            IsVisible="{Binding HasKey}">
+                        <TextBlock Text="{Binding Camelot}"
+                                   FontSize="13" FontWeight="Bold"
+                                   Foreground="#101820"/>
+                    </Border>
                 </StackPanel>
             </StackPanel>
         </Panel>

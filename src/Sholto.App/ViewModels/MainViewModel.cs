@@ -63,6 +63,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (path is null) return;
             var bpm = deck.Analysis.Basic?.Bpm;
             var stems = deck.Analysis.Get<StemPaths>();
+            var key = deck.Analysis.Get<KeyAnalysis>()?.Camelot;
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 foreach (var row in Tracks)
@@ -70,7 +71,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     if (row.FilePath != path) continue;
                     if (bpm is not null) row.Bpm = bpm;
                     if (stems is not null) row.StemsReady = true;
+                    if (!string.IsNullOrEmpty(key)) row.Key = key;
                 }
+                RefreshHarmonyReference();
             });
         };
     }
@@ -130,11 +133,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Long-press on the browse / song-select button: force-reanalyze the
-    /// highlighted track (decode → compute → overwrite both cache tiers). Used to
-    /// rescue tracks whose cached BPM/beats are wrong (e.g. madmom misread).</summary>
+    /// highlighted track. Recomputes BPM/beats/peaks (BasicAnalysis) AND the Camelot
+    /// key, then overwrites the matching cache tiers. Updates the library row in
+    /// place and re-broadcasts the harmony reference so dimming refreshes.</summary>
     public async Task OnBrowseHeldAsync(
         Func<Track, float[]> decodeTrack,
-        Sholto.Analysis.AnalysisProvider analysisProvider)
+        Sholto.Analysis.AnalysisProvider analysisProvider,
+        Func<string, Sholto.Analysis.KeyAnalysis, Task>? saveKey = null)
     {
         var track = SelectedTrack;
         if (track is null) return;
@@ -142,15 +147,31 @@ public sealed class MainViewModel : INotifyPropertyChanged
         try
         {
             var samples = await Task.Run(() => decodeTrack(track));
-            var analysis = await analysisProvider.RecomputeAsync(
-                track.FilePath, samples, Sholto.Audio.AudioFileDecoder.TargetSampleRate);
+            int rate = Sholto.Audio.AudioFileDecoder.TargetSampleRate;
+
+            var basicTask = analysisProvider.RecomputeAsync(track.FilePath, samples, rate);
+            var keyTask = Sholto.Analysis.KeyAnalyzer.AnalyzeAsync(
+                track.FilePath, samples, channels: 2, sampleRate: rate, reporter: Reporter);
+
+            var analysis = await basicTask;
+            var key = await keyTask;
+            if (saveKey is not null)
+            {
+                try { await saveKey(track.FilePath, key); }
+                catch (Exception ex) { Console.WriteLine($"[MainVM] re-analyze key cache write failed: {ex.Message}"); }
+            }
 
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 foreach (var row in Tracks)
-                    if (row.FilePath == track.FilePath) row.Bpm = analysis.Bpm;
+                {
+                    if (row.FilePath != track.FilePath) continue;
+                    row.Bpm = analysis.Bpm;
+                    if (!string.IsNullOrEmpty(key.Camelot)) row.Key = key.Camelot;
+                }
+                RefreshHarmonyReference();
             });
-            Console.WriteLine($"[MainVM] re-analyzed {track.FilePath}: {analysis.Bpm:F1} BPM");
+            Console.WriteLine($"[MainVM] re-analyzed {track.FilePath}: {analysis.Bpm:F1} BPM, key {key.Camelot}");
         }
         catch (Exception ex)
         {
@@ -193,6 +214,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         foreach (var row in Tracks)
             if (multipliers.TryGetValue(row.FilePath, out var m)) row.BpmMultiplier = m;
+    }
+
+    /// <summary>Hydrate cached Camelot keys from the database into the rows at startup.</summary>
+    public void SetKnownKeys(IReadOnlyDictionary<string, string> keys)
+    {
+        foreach (var row in Tracks)
+            if (keys.TryGetValue(row.FilePath, out var k)) row.Key = k;
+        RefreshHarmonyReference();
+    }
+
+    /// <summary>Camelot key of whichever deck is the harmony anchor — Deck 1 if it
+    /// has a loaded key, else Deck 2. Drives row dimming in the library list.</summary>
+    public string? HarmonyReferenceKey { get; private set; }
+
+    /// <summary>Recompute the reference key from the current deck state and push
+    /// it into every row so HarmonyOpacity refreshes.</summary>
+    public void RefreshHarmonyReference()
+    {
+        var anchor = Deck1.Analysis.Get<KeyAnalysis>()?.Camelot
+                  ?? Deck2.Analysis.Get<KeyAnalysis>()?.Camelot;
+        if (anchor == HarmonyReferenceKey) return;
+        HarmonyReferenceKey = anchor;
+        foreach (var row in Tracks) row.ReferenceKey = anchor;
+        Notify(nameof(HarmonyReferenceKey));
     }
 
     /// <summary>Raised by deck VMs when the user halves/doubles the BPM of a loaded

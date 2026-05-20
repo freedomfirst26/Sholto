@@ -70,13 +70,25 @@ public partial class App : Application
                 vm.Deck1.Player.AnalysisProvider = MakeProvider();
                 vm.Deck2.Player.AnalysisProvider = MakeProvider();
 
-                // Pre-populate the UI's BPM map from cache so tracks light up immediately.
+                // Wire each deck's key-analysis cache lookup / writeback to the
+                // shared SQLite store. Same (file_path, analysis_type) primary key
+                // as basic analysis — no schema migration.
+                var dbRefForKey = _db;
+                foreach (var deck in new[] { vm.Deck1.Player, vm.Deck2.Player })
+                {
+                    deck.KeyCacheGet = path => dbRefForKey.GetKeyAnalysisAsync(path);
+                    deck.KeyCachePut = (path, key) => dbRefForKey.SaveKeyAnalysisAsync(path, key);
+                }
+
+                // Pre-populate the UI's BPM + key maps from cache so tracks light up immediately.
                 var bpms = await _db.GetAllBpmsAsync();
                 var mults = await _db.GetAllBpmMultipliersAsync();
+                var keys = await _db.GetAllKeysAsync();
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     vm.SetKnownBpms(bpms);
                     vm.SetKnownBpmMultipliers(mults);
+                    vm.SetKnownKeys(keys);
                 });
 
                 // Persist any ÷2/×2 changes the user makes on the decks.
@@ -145,7 +157,13 @@ public partial class App : Application
                                 var provider = vm.Deck1.Player.AnalysisProvider;
                                 if (provider is null) { Console.WriteLine("[App] browse-hold: no AnalysisProvider yet"); return; }
                                 Console.WriteLine($"[App] browse-hold fired → re-analyzing {vm.SelectedTrack?.FilePath}");
-                                _ = vm.OnBrowseHeldAsync(t => AudioFileDecoder.Decode(t.FilePath), provider);
+                                var dbForKey = _db;
+                                _ = vm.OnBrowseHeldAsync(
+                                    t => AudioFileDecoder.Decode(t.FilePath),
+                                    provider,
+                                    saveKey: dbForKey is not null
+                                        ? (path, key) => dbForKey.SaveKeyAnalysisAsync(path, key)
+                                        : null);
                             };
                             _browseHoldTimer = timer;
                             timer.Start();
@@ -340,11 +358,13 @@ public partial class App : Application
 
         Dictionary<string, double>? cachedBpms = null;
         Dictionary<string, double>? cachedMults = null;
+        Dictionary<string, string>? cachedKeys = null;
         if (_db is not null)
         {
             foreach (var t in tracks) await _db.UpsertTrackAsync(t);
             cachedBpms = await _db.GetAllBpmsAsync();
             cachedMults = await _db.GetAllBpmMultipliersAsync();
+            cachedKeys = await _db.GetAllKeysAsync();
         }
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
@@ -352,6 +372,7 @@ public partial class App : Application
             foreach (var t in tracks) vm.Tracks.Add(new TrackRow(t));
             if (cachedBpms is not null) vm.SetKnownBpms(cachedBpms);
             if (cachedMults is not null) vm.SetKnownBpmMultipliers(cachedMults);
+            if (cachedKeys is not null) vm.SetKnownKeys(cachedKeys);
         });
         await vm.HydrateStemStateAsync();
     }

@@ -107,7 +107,8 @@
                 </ListBox.Styles>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Grid ColumnDefinitions="80,240,*,80,80,80">
+                        <Grid ColumnDefinitions="80,240,*,80,80,80"
+                              Opacity="{Binding HarmonyOpacity}">
                             <Grid Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <!-- Done state — uses the theme accent so it reads as a positive
                                      signal and changes colour with each theme. -->
@@ -145,7 +146,7 @@
                                        Foreground="{DynamicResource SholtoAccent}"
                                        FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="4" Text="{Binding Key}"
-                                       Foreground="{DynamicResource SholtoPrimary}"
+                                       Foreground="{Binding KeyBrush}"
                                        FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="5" Text="{Binding DurationDisplay}"
                                        Foreground="{DynamicResource SholtoTextMuted}"

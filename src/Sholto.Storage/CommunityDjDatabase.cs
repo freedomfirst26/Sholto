@@ -138,6 +138,7 @@ public sealed class SholtoDatabase : IAsyncDisposable
             cmd.Parameters.AddWithValue("$m", mtime);
             cmd.Parameters.AddWithValue("$c", now);
             await cmd.ExecuteNonQueryAsync();
+            Console.WriteLine($"[DB] saved basic analysis ({blob.Length} bytes) for {Path.GetFileName(filePath)}");
         }
         finally { _lock.Release(); }
     }
@@ -203,6 +204,84 @@ public sealed class SholtoDatabase : IAsyncDisposable
                 cmd.Parameters.AddWithValue("$m", multiplier);
             }
             await cmd.ExecuteNonQueryAsync();
+        }
+        finally { _lock.Release(); }
+    }
+
+    // ── KeyAnalysis ──────────────────────────────────────────────────────────
+    // Same `analyses` table as BasicAnalysis, distinguished by analysis_type='key'.
+    // The schema already keys on (file_path, analysis_type) so multiple analyses
+    // per track coexist without any migration.
+
+    public async Task<KeyAnalysis?> GetKeyAnalysisAsync(string filePath)
+    {
+        if (!File.Exists(filePath)) return null;
+        long mtime = new DateTimeOffset(File.GetLastWriteTimeUtc(filePath)).ToUnixTimeSeconds();
+
+        await _lock.WaitAsync();
+        try
+        {
+            await using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT data FROM analyses WHERE file_path = $p AND analysis_type = 'key' AND file_mtime = $m";
+            cmd.Parameters.AddWithValue("$p", filePath);
+            cmd.Parameters.AddWithValue("$m", mtime);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            var blob = (byte[])reader["data"];
+            return KeyAnalysisCodec.Decode(blob);
+        }
+        finally { _lock.Release(); }
+    }
+
+    public async Task SaveKeyAnalysisAsync(string filePath, KeyAnalysis key)
+    {
+        if (!File.Exists(filePath)) return;
+        long mtime = new DateTimeOffset(File.GetLastWriteTimeUtc(filePath)).ToUnixTimeSeconds();
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var blob = KeyAnalysisCodec.Encode(key);
+
+        await _lock.WaitAsync();
+        try
+        {
+            await using var cmd = _conn.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO analyses (file_path, analysis_type, data, file_mtime, created_at)
+                VALUES ($p, 'key', $d, $m, $c)
+                ON CONFLICT(file_path, analysis_type) DO UPDATE SET
+                    data = excluded.data,
+                    file_mtime = excluded.file_mtime,
+                    created_at = excluded.created_at;
+            """;
+            cmd.Parameters.AddWithValue("$p", filePath);
+            cmd.Parameters.AddWithValue("$d", blob);
+            cmd.Parameters.AddWithValue("$m", mtime);
+            cmd.Parameters.AddWithValue("$c", now);
+            await cmd.ExecuteNonQueryAsync();
+            Console.WriteLine($"[DB] saved key {key.Camelot} for {Path.GetFileName(filePath)}");
+        }
+        finally { _lock.Release(); }
+    }
+
+    /// <summary>Return Camelot code for every already-analysed track — used to uplift
+    /// the library list at startup so users see keys without waiting for a re-decode.</summary>
+    public async Task<Dictionary<string, string>> GetAllKeysAsync()
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            var result = new Dictionary<string, string>();
+            await using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT file_path, data FROM analyses WHERE analysis_type = 'key'";
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var path = reader.GetString(0);
+                var blob = (byte[])reader["data"];
+                var key = KeyAnalysisCodec.Decode(blob);
+                if (key is not null && !string.IsNullOrEmpty(key.Camelot))
+                    result[path] = key.Camelot;
+            }
+            return result;
         }
         finally { _lock.Release(); }
     }
