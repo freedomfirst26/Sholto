@@ -11,6 +11,7 @@
                                       BeatTimes="{Binding BeatTimes}"
                                       DownbeatTimes="{Binding DownbeatTimes}"
                                       PlayPosition="{Binding PlayPosition}"
+                                      PlaybackSpeed="{Binding PlaybackSpeed}"
                                       GainOverlay="{Binding EffectiveGain}"
                                       GainOverlayColor="{Binding $parent[Window].DataContext.Theme.MintColor}"
                                       MagneticGlowSec="{Binding MagneticGlowSec}"
@@ -29,10 +30,14 @@
                     IsVisible="{Binding IsMuted}"/>
 
             <!-- Disc + title cluster -->
+            <!-- Disc + title cluster sits OVER the waveform. IsHitTestVisible was
+                 previously false on this whole panel to let the waveform receive
+                 pointer events, but the waveform has no click handlers and the
+                 ÷2 / ×2 BPM buttons need to be clickable — so allow hit-test
+                 here and let individual decorative children opt out below. -->
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Left" VerticalAlignment="Center"
-                        Margin="20,0,0,0" Spacing="16"
-                        IsHitTestVisible="False">
+                        Margin="20,0,0,0" Spacing="16">
 
                 <StackPanel Orientation="Vertical" Spacing="6">
                 <Grid Width="140" Height="140">
@@ -74,7 +79,7 @@
                          outline effect; smaller original + range numbers get a small
                          dark themed chip so they read against the album-art gradient. -->
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Spacing="2" IsHitTestVisible="False"
+                                Spacing="2"
                                 IsVisible="{Binding HasBpm}">
                         <StackPanel.Styles>
                             <!-- Side chips: collapsed (opacity 0 + squashed + nudged
@@ -124,11 +129,17 @@
                                        HorizontalAlignment="Center"/>
                         </Border>
 
+                        <!-- Click the BPM to flip ½ / ×2: left-click halves (most madmom
+                             errors are doubled; clicking halves brings it back to truth),
+                             right-click doubles. Persisted to SQLite per track. -->
                         <Border Classes="bpm-chip-main" Classes.shifted="{Binding IsTempoShifted}"
                                 CornerRadius="6" Padding="8,1"
                                 Background="{DynamicResource SholtoBgDeep}"
                                 HorizontalAlignment="Center"
-                                RenderTransformOrigin="50%,50%">
+                                RenderTransformOrigin="50%,50%"
+                                Cursor="Hand"
+                                ToolTip.Tip="Click to flip ½ / ×2 the BPM (fixes madmom half/double errors)"
+                                PointerPressed="OnBpmPressed">
                             <Border.Transitions>
                                 <Transitions>
                                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.28" Easing="CubicEaseOut"/>
@@ -218,27 +229,6 @@
                                FontSize="14"
                                Foreground="{DynamicResource SholtoTextMuted}"
                                TextTrimming="CharacterEllipsis"/>
-                    <!-- ½ / ×2 override: fixes madmom's half/double-tempo mistakes
-                         (e.g. Seba's downtempo coming back at 174 instead of 87).
-                         Persisted per-track to SQLite. -->
-                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0"
-                                IsVisible="{Binding HasBpm}">
-                        <Button Content="÷2" Padding="6,1" FontSize="11" FontWeight="Bold"
-                                Background="{DynamicResource SholtoSurfaceRaised}"
-                                Foreground="{DynamicResource SholtoTextBright}"
-                                BorderBrush="{DynamicResource SholtoBorder}"
-                                Click="OnHalveBpmClick"/>
-                        <Button Content="×2" Padding="6,1" FontSize="11" FontWeight="Bold"
-                                Background="{DynamicResource SholtoSurfaceRaised}"
-                                Foreground="{DynamicResource SholtoTextBright}"
-                                BorderBrush="{DynamicResource SholtoBorder}"
-                                Click="OnDoubleBpmClick"/>
-                        <Button Content="reset" Padding="6,1" FontSize="11"
-                                Background="Transparent"
-                                Foreground="{DynamicResource SholtoTextMuted}"
-                                BorderBrush="Transparent"
-                                Click="OnResetBpmClick"/>
-                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </Panel>

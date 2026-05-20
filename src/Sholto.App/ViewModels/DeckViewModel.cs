@@ -118,7 +118,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         {
             var basic = Analysis.Basic;
             if (basic is null || basic.Bpm <= 0) return 0;
-            double playSeconds = _player.PositionFrames / 44100.0;
+            double playSeconds = _player.PositionFrames / (double)AudioFileDecoder.TargetSampleRate;
             double secondsPerBar = 60.0 / basic.Bpm * 4;
             return (playSeconds / secondsPerBar) * 360.0;
         }
@@ -133,8 +133,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public double SourceBpm => Analysis.Basic?.Bpm ?? 0;
 
     private double _bpmMultiplier = 1.0;
-    /// <summary>User-applied multiplier to fix half / double-tempo madmom errors.
-    /// 0.5 halves the displayed BPM (madmom said 174 → user wants 87), 2 doubles.</summary>
+    /// <summary>User-applied multiplier — drives BOTH the displayed BPM and the
+    /// playback speed of the deck. ½ slows the track to match a corrected
+    /// reading (e.g. a "sped-up" YouTube grab heard as 176 plays at 88 after
+    /// a click). ×2 the opposite. Persisted per-track in SQLite.</summary>
     public double BpmMultiplier
     {
         get => _bpmMultiplier;
@@ -142,13 +144,14 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         {
             if (Math.Abs(_bpmMultiplier - value) < 0.0001) return;
             _bpmMultiplier = value;
+            _player.BpmMultiplier = value;   // also halve/double the actual audio
             Notify();
             Notify(nameof(EffectiveBpm));
             Notify(nameof(BpmDisplay));
             Notify(nameof(BpmDisplayShort));
             Notify(nameof(OriginalBpmDisplay));
             Notify(nameof(OriginalBpmShort));
-            Notify(nameof(IsTempoShifted));
+            Notify(nameof(PlaybackSpeed));
         }
     }
 
@@ -163,12 +166,32 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             PersistBpmMultiplier?.Invoke(LoadedTrack.FilePath, newValue);
     }
 
+    /// <summary>One-click flip-flop. If already overridden, returns to original
+    /// (multiplier = 1). If at original, picks the most-likely correction:
+    /// high BPM ⇒ halve; low BPM ⇒ double. Click again to flip back.</summary>
+    public void ToggleBpmOverride()
+    {
+        if (Math.Abs(BpmMultiplier - 1.0) > 0.001)
+        {
+            SetMultiplierAndPersist(1.0);
+            return;
+        }
+        // At unity. Pick a direction based on the source BPM the analyser found.
+        // Threshold of 120 catches the common cases: anything ≥120 was likely
+        // doubled by madmom and gets halved; anything <120 gets doubled.
+        SetMultiplierAndPersist(SourceBpm >= 120 ? 0.5 : 2.0);
+    }
+
     public void HalveBpm()           => SetMultiplierAndPersist(BpmMultiplier * 0.5);
     public void DoubleBpm()          => SetMultiplierAndPersist(BpmMultiplier * 2.0);
     public void ResetBpmMultiplier() => SetMultiplierAndPersist(1.0);
 
     /// <summary>Source BPM × user multiplier × current playback speed — what the user actually hears.</summary>
     public double EffectiveBpm => SourceBpm * _bpmMultiplier * _player.PlaybackSpeed;
+
+    /// <summary>Live playback speed multiplier (1.0 = unity). Bound to the waveform
+    /// so its visual width compresses/stretches with the tempo fader and ½/×2 button.</summary>
+    public double PlaybackSpeed => _player.PlaybackSpeed;
 
     public string BpmDisplay =>
         SourceBpm > 0 ? $"{EffectiveBpm:F1} BPM" : "";
@@ -189,6 +212,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(IsTempoShifted));
         Notify(nameof(OriginalBpmDisplay));
         Notify(nameof(OriginalBpmShort));
+        Notify(nameof(PlaybackSpeed));
     }
 
     /// <summary>Forward a pitch-range change to the player and refresh UI.</summary>
@@ -200,33 +224,35 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(EffectiveBpm));
         Notify(nameof(IsTempoShifted));
         Notify(nameof(PitchRangeDisplay));
+        Notify(nameof(PlaybackSpeed));
     }
 
-    /// <summary>True only when the *displayed* BPM at F1 would actually differ from
-    /// the source — avoids "0.1 BPM ghost shift" from floating-point dead-zone noise
-    /// at the centre detent.</summary>
-    public bool IsTempoShifted => Math.Round(EffectiveBpm, 1) != Math.Round(SourceBpm, 1);
+    /// <summary>True only when the tempo *fader* has moved off-centre. The
+    /// half/double BPM override doesn't trigger this — the override is a
+    /// correction to the analysed source, not a live performance shift.</summary>
+    public bool IsTempoShifted => Math.Abs(_player.PlaybackSpeed - 1.0) > 0.002;
 
-    /// <summary>Source BPM shown as e.g. "175.0 BPM" — used as the "original" label
-    /// above the disc's effective BPM when the tempo fader is engaged.</summary>
+    /// <summary>"Original" = source × half/double override, but without the live
+    /// tempo-fader shift. That's the BPM the user thinks of as "the track's BPM"
+    /// once they've corrected any madmom octave error.</summary>
     public string OriginalBpmDisplay =>
-        SourceBpm > 0 ? $"{SourceBpm:F1} BPM" : "";
+        SourceBpm > 0 ? $"{(SourceBpm * _bpmMultiplier):F1} BPM" : "";
 
-    /// <summary>Compact source BPM (no "BPM" suffix) for the inside-disc display.</summary>
     public string OriginalBpmShort =>
-        SourceBpm > 0 ? $"{SourceBpm:F1}" : "";
+        SourceBpm > 0 ? $"{(SourceBpm * _bpmMultiplier):F1}" : "";
 
     /// <summary>"±6%" / "±10%" / "±16%" / "±50%" — the current pitch-range mode.</summary>
     public string PitchRangeDisplay => $"±{_player.PitchRange * 100:F0}%";
 
     public void LoadTrack(Track track, string filePath, float[] samples, double bpmMultiplier = 1.0)
     {
-        _player.Load(filePath, samples, sampleRate: 44100);
+        _player.Load(filePath, samples, sampleRate: AudioFileDecoder.TargetSampleRate);
         LoadedTrack = track;
         // Apply any persisted ½ / ×2 override for this track. Direct field set
         // (not the property) so we don't fire PersistBpmMultiplier — this came
         // from disk, not the user.
         _bpmMultiplier = bpmMultiplier;
+        _player.BpmMultiplier = bpmMultiplier;
         Notify(nameof(BpmMultiplier));
         Notify(nameof(EffectiveBpm));
         IsPlaying = false;
@@ -264,7 +290,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public bool IsLoaded => _player.IsLoaded;
 
     /// <summary>Current playback time in seconds (drift-free, from the data provider).</summary>
-    public double PlaybackSeconds => _player.PositionFrames / 44100.0;
+    public double PlaybackSeconds => _player.PositionFrames / (double)AudioFileDecoder.TargetSampleRate;
 
     /// <summary>Time of the beat nearest the current playback position, or -1 if no beats.</summary>
     public double NearestBeatSec()      => NearestIn(Analysis.Basic?.BeatTimes);

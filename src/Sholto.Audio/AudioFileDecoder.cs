@@ -6,7 +6,10 @@ namespace Sholto.Audio;
 
 public static class AudioFileDecoder
 {
-    public const int TargetSampleRate = 44100;
+    // Match AudioEngine output rate so SoundFlow doesn't have to resample on
+     // playback — a rate mismatch here makes the audio play at engineRate/sourceRate
+     // speed (e.g. 48000/44100 = 8.8% too fast).
+    public const int TargetSampleRate = 48000;
     public const int TargetChannels = 2;
 
     public static float[] Decode(string filePath)

@@ -10,6 +10,9 @@ public abstract record ControllerEvent
 {
     public record BrowseRotated(int Delta) : ControllerEvent;
     public record BrowsePressed : ControllerEvent;
+    /// <summary>Browse / song-select button released. Paired with <see cref="BrowsePressed"/>
+    /// so callers can implement long-press behaviour (e.g. hold to re-analyze).</summary>
+    public record BrowseReleased : ControllerEvent;
     public record PlayPressed(int Deck) : ControllerEvent;
     /// <summary>The "LOAD" button for a specific deck (0=Deck 1, 1=Deck 2).</summary>
     public record LoadToDeck(int Deck) : ControllerEvent;

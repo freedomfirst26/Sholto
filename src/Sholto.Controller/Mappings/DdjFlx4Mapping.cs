@@ -12,31 +12,39 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 {
     public string DeviceNameMatch => "DDJ-FLX4";
 
-    public ControllerEvent? Translate(NoteEvent msg) => (msg.Channel, msg.Key) switch
+    public ControllerEvent? Translate(NoteEvent msg)
     {
-        (1,  0x0B) => new ControllerEvent.PlayPressed(Deck: 0),
-        (2,  0x0B) => new ControllerEvent.PlayPressed(Deck: 1),
+        // Browse / song-select needs both edges so the App can detect a long-press
+        // (hold to re-analyze the highlighted track).
+        if ((msg.Channel, msg.Key) is (7, 0x41) or (11, 0x15))
+            return msg.IsDown ? new ControllerEvent.BrowsePressed() : new ControllerEvent.BrowseReleased();
 
-        // Top scroll-wheel cluster — browse press + per-deck LOAD buttons.
-        (7,  0x41) => new ControllerEvent.BrowsePressed(),
-        (7,  0x46) => new ControllerEvent.LoadToDeck(Deck: 0),
-        (7,  0x47) => new ControllerEvent.LoadToDeck(Deck: 1),
+        // Everything else is a press-only action — ignore the release edge so the
+        // existing single-shot handlers don't fire twice per tap.
+        if (!msg.IsDown) return null;
 
-        // Legacy big browse rotary press (mixer section).
-        (11, 0x15) => new ControllerEvent.BrowsePressed(),
+        return (msg.Channel, msg.Key) switch
+        {
+            (1,  0x0B) => new ControllerEvent.PlayPressed(Deck: 0),
+            (2,  0x0B) => new ControllerEvent.PlayPressed(Deck: 1),
 
-        // Hot-cue pads (temporarily): pads 1/2/3 mute Drums / Vocals / Instrumental.
-        //   Deck 1 (ch 8 wire): notes 0x00 / 0x01 / 0x02
-        //   Deck 2 (ch 10 wire): notes 0x30 / 0x31 / 0x32
-        (8,  0x00) => new ControllerEvent.StemToggle(Deck: 0, Group: 0),
-        (8,  0x01) => new ControllerEvent.StemToggle(Deck: 0, Group: 1),
-        (8,  0x02) => new ControllerEvent.StemToggle(Deck: 0, Group: 2),
-        (10, 0x30) => new ControllerEvent.StemToggle(Deck: 1, Group: 0),
-        (10, 0x31) => new ControllerEvent.StemToggle(Deck: 1, Group: 1),
-        (10, 0x32) => new ControllerEvent.StemToggle(Deck: 1, Group: 2),
+            // Top scroll-wheel cluster — per-deck LOAD buttons.
+            (7,  0x46) => new ControllerEvent.LoadToDeck(Deck: 0),
+            (7,  0x47) => new ControllerEvent.LoadToDeck(Deck: 1),
 
-        _ => null,
-    };
+            // Hot-cue pads (temporarily): pads 1/2/3 mute Drums / Vocals / Instrumental.
+            //   Deck 1 (ch 8 wire): notes 0x00 / 0x01 / 0x02
+            //   Deck 2 (ch 10 wire): notes 0x30 / 0x31 / 0x32
+            (8,  0x00) => new ControllerEvent.StemToggle(Deck: 0, Group: 0),
+            (8,  0x01) => new ControllerEvent.StemToggle(Deck: 0, Group: 1),
+            (8,  0x02) => new ControllerEvent.StemToggle(Deck: 0, Group: 2),
+            (10, 0x30) => new ControllerEvent.StemToggle(Deck: 1, Group: 0),
+            (10, 0x31) => new ControllerEvent.StemToggle(Deck: 1, Group: 1),
+            (10, 0x32) => new ControllerEvent.StemToggle(Deck: 1, Group: 2),
+
+            _ => null,
+        };
+    }
 
     public ControllerEvent? Translate(CcEvent msg)
     {

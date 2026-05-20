@@ -34,6 +34,12 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<double> PlayPositionProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(PlayPosition));
 
+    /// <summary>Live tempo multiplier from the deck (1.0 = unity). Higher = compressed
+    /// waveform (more peaks per pixel); lower = stretched. Matches the visual feel of
+    /// Serato/Rekordbox when the pitch fader moves.</summary>
+    public static readonly StyledProperty<double> PlaybackSpeedProperty =
+        AvaloniaProperty.Register<WaveformControl, double>(nameof(PlaybackSpeed), 1.0);
+
     /// <summary>Theme-driven colour for the effective-gain (volume × crossfader)
     /// horizontal line drawn on the waveform. Falls back to mint if unbound.</summary>
     public static readonly StyledProperty<Avalonia.Media.Color> GainOverlayColorProperty =
@@ -66,6 +72,7 @@ public sealed class WaveformControl : Control
     static WaveformControl()
     {
         AffectsRender<WaveformControl>(PlayPositionProperty);
+        AffectsRender<WaveformControl>(PlaybackSpeedProperty);
         AffectsRender<WaveformControl>(GainOverlayProperty);
         AffectsRender<WaveformControl>(GainOverlayColorProperty);
         AffectsRender<WaveformControl>(MagneticGlowSecProperty);
@@ -98,6 +105,12 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(PlayPositionProperty);
         set => SetValue(PlayPositionProperty, value);
+    }
+
+    public double PlaybackSpeed
+    {
+        get => GetValue(PlaybackSpeedProperty);
+        set => SetValue(PlaybackSpeedProperty, value);
     }
 
     public double GainOverlay
@@ -236,7 +249,7 @@ public sealed class WaveformControl : Control
         {
             using var tickPaint     = new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xC0), StrokeWidth = 1, IsAntialias = false };
             using var downbeatPaint = new SKPaint { Color = new SKColor(0xFF, 0xCC, 0x00), StrokeWidth = 2, IsAntialias = false };
-            double secondsPerPeak = peaks.SamplesPerPeak / 44100.0;
+            double secondsPerPeak = peaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
 
             // Build a HashSet of downbeat column indices for fast lookup.
             HashSet<int>? downbeatCols = null;
@@ -279,7 +292,7 @@ public sealed class WaveformControl : Control
         };
         // Volume/crossfader gain-line colour comes from the theme.
         var gainColor = new SKColor(GainOverlayColor.R, GainOverlayColor.G, GainOverlayColor.B, GainOverlayColor.A);
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes, downbeatColor, gainColor));
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, PlaybackSpeed, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes, downbeatColor, gainColor));
     }
 
     private sealed class BlitOperation : ICustomDrawOperation
@@ -296,6 +309,7 @@ public sealed class WaveformControl : Control
         private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
         private readonly double _playPosition;
+        private readonly double _playbackSpeed;
         private readonly double _gain;
         private readonly double _magneticGlowSec;
         private readonly bool _isScrubbing;
@@ -303,12 +317,14 @@ public sealed class WaveformControl : Control
         private readonly SKColor _downbeatColor;
         private readonly SKColor _gainColor;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats, SKColor downbeatColor, SKColor gainColor)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double playbackSpeed, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats, SKColor downbeatColor, SKColor gainColor)
         {
             Bounds = bounds;
             _image = image;
             _peaks = peaks;
             _playPosition = playPosition;
+            // Guard: never let a runaway 0 collapse the window to zero width.
+            _playbackSpeed = playbackSpeed > 0.01 ? playbackSpeed : 1.0;
             _gain = gain;
             _magneticGlowSec = magneticGlowSec;
             _isScrubbing = isScrubbing;
@@ -337,7 +353,10 @@ public sealed class WaveformControl : Control
             {
                 int totalPeaks = _peaks.Min.Length;
                 float centerPeak = (float)(_playPosition * totalPeaks); // keep sub-pixel precision
-                float half = dstW / 2f;
+                // PlaybackSpeed > 1 → show MORE source peaks per pixel (compressed look).
+                // PlaybackSpeed < 1 → show fewer (stretched). Mirrors how the beat grid is
+                // drawn below so visuals stay locked together at any tempo.
+                float half = (float)(dstW * _playbackSpeed / 2.0);
 
                 float srcXStart = centerPeak - half;
                 float srcXEnd   = centerPeak + half;
@@ -370,7 +389,7 @@ public sealed class WaveformControl : Control
             // so the user can eyeball alignment between decks at a glance.
             if (_downbeats is { Length: > 0 } && _peaks is not null && _peaks.Min.Length > 0)
             {
-                double secondsPerPeak = _peaks.SamplesPerPeak / 44100.0;
+                double secondsPerPeak = _peaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
                 int totalPeaks = _peaks.Min.Length;
                 float centerPeak = (float)(_playPosition * totalPeaks);
                 // Vertical lines look fine without AA, and AA on N lines per frame
@@ -381,7 +400,9 @@ public sealed class WaveformControl : Control
                 foreach (var t in _downbeats)
                 {
                     float beatCol = (float)(t / secondsPerPeak);
-                    float x = (beatCol - centerPeak) + dstW / 2f;
+                    // Same source→screen mapping as the waveform blit above: 1 screen pixel
+                    // shows _playbackSpeed source peaks, so divide the peak offset by speed.
+                    float x = (float)((beatCol - centerPeak) / _playbackSpeed) + dstW / 2f;
                     if (x >= -2 && x < dstW + 2)
                         canvas.DrawLine(x, 0, x, dstH, dbPaint);
                 }
@@ -391,11 +412,11 @@ public sealed class WaveformControl : Control
             // green stripe at the top and bottom of the nearest beat in each deck.
             if (_magneticGlowSec >= 0 && _peaks is not null && _peaks.Min.Length > 0)
             {
-                double secondsPerPeak = _peaks.SamplesPerPeak / 44100.0;
+                double secondsPerPeak = _peaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
                 float beatCol = (float)(_magneticGlowSec / secondsPerPeak);
                 int totalPeaks = _peaks.Min.Length;
                 float centerPeak = (float)(_playPosition * totalPeaks);
-                float x = (beatCol - centerPeak) + dstW / 2f;
+                float x = (float)((beatCol - centerPeak) / _playbackSpeed) + dstW / 2f;
                 if (x >= -2 && x < dstW + 2)
                 {
                     _glowPaint ??= new SKPaint { Color = new SKColor(0x34, 0xF0, 0x6F, 0xF0), IsAntialias = false };

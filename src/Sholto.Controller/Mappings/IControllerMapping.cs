@@ -1,6 +1,6 @@
 namespace Sholto.Controller.Mappings;
 
-public readonly record struct NoteEvent(int Channel, int Key, int Velocity);
+public readonly record struct NoteEvent(int Channel, int Key, int Velocity, bool IsDown);
 public readonly record struct CcEvent(int Channel, int Control, int Value);
 
 /// <summary>

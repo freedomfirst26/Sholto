@@ -23,6 +23,8 @@ public partial class App : Application
     private SholtoDatabase? _db;
     // Jog-wheel scrubs are coalesced per frame so we issue one Seek per deck per ~16 ms.
     private double _pendingJog1, _pendingJog2;
+    // Browse-button long-press: hold for 1s to force-reanalyze the highlighted track.
+    private DispatcherTimer? _browseHoldTimer;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -64,7 +66,7 @@ public partial class App : Application
                 AnalysisProvider MakeProvider() => new(
                     caches: sharedCaches,
                     compute: (path, samples, rate, ct) =>
-                        BasicAnalysis.ComputeAsync(path, samples, channels: 2, sampleRate: rate, reporter: null, ct: ct));
+                        BasicAnalysis.ComputeAsync(path, samples, channels: 2, sampleRate: rate, reporter: vm.Reporter, ct: ct));
                 vm.Deck1.Player.AnalysisProvider = MakeProvider();
                 vm.Deck2.Player.AnalysisProvider = MakeProvider();
 
@@ -128,8 +130,30 @@ public partial class App : Application
                         vm.OnBrowseRotated(r.Delta);
                         break;
                     case ControllerEvent.BrowsePressed:
-                        // Encoder press: bring focus to the track list; rotation moves selection.
-                        // (no track load — Load 1 / Load 2 buttons do that)
+                        // Short tap: no-op (Load 1 / Load 2 buttons do the loading).
+                        // Long press (≥1 s): force-reanalyze the highlighted track —
+                        // rescue path for tracks whose cached BPM/beats are wrong.
+                        // Some controllers retransmit NoteOn while held; if a timer is
+                        // already counting, leave it alone instead of resetting it.
+                        if (_browseHoldTimer is null)
+                        {
+                            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                            timer.Tick += (_, _) =>
+                            {
+                                timer.Stop();
+                                if (ReferenceEquals(_browseHoldTimer, timer)) _browseHoldTimer = null;
+                                var provider = vm.Deck1.Player.AnalysisProvider;
+                                if (provider is null) { Console.WriteLine("[App] browse-hold: no AnalysisProvider yet"); return; }
+                                Console.WriteLine($"[App] browse-hold fired → re-analyzing {vm.SelectedTrack?.FilePath}");
+                                _ = vm.OnBrowseHeldAsync(t => AudioFileDecoder.Decode(t.FilePath), provider);
+                            };
+                            _browseHoldTimer = timer;
+                            timer.Start();
+                        }
+                        break;
+                    case ControllerEvent.BrowseReleased:
+                        _browseHoldTimer?.Stop();
+                        _browseHoldTimer = null;
                         break;
                     case ControllerEvent.LoadToDeck l:
                     {

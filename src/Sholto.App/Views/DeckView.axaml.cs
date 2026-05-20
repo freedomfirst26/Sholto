@@ -37,16 +37,11 @@ public partial class DeckView : UserControl
         }
     }
 
-    private void OnHalveBpmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    /// <summary>Click the BPM to flip-flop between the analyser's value and the
+    /// corrected half/double. One click toggles, another returns to original.</summary>
+    private void OnBpmPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {
-        if (DataContext is DeckViewModel vm) vm.HalveBpm();
-    }
-    private void OnDoubleBpmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (DataContext is DeckViewModel vm) vm.DoubleBpm();
-    }
-    private void OnResetBpmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (DataContext is DeckViewModel vm) vm.ResetBpmMultiplier();
+        if (DataContext is DeckViewModel vm) vm.ToggleBpmOverride();
+        e.Handled = true;
     }
 }

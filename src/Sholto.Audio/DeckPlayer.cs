@@ -53,6 +53,7 @@ public sealed class DeckPlayer
     // matches the visual intuition of moving the fader down.
     private double _pitchRange = 0.06;          // ±6% default
     private double _tempoPosition = 0.5;        // centred = unity speed
+    private double _bpmMultiplier = 1.0;        // ½ / ×2 audio multiplier from BPM click
 
     public double PitchRange
     {
@@ -67,14 +68,26 @@ public sealed class DeckPlayer
         set { _tempoPosition = Math.Clamp(value, 0, 1); ApplyPlaybackSpeed(); }
     }
 
-    /// <summary>Live playback-speed multiplier (1.0 = unity).</summary>
+    /// <summary>Half / double / unity playback multiplier driven by the BPM-click
+    /// override on the deck. Compounds with the live tempo fader so the user can
+    /// nudge ±6 % around the corrected speed.</summary>
+    public double BpmMultiplier
+    {
+        get => _bpmMultiplier;
+        set { _bpmMultiplier = value > 0 ? value : 1.0; ApplyPlaybackSpeed(); }
+    }
+
+    /// <summary>Live playback-speed multiplier (1.0 = unity), already factoring in
+    /// both the fader's ±range shift and the BPM-click override.</summary>
     public float PlaybackSpeed { get; private set; } = 1.0f;
 
     private void ApplyPlaybackSpeed()
     {
         // Top of fader (pos=0) → slowdown, bottom (pos=1) → speedup.
         // (-1 + 2 * pos) maps 0..1 → -1..+1, then scaled by range.
-        PlaybackSpeed = (float)(1.0 + (-1.0 + 2.0 * _tempoPosition) * _pitchRange);
+        // Multiplied by BpmMultiplier so a halved track plays at half speed.
+        double fader = 1.0 + (-1.0 + 2.0 * _tempoPosition) * _pitchRange;
+        PlaybackSpeed = (float)(fader * _bpmMultiplier);
 
         // Push the speed into our own provider — NOT into SoundFlow.SoundPlayer.PlaybackSpeed.
         // SoundFlow's PlaybackSpeed engages WSOLA time-stretching, which allocates
@@ -99,9 +112,10 @@ public sealed class DeckPlayer
     public bool IsLoaded => _player is not null;
     public bool IsPlaying => _player?.State == PlaybackState.Playing;
 
-    // Read provider.Position (raw samples consumed) directly — SoundPlayer.Time
-    // converts using the engine sample rate, which drifts when the source rate
-    // (44.1 kHz) differs from the engine rate (48 kHz).
+    // Read provider.Position (raw samples consumed) directly. Source rate now
+    // matches the engine rate (see AudioFileDecoder.TargetSampleRate) so this is
+    // equivalent to SoundPlayer.Time, but staying on Position keeps us correct
+    // if those rates ever diverge again.
     public long PositionFrames =>
         _player is null ? 0 : _player.DataProvider.Position / 2;
 
@@ -249,7 +263,7 @@ public sealed class DeckPlayer
             _player = null;
         }
 
-        var provider = new StemMixDataProvider(drums, vocals, bass, other, sampleRate: 44100);
+        var provider = new StemMixDataProvider(drums, vocals, bass, other, sampleRate: AudioFileDecoder.TargetSampleRate);
         _stemProvider = provider;
         _player = new SoundPlayer(_engine, _format, provider);
         _deckMixer.AddComponent(_player);

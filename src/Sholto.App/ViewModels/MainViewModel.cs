@@ -129,6 +129,35 @@ public sealed class MainViewModel : INotifyPropertyChanged
             GetBpmMultiplierFor(SelectedTrack.FilePath));
     }
 
+    /// <summary>Long-press on the browse / song-select button: force-reanalyze the
+    /// highlighted track (decode → compute → overwrite both cache tiers). Used to
+    /// rescue tracks whose cached BPM/beats are wrong (e.g. madmom misread).</summary>
+    public async Task OnBrowseHeldAsync(
+        Func<Track, float[]> decodeTrack,
+        Sholto.Analysis.AnalysisProvider analysisProvider)
+    {
+        var track = SelectedTrack;
+        if (track is null) return;
+
+        try
+        {
+            var samples = await Task.Run(() => decodeTrack(track));
+            var analysis = await analysisProvider.RecomputeAsync(
+                track.FilePath, samples, Sholto.Audio.AudioFileDecoder.TargetSampleRate);
+
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                foreach (var row in Tracks)
+                    if (row.FilePath == track.FilePath) row.Bpm = analysis.Bpm;
+            });
+            Console.WriteLine($"[MainVM] re-analyzed {track.FilePath}: {analysis.Bpm:F1} BPM");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MainVM] re-analyze failed: {ex.Message}");
+        }
+    }
+
     public DeckViewModel DeckFor(int deck) => deck == 1 ? Deck2 : Deck1;
 
     private double _crossfader = 0.5;

@@ -50,7 +50,20 @@ public sealed class AnalysisProvider
         return (computed, "computed");
     }
 
-    private static async Task BackfillAsync(List<IAnalysisCache> misses, string path, BasicAnalysis analysis)
+    /// <summary>
+    /// Force a fresh compute, bypassing every cache, and write the result through
+    /// to every tier (overwriting any stale entry). Used by the "hold song-select
+    /// to re-analyze" gesture when the cached BPM/beats are wrong.
+    /// </summary>
+    public async Task<BasicAnalysis> RecomputeAsync(
+        string filePath, float[] stereoSamples, int sampleRate, CancellationToken ct = default)
+    {
+        var computed = await _compute(filePath, stereoSamples, sampleRate, ct);
+        await BackfillAsync(_caches, filePath, computed);
+        return computed;
+    }
+
+    private static async Task BackfillAsync(IReadOnlyList<IAnalysisCache> misses, string path, BasicAnalysis analysis)
     {
         foreach (var c in misses)
         {

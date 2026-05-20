@@ -17,8 +17,9 @@ namespace Sholto.Audio;
 /// this provider in front of a single <see cref="SoundFlow.Components.SoundPlayer"/>
 /// stem playback costs exactly the same as single-track playback.
 ///
-/// Layout: each stem array is interleaved stereo float32 at the native source
-/// rate (44.1 kHz). All four arrays are required to be the same length; the
+/// Layout: each stem array is interleaved stereo float32 at the decoder's
+/// target sample rate (<see cref="AudioFileDecoder.TargetSampleRate"/>). All
+/// four arrays are required to be the same length; the
 /// constructor truncates to <c>min(lengths)</c> if they differ.
 /// </summary>
 public sealed class StemMixDataProvider : ISoundDataProvider

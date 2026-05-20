@@ -57,9 +57,13 @@ public sealed class MidiManager : IDisposable
         }
 
         if (_mapping is null) return;
+        // Pioneer (and most controllers) send NoteOn 0x90 with vel=0 as "release" instead of
+        // a real 0x80 NoteOff. Treat both as note-up so long-press handling (e.g. browse-hold
+        // → re-analyze) can see the release edge.
         ControllerEvent? evt = type switch
         {
-            0x90 when data2 > 0 => _mapping.Translate(new NoteEvent(channel, data1, data2)),
+            0x90                => _mapping.Translate(new NoteEvent(channel, data1, data2, IsDown: data2 > 0)),
+            0x80                => _mapping.Translate(new NoteEvent(channel, data1, data2, IsDown: false)),
             0xB0                => _mapping.Translate(new CcEvent(channel, data1, data2)),
             _                   => null,
         };
