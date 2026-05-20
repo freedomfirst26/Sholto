@@ -56,6 +56,12 @@ New DJ controller software — a free alternative to Rekordbox / Serato.
   - **Glacier** (calm Nordic slate-blue)
   - **Bloodmoon** (carbon + crimson + bone — high drama)
 
+### Controls
+Gestures that live across mouse, keyboard, and controller:
+- **Click the BPM chip** on a deck to halve / double the analyser's reading. The chip jumps + flips card-style and lands on the corrected number — fixes the common madmom "doubled it" mistake (e.g. a 87 BPM downtempo coming back as 174). Click again to flip back. Persisted to SQLite per track.
+- **Hold the controller song-select** (browse encoder press) for ~1 s on a highlighted track to force a fresh re-analysis. Bypasses every cache tier and overwrites the stored BPM / beats — rescue path for tracks whose cached analysis is wrong.
+- **Magnetic beat-snap between decks** — when both decks are playing and their nearest downbeats drift toward alignment, jog ticks get scaled down by a smoothstep curve and both waveforms light up with a green stripe at the matching beat. Let go and the adjusted deck quantises onto the reference deck's grid. Same feel as Rekordbox / Serato beat-lock without needing to explicitly arm anything.
+
 ### Controller (Pioneer DDJ-FLX4)
 - **Play / pause** on each deck
 - **Jog wheels** — top platter (fast scrub) and side ring (fine seek), with different scrub-rate scaling per surface

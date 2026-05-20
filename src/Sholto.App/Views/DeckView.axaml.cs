@@ -1,5 +1,7 @@
 using System;
+using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Media.Transformation;
 using Avalonia.Threading;
 using Sholto.App.ViewModels;
 
@@ -38,10 +40,36 @@ public partial class DeckView : UserControl
     }
 
     /// <summary>Click the BPM to flip-flop between the analyser's value and the
-    /// corrected half/double. One click toggles, another returns to original.</summary>
-    private void OnBpmPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    /// corrected half/double. One click toggles, another returns to original.
+    /// The chip jumps up + flips card-style; the BPM swaps at the apex (when the
+    /// chip is squished to a thin line) so the new number is revealed as it lands.</summary>
+    private async void OnBpmPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {
-        if (DataContext is DeckViewModel vm) vm.ToggleBpmOverride();
         e.Handled = true;
+        if (DataContext is not DeckViewModel vm) return;
+
+        if (sender is not Border chip)
+        {
+            vm.ToggleBpmOverride();
+            return;
+        }
+
+        await FlipBpmChipAsync(chip, vm.ToggleBpmOverride);
+    }
+
+    private static async Task FlipBpmChipAsync(Border chip, Action swapAtApex)
+    {
+        // The chip already has a TransformOperationsTransition on RenderTransform
+        // (see bpm-chip-main style), so setting the transform directly drives the
+        // existing smoothed motion — no separate keyframe Animation needed.
+        // Phase 1: rise + squish to a sliver (digits invisible).
+        // Phase 2 (after swap): drop + expand, revealing the new number.
+        var lift = TransformOperations.Parse("translateY(-22px) scaleY(0.05)");
+        var land = TransformOperations.Parse("translateY(0px) scaleY(1)");
+
+        chip.RenderTransform = lift;
+        await Task.Delay(160);
+        swapAtApex();
+        chip.RenderTransform = land;
     }
 }

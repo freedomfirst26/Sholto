@@ -138,7 +138,7 @@
                                 HorizontalAlignment="Center"
                                 RenderTransformOrigin="50%,50%"
                                 Cursor="Hand"
-                                ToolTip.Tip="Click to flip ½ / ×2 the BPM (fixes madmom half/double errors)"
+                                ToolTip.Tip="Double / Halve BPM"
                                 PointerPressed="OnBpmPressed">
                             <Border.Transitions>
                                 <Transitions>
