@@ -41,6 +41,16 @@ public sealed class StemMixDataProvider : ISoundDataProvider
     private float _speed = 1f;
     public void SetSpeed(float speed) => Volatile.Write(ref _speed, MathF.Max(0.01f, speed));
 
+    // Declick on Seek. Naïve "fade in from 0" produces its OWN click at the
+    // start of the fade because the previous buffer ended at some non-zero
+    // value. So we remember the last output sample per channel and crossfade
+    // from it to the new audio over a few ms — no step at either end.
+    // ~5 ms at 48 kHz is short enough to be inaudible as a gap but long
+    // enough to smooth the discontinuity.
+    private const int FadeFrames = 256;
+    private int _fadeRemaining;
+    private float _lastOutL, _lastOutR;
+
     public StemMixDataProvider(float[] drums, float[] vocals, float[] bass, float[] other, int sampleRate)
     {
         if (drums is null || vocals is null || bass is null || other is null)
@@ -117,6 +127,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider
                               + s2[ipos + i] * g2 + s3[ipos + i] * g3;
             }
             Volatile.Write(ref _position, ipos + samples);
+            ApplyFadeIn(buffer[..samples]);
             return samples;
         }
 
@@ -159,14 +170,46 @@ public sealed class StemMixDataProvider : ISoundDataProvider
 
         Volatile.Write(ref _position, srcFrame * 2.0);
         if (writtenFrames == 0) EndOfStreamReached?.Invoke(this, EventArgs.Empty);
-        return writtenFrames * 2;
+        int produced = writtenFrames * 2;
+        ApplyFadeIn(buffer[..produced]);
+        return produced;
     }
 
     public void Seek(int offset)
     {
         var clamped = Math.Clamp(offset, 0, _length);
         Volatile.Write(ref _position, (double)clamped);
+        Volatile.Write(ref _fadeRemaining, FadeFrames);
         PositionChanged?.Invoke(this, new PositionChangedEventArgs(clamped));
+    }
+
+    /// <summary>Crossfade out of the last output sample into the new audio whenever
+    /// a Seek has armed the fade counter — pure declick, no audible gap. Also keeps
+    /// <c>_lastOut*</c> up to date with whatever the final sample of this buffer
+    /// ended up being, so the next seek has a continuous starting point.</summary>
+    private void ApplyFadeIn(Span<float> samples)
+    {
+        int frames = samples.Length / 2;
+        if (frames == 0) return;
+
+        int fade = Volatile.Read(ref _fadeRemaining);
+        if (fade > 0)
+        {
+            float lastL = _lastOutL, lastR = _lastOutR;
+            for (int f = 0; f < frames && fade > 0; f++)
+            {
+                float t = 1f - (float)fade / FadeFrames;   // 0 → 1 across the ramp
+                samples[f * 2]     = lastL + (samples[f * 2]     - lastL) * t;
+                samples[f * 2 + 1] = lastR + (samples[f * 2 + 1] - lastR) * t;
+                fade--;
+            }
+            Volatile.Write(ref _fadeRemaining, fade);
+        }
+
+        // Remember where this buffer ended so the next post-seek crossfade has
+        // somewhere continuous to start from.
+        _lastOutL = samples[(frames - 1) * 2];
+        _lastOutR = samples[(frames - 1) * 2 + 1];
     }
 
     public void Dispose() => IsDisposed = true;

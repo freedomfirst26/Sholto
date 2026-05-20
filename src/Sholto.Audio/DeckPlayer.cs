@@ -86,6 +86,7 @@ public sealed class DeckPlayer
         // Top of fader (pos=0) → slowdown, bottom (pos=1) → speedup.
         // (-1 + 2 * pos) maps 0..1 → -1..+1, then scaled by range.
         // Multiplied by BpmMultiplier so a halved track plays at half speed.
+        // Jog nudge adds on top for transient pitch-bends from the outer ring.
         double fader = 1.0 + (-1.0 + 2.0 * _tempoPosition) * _pitchRange;
         PlaybackSpeed = (float)(fader * _bpmMultiplier);
 
