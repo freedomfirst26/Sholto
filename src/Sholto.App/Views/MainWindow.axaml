@@ -202,12 +202,16 @@
             </Rectangle>
         </Grid>
 
-        <!-- Drop-shadow strip between the track list and the decks. -->
-        <Border Grid.Row="1" IsHitTestVisible="False">
+        <!-- Drop shadow cast by the top of Deck 1 onto the bottom of the track list.
+             Lives in the list's row (0) but anchored to its bottom edge, so the
+             gradient extends *into* the list. Dark at the bottom (where the deck
+             meets the list), fading transparent upward. -->
+        <Border Grid.Row="0" VerticalAlignment="Bottom" Height="32"
+                IsHitTestVisible="False">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                    <GradientStop Color="#A0000000" Offset="0.0"/>
-                    <GradientStop Color="#00000000" Offset="1.0"/>
+                    <GradientStop Color="#00000000" Offset="0.0"/>
+                    <GradientStop Color="#B0000000" Offset="1.0"/>
                 </LinearGradientBrush>
             </Border.Background>
         </Border>

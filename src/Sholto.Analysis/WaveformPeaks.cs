@@ -46,9 +46,11 @@ public sealed record WaveformPeaks(
         var midOut = new float[peakCount];
         var highOut = new float[peakCount];
 
-        // Biquads run on a mono mix of the source samples.
+        // Three-band split for the visualiser: a narrow BPF in the middle leaves a
+        // hole around 2–4 kHz (snare crack, vocal presence, hi-hat shimmer drop
+        // out of every band). Instead, run LP + HP and define mid as the
+        // complement — so the three bands sum to the original signal with no gap.
         var lpf = Biquad.LowPass(sampleRate, freq: 250f, q: 0.707f);
-        var bpf = Biquad.BandPass(sampleRate, freq: 1200f, q: 0.7f);
         var hpf = Biquad.HighPass(sampleRate, freq: 4000f, q: 0.707f);
         // Separate LP for the onset detector (tighter — kick-drum band, ~150 Hz).
         var kick = Biquad.LowPass(sampleRate, freq: 150f, q: 0.707f);
@@ -74,9 +76,15 @@ public sealed record WaveformPeaks(
                 }
                 mono /= channels;
 
-                float l = MathF.Abs(lpf.Process(mono));
-                float m = MathF.Abs(bpf.Process(mono));
-                float h = MathF.Abs(hpf.Process(mono));
+                float lRaw = lpf.Process(mono);
+                float hRaw = hpf.Process(mono);
+                // Complementary mid: everything the LP and HP didn't take. Phase
+                // offsets from the filters smear this slightly, but abs+peak-track
+                // washes that out — visually the three bands now cover 0..Nyquist
+                // with no dead zone.
+                float l = MathF.Abs(lRaw);
+                float h = MathF.Abs(hRaw);
+                float m = MathF.Abs(mono - lRaw - hRaw);
                 float k = MathF.Abs(kick.Process(mono));
 
                 if (l > bandLow) bandLow = l;
