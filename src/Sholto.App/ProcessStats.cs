@@ -18,9 +18,9 @@ public static class ProcessStats
     private static DateTime _lastSample = DateTime.UtcNow;
     private static readonly int Cores = Math.Max(1, Environment.ProcessorCount);
 
-    public static bool Enabled =>
-        string.Equals(Environment.GetEnvironmentVariable("SHOLTO_DEBUG_STATS"),
-                      "1", StringComparison.Ordinal);
+    // Always on for now. Re-gate behind SHOLTO_DEBUG_STATS=1 later if it ever
+    // becomes intrusive.
+    public static bool Enabled => true;
 
     public static (double cpuPercent, long workingSetBytes) Sample()
     {

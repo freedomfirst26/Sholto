@@ -6,7 +6,7 @@ New DJ controller software — a free alternative to Rekordbox / Serato.
 
 **Status:** currently developed and tested on **Linux** (Ubuntu / PipeWire) with the **Pioneer DDJ-FLX4** controller. Cross-platform support (Windows / macOS) and other controllers are next on the roadmap.
 
-![Sholto — Tokyo Night theme with two decks](pictures/sholto-ui.png)
+![Sholto — Tokyo Night theme: library, RGB-split S watermark, two decks with live tempo display](pictures/sholto-ui.png)
 
 ## Features
 

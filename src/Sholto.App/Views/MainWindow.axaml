@@ -52,12 +52,6 @@
                 </MenuItem>
                 <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
-                <MenuItem Header="Tempo range">
-                    <MenuItem Header="±6 %"  Click="OnTempoRange6"/>
-                    <MenuItem Header="±10 %" Click="OnTempoRange10"/>
-                    <MenuItem Header="±16 %" Click="OnTempoRange16"/>
-                    <MenuItem Header="Wide (±50 %)" Click="OnTempoRangeWide"/>
-                </MenuItem>
             </MenuItem>
         </Menu>
         </DockPanel>
@@ -125,9 +119,14 @@
                                      built-in animation, no fragile custom animators.
                                      MinWidth=0 stops the default 100-px minimum from
                                      bleeding into the artist column. -->
+                                <!-- IsIndeterminate is also bound — leaving it True
+                                     keeps a hidden animation timer running on every
+                                     hidden row (~90 of them at idle = catastrophic
+                                     UI-thread invalidation). Only ticks when this row
+                                     is actually analysing. -->
                                 <ProgressBar Width="28" Height="4"
                                              MinWidth="0"
-                                             IsIndeterminate="True"
+                                             IsIndeterminate="{Binding IsAnalyzing}"
                                              ShowProgressText="False"
                                              HorizontalAlignment="Center"
                                              Background="Transparent"
@@ -155,26 +154,52 @@
             </ListBox>
         </Grid>
 
-        <!-- Brand watermark — three offset coloured S's at the bottom-centre of the
-             track list, just above the decks. Avalonia-native primitives so we don't
-             pull in extra SkiaSharp versions. -->
-        <Grid Grid.Row="0"
-              Width="96" Height="96"
-              HorizontalAlignment="Center" VerticalAlignment="Bottom"
-              Margin="0,0,0,12"
-              Opacity="0.18"
-              IsHitTestVisible="False">
-            <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
-                       FontSize="84" Foreground="#3D8BFF"
+        <!-- Brand watermark + wooden-blinds texture overlay, both scale with the
+             window. ClipToBounds keeps the rotated stripes inside the track-list
+             area, IsHitTestVisible=False so nothing here steals clicks. -->
+        <Grid Grid.Row="0" IsHitTestVisible="False" ClipToBounds="True">
+            <!-- The S logo, scaled to fill ~60% of the track-list area via a
+                 Viewbox + a Border that constrains aspect. Grows naturally as
+                 the window resizes. -->
+            <Viewbox Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                     Margin="40,40,40,60">
+                <Grid Width="96" Height="96" Opacity="0.18">
+                    <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
+                               FontSize="84" Foreground="#3D8BFF"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Margin="-8,4,0,0"/>
+                    <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
+                               FontSize="84" Foreground="#34F06F"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
+                               FontSize="84" Foreground="#FF4E5E"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Margin="8,-4,0,0"/>
+                </Grid>
+            </Viewbox>
+
+            <!-- Angled wooden-blinds texture, sits in front of the S at low
+                 opacity for a venetian-blind feel. SpreadMethod=Repeat gives us
+                 unlimited stripes; the RotateTransform tilts them ~22°. The
+                 rectangle is oversized so the rotated corners still fill bounds. -->
+            <Rectangle Width="3000" Height="3000" Opacity="0.03"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Margin="-8,4,0,0"/>
-            <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
-                       FontSize="84" Foreground="#34F06F"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
-                       FontSize="84" Foreground="#FF4E5E"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Margin="8,-4,0,0"/>
+                       RenderTransformOrigin="50%,50%">
+                <Rectangle.Fill>
+                    <!-- Stripe period = 0.012 of the 3000 px rectangle = 36 px.
+                         SpreadMethod=Repeat tiles the gradient outward. -->
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,1.2%"
+                                         SpreadMethod="Repeat">
+                        <GradientStop Color="#FFFFFF" Offset="0"/>
+                        <GradientStop Color="#FFFFFF" Offset="0.35"/>
+                        <GradientStop Color="#00000000" Offset="0.36"/>
+                        <GradientStop Color="#00000000" Offset="1"/>
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+                <Rectangle.RenderTransform>
+                    <RotateTransform Angle="8"/>
+                </Rectangle.RenderTransform>
+            </Rectangle>
         </Grid>
 
         <!-- Drop-shadow strip between the track list and the decks. -->

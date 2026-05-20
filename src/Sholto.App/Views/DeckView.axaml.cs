@@ -36,4 +36,17 @@ public partial class DeckView : UserControl
             ring.Opacity = 1.0;
         }
     }
+
+    private void OnHalveBpmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is DeckViewModel vm) vm.HalveBpm();
+    }
+    private void OnDoubleBpmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is DeckViewModel vm) vm.DoubleBpm();
+    }
+    private void OnResetBpmClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is DeckViewModel vm) vm.ResetBpmMultiplier();
+    }
 }

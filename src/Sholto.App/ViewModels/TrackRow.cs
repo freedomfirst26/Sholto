@@ -21,13 +21,24 @@ public sealed class TrackRow : INotifyPropertyChanged
     public TrackRow(Track track) { Track = track; }
 
     private double? _bpm;
+    /// <summary>Raw BPM as detected by madmom (or null pre-analysis).</summary>
     public double? Bpm
     {
         get => _bpm;
         set { if (Math.Abs((_bpm ?? -1) - (value ?? -1)) < 0.05) return; _bpm = value; Notify(); Notify(nameof(BpmDisplay)); Notify(nameof(Analyzed)); }
     }
 
-    public string BpmDisplay => _bpm is { } b ? $"{b:F1}" : "";
+    private double _bpmMultiplier = 1.0;
+    /// <summary>User-applied half/double override. 0.5 corrects a doubled madmom
+    /// estimate; 2.0 corrects a halved one. Persisted per-file.</summary>
+    public double BpmMultiplier
+    {
+        get => _bpmMultiplier;
+        set { if (Math.Abs(_bpmMultiplier - value) < 0.0001) return; _bpmMultiplier = value; Notify(); Notify(nameof(BpmDisplay)); }
+    }
+
+    /// <summary>BPM after the user override — what we show in the library list.</summary>
+    public string BpmDisplay => _bpm is { } b ? $"{(b * _bpmMultiplier):F1}" : "";
 
     private bool _stemsReady;
     /// <summary>True once Demucs has produced the 4 stem WAVs for this track (this session,

@@ -70,7 +70,20 @@ public partial class App : Application
 
                 // Pre-populate the UI's BPM map from cache so tracks light up immediately.
                 var bpms = await _db.GetAllBpmsAsync();
-                await Dispatcher.UIThread.InvokeAsync(() => vm.SetKnownBpms(bpms));
+                var mults = await _db.GetAllBpmMultipliersAsync();
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    vm.SetKnownBpms(bpms);
+                    vm.SetKnownBpmMultipliers(mults);
+                });
+
+                // Persist any ÷2/×2 changes the user makes on the decks.
+                var dbRef = _db;
+                vm.BpmMultiplierChanged += async (path, mult) =>
+                {
+                    try { await dbRef.UpsertBpmMultiplierAsync(path, mult); }
+                    catch (Exception ex) { Console.WriteLine($"[DB] save bpm override failed: {ex.Message}"); }
+                };
             }
             catch (Exception ex)
             {
@@ -128,7 +141,8 @@ public partial class App : Application
                             {
                                 var samples = AudioFileDecoder.Decode(sel.FilePath);
                                 await Dispatcher.UIThread.InvokeAsync(() =>
-                                    deck.LoadTrack(sel, sel.FilePath, samples));
+                                    deck.LoadTrack(sel, sel.FilePath, samples,
+                                        vm.GetBpmMultiplierFor(sel.FilePath)));
                             });
                         }
                         break;
@@ -151,13 +165,21 @@ public partial class App : Application
                     case ControllerEvent.StemToggle st:
                     {
                         var deckVm = vm.DeckFor(st.Deck);
-                        bool active = deckVm.Player.ToggleStemGroup(st.Group);
+                        // VM bools are the source of truth for "is this group on now".
+                        // Flip them, then push the new gain into the audio path.
+                        bool nextActive = st.Group switch
+                        {
+                            0 => !deckVm.DrumsActive,
+                            1 => !deckVm.VocalsActive,
+                            _ => !deckVm.InstrumentalActive,
+                        };
                         switch (st.Group)
                         {
-                            case 0: deckVm.DrumsActive       = active; break;
-                            case 1: deckVm.VocalsActive      = active; break;
-                            case 2: deckVm.InstrumentalActive = active; break;
+                            case 0: deckVm.DrumsActive        = nextActive; break;
+                            case 1: deckVm.VocalsActive       = nextActive; break;
+                            case 2: deckVm.InstrumentalActive = nextActive; break;
                         }
+                        deckVm.Player.SetStemGroup(st.Group, nextActive);
                         break;
                     }
                     case ControllerEvent.JogRotated j:
@@ -166,7 +188,9 @@ public partial class App : Application
                         // into a single Seek per frame. Each Seek causes SoundFlow to
                         // flush its audio buffer; firing one per event (the wheel sends
                         // ~100/sec) turns into audible glitching.
-                        double secsPerTick = j.Source == JogSource.TopPlatter ? 0.05 : 0.005;
+                        // Side ring is the slow / fine seek; 0.00125 s = ¼× the previous
+                        // 0.005 s — finer control for nudging beat alignment.
+                        double secsPerTick = j.Source == JogSource.TopPlatter ? 0.05 : 0.00125;
                         if (j.Deck == 0) _pendingJog1 += j.Delta * secsPerTick;
                         else             _pendingJog2 += j.Delta * secsPerTick;
                         vm.LastJoggedDeck = j.Deck == 0 ? 1 : 2;
@@ -177,7 +201,7 @@ public partial class App : Application
             });
         };
 
-        // Position sync + flush of pending jog scrubs, both at 60 Hz.
+        // Position sync at 60 Hz so rotation + waveform scroll look smooth.
         _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _positionTimer.Tick += (_, _) =>
         {
@@ -291,16 +315,19 @@ public partial class App : Application
         var tracks = await TrackScanner.ScanAsync(musicDir);
 
         Dictionary<string, double>? cachedBpms = null;
+        Dictionary<string, double>? cachedMults = null;
         if (_db is not null)
         {
             foreach (var t in tracks) await _db.UpsertTrackAsync(t);
             cachedBpms = await _db.GetAllBpmsAsync();
+            cachedMults = await _db.GetAllBpmMultipliersAsync();
         }
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
             vm.Tracks.Clear();
             foreach (var t in tracks) vm.Tracks.Add(new TrackRow(t));
             if (cachedBpms is not null) vm.SetKnownBpms(cachedBpms);
+            if (cachedMults is not null) vm.SetKnownBpmMultipliers(cachedMults);
         });
         await vm.HydrateStemStateAsync();
     }

@@ -12,6 +12,7 @@
                                       DownbeatTimes="{Binding DownbeatTimes}"
                                       PlayPosition="{Binding PlayPosition}"
                                       GainOverlay="{Binding EffectiveGain}"
+                                      GainOverlayColor="{Binding $parent[Window].DataContext.Theme.MintColor}"
                                       MagneticGlowSec="{Binding MagneticGlowSec}"
                                       IsScrubbing="{Binding IsScrubbing}"
                                       Palette="{Binding $parent[Window].DataContext.WaveformPalette}"/>
@@ -75,29 +76,81 @@
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Spacing="2" IsHitTestVisible="False"
                                 IsVisible="{Binding HasBpm}">
-                        <Border CornerRadius="6" Padding="6,1"
+                        <StackPanel.Styles>
+                            <!-- Side chips: collapsed (opacity 0 + squashed + nudged
+                                 toward the centre) when not tempo-shifted, then ease
+                                 outward into place when `shifted` class is set. -->
+                            <Style Selector="Border.bpm-chip-top">
+                                <Setter Property="Opacity" Value="0"/>
+                                <Setter Property="RenderTransform" Value="scaleY(0.4) translateY(10px)"/>
+                            </Style>
+                            <Style Selector="Border.bpm-chip-top.shifted">
+                                <Setter Property="Opacity" Value="1"/>
+                                <Setter Property="RenderTransform" Value="scaleY(1) translateY(0px)"/>
+                            </Style>
+                            <Style Selector="Border.bpm-chip-bottom">
+                                <Setter Property="Opacity" Value="0"/>
+                                <Setter Property="RenderTransform" Value="scaleY(0.4) translateY(-10px)"/>
+                            </Style>
+                            <Style Selector="Border.bpm-chip-bottom.shifted">
+                                <Setter Property="Opacity" Value="1"/>
+                                <Setter Property="RenderTransform" Value="scaleY(1) translateY(0px)"/>
+                            </Style>
+                            <!-- Central number: briefly tilts + slight scale-down when
+                                 the deck enters/exits shifted mode, then flattens. -->
+                            <Style Selector="Border.bpm-chip-main">
+                                <Setter Property="RenderTransform" Value="rotate(0deg) scale(1)"/>
+                            </Style>
+                            <Style Selector="Border.bpm-chip-main.shifted">
+                                <Setter Property="RenderTransform" Value="rotate(0deg) scale(1)"/>
+                            </Style>
+                        </StackPanel.Styles>
+
+                        <Border Classes="bpm-chip-top" Classes.shifted="{Binding IsTempoShifted}"
+                                CornerRadius="6" Padding="6,1"
                                 Background="{DynamicResource SholtoBgDeep}"
                                 HorizontalAlignment="Center"
-                                IsVisible="{Binding IsTempoShifted}">
+                                RenderTransformOrigin="50%,100%">
+                            <Border.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.35"/>
+                                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.45" Easing="CubicEaseInOut"/>
+                                </Transitions>
+                            </Border.Transitions>
                             <TextBlock Text="{Binding OriginalBpmShort}"
                                        FontSize="12" FontWeight="SemiBold"
                                        Foreground="{DynamicResource SholtoTextBright}"
                                        Opacity="0.9"
                                        HorizontalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="{Binding BpmDisplayShort}"
-                                   FontSize="22" FontWeight="Bold"
-                                   Foreground="{DynamicResource SholtoTextBright}"
-                                   HorizontalAlignment="Center">
-                            <TextBlock.Effect>
-                                <DropShadowEffect BlurRadius="3" OffsetX="0" OffsetY="0"
-                                                  Color="Black" Opacity="1"/>
-                            </TextBlock.Effect>
-                        </TextBlock>
-                        <Border CornerRadius="6" Padding="6,1"
+
+                        <Border Classes="bpm-chip-main" Classes.shifted="{Binding IsTempoShifted}"
+                                CornerRadius="6" Padding="8,1"
                                 Background="{DynamicResource SholtoBgDeep}"
                                 HorizontalAlignment="Center"
-                                IsVisible="{Binding IsTempoShifted}">
+                                RenderTransformOrigin="50%,50%">
+                            <Border.Transitions>
+                                <Transitions>
+                                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.28" Easing="CubicEaseOut"/>
+                                </Transitions>
+                            </Border.Transitions>
+                            <TextBlock Text="{Binding BpmDisplayShort}"
+                                       FontSize="22" FontWeight="Bold"
+                                       Foreground="{DynamicResource SholtoTextBright}"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+
+                        <Border Classes="bpm-chip-bottom" Classes.shifted="{Binding IsTempoShifted}"
+                                CornerRadius="6" Padding="6,1"
+                                Background="{DynamicResource SholtoBgDeep}"
+                                HorizontalAlignment="Center"
+                                RenderTransformOrigin="50%,0%">
+                            <Border.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.35"/>
+                                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.45" Easing="CubicEaseInOut"/>
+                                </Transitions>
+                            </Border.Transitions>
                             <TextBlock Text="{Binding PitchRangeDisplay}"
                                        FontSize="11" FontWeight="Bold"
                                        Foreground="{DynamicResource SholtoAccent}"
@@ -165,6 +218,27 @@
                                FontSize="14"
                                Foreground="{DynamicResource SholtoTextMuted}"
                                TextTrimming="CharacterEllipsis"/>
+                    <!-- ½ / ×2 override: fixes madmom's half/double-tempo mistakes
+                         (e.g. Seba's downtempo coming back at 174 instead of 87).
+                         Persisted per-track to SQLite. -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0"
+                                IsVisible="{Binding HasBpm}">
+                        <Button Content="÷2" Padding="6,1" FontSize="11" FontWeight="Bold"
+                                Background="{DynamicResource SholtoSurfaceRaised}"
+                                Foreground="{DynamicResource SholtoTextBright}"
+                                BorderBrush="{DynamicResource SholtoBorder}"
+                                Click="OnHalveBpmClick"/>
+                        <Button Content="×2" Padding="6,1" FontSize="11" FontWeight="Bold"
+                                Background="{DynamicResource SholtoSurfaceRaised}"
+                                Foreground="{DynamicResource SholtoTextBright}"
+                                BorderBrush="{DynamicResource SholtoBorder}"
+                                Click="OnDoubleBpmClick"/>
+                        <Button Content="reset" Padding="6,1" FontSize="11"
+                                Background="Transparent"
+                                Foreground="{DynamicResource SholtoTextMuted}"
+                                BorderBrush="Transparent"
+                                Click="OnResetBpmClick"/>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </Panel>

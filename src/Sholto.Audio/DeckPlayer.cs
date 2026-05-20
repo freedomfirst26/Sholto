@@ -37,19 +37,13 @@ public sealed class DeckPlayer
 
     private BiquadEq3Band? _eq;
 
-    // Stem playback: when stems are available we tear down the single mp3 player and
-    // run four SoundPlayers (drums/vocals/bass/other) in the deck mixer instead. They
-    // share the engine clock so they stay sample-locked.
-    private SoundPlayer[]? _stemPlayers;
-    private readonly bool[] _stemActive = new bool[] { true, true, true, true };
-    private const int STEM_DRUMS = 0;
-    private const int STEM_VOCALS = 1;
-    private const int STEM_BASS = 2;
-    private const int STEM_OTHER = 3;
-
-    private bool InStemMode => _stemPlayers is not null;
-    private IEnumerable<SoundPlayer> ActivePlayers =>
-        _stemPlayers is not null ? _stemPlayers : (_player is not null ? new[] { _player } : Array.Empty<SoundPlayer>());
+    // Stem playback: when stems are available we swap the SoundPlayer's data provider
+    // to a StemMixDataProvider that owns the 4 decoded stem buffers and mixes them
+    // on demand. The audio path stays single-player; per-stem mute is just a
+    // lock-free gain write inside that provider. No extra SoundPlayers, no extra
+    // mixer summing, no extra resamplers.
+    private StemMixDataProvider? _stemProvider;
+    private bool InStemMode => _stemProvider is not null;
 
     // Pitch (tempo) state. PitchRange is the ±range the fader spans (0.06 = ±6%).
     // TempoPosition is the fader position 0..1 (0.5 = no shift). Effective playback
@@ -81,7 +75,13 @@ public sealed class DeckPlayer
         // Top of fader (pos=0) → slowdown, bottom (pos=1) → speedup.
         // (-1 + 2 * pos) maps 0..1 → -1..+1, then scaled by range.
         PlaybackSpeed = (float)(1.0 + (-1.0 + 2.0 * _tempoPosition) * _pitchRange);
-        foreach (var p in ActivePlayers) p.PlaybackSpeed = PlaybackSpeed;
+
+        // Push the speed into our own provider — NOT into SoundFlow.SoundPlayer.PlaybackSpeed.
+        // SoundFlow's PlaybackSpeed engages WSOLA time-stretching, which allocates
+        // per audio block and triggers frequent GC pauses that freeze the UI.
+        // StemMixDataProvider does plain linear-interp resampling instead: vinyl
+        // mode, pitch shifts with speed, no allocations on the hot path.
+        _stemProvider?.SetSpeed(PlaybackSpeed);
     }
 
     private float _volume = 1.0f;
@@ -96,16 +96,13 @@ public sealed class DeckPlayer
         }
     }
 
-    public bool IsLoaded => _player is not null || InStemMode;
-    public bool IsPlaying =>
-        InStemMode ? _stemPlayers![0].State == PlaybackState.Playing
-                   : _player?.State == PlaybackState.Playing;
+    public bool IsLoaded => _player is not null;
+    public bool IsPlaying => _player?.State == PlaybackState.Playing;
 
     // Read provider.Position (raw samples consumed) directly — SoundPlayer.Time
     // converts using the engine sample rate, which drifts when the source rate
     // (44.1 kHz) differs from the engine rate (48 kHz).
     public long PositionFrames =>
-        InStemMode ? _stemPlayers![0].DataProvider.Position / 2 :
         _player is null ? 0 : _player.DataProvider.Position / 2;
 
     public double PlayPosition
@@ -155,11 +152,10 @@ public sealed class DeckPlayer
 
         // EQ lives on _deckMixer (post-mix) — see AttachEngine. Don't attach here.
         _deckMixer.AddComponent(_player);
-        // Vinyl-mode tempo: PlaybackSpeed uses linear interpolation (pitch shifts
-        // with speed, like a turntable). WSOLA / key-lock would be a separate
-        // opt-in per deck; deliberately not configuring it keeps the CPU cost
-        // tiny at any tempo.
-        _player.PlaybackSpeed = PlaybackSpeed;
+        // Pre-stems: SoundFlow has no provider with built-in vinyl speed for raw
+        // float[] data, so tempo is a no-op until stems land and we switch to
+        // StemMixDataProvider (which carries speed directly). Don't set
+        // SoundPlayer.PlaybackSpeed — that engages WSOLA and chops the UI.
         Console.WriteLine($"[DeckPlayer] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
 
         // Analysis runs off-thread; deck plays immediately, beat grid appears when ready.
@@ -222,37 +218,29 @@ public sealed class DeckPlayer
             _player.Dispose();
             _player = null;
         }
-        if (_stemPlayers is not null)
-        {
-            foreach (var p in _stemPlayers)
-            {
-                p.Stop();
-                _deckMixer?.RemoveComponent(p);
-                p.Dispose();
-            }
-            _stemPlayers = null;
-        }
+        _stemProvider = null;
+        // Per-stem mute state lives inside StemMixDataProvider; reset by virtue
+        // of dropping the reference. A fresh load builds a fresh provider with
+        // all gains at 1.0.
     }
 
-    /// <summary>Swap the single-track player for four stem players that share the
-    /// engine clock and start at the original's current play position.</summary>
+    /// <summary>Swap the SoundPlayer's data provider for a <see cref="StemMixDataProvider"/>
+    /// that owns the 4 decoded stems and mixes them on demand. One player, one
+    /// resampler, one position — same cost as single-track playback.</summary>
     private void SwitchToStemMode(StemPaths stems)
     {
         if (_engine is null || _deckMixer is null) return;
 
-        // Decode all 4 stems off the audio thread (we're already on a background task).
-        var samples = new[]
-        {
-            AudioFileDecoder.Decode(stems.Drums),
-            AudioFileDecoder.Decode(stems.Vocals),
-            AudioFileDecoder.Decode(stems.Bass),
-            AudioFileDecoder.Decode(stems.Other),
-        };
+        // Decode the 4 stems on this background task (we're off the audio thread).
+        var drums  = AudioFileDecoder.Decode(stems.Drums);
+        var vocals = AudioFileDecoder.Decode(stems.Vocals);
+        var bass   = AudioFileDecoder.Decode(stems.Bass);
+        var other  = AudioFileDecoder.Decode(stems.Other);
 
         var posSeconds = _player?.Time ?? 0;
         var wasPlaying = IsPlaying;
 
-        // Tear down original single player first.
+        // Tear down the original single-buffer player.
         if (_player is not null)
         {
             _player.Stop();
@@ -261,63 +249,41 @@ public sealed class DeckPlayer
             _player = null;
         }
 
-        var players = new SoundPlayer[4];
-        for (int i = 0; i < 4; i++)
-        {
-            var prov = new RawDataProvider(samples[i], 44100);
-            var p = new SoundPlayer(_engine, _format, prov);
-            // EQ lives post-mix on _deckMixer (see AttachEngine) — don't attach here.
-            _deckMixer.AddComponent(p);
-            // Vinyl-mode tempo on each stem too. Cheap linear-interp resample.
-            p.PlaybackSpeed = PlaybackSpeed;
-            p.Seek(TimeSpan.FromSeconds(Math.Max(0, posSeconds)));
-            players[i] = p;
-        }
-        _stemPlayers = players;
-        ApplyDeckGain();
+        var provider = new StemMixDataProvider(drums, vocals, bass, other, sampleRate: 44100);
+        _stemProvider = provider;
+        _player = new SoundPlayer(_engine, _format, provider);
+        _deckMixer.AddComponent(_player);
+        // Speed is owned by the provider, not the SoundPlayer (see ApplyPlaybackSpeed).
+        provider.SetSpeed(PlaybackSpeed);
+        _player.Volume = _volume;
+        _player.Seek(TimeSpan.FromSeconds(Math.Max(0, posSeconds)));
 
-        if (wasPlaying)
-            foreach (var p in players) p.Play();
-
-        Console.WriteLine("[DeckPlayer] switched to stem-mix playback");
+        if (wasPlaying) _player.Play();
+        Console.WriteLine("[DeckPlayer] switched to stem-mix playback (single player)");
     }
 
-    /// <summary>Mute / unmute a stem group (0=Drums, 1=Vocals, 2=Instrumental=bass+other).
-    /// Returns the new on/off state for the group.</summary>
-    public bool ToggleStemGroup(int group)
+    /// <summary>Mute/unmute one of the 3 UI groups (drums / vocals / instrumental).
+    /// "Instrumental" maps to both Bass and Other internally. Lock-free.</summary>
+    public void SetStemGroup(int group, bool active)
     {
-        if (_stemPlayers is null) return true;  // no stems yet — no-op, group stays "on"
-        bool newState = group switch
-        {
-            0 => !_stemActive[STEM_DRUMS],
-            1 => !_stemActive[STEM_VOCALS],
-            _ => !(_stemActive[STEM_BASS] && _stemActive[STEM_OTHER]),
-        };
+        if (_stemProvider is null) return;
+        float gain = active ? 1f : 0f;
         switch (group)
         {
-            case 0: _stemActive[STEM_DRUMS]  = newState; break;
-            case 1: _stemActive[STEM_VOCALS] = newState; break;
+            case 0: _stemProvider.SetGain(StemMixDataProvider.Drums,  gain); break;
+            case 1: _stemProvider.SetGain(StemMixDataProvider.Vocals, gain); break;
             default:
-                _stemActive[STEM_BASS]  = newState;
-                _stemActive[STEM_OTHER] = newState;
+                _stemProvider.SetGain(StemMixDataProvider.Bass,  gain);
+                _stemProvider.SetGain(StemMixDataProvider.Other, gain);
                 break;
         }
-        ApplyDeckGain();
-        return newState;
     }
 
-    /// <summary>Push the current Volume × per-stem-mute matrix onto the SoundPlayers.</summary>
+    /// <summary>Apply Volume to the player. (Stem-level mute is handled inside the
+    /// data provider.)</summary>
     private void ApplyDeckGain()
     {
-        if (_stemPlayers is not null)
-        {
-            for (int i = 0; i < _stemPlayers.Length; i++)
-                _stemPlayers[i].Volume = _stemActive[i] ? _volume : 0f;
-        }
-        else if (_player is not null)
-        {
-            _player.Volume = _volume;
-        }
+        if (_player is not null) _player.Volume = _volume;
     }
 
     /// <summary>Raised on the analysis thread once BasicAnalysis completes.</summary>
@@ -329,15 +295,12 @@ public sealed class DeckPlayer
         TearDownPlayers();
         _sampleCount = 0;
         Analysis = new TrackAnalysis();
-        // Re-arm stem activity so the next track loads with everything on.
-        for (int i = 0; i < _stemActive.Length; i++) _stemActive[i] = true;
+        // Stem state lives inside StemMixDataProvider; TearDownPlayers drops the
+        // reference, so the next track loads with all stems audible by default.
         AnalysisUpdated?.Invoke();
     }
 
-    public void Play()
-    {
-        foreach (var p in ActivePlayers) p.Play();
-    }
+    public void Play() => _player?.Play();
 
     /// <summary>DIAGNOSTIC: play a 440Hz tone via SoundFlow Oscillator for 2 seconds.</summary>
     public async Task PlayTestTone()
@@ -355,10 +318,7 @@ public sealed class DeckPlayer
         osc.Dispose();
         Console.WriteLine("[DeckPlayer] PlayTestTone: done");
     }
-    public void Pause()
-    {
-        foreach (var p in ActivePlayers) p.Pause();
-    }
+    public void Pause() => _player?.Pause();
 
     public void TogglePlay()
     {
@@ -373,16 +333,9 @@ public sealed class DeckPlayer
     /// PositionFrames here would over-seek by the engine/source sample-rate ratio.</summary>
     public void SeekRelative(double seconds)
     {
-        if (_stemPlayers is not null)
-        {
-            var first = _stemPlayers[0];
-            double target = Math.Clamp(first.Time + seconds, 0.0, first.Duration);
-            foreach (var p in _stemPlayers) p.Seek(TimeSpan.FromSeconds(target));
-            return;
-        }
         if (_player is null) return;
-        double mainTarget = Math.Clamp(_player.Time + seconds, 0.0, _player.Duration);
-        _player.Seek(TimeSpan.FromSeconds(mainTarget));
+        double target = Math.Clamp(_player.Time + seconds, 0.0, _player.Duration);
+        _player.Seek(TimeSpan.FromSeconds(target));
     }
 
     /// <summary>

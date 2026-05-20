@@ -34,6 +34,18 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<double> PlayPositionProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(PlayPosition));
 
+    /// <summary>Theme-driven colour for the effective-gain (volume × crossfader)
+    /// horizontal line drawn on the waveform. Falls back to mint if unbound.</summary>
+    public static readonly StyledProperty<Avalonia.Media.Color> GainOverlayColorProperty =
+        AvaloniaProperty.Register<WaveformControl, Avalonia.Media.Color>(
+            nameof(GainOverlayColor), Avalonia.Media.Color.FromArgb(0xC0, 0x34, 0xF0, 0xC6));
+
+    public Avalonia.Media.Color GainOverlayColor
+    {
+        get => GetValue(GainOverlayColorProperty);
+        set => SetValue(GainOverlayColorProperty, value);
+    }
+
     public static readonly StyledProperty<double> GainOverlayProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(GainOverlay), 1.0);
 
@@ -55,6 +67,7 @@ public sealed class WaveformControl : Control
     {
         AffectsRender<WaveformControl>(PlayPositionProperty);
         AffectsRender<WaveformControl>(GainOverlayProperty);
+        AffectsRender<WaveformControl>(GainOverlayColorProperty);
         AffectsRender<WaveformControl>(MagneticGlowSecProperty);
         AffectsRender<WaveformControl>(IsScrubbingProperty);
         PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
@@ -264,11 +277,22 @@ public sealed class WaveformControl : Control
             WaveformPalette.Bloodmoon => new SKColor(0xF5, 0xE6, 0xD8, 0xD8), // bone on blood/amber/bone
             _                         => new SKColor(0xE6, 0xF0, 0xFF, 0xD8), // cool white on Rekordbox bands
         };
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes, downbeatColor));
+        // Volume/crossfader gain-line colour comes from the theme.
+        var gainColor = new SKColor(GainOverlayColor.R, GainOverlayColor.G, GainOverlayColor.B, GainOverlayColor.A);
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes, downbeatColor, gainColor));
     }
 
     private sealed class BlitOperation : ICustomDrawOperation
     {
+        // Render-thread cached paints. Re-used and mutated rather than allocated
+        // per frame — at 60 Hz × 2 decks the old per-frame `new SKPaint` pattern
+        // was a real GC source on the render thread.
+        [ThreadStatic] private static SKPaint? _blitPaint;
+        [ThreadStatic] private static SKPaint? _headPaint;
+        [ThreadStatic] private static SKPaint? _gainPaint;
+        [ThreadStatic] private static SKPaint? _dbPaint;
+        [ThreadStatic] private static SKPaint? _glowPaint;
+
         private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
         private readonly double _playPosition;
@@ -277,8 +301,9 @@ public sealed class WaveformControl : Control
         private readonly bool _isScrubbing;
         private readonly double[]? _downbeats;
         private readonly SKColor _downbeatColor;
+        private readonly SKColor _gainColor;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats, SKColor downbeatColor)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats, SKColor downbeatColor, SKColor gainColor)
         {
             Bounds = bounds;
             _image = image;
@@ -289,6 +314,7 @@ public sealed class WaveformControl : Control
             _isScrubbing = isScrubbing;
             _downbeats = downbeats;
             _downbeatColor = downbeatColor;
+            _gainColor = gainColor;
         }
 
         public Rect Bounds { get; }
@@ -324,22 +350,21 @@ public sealed class WaveformControl : Control
                 {
                     var src = new SKRect(srcXStart + clipLeft, 0, srcXEnd - clipRight, _image.Height);
                     var dst = new SKRect(clipLeft, 0, dstW - clipRight, dstH);
-                    // Bilinear filtering — smooths the sub-pixel scroll between
-                    // columns each frame so the waveform glides instead of stepping.
-                    using var paint = new SKPaint { FilterQuality = SKFilterQuality.Low };
-                    canvas.DrawImage(_image, src, dst, paint);
+                    _blitPaint ??= new SKPaint { FilterQuality = SKFilterQuality.Low };
+                    canvas.DrawImage(_image, src, dst, _blitPaint);
                 }
             }
 
-            using var headPaint = new SKPaint { Color = SKColors.White, StrokeWidth = 2 };
+            _headPaint ??= new SKPaint { Color = SKColors.White, StrokeWidth = 2, IsAntialias = false };
             int halfX = dstW / 2;
-            canvas.DrawLine(halfX, 0, halfX, dstH, headPaint);
+            canvas.DrawLine(halfX, 0, halfX, dstH, _headPaint);
 
             // Gain overlay: a thin horizontal line where Y = 0 means 100% (top) and
             // Y = dstH means 0%. So gain=1 → top, gain=0 → bottom.
             float gainY = (float)((1.0 - Math.Clamp(_gain, 0, 1)) * dstH);
-            using var gainPaint = new SKPaint { Color = new SKColor(0x34, 0xF0, 0xC6, 0xC0), StrokeWidth = 1, IsAntialias = false };
-            canvas.DrawLine(0, gainY, dstW, gainY, gainPaint);
+            _gainPaint ??= new SKPaint { StrokeWidth = 1, IsAntialias = false };
+            _gainPaint.Color = _gainColor;
+            canvas.DrawLine(0, gainY, dstW, gainY, _gainPaint);
 
             // Full-height downbeat guides — always on. Acts as a fixed yellow grid
             // so the user can eyeball alignment between decks at a glance.
@@ -348,12 +373,11 @@ public sealed class WaveformControl : Control
                 double secondsPerPeak = _peaks.SamplesPerPeak / 44100.0;
                 int totalPeaks = _peaks.Min.Length;
                 float centerPeak = (float)(_playPosition * totalPeaks);
-                using var dbPaint = new SKPaint
-                {
-                    Color = _downbeatColor,
-                    StrokeWidth = 2,
-                    IsAntialias = true,
-                };
+                // Vertical lines look fine without AA, and AA on N lines per frame
+                // across two decks is a real cost on Skia's CPU rasteriser.
+                _dbPaint ??= new SKPaint { StrokeWidth = 2, IsAntialias = false };
+                _dbPaint.Color = _downbeatColor;
+                var dbPaint = _dbPaint;
                 foreach (var t in _downbeats)
                 {
                     float beatCol = (float)(t / secondsPerPeak);
@@ -374,12 +398,9 @@ public sealed class WaveformControl : Control
                 float x = (beatCol - centerPeak) + dstW / 2f;
                 if (x >= -2 && x < dstW + 2)
                 {
-                    using var glow = new SKPaint
-                    {
-                        Color = new SKColor(0x34, 0xF0, 0x6F, 0xF0),
-                        StrokeWidth = _isScrubbing ? 3 : 4,
-                        IsAntialias = true,
-                    };
+                    _glowPaint ??= new SKPaint { Color = new SKColor(0x34, 0xF0, 0x6F, 0xF0), IsAntialias = false };
+                    _glowPaint.StrokeWidth = _isScrubbing ? 3 : 4;
+                    var glow = _glowPaint;
                     if (_isScrubbing)
                     {
                         // Full-height guide line while the user is actively turning the

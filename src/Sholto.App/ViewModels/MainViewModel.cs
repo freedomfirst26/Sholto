@@ -39,6 +39,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         Deck1 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
         Deck2 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
+        Deck1.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
+        Deck2.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
         WireDeck(Deck1);
         WireDeck(Deck2);
 
@@ -111,11 +113,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SelectTrack(next);
     }
 
+    /// <summary>Look up any persisted ½ / ×2 override for this file path.</summary>
+    public double GetBpmMultiplierFor(string filePath)
+    {
+        foreach (var row in Tracks)
+            if (row.FilePath == filePath) return row.BpmMultiplier;
+        return 1.0;
+    }
+
     public void OnBrowsePressed(Func<Track, float[]> decodeTrack)
     {
         if (SelectedTrack is null) return;
         var samples = decodeTrack(SelectedTrack);
-        Deck1.LoadTrack(SelectedTrack, SelectedTrack.FilePath, samples);
+        Deck1.LoadTrack(SelectedTrack, SelectedTrack.FilePath, samples,
+            GetBpmMultiplierFor(SelectedTrack.FilePath));
     }
 
     public DeckViewModel DeckFor(int deck) => deck == 1 ? Deck2 : Deck1;
@@ -145,6 +156,25 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         foreach (var row in Tracks)
             if (bpms.TryGetValue(row.FilePath, out var bpm)) row.Bpm = bpm;
+    }
+
+    /// <summary>Hydrate per-track BPM overrides (½ / ×2 corrections for madmom
+    /// half/double-tempo mistakes) from the database into the track rows.</summary>
+    public void SetKnownBpmMultipliers(IReadOnlyDictionary<string, double> multipliers)
+    {
+        foreach (var row in Tracks)
+            if (multipliers.TryGetValue(row.FilePath, out var m)) row.BpmMultiplier = m;
+    }
+
+    /// <summary>Raised by deck VMs when the user halves/doubles the BPM of a loaded
+    /// track. The app subscribes and persists to SQLite.</summary>
+    public event Action<string, double>? BpmMultiplierChanged;
+    internal void RaiseBpmMultiplierChanged(string filePath, double multiplier)
+    {
+        // Also update the matching TrackRow so the library list reflects the change.
+        foreach (var row in Tracks)
+            if (row.FilePath == filePath) row.BpmMultiplier = multiplier;
+        BpmMultiplierChanged?.Invoke(filePath, multiplier);
     }
 
     /// <summary>Walks every track and asks the stem cache if its 4 WAVs are already

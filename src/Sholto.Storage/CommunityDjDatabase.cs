@@ -52,6 +52,10 @@ public sealed class SholtoDatabase : IAsyncDisposable
                     created_at    INTEGER NOT NULL,
                     PRIMARY KEY (file_path, analysis_type)
                 );
+                CREATE TABLE IF NOT EXISTS bpm_overrides (
+                    file_path  TEXT PRIMARY KEY,
+                    multiplier REAL NOT NULL
+                );
             """;
             await cmd.ExecuteNonQueryAsync();
         }
@@ -156,6 +160,49 @@ public sealed class SholtoDatabase : IAsyncDisposable
                 if (basic is not null) result[path] = basic.Bpm;
             }
             return result;
+        }
+        finally { _lock.Release(); }
+    }
+
+    public async Task<Dictionary<string, double>> GetAllBpmMultipliersAsync()
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            var result = new Dictionary<string, double>();
+            await using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT file_path, multiplier FROM bpm_overrides";
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                result[reader.GetString(0)] = reader.GetDouble(1);
+            return result;
+        }
+        finally { _lock.Release(); }
+    }
+
+    public async Task UpsertBpmMultiplierAsync(string filePath, double multiplier)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            await using var cmd = _conn.CreateCommand();
+            if (Math.Abs(multiplier - 1.0) < 0.0001)
+            {
+                // Unity = the default. Delete the row instead of storing 1.0 so the
+                // table only carries actual overrides.
+                cmd.CommandText = "DELETE FROM bpm_overrides WHERE file_path = $p";
+                cmd.Parameters.AddWithValue("$p", filePath);
+            }
+            else
+            {
+                cmd.CommandText = """
+                    INSERT INTO bpm_overrides (file_path, multiplier) VALUES ($p, $m)
+                    ON CONFLICT(file_path) DO UPDATE SET multiplier = excluded.multiplier;
+                    """;
+                cmd.Parameters.AddWithValue("$p", filePath);
+                cmd.Parameters.AddWithValue("$m", multiplier);
+            }
+            await cmd.ExecuteNonQueryAsync();
         }
         finally { _lock.Release(); }
     }

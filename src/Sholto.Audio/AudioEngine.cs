@@ -1,5 +1,6 @@
 using SoundFlow.Abstracts.Devices;
 using SoundFlow.Backends.MiniAudio;
+using SoundFlow.Backends.MiniAudio.Devices;
 using SoundFlow.Backends.MiniAudio.Enums;
 using SoundFlow.Enums;
 using SoundFlow.Structs;
@@ -43,11 +44,23 @@ public sealed class AudioEngine : IAudioOutput
     public void Start(string? deviceName)
     {
         var target = Resolve(deviceName);
-        _playbackDevice = _engine.InitializePlaybackDevice(target, Format);
+
+        // Generous buffer so an occasional GC pause or context switch doesn't
+        // underrun the audio device. 20 ms × 3 periods = 60 ms total — still
+        // tight enough for DJ latency, headroom for everything else.
+        // (miniaudio's default on Linux/PulseAudio leans tighter than this and
+        // glitches with even small managed-thread pauses.)
+        var cfg = new MiniAudioDeviceConfig
+        {
+            PeriodSizeInMilliseconds = 20,
+            Periods = 3,
+        };
+
+        _playbackDevice = _engine.InitializePlaybackDevice(target, Format, cfg);
         foreach (var deck in _decks) _playbackDevice.MasterMixer.AddComponent(deck.Component);
         _playbackDevice.Start();
         _running = true;
-        Console.WriteLine($"[AudioEngine] device={target.Name} started; {_decks.Count} deck(s) attached to master mixer");
+        Console.WriteLine($"[AudioEngine] device={target.Name} started; buffer={cfg.PeriodSizeInMilliseconds}ms × {cfg.Periods} periods; {_decks.Count} deck(s) attached");
     }
 
     public void SwitchDevice(string deviceName)

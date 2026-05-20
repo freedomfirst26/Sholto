@@ -6,6 +6,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Audio plays via a native miniaudio callback that drops into managed
+         code; workstation GC pauses every managed thread (including the audio
+         callback) when it collects. Server + concurrent GC keeps pauses short
+         and parallel-friendly on multi-core boxes. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
 
   <ItemGroup>

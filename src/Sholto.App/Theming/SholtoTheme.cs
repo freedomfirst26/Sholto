@@ -24,6 +24,11 @@ public sealed record SholtoTheme(
     WaveformPalette WaveformPalette
 )
 {
+    /// <summary>Convenience: the raw Color behind the <see cref="Mint"/> brush, used
+    /// where we need a Color (e.g. the WaveformControl's GainOverlayColor for Skia).</summary>
+    public Color MintColor =>
+        (Mint as SolidColorBrush)?.Color ?? Color.FromArgb(0xC0, 0x34, 0xF0, 0xC6);
+
     /// <summary>Album-art radial gradient using the theme's primary + accent.</summary>
     public IBrush AlbumArtBrush
     {

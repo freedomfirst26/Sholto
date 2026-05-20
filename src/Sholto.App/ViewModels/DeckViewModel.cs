@@ -49,6 +49,12 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         private set { _isPlaying = value; Notify(); }
     }
 
+    // Cached so we don't allocate a fresh brush every 16 ms — that was Avalonia's
+    // binding system seeing a "new" IBrush per frame and invalidating the whole disc.
+    private readonly Avalonia.Media.SolidColorBrush _discRingBrush =
+        new(Avalonia.Media.Color.FromRgb(0x34, 0xF0, 0x6F));
+    private double _lastRingNotifyPos = -1;
+
     public double PlayPosition
     {
         get => _playPosition;
@@ -57,8 +63,17 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             _playPosition = value;
             Notify();
             Notify(nameof(DiscAngle));
-            Notify(nameof(DiscRingBrush));
             Notify(nameof(IsNearEnd));
+
+            // Recolour the ring in-place and notify only when the visible colour
+            // actually changes (every ~1 % of track length = ~2 s of music). Avoids
+            // ~120 brush invalidations/sec across both decks.
+            RecomputeRingColor();
+            if (Math.Abs(_playPosition - _lastRingNotifyPos) > 0.01)
+            {
+                _lastRingNotifyPos = _playPosition;
+                Notify(nameof(DiscRingBrush));
+            }
         }
     }
 
@@ -67,31 +82,30 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// Outer ring colour: green (0%) → yellow (50%) → orange (75%) → red (100%).
-    /// Linearly interpolated in RGB; rough but reads well at glance.
+    /// One cached brush whose Color is mutated in place — no allocation per frame.
     /// </summary>
-    public Avalonia.Media.IBrush DiscRingBrush
+    public Avalonia.Media.IBrush DiscRingBrush => _discRingBrush;
+
+    private void RecomputeRingColor()
     {
-        get
+        (byte r, byte g, byte b) green  = (0x34, 0xF0, 0x6F);
+        (byte r, byte g, byte b) yellow = (0xFF, 0xD6, 0x3D);
+        (byte r, byte g, byte b) orange = (0xFF, 0x8C, 0x2A);
+        (byte r, byte g, byte b) red    = (0xFF, 0x3D, 0x4E);
+        double p = Math.Clamp(_playPosition, 0, 1);
+
+        static (byte r, byte g, byte b) Lerp((byte r, byte g, byte b) a, (byte r, byte g, byte b) b, double t) =>
+            ((byte)(a.r + (b.r - a.r) * t),
+             (byte)(a.g + (b.g - a.g) * t),
+             (byte)(a.b + (b.b - a.b) * t));
+
+        var c = p switch
         {
-            (byte r, byte g, byte b) green  = (0x34, 0xF0, 0x6F);
-            (byte r, byte g, byte b) yellow = (0xFF, 0xD6, 0x3D);
-            (byte r, byte g, byte b) orange = (0xFF, 0x8C, 0x2A);
-            (byte r, byte g, byte b) red    = (0xFF, 0x3D, 0x4E);
-
-            double p = Math.Clamp(_playPosition, 0, 1);
-            (byte r, byte g, byte b) lerp(double a, (byte r, byte g, byte b) c1, (byte r, byte g, byte b) c2, double t) =>
-                ((byte)(c1.r + (c2.r - c1.r) * t),
-                 (byte)(c1.g + (c2.g - c1.g) * t),
-                 (byte)(c1.b + (c2.b - c1.b) * t));
-
-            (byte r, byte g, byte b) c = p switch
-            {
-                < 0.5 => lerp(p, green,  yellow, p / 0.5),
-                < 0.75 => lerp(p, yellow, orange, (p - 0.5) / 0.25),
-                _ => lerp(p, orange, red, (p - 0.75) / 0.25),
-            };
-            return new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(c.r, c.g, c.b));
-        }
+            < 0.5  => Lerp(green,  yellow, p / 0.5),
+            < 0.75 => Lerp(yellow, orange, (p - 0.5) / 0.25),
+            _      => Lerp(orange, red,    (p - 0.75) / 0.25),
+        };
+        _discRingBrush.Color = Avalonia.Media.Color.FromRgb(c.r, c.g, c.b);
     }
 
     /// <summary>
@@ -118,8 +132,43 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <summary>Source BPM (from analysis), unscaled.</summary>
     public double SourceBpm => Analysis.Basic?.Bpm ?? 0;
 
-    /// <summary>Source BPM × current playback speed — the BPM the user actually hears.</summary>
-    public double EffectiveBpm => SourceBpm * _player.PlaybackSpeed;
+    private double _bpmMultiplier = 1.0;
+    /// <summary>User-applied multiplier to fix half / double-tempo madmom errors.
+    /// 0.5 halves the displayed BPM (madmom said 174 → user wants 87), 2 doubles.</summary>
+    public double BpmMultiplier
+    {
+        get => _bpmMultiplier;
+        private set
+        {
+            if (Math.Abs(_bpmMultiplier - value) < 0.0001) return;
+            _bpmMultiplier = value;
+            Notify();
+            Notify(nameof(EffectiveBpm));
+            Notify(nameof(BpmDisplay));
+            Notify(nameof(BpmDisplayShort));
+            Notify(nameof(OriginalBpmDisplay));
+            Notify(nameof(OriginalBpmShort));
+            Notify(nameof(IsTempoShifted));
+        }
+    }
+
+    /// <summary>Owner sets this so deck VMs can hand changes back to MainViewModel
+    /// (which persists them to SQLite and updates the library row).</summary>
+    public Action<string, double>? PersistBpmMultiplier { get; set; }
+
+    private void SetMultiplierAndPersist(double newValue)
+    {
+        BpmMultiplier = newValue;
+        if (LoadedTrack is not null)
+            PersistBpmMultiplier?.Invoke(LoadedTrack.FilePath, newValue);
+    }
+
+    public void HalveBpm()           => SetMultiplierAndPersist(BpmMultiplier * 0.5);
+    public void DoubleBpm()          => SetMultiplierAndPersist(BpmMultiplier * 2.0);
+    public void ResetBpmMultiplier() => SetMultiplierAndPersist(1.0);
+
+    /// <summary>Source BPM × user multiplier × current playback speed — what the user actually hears.</summary>
+    public double EffectiveBpm => SourceBpm * _bpmMultiplier * _player.PlaybackSpeed;
 
     public string BpmDisplay =>
         SourceBpm > 0 ? $"{EffectiveBpm:F1} BPM" : "";
@@ -153,8 +202,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(PitchRangeDisplay));
     }
 
-    /// <summary>True only when the tempo fader has actually been moved off-centre.</summary>
-    public bool IsTempoShifted => Math.Abs(_player.PlaybackSpeed - 1.0) > 0.0005;
+    /// <summary>True only when the *displayed* BPM at F1 would actually differ from
+    /// the source — avoids "0.1 BPM ghost shift" from floating-point dead-zone noise
+    /// at the centre detent.</summary>
+    public bool IsTempoShifted => Math.Round(EffectiveBpm, 1) != Math.Round(SourceBpm, 1);
 
     /// <summary>Source BPM shown as e.g. "175.0 BPM" — used as the "original" label
     /// above the disc's effective BPM when the tempo fader is engaged.</summary>
@@ -168,10 +219,16 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <summary>"±6%" / "±10%" / "±16%" / "±50%" — the current pitch-range mode.</summary>
     public string PitchRangeDisplay => $"±{_player.PitchRange * 100:F0}%";
 
-    public void LoadTrack(Track track, string filePath, float[] samples)
+    public void LoadTrack(Track track, string filePath, float[] samples, double bpmMultiplier = 1.0)
     {
         _player.Load(filePath, samples, sampleRate: 44100);
         LoadedTrack = track;
+        // Apply any persisted ½ / ×2 override for this track. Direct field set
+        // (not the property) so we don't fire PersistBpmMultiplier — this came
+        // from disk, not the user.
+        _bpmMultiplier = bpmMultiplier;
+        Notify(nameof(BpmMultiplier));
+        Notify(nameof(EffectiveBpm));
         IsPlaying = false;
         PlayPosition = 0;
         Notify(nameof(IsLoaded));
