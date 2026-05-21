@@ -13,10 +13,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
 {
     private int _selectedTrackIndex = -1;
     private SholtoTheme _theme = Themes.TokyoNight;
+    private bool _isMagnetEligible;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<TrackRow> Tracks { get; } = [];
+
+    /// <summary>Per-app-run session state — which tracks have been loaded into a
+    /// deck so the library can italicise them. Owned here because both decks
+    /// produce "played" events and the same row consumes them.</summary>
+    public Session Session { get; } = new();
 
     public DeckViewModel Deck1 { get; }
     public DeckViewModel Deck2 { get; }
@@ -37,12 +43,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public MainViewModel()
     {
+        // Make the initial theme visible to anything that reads ThemeContext
+        // before the user picks a different theme.
+        ThemeContext.Current = _theme;
         Deck1 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
         Deck2 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
         Deck1.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
         Deck2.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
         WireDeck(Deck1);
         WireDeck(Deck2);
+        WireSessionPlayedTracking(Deck1);
+        WireSessionPlayedTracking(Deck2);
+        // Route Session events into the matching TrackRow so the library
+        // re-renders the italic style.
+        Session.TrackPlayed += filePath =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                foreach (var row in Tracks)
+                    if (row.FilePath == filePath) row.IsPlayed = true;
+            });
+        };
 
         // Surface any analysis-in-progress on its row's spinner.
         Reporter.Updated += report =>
@@ -52,6 +73,22 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 foreach (var row in Tracks)
                     if (row.FilePath == report.FilePath) row.IsAnalyzing = report.IsBusy;
             });
+        };
+    }
+
+    /// <summary>Hook a deck's load-lifecycle event into the session. When the
+    /// deck transitions to <see cref="DeckLoadState.Loaded"/>, the track on it
+    /// gets marked as played. Routed through the deck's typed
+    /// <see cref="DeckViewModel.LoadStateChanged"/> event rather than polling
+    /// or hooking into LoadTrack itself — keeps the deck logic ignorant of
+    /// session state.</summary>
+    private void WireSessionPlayedTracking(DeckViewModel deck)
+    {
+        deck.LoadStateChanged += state =>
+        {
+            if (state != DeckLoadState.Loaded) return;
+            var path = deck.LoadedTrack?.FilePath;
+            if (!string.IsNullOrEmpty(path)) Session.MarkPlayed(path!);
         };
     }
 
@@ -85,8 +122,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (_theme == value) return;
             _theme = value;
+            // Publish to the process-wide hook so anything not in our visual tree
+            // (e.g. value converters) can see the change too.
+            ThemeContext.Current = value;
             Notify();
             Notify(nameof(WaveformPalette));
+            // Re-emit theme-derived bindings on each track and deck so KeyBrush
+            // re-evaluates against the new palette. Cheaper than a static event
+            // subscription (which would pin every TrackRow until app exit).
+            foreach (var row in Tracks) row.RefreshThemeBindings();
+            Deck1.RefreshThemeBindings();
+            Deck2.RefreshThemeBindings();
         }
     }
 
@@ -127,9 +173,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public void OnBrowsePressed(Func<Track, float[]> decodeTrack)
     {
         if (SelectedTrack is null) return;
-        var samples = decodeTrack(SelectedTrack);
-        Deck1.LoadTrack(SelectedTrack, SelectedTrack.FilePath, samples,
-            GetBpmMultiplierFor(SelectedTrack.FilePath));
+        var sel = SelectedTrack;
+        var mult = GetBpmMultiplierFor(sel.FilePath);
+        Deck1.BeginLoad(sel, mult);
+        var samples = decodeTrack(sel);
+        Deck1.LoadTrack(sel, sel.FilePath, samples, mult);
     }
 
     /// <summary>Long-press on the browse / song-select button: force-reanalyze the
@@ -270,15 +318,68 @@ public sealed class MainViewModel : INotifyPropertyChanged
         });
     }
 
+    // "Fraction of a percent" — magnet only kicks in when the two decks are
+    // already very close. At 0.5% the tempo snap is essentially inaudible (a
+    // 120-BPM deck snapping by 0.6 BPM); a wider tolerance would cause a
+    // pitch jump the listener could hear. The user is expected to have done
+    // the rough beat-match already; the magnet just locks the last bit.
+    private const double BpmEligibilityTolerance = 0.005;
+
+    /// <summary>
+    /// Magnet-lock eligibility. True iff:
+    /// <list type="bullet">
+    ///   <item>both decks have completed basic analysis (BPM + beat grid),</item>
+    ///   <item>both decks are actually playing,</item>
+    ///   <item>their <em>playback</em> BPMs (source × multiplier × tempo fader)
+    ///         are within <see cref="BpmEligibilityTolerance"/>,</item>
+    ///   <item>the user isn't currently rotating <em>both</em> jog wheels at
+    ///         once (a dual-jog gesture is the user doing something deliberate;
+    ///         the magnet should hold off until they release one).</item>
+    /// </list>
+    /// </summary>
+    public bool IsBpmEligibleForMagnetism
+    {
+        get
+        {
+            if (!Deck1.HasAnalysis || !Deck2.HasAnalysis) return false;
+            if (!Deck1.Player.IsPlaying || !Deck2.Player.IsPlaying) return false;
+
+            double eff1 = Deck1.EffectiveBpm;
+            double eff2 = Deck2.EffectiveBpm;
+            if (eff1 <= 0 || eff2 <= 0) return false;
+
+            double diff = Math.Abs(eff1 - eff2) / Math.Max(eff1, eff2);
+            if (diff > BpmEligibilityTolerance) return false;
+
+            // Both decks being jogged simultaneously → user is in the middle of
+            // a manual adjustment, don't surprise them with a lock.
+            if (IsActivelyJogging(LastJogAt1) && IsActivelyJogging(LastJogAt2)) return false;
+
+            return true;
+        }
+    }
+
+    /// <summary>Notifying mirror of <see cref="IsBpmEligibleForMagnetism"/>.
+    /// XAML binds to this so the centerline magnet glyph can pop in / out via
+    /// a style-class transition. Updated each tick by <see cref="UpdateMagnetism"/>.</summary>
+    public bool IsMagnetEligible
+    {
+        get => _isMagnetEligible;
+        private set { if (_isMagnetEligible == value) return; _isMagnetEligible = value; Notify(); }
+    }
+
     /// <summary>
     /// 0..1: 1 when both decks are playing and their nearest beats are in-phase,
-    /// 0 when out of the magnetic window. Smoothstep curve.
+    /// 0 when out of the magnetic window. Returns 0 unconditionally when BPMs
+    /// aren't eligible — without this gate, two decks running far apart in tempo
+    /// would still drift into phase alignment every few bars and trigger a
+    /// surprise snap.
     /// </summary>
     public double MagnetismFactor
     {
         get
         {
-            if (!Deck1.Player.IsPlaying || !Deck2.Player.IsPlaying) return 0;
+            if (!IsBpmEligibleForMagnetism) return 0;
             var d1 = Deck1.Analysis.Basic?.DownbeatTimes;
             var d2 = Deck2.Analysis.Basic?.DownbeatTimes;
             if (d1 is null || d1.Length == 0 || d2 is null || d2.Length == 0) return 0;
@@ -297,26 +398,60 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public int LastJoggedDeck { get; set; } = -1;
     /// <summary>Wall-clock of last jog tick — used to detect "user let go" for quantize.</summary>
     public DateTime LastJogAt { get; set; } = DateTime.MinValue;
+    /// <summary>Wall-clock of the last jog event on deck 1 specifically. Used so
+    /// we can tell "both decks are being touched right now" apart from "one is".</summary>
+    public DateTime LastJogAt1 { get; set; } = DateTime.MinValue;
+    /// <summary>Wall-clock of the last jog event on deck 2 specifically.</summary>
+    public DateTime LastJogAt2 { get; set; } = DateTime.MinValue;
+
+    // How recently a jog event has to have arrived for that deck to count as
+    // "actively being adjusted right now". 250 ms matches the existing
+    // IsScrubbing window in the position timer.
+    private static readonly TimeSpan ActiveJogWindow = TimeSpan.FromMilliseconds(250);
+
+    private bool IsActivelyJogging(DateTime deckLastJog) =>
+        deckLastJog != DateTime.MinValue
+        && DateTime.UtcNow - deckLastJog < ActiveJogWindow;
 
     // Quantize state: cleared when decks separate, set once they snap.
     private bool _quantizeFired;
     private const double EngageThreshold = 0.3;     // same as glow threshold — see one, fire one
     private const double DisengageThreshold = 0.15; // hysteresis to avoid re-fire chatter
     private static readonly TimeSpan JogIdleForQuantize = TimeSpan.FromMilliseconds(180);
+    // Auto-quantize only counts as "user released a jog gesture" if the jog was
+    // recent. Without this window, two decks running at different tempos would
+    // eventually drift into alignment and an old jog from minutes ago would
+    // trigger a surprise seek.
+    private static readonly TimeSpan JogRecencyForQuantize = TimeSpan.FromSeconds(2);
 
     /// <summary>Push current magnetism state into each deck's MagneticGlowSec for the UI.
     /// Also runs the engaged → release → quantize state machine.</summary>
     public void UpdateMagnetism()
     {
+        // Publish the binary eligibility so the centerline magnet glyph
+        // pops in/out via its own style-class transition.
+        IsMagnetEligible = IsBpmEligibleForMagnetism;
+
         double f = MagnetismFactor;
 
         if (f < DisengageThreshold)
             _quantizeFired = false;  // user pulled them apart; re-arm
 
         // Fire once: greens visible + user let go of the jog for a beat.
+        // Crucial gate: ignore if the user hasn't jogged at all this session
+        // (LastJogAt = DateTime.MinValue), or if their last jog was so long ago
+        // that "the user just let go" isn't a believable framing any more. This
+        // is what stops two decks running at different tempos from triggering a
+        // surprise seek every time their phases drift into alignment.
+        var sinceJog = DateTime.UtcNow - LastJogAt;
+        bool userRecentlyReleasedJog =
+            LastJogAt != DateTime.MinValue
+            && sinceJog > JogIdleForQuantize
+            && sinceJog < JogRecencyForQuantize;
+
         if (!_quantizeFired
             && f >= EngageThreshold
-            && (DateTime.UtcNow - LastJogAt) > JogIdleForQuantize)
+            && userRecentlyReleasedJog)
         {
             Quantize();
             _quantizeFired = true;
@@ -329,8 +464,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Deck2.MagneticGlowSec = active ? Deck2.NearestDownbeatSec() : -1;
     }
 
-    /// <summary>Snap the last-jogged deck so its downbeat phase matches the reference deck exactly.
-    /// If no deck has been jogged this session, snap whichever has the larger phase error.</summary>
+    /// <summary>Snap the last-jogged deck to the reference deck — phase aligns
+    /// the downbeats AND tempo-locks so the link actually holds. Without the
+    /// tempo lock, a fraction-of-a-percent BPM difference (e.g. 176.5 vs 176.6)
+    /// would let the decks drift apart immediately after the snap.</summary>
     private void Quantize()
     {
         DeckViewModel adjusted, reference;
@@ -348,6 +485,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             (adjusted, reference) = e1 > e2 ? (Deck1, Deck2) : (Deck2, Deck1);
         }
 
+        // 1) Tempo-lock: pull the adjusted deck's EffectiveBpm onto the reference.
+        //    Done first so the phase math below works against the locked tempo.
+        adjusted.MatchEffectiveBpm(reference.EffectiveBpm);
+
+        // 2) Phase-snap: shift the adjusted deck so its downbeat aligns with the
+        //    reference deck's current phase.
         double refPhase = reference.PlaybackSeconds - reference.NearestDownbeatSec();
         double adjDownbeat = adjusted.NearestDownbeatSec();
         if (adjDownbeat < 0) return;

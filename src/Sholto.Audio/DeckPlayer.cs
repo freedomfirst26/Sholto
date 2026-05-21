@@ -2,6 +2,7 @@ using Sholto.Analysis;
 using SoundFlow.Abstracts;
 using SoundFlow.Components;
 using SoundFlow.Enums;
+using SoundFlow.Metadata.Models;
 using SoundFlow.Modifiers;
 using SoundFlow.Providers;
 using SoundFlow.Structs;
@@ -19,6 +20,12 @@ public sealed class DeckPlayer
     private AudioFormat _format;
     private Mixer? _deckMixer;
     private SoundPlayer? _player;
+    // Strong reference to the SoundPlayer's current data provider so we can
+    // Dispose() it explicitly when ejecting a track. SoundFlow's SoundPlayer
+    // does not auto-dispose its provider, so without this the previous track's
+    // float[] samples (RawDataProvider) or 4×float[] stems (StemMixDataProvider)
+    // would survive until the next GC sweep, potentially holding hundreds of MB.
+    private SoundFlow.Interfaces.ISoundDataProvider? _currentDataProvider;
     private int _sampleRate = 48000;
     private long _sampleCount;
 
@@ -151,6 +158,134 @@ public sealed class DeckPlayer
         _deckMixer.AddModifier(_eq);
     }
 
+    /// <summary>Announce "a new track is about to load" — resets the in-memory
+    /// analysis so stale waveform/BPM/key bindings clear right away, without
+    /// waiting for <see cref="Load"/> (which can't run until samples are decoded).
+    /// Audio for the previous track keeps playing until Load lands; this is purely
+    /// a visual reset so the deck UI matches the new track immediately on click.</summary>
+    public void BeginLoad()
+    {
+        Analysis = new TrackAnalysis();
+        AnalysisUpdated?.Invoke();
+    }
+
+    /// <summary>
+    /// Start playback from <paramref name="filePath"/> via SoundFlow's
+    /// <see cref="ChunkedDataProvider"/>. Audio is playable within ~100 ms (file
+    /// open + first chunk decode) regardless of track length. The full file is
+    /// then decoded once in the background — solely for analysis (BPM, beats,
+    /// key, waveform peaks). Analysis results land via the per-type
+    /// <see cref="TrackAnalysis"/> events some seconds later.
+    /// Memory footprint while playing: a couple of chunks worth of native
+    /// PCM inside ChunkedDataProvider, no full mixed buffer.
+    /// </summary>
+    public void LoadStreaming(string filePath)
+    {
+        if (_engine is null || _deckMixer is null)
+            throw new InvalidOperationException("AttachEngine must be called first.");
+
+        Analysis = new TrackAnalysis();
+
+        TearDownPlayers();
+
+        // ChunkedDataProvider owns the FileStream and disposes it as part of its
+        // own Dispose. We pass minimal ReadOptions — no tag/album-art parsing
+        // (track metadata already lives in the library scan).
+        var fileStream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var provider = new ChunkedDataProvider(_engine, fileStream,
+            new ReadOptions { ReadTags = false, ReadAlbumArt = false },
+            chunkSize: 32768);
+
+        _currentDataProvider = provider;
+        _sampleRate = provider.SampleRate;
+        _sampleCount = provider.Length > 0 ? provider.Length / 2 : 0;
+
+        _player = new SoundPlayer(_engine, _format, provider);
+        _deckMixer.AddComponent(_player);
+
+        Console.WriteLine($"[DeckPlayer] streaming {Path.GetFileName(filePath)} @ {provider.SampleRate}Hz; engine={_format.SampleRate}Hz; length={provider.Length} samples");
+
+        KickOffAnalysisFor(filePath);
+    }
+
+    /// <summary>Run BPM + key analysis on this track in the background. Decodes
+    /// the file once and feeds both pipelines, then drops the decoded buffer.
+    /// Called by <see cref="LoadStreaming"/>; safe to call repeatedly (each
+    /// invocation gets its own captured filePath).</summary>
+    private void KickOffAnalysisFor(string filePath)
+    {
+        _ = Task.Run(async () =>
+        {
+            float[]? samples = null;
+            try
+            {
+                if (AnalysisProvider is null)
+                    throw new InvalidOperationException(
+                        "DeckPlayer.AnalysisProvider must be set before LoadStreaming — without it, " +
+                        "analyses can't be persisted to disk.");
+
+                // Decode once for both basic and key analysis. After both finish
+                // we drop the reference so the ~92 MB float[] can be GC'd.
+                samples = AudioFileDecoder.Decode(filePath);
+                int sampleRate = AudioFileDecoder.TargetSampleRate;
+
+                // Update the visible sample count now that we have the exact value.
+                _sampleCount = samples.Length / 2;
+
+                var basicTask = AnalysisProvider.GetAsync(filePath, samples, sampleRate);
+                var keyTask   = ComputeKeyAsync(filePath, samples, sampleRate);
+                await Task.WhenAll(basicTask, keyTask);
+
+                var (basic, source) = await basicTask;
+                var key = await keyTask;
+
+                Console.WriteLine($"[DeckPlayer] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
+                Analysis.Set(basic);
+                if (key is not null)
+                {
+                    Console.WriteLine($"[DeckPlayer] key: {key.KeyName} ({key.Camelot})");
+                    Analysis.Set(key);
+                }
+                AnalysisUpdated?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DeckPlayer] background analysis failed: {ex.Message}");
+            }
+            finally
+            {
+                // Drop our reference to the decoded buffer. The GetAsync / KeyAnalyzer
+                // calls have already consumed what they need; nothing else holds it.
+                samples = null;
+            }
+        });
+    }
+
+    private async Task<KeyAnalysis?> ComputeKeyAsync(string filePath, float[] samples, int sampleRate)
+    {
+        try
+        {
+            if (KeyCacheGet is not null)
+            {
+                try { var cached = await KeyCacheGet(filePath); if (cached is not null) return cached; }
+                catch (Exception ex) { Console.WriteLine($"[DeckPlayer] key cache lookup failed: {ex.Message}"); }
+            }
+            var key = await KeyAnalyzer.AnalyzeAsync(filePath, samples, channels: 2,
+                sampleRate: sampleRate, reporter: Reporter);
+            if (KeyCachePut is not null)
+            {
+                try { await KeyCachePut(filePath, key); }
+                catch (Exception ex) { Console.WriteLine($"[DeckPlayer] key cache write failed: {ex.Message}"); }
+            }
+            return key;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DeckPlayer] key analysis failed: {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>
     /// Synchronous load (audio starts immediately). Beat analysis is kicked off in
     /// the background; the AnalysisUpdated callback fires once it completes so the
@@ -168,6 +303,7 @@ public sealed class DeckPlayer
         TearDownPlayers();
 
         var provider = new RawDataProvider(stereoSamples, sampleRate);
+        _currentDataProvider = provider;
         _player = new SoundPlayer(_engine, _format, provider);
 
         // EQ lives on _deckMixer (post-mix) — see AttachEngine. Don't attach here.
@@ -257,7 +393,12 @@ public sealed class DeckPlayer
         });
     }
 
-    /// <summary>Tear down whichever player(s) are currently in the deck mixer.</summary>
+    /// <summary>Tear down whichever player(s) are currently in the deck mixer
+    /// and aggressively release the previous track's heavy memory. For a 4-min
+    /// stereo track at 48 kHz this is ~92 MB in the mixed-buffer mode, and up
+    /// to ~370 MB in stem mode (4 × stems). Without explicit disposal here,
+    /// the float[] backing each data provider survives until the next GC sweep,
+    /// which on a long DJ set produces noticeable RAM creep across track changes.</summary>
     private void TearDownPlayers()
     {
         if (_player is not null)
@@ -266,6 +407,13 @@ public sealed class DeckPlayer
             _deckMixer?.RemoveComponent(_player);
             _player.Dispose();
             _player = null;
+        }
+        // Dispose the data provider before nulling so the provider's own
+        // cleanup (e.g. StemMixDataProvider null-outs the 4 stem buffers) runs.
+        if (_currentDataProvider is not null)
+        {
+            try { _currentDataProvider.Dispose(); } catch { /* best-effort */ }
+            _currentDataProvider = null;
         }
         _stemProvider = null;
         // Per-stem mute state lives inside StemMixDataProvider; reset by virtue
@@ -280,16 +428,26 @@ public sealed class DeckPlayer
     {
         if (_engine is null || _deckMixer is null) return;
 
-        // Decode the 4 stems on this background task (we're off the audio thread).
-        var drums  = AudioFileDecoder.Decode(stems.Drums);
-        var vocals = AudioFileDecoder.Decode(stems.Vocals);
-        var bass   = AudioFileDecoder.Decode(stems.Bass);
-        var other  = AudioFileDecoder.Decode(stems.Other);
+        // Decode the 4 stems in parallel. Single-track Decode is ~1–3 s on a
+        // 4-minute MP3, so doing them serially was a ~5× multiplier on stem load.
+        // Task.Run lets the thread pool fan them out across cores; WhenAll
+        // joins back when the slowest finishes.
+        var dT = Task.Run(() => AudioFileDecoder.Decode(stems.Drums));
+        var vT = Task.Run(() => AudioFileDecoder.Decode(stems.Vocals));
+        var bT = Task.Run(() => AudioFileDecoder.Decode(stems.Bass));
+        var oT = Task.Run(() => AudioFileDecoder.Decode(stems.Other));
+        Task.WaitAll(dT, vT, bT, oT);
+        var drums  = dT.Result;
+        var vocals = vT.Result;
+        var bass   = bT.Result;
+        var other  = oT.Result;
 
         var posSeconds = _player?.Time ?? 0;
         var wasPlaying = IsPlaying;
 
-        // Tear down the original single-buffer player.
+        // Tear down the original single-buffer player AND dispose its data
+        // provider so the previous track's full-mix float[] (held by the
+        // RawDataProvider) can be reclaimed by GC immediately.
         if (_player is not null)
         {
             _player.Stop();
@@ -297,9 +455,15 @@ public sealed class DeckPlayer
             _player.Dispose();
             _player = null;
         }
+        if (_currentDataProvider is not null)
+        {
+            try { _currentDataProvider.Dispose(); } catch { /* best-effort */ }
+            _currentDataProvider = null;
+        }
 
         var provider = new StemMixDataProvider(drums, vocals, bass, other, sampleRate: AudioFileDecoder.TargetSampleRate);
         _stemProvider = provider;
+        _currentDataProvider = provider;
         _player = new SoundPlayer(_engine, _format, provider);
         _deckMixer.AddComponent(_player);
         // Speed is owned by the provider, not the SoundPlayer (see ApplyPlaybackSpeed).

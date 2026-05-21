@@ -46,6 +46,9 @@ public partial class MainWindow : Window
         Resources["SholtoMint"]          = theme.Mint;
         Resources["SholtoTextBright"]    = theme.TextBright;
         Resources["SholtoTextMuted"]     = theme.TextMuted;
+        // Foreground drawn on top of Camelot key chips. Themes pick this once so
+        // dark/light text stays legible against their tuned chip palette.
+        Resources["SholtoChipForeground"] = theme.CamelotPalette.OnChipForeground;
     }
 
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
@@ -86,14 +89,24 @@ public partial class MainWindow : Window
     {
         var track = vm.SelectedTrack;
         if (track is null) return;
+        var deck = vm.DeckFor(deckIndex);
+        // BeginLoad still fires so the deck UI updates within a frame. Audio
+        // wiring waits on the MP3 decode (which forces source rate → 48 kHz
+        // engine rate). Streaming via ChunkedDataProvider was tried but
+        // SoundFlow's SoundPlayer doesn't auto-resample, so MP3s at 44.1 kHz
+        // played 8.8 % too fast — reverted until we have a proper resampling
+        // bridge.
+        var mult = vm.GetBpmMultiplierFor(track.FilePath);
+        deck.BeginLoad(track, mult);
         try
         {
             var samples = await Task.Run(() => AudioFileDecoder.Decode(track.FilePath));
-            vm.DeckFor(deckIndex).LoadTrack(track, track.FilePath, samples);
+            deck.LoadTrack(track, track.FilePath, samples, mult);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Track] load into deck {deckIndex + 1} FAILED: {ex.Message}");
+            deck.LoadFailed();
         }
     }
 

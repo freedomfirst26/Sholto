@@ -111,7 +111,7 @@
                             </Style>
                         </StackPanel.Styles>
 
-                        <Border Classes="bpm-chip-top" Classes.shifted="{Binding IsTempoShifted}"
+                        <Border Classes="bpm-chip-top" Classes.shifted="{Binding ShowOriginalBpm}"
                                 CornerRadius="6" Padding="6,1"
                                 Background="{DynamicResource SholtoBgDeep}"
                                 HorizontalAlignment="Center"
@@ -151,7 +151,7 @@
                                        HorizontalAlignment="Center"/>
                         </Border>
 
-                        <Border Classes="bpm-chip-bottom" Classes.shifted="{Binding IsTempoShifted}"
+                        <Border Classes="bpm-chip-bottom" Classes.shifted="{Binding ShowOriginalBpm}"
                                 CornerRadius="6" Padding="6,1"
                                 Background="{DynamicResource SholtoBgDeep}"
                                 HorizontalAlignment="Center"
@@ -174,8 +174,11 @@
 
                 <!-- Stem labels below the disc as right-leaning parallelogram chips.
                      Filled-color when the stem is active, hollow + colored text when muted.
-                     Mirrors the arcs above; same color codes.  -->
-                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                     Mirrors the arcs above; same color codes.
+                     Hidden until Demucs stems are ready — the toggles do nothing
+                     audibly without stems, so we don't show them as if they did. -->
+                <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center"
+                            IsVisible="{Binding HasStems}">
                     <Grid Width="42" Height="16">
                         <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
                               Fill="#3D8BFF" Stroke="#3D8BFF" StrokeThickness="1"
@@ -241,7 +244,7 @@
                             IsVisible="{Binding HasKey}">
                         <TextBlock Text="{Binding Camelot}"
                                    FontSize="13" FontWeight="Bold"
-                                   Foreground="#101820"/>
+                                   Foreground="{DynamicResource SholtoChipForeground}"/>
                     </Border>
                 </StackPanel>
             </StackPanel>

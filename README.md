@@ -100,15 +100,17 @@ Built on **.NET 10**, **Avalonia 11**, **SoundFlow** (miniaudio under the hood, 
 git clone https://github.com/sebastianpatten/Sholto.git
 cd Sholto
 bash install.sh                                  # one-shot install — .NET 10, ffmpeg, madmom-onnx, demucs, libpulse symlink
-dotnet run --project src/Sholto.App
+dotnet run -c Release --project src/Sholto.App
 ```
 
 `install.sh` is idempotent — safe to re-run. It uses `sudo apt` for system packages and `uv` for madmom, both standard tools on modern Ubuntu / Mint / Pop! / Debian.
 
+Default to `-c Release` for everyday use — audio analysis (BPM detection, key detection, stem separation) is CPU-heavy and a Debug build is noticeably slower. Use a Debug build (`dotnet run --project src/Sholto.App`) only when you actually want the debugger or extra runtime checks.
+
 For iterative development, use `dotnet watch` so changes auto-rebuild:
 
 ```bash
-dotnet watch --project src/Sholto.App run --no-hot-reload
+dotnet watch --project src/Sholto.App run -c Release --no-hot-reload
 ```
 
 The library scans `~/Music` on startup. Click a track in the list to load it into Deck 1; press LOAD 2 on a DDJ-FLX4 to load into Deck 2.

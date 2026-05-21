@@ -361,14 +361,23 @@ public sealed class WaveformControl : Control
                 float srcXStart = centerPeak - half;
                 float srcXEnd   = centerPeak + half;
 
-                float clipLeft  = srcXStart < 0 ? -srcXStart : 0;
-                float clipRight = srcXEnd > totalPeaks ? srcXEnd - totalPeaks : 0;
+                // Clip values are in source-peak units (they slice srcXStart/srcXEnd).
+                // For the dst rect they need to be in *screen-pixel* units, which
+                // differ from source-pixels by a factor of _playbackSpeed
+                // (1 screen pixel = _playbackSpeed source peaks at scale time).
+                // Forgetting this conversion makes the waveform drift away from
+                // the live-drawn downbeat lines whenever there's edge clipping at
+                // non-unity tempo — exactly the "first play, crank tempo" repro.
+                float clipLeftSrc  = srcXStart < 0 ? -srcXStart : 0;
+                float clipRightSrc = srcXEnd > totalPeaks ? srcXEnd - totalPeaks : 0;
+                float clipLeftDst  = (float)(clipLeftSrc  / _playbackSpeed);
+                float clipRightDst = (float)(clipRightSrc / _playbackSpeed);
 
-                float validSrcW = (srcXEnd - srcXStart) - clipLeft - clipRight;
+                float validSrcW = (srcXEnd - srcXStart) - clipLeftSrc - clipRightSrc;
                 if (validSrcW > 0)
                 {
-                    var src = new SKRect(srcXStart + clipLeft, 0, srcXEnd - clipRight, _image.Height);
-                    var dst = new SKRect(clipLeft, 0, dstW - clipRight, dstH);
+                    var src = new SKRect(srcXStart + clipLeftSrc, 0, srcXEnd - clipRightSrc, _image.Height);
+                    var dst = new SKRect(clipLeftDst, 0, dstW - clipRightDst, dstH);
                     _blitPaint ??= new SKPaint { FilterQuality = SKFilterQuality.Low };
                     canvas.DrawImage(_image, src, dst, _blitPaint);
                 }

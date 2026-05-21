@@ -22,45 +22,200 @@ public sealed class SholtoDatabase : IAsyncDisposable
         DatabasePath = path;
     }
 
-    public static async Task<SholtoDatabase> OpenAsync()
+    public static async Task<SholtoDatabase> OpenAsync(string? overridePath = null)
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".local", "share", "sholto");
-        Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, "library.db");
+        string path;
+        if (overridePath is not null)
+        {
+            path = overridePath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        }
+        else
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".local", "share", "sholto");
+            Directory.CreateDirectory(dir);
+            path = Path.Combine(dir, "library.db");
+        }
 
         var conn = new SqliteConnection($"Data Source={path}");
         await conn.OpenAsync();
 
-        await using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = """
-                CREATE TABLE IF NOT EXISTS tracks (
-                    file_path     TEXT PRIMARY KEY,
-                    file_size     INTEGER NOT NULL,
-                    file_mtime    INTEGER NOT NULL,
-                    title         TEXT NOT NULL,
-                    artist        TEXT NOT NULL,
-                    duration_secs REAL NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS analyses (
-                    file_path     TEXT NOT NULL,
-                    analysis_type TEXT NOT NULL,
-                    data          BLOB NOT NULL,
-                    file_mtime    INTEGER NOT NULL,
-                    created_at    INTEGER NOT NULL,
-                    PRIMARY KEY (file_path, analysis_type)
-                );
-                CREATE TABLE IF NOT EXISTS bpm_overrides (
-                    file_path  TEXT PRIMARY KEY,
-                    multiplier REAL NOT NULL
-                );
-            """;
-            await cmd.ExecuteNonQueryAsync();
-        }
+        await RunMigrationsAsync(conn);
 
         return new SholtoDatabase(conn, path);
+    }
+
+    /// <summary>Ordered list of schema migrations. Index N corresponds to schema
+    /// version N+1 — i.e. after running Migrations[0], PRAGMA user_version = 1.
+    /// Append new migrations only; never edit or reorder existing ones.</summary>
+    private static readonly string[] Migrations = new[]
+    {
+        // v1: initial schema (tracks + analyses + bpm overrides).
+        """
+        CREATE TABLE IF NOT EXISTS tracks (
+            file_path     TEXT PRIMARY KEY,
+            file_size     INTEGER NOT NULL,
+            file_mtime    INTEGER NOT NULL,
+            title         TEXT NOT NULL,
+            artist        TEXT NOT NULL,
+            duration_secs REAL NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS analyses (
+            file_path     TEXT NOT NULL,
+            analysis_type TEXT NOT NULL,
+            data          BLOB NOT NULL,
+            file_mtime    INTEGER NOT NULL,
+            created_at    INTEGER NOT NULL,
+            PRIMARY KEY (file_path, analysis_type)
+        );
+        CREATE TABLE IF NOT EXISTS bpm_overrides (
+            file_path  TEXT PRIMARY KEY,
+            multiplier REAL NOT NULL
+        );
+        """,
+
+        // v2: generic app settings (music dir, output device, future prefs).
+        """
+        CREATE TABLE IF NOT EXISTS settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        """,
+
+        // v3: wipe pre-beatgrid basic analyses. They stored raw madmom downbeats
+        // (per-bar detections, often non-equidistant). Fresh analyses store a
+        // synthesized constant-spacing beatgrid under the same row, so deleting
+        // forces re-derivation the next time each track is touched.
+        """
+        DELETE FROM analyses WHERE analysis_type = 'basic';
+        """,
+    };
+
+    /// <summary>Bring the DB up to the latest schema version using PRAGMA
+    /// user_version as the schema cursor. Each pending migration runs inside
+    /// its own transaction so a failure leaves the DB at the prior version
+    /// instead of half-applied.</summary>
+    private static async Task RunMigrationsAsync(SqliteConnection conn)
+    {
+        long current;
+        await using (var read = conn.CreateCommand())
+        {
+            read.CommandText = "PRAGMA user_version;";
+            current = (long)(await read.ExecuteScalarAsync() ?? 0L);
+        }
+
+        int target = Migrations.Length;
+        if (current == target)
+        {
+            Console.WriteLine($"[Migrations] schema already at v{current} — nothing to do");
+            return;
+        }
+        if (current > target)
+        {
+            // DB was written by a newer build. We don't have a down-migration
+            // story, so flag loudly rather than silently mis-reading rows.
+            Console.WriteLine(
+                $"[Migrations] WARNING: DB schema v{current} is newer than this build's v{target}. " +
+                $"Continuing without migrating — newer columns/tables may be ignored.");
+            return;
+        }
+
+        Console.WriteLine($"[Migrations] schema v{current} → v{target}; {target - current} migration(s) to apply");
+
+        for (int i = (int)current; i < Migrations.Length; i++)
+        {
+            int targetVersion = i + 1;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            Console.WriteLine($"[Migrations] applying v{targetVersion}…");
+            try
+            {
+                await using var tx = (SqliteTransaction)await conn.BeginTransactionAsync();
+                await using (var cmd = conn.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = Migrations[i];
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                // PRAGMA doesn't accept parameters; the value is a hard-coded int
+                // from our own array index, so there's no injection surface.
+                await using (var bump = conn.CreateCommand())
+                {
+                    bump.Transaction = tx;
+                    bump.CommandText = $"PRAGMA user_version = {targetVersion};";
+                    await bump.ExecuteNonQueryAsync();
+                }
+                await tx.CommitAsync();
+                sw.Stop();
+                Console.WriteLine($"[Migrations] v{targetVersion} applied in {sw.ElapsedMilliseconds} ms");
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                Console.WriteLine($"[Migrations] v{targetVersion} FAILED after {sw.ElapsedMilliseconds} ms: {ex.Message}");
+                throw;
+            }
+        }
+
+        Console.WriteLine($"[Migrations] done — schema at v{target}");
+    }
+
+    /// <summary>Current schema version reported by PRAGMA user_version. Exposed
+    /// for tests; production code shouldn't need it.</summary>
+    public async Task<long> GetSchemaVersionAsync()
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            await using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "PRAGMA user_version;";
+            return (long)(await cmd.ExecuteScalarAsync() ?? 0L);
+        }
+        finally { _lock.Release(); }
+    }
+
+    /// <summary>Read a value from the generic settings table. Returns null if
+    /// the key has never been set.</summary>
+    public async Task<string?> GetSettingAsync(string key)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            await using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT value FROM settings WHERE key = $k;";
+            cmd.Parameters.AddWithValue("$k", key);
+            var result = await cmd.ExecuteScalarAsync();
+            return result as string;
+        }
+        finally { _lock.Release(); }
+    }
+
+    /// <summary>Upsert a setting. Passing null deletes the row so "unset" and
+    /// "empty string" stay distinguishable.</summary>
+    public async Task SetSettingAsync(string key, string? value)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            await using var cmd = _conn.CreateCommand();
+            if (value is null)
+            {
+                cmd.CommandText = "DELETE FROM settings WHERE key = $k;";
+                cmd.Parameters.AddWithValue("$k", key);
+            }
+            else
+            {
+                cmd.CommandText = """
+                    INSERT INTO settings (key, value) VALUES ($k, $v)
+                    ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+                """;
+                cmd.Parameters.AddWithValue("$k", key);
+                cmd.Parameters.AddWithValue("$v", value);
+            }
+            await cmd.ExecuteNonQueryAsync();
+        }
+        finally { _lock.Release(); }
     }
 
     public async Task UpsertTrackAsync(Track track)

@@ -32,14 +32,27 @@ public static class AudioFileDecoder
             if (provider.WaveFormat.SampleRate != TargetSampleRate)
                 provider = new WdlResamplingSampleProvider(provider, TargetSampleRate);
 
-            var samples = new List<float>(
-                capacity: (int)(waveStream.TotalTime.TotalSeconds * TargetSampleRate * TargetChannels) + 1);
-            var chunk = new float[4096];
+            // Allocate the final array directly — no List<float> + spread copy. On a
+            // 4-minute stereo track this avoids a ~90 MB realloc + memcpy at the end.
+            // TotalTime is an estimate (sometimes off by a frame or two on VBR MP3),
+            // so we add a small safety pad and trim if Read stops short.
+            long estimatedSamples = (long)(waveStream.TotalTime.TotalSeconds * TargetSampleRate * TargetChannels)
+                                    + TargetSampleRate * TargetChannels; // +1 sec pad
+            var samples = new float[estimatedSamples];
+            int filled = 0;
             int read;
-            while ((read = provider.Read(chunk, 0, chunk.Length)) > 0)
-                samples.AddRange(chunk.AsSpan(0, read));
+            while ((read = provider.Read(samples, filled, samples.Length - filled)) > 0)
+            {
+                filled += read;
+                if (filled == samples.Length)
+                {
+                    // Decoder produced more than TotalTime advertised — grow geometrically.
+                    Array.Resize(ref samples, samples.Length + samples.Length / 2);
+                }
+            }
 
-            return [.. samples];
+            if (filled != samples.Length) Array.Resize(ref samples, filled);
+            return samples;
         }
     }
 }

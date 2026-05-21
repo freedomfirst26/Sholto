@@ -107,8 +107,7 @@
                 </ListBox.Styles>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Grid ColumnDefinitions="80,240,*,80,80,80"
-                              Opacity="{Binding HarmonyOpacity}">
+                        <Grid ColumnDefinitions="80,240,*,80,80,80">
                             <Grid Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <!-- Done state — uses the theme accent so it reads as a positive
                                      signal and changes colour with each theme. -->
@@ -134,20 +133,58 @@
                                              Foreground="{DynamicResource SholtoAccent}"
                                              IsVisible="{Binding IsAnalyzing}"/>
                             </Grid>
+                            <!-- Played tracks render italic. Style class applied to both
+                                 artist and title cells so they shift together as one signal. -->
                             <TextBlock Grid.Column="1" Text="{Binding Artist}"
                                        Foreground="{DynamicResource SholtoTextBright}"
                                        Margin="12,4" VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"/>
+                                       TextTrimming="CharacterEllipsis"
+                                       Classes.played="{Binding IsPlayed}">
+                                <TextBlock.Styles>
+                                    <Style Selector="TextBlock.played">
+                                        <Setter Property="FontStyle" Value="Italic"/>
+                                    </Style>
+                                </TextBlock.Styles>
+                            </TextBlock>
                             <TextBlock Grid.Column="2" Text="{Binding Title}"
                                        Foreground="{DynamicResource SholtoTextBright}"
                                        Margin="8,4" VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"/>
+                                       TextTrimming="CharacterEllipsis"
+                                       Classes.played="{Binding IsPlayed}">
+                                <TextBlock.Styles>
+                                    <Style Selector="TextBlock.played">
+                                        <Setter Property="FontStyle" Value="Italic"/>
+                                    </Style>
+                                </TextBlock.Styles>
+                            </TextBlock>
                             <TextBlock Grid.Column="3" Text="{Binding BpmDisplay}"
                                        Foreground="{DynamicResource SholtoAccent}"
                                        FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="4" Text="{Binding Key}"
-                                       Foreground="{Binding KeyBrush}"
-                                       FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
+                            <!-- Camelot key chip — matches the deck panel so the same colour
+                                 shows in both surfaces. Hidden when no key is analysed yet.
+                                 Chips for harmonically-eligible keys gain a primary-colour
+                                 outline; non-eligible chips stay readable at full opacity. -->
+                            <Border Grid.Column="4" CornerRadius="4" Padding="6,1"
+                                    Background="{Binding KeyBrush}"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                                    Margin="8,4"
+                                    Classes="key-chip"
+                                    Classes.eligible="{Binding KeyEligible}"
+                                    IsVisible="{Binding Key, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <Border.Styles>
+                                    <Style Selector="Border.key-chip">
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="BorderBrush" Value="Transparent"/>
+                                    </Style>
+                                    <Style Selector="Border.key-chip.eligible">
+                                        <Setter Property="BorderThickness" Value="2"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource SholtoPrimary}"/>
+                                    </Style>
+                                </Border.Styles>
+                                <TextBlock Text="{Binding Key}"
+                                           Foreground="{DynamicResource SholtoChipForeground}"
+                                           FontWeight="Bold" FontSize="12"/>
+                            </Border>
                             <TextBlock Grid.Column="5" Text="{Binding DurationDisplay}"
                                        Foreground="{DynamicResource SholtoTextMuted}"
                                        Margin="8,4" VerticalAlignment="Center"/>
@@ -221,6 +258,51 @@
 
         <v:DeckView Grid.Row="2" DataContext="{Binding Deck1}"/>
         <v:DeckView Grid.Row="3" DataContext="{Binding Deck2}"/>
+
+        <!-- Magnet-lock eligibility indicator. Sits in the gap between the two
+             vinyl discs (left-aligned with horizontal margin matching the vinyl
+             centre at x=90). Vertically centered across both deck rows so it
+             lands exactly between the two vinyls.
+             Pops in when both decks are analysed, both are playing, and their
+             playback BPMs are within 0.5%. Animation: opacity 0→1 + scale
+             0.4→1.0 with ease-out bounce. IsHitTestVisible=False so it never
+             eats clicks meant for the deck. -->
+        <Border Grid.Row="2" Grid.RowSpan="2"
+                HorizontalAlignment="Left" VerticalAlignment="Center"
+                Margin="80,0,0,0"
+                Width="20" Height="20"
+                RenderTransformOrigin="50%,50%"
+                IsHitTestVisible="False"
+                Classes="magnet"
+                Classes.eligible="{Binding IsMagnetEligible}">
+            <Border.Styles>
+                <Style Selector="Border.magnet">
+                    <Setter Property="Opacity" Value="0"/>
+                    <Setter Property="RenderTransform" Value="scale(0.4)"/>
+                </Style>
+                <Style Selector="Border.magnet.eligible">
+                    <Setter Property="Opacity" Value="1"/>
+                    <Setter Property="RenderTransform" Value="scale(1)"/>
+                </Style>
+            </Border.Styles>
+            <Border.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.35" Easing="BackEaseOut"/>
+                </Transitions>
+            </Border.Transitions>
+            <!-- Material Design "link" icon at 24×24, scaled into the 40×40
+                 viewbox via Viewbox/Stretch. Two interlocked C-shapes joined by
+                 a horizontal bar — the universal "chain link / linked" glyph.
+                 Drop shadow gives the green chip a little lift off the dark
+                 backdrop so it pops against the waveform when active. -->
+            <Viewbox Stretch="Uniform">
+                <Canvas Width="24" Height="24">
+                    <Path Fill="#34F06F"
+                          Data="M 3.9 12 C 3.9 10.29 5.29 8.9 7 8.9 H 11 V 7 H 7 C 4.24 7 2 9.24 2 12 C 2 14.76 4.24 17 7 17 H 11 V 15.1 H 7 C 5.29 15.1 3.9 13.71 3.9 12 Z M 8 13 H 16 V 11 H 8 V 13 Z M 17 7 H 13 V 8.9 H 17 C 18.71 8.9 20.1 10.29 20.1 12 C 20.1 13.71 18.71 15.1 17 15.1 H 13 V 17 H 17 C 19.76 17 22 14.76 22 12 C 22 9.24 19.76 7 17 7 Z"/>
+                </Canvas>
+            </Viewbox>
+        </Border>
 
     </Grid>
     </DockPanel>

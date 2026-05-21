@@ -27,7 +27,12 @@ public sealed class StemMixDataProvider : ISoundDataProvider
     public const int StemCount = 4;
     public const int Drums = 0, Vocals = 1, Bass = 2, Other = 3;
 
-    private readonly float[][] _stems;
+    // Not readonly: Dispose() nulls out the entries so the 4 × ~40 MB stem
+    // arrays can be reclaimed by GC even if some other code briefly keeps a
+    // reference to the provider itself (e.g. SoundPlayer hasn't finalised yet).
+    // The audio thread won't read after Dispose because the SoundPlayer has
+    // been Disposed first — see DeckPlayer.TearDownPlayers.
+    private float[][]? _stems;
     private readonly int _length;            // total interleaved-sample length per stem (always even — stereo)
     private double _position;                // fractional source position in interleaved samples (sub-sample precision for vinyl-mode speed)
 
@@ -97,10 +102,15 @@ public sealed class StemMixDataProvider : ISoundDataProvider
         float g3 = Volatile.Read(ref _g3);
 
         double pos = Volatile.Read(ref _position);
-        var s0 = _stems[0];
-        var s1 = _stems[1];
-        var s2 = _stems[2];
-        var s3 = _stems[3];
+        // Dispose may have nulled _stems out from under us between buffers.
+        // In that case the provider is dead and ReadBytes should yield silence;
+        // the SoundPlayer is being torn down anyway.
+        var stems = _stems;
+        if (stems is null) return 0;
+        var s0 = stems[0];
+        var s1 = stems[1];
+        var s2 = stems[2];
+        var s3 = stems[3];
 
         int outFrames = buffer.Length / 2;       // stereo
         int maxSrcFrame = (_length / 2) - 2;     // need room for [n] and [n+1] interp
@@ -212,5 +222,12 @@ public sealed class StemMixDataProvider : ISoundDataProvider
         _lastOutR = samples[(frames - 1) * 2 + 1];
     }
 
-    public void Dispose() => IsDisposed = true;
+    public void Dispose()
+    {
+        IsDisposed = true;
+        // Release the 4 × stem buffers. ReadBytes guards against this so the
+        // audio thread won't NRE if it's still running when Dispose fires.
+        // Volatile to publish the null reliably across threads.
+        Volatile.Write(ref _stems, null);
+    }
 }

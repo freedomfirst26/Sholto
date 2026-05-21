@@ -2,9 +2,25 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Sholto.Audio;
 using Sholto.Analysis;
+using Sholto.App.Theming;
 using Sholto.Library;
 
 namespace Sholto.App.ViewModels;
+
+/// <summary>Lifecycle states for a deck's currently-loading-or-loaded track.
+/// Bindings/subscribers can react to transitions without inferring state from a
+/// combination of LoadedTrack + Analysis nulls.</summary>
+public enum DeckLoadState
+{
+    /// <summary>No track on this deck.</summary>
+    Idle,
+    /// <summary>Track metadata is showing, but audio samples are still being decoded.</summary>
+    Loading,
+    /// <summary>Samples decoded and wired up; deck is ready to play.</summary>
+    Loaded,
+    /// <summary>A previous load attempt failed (decode error, etc.).</summary>
+    Failed,
+}
 
 public sealed class DeckViewModel : INotifyPropertyChanged
 {
@@ -12,32 +28,70 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     private Track? _loadedTrack;
     private bool _isPlaying;
     private double _playPosition;
+    private DeckLoadState _loadState = DeckLoadState.Idle;
+    // Tracks which TrackAnalysis instance we're currently subscribed to so we
+    // can unsubscribe from it when _player.Analysis gets replaced (each
+    // BeginLoad creates a fresh TrackAnalysis on the player).
+    private TrackAnalysis? _subscribedAnalysis;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public DeckViewModel(DeckPlayer player)
     {
         _player = player;
-        _player.AnalysisUpdated += OnAnalysisUpdated;
+        RebindAnalysisSubscription();
     }
 
-    private void OnAnalysisUpdated()
+    /// <summary>(Re)subscribe to per-type events on <c>_player.Analysis</c>.
+    /// Called at construction time and again after each <see cref="BeginLoad"/>,
+    /// because the player swaps in a fresh <see cref="TrackAnalysis"/> instance
+    /// per track. We track the previously-subscribed instance so we can detach
+    /// from it cleanly — otherwise old completed analyses would still notify
+    /// against the wrong deck state and we'd leak handlers.</summary>
+    private void RebindAnalysisSubscription()
     {
+        if (_subscribedAnalysis is not null)
+        {
+            _subscribedAnalysis.BasicReady  -= OnBasicReady;
+            _subscribedAnalysis.KeyReady    -= OnKeyReady;
+            _subscribedAnalysis.StemsReady  -= OnStemsReady;
+        }
+        _subscribedAnalysis = _player.Analysis;
+        _subscribedAnalysis.BasicReady  += OnBasicReady;
+        _subscribedAnalysis.KeyReady    += OnKeyReady;
+        _subscribedAnalysis.StemsReady  += OnStemsReady;
+    }
+
+    // Each per-type handler only re-notifies the bindings that DEPEND on that
+    // analysis type. Cheaper than the old "fire everything on AnalysisUpdated"
+    // pattern and clearer about cause → effect when reading the code.
+    private void OnBasicReady(BasicAnalysis _) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             Notify(nameof(Analysis));
+            Notify(nameof(HasAnalysis));
+            Notify(nameof(HasBpm));
+            Notify(nameof(SourceBpm));
+            Notify(nameof(BpmDisplay));
+            Notify(nameof(BpmDisplayShort));
+            Notify(nameof(EffectiveBpm));
             Notify(nameof(Peaks));
             Notify(nameof(BeatTimes));
             Notify(nameof(DownbeatTimes));
-            Notify(nameof(BpmDisplay));
-            Notify(nameof(BpmDisplayShort));
-            Notify(nameof(HasBpm));
+            Notify(nameof(CanPlay));   // unlocked once basic analysis lands
+        });
+
+    private void OnKeyReady(KeyAnalysis _) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
             Notify(nameof(Camelot));
             Notify(nameof(KeyName));
             Notify(nameof(HasKey));
             Notify(nameof(KeyBrush));
         });
-    }
+
+    private void OnStemsReady(StemPaths _) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => Notify(nameof(HasStems)));
 
     public DeckPlayer Player => _player;
 
@@ -206,6 +260,39 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     public bool HasBpm => SourceBpm > 0;
 
+    /// <summary>Lifecycle state of this deck's track. Drives any UI that wants to
+    /// show "loading…" or disable controls during decode. Fires PropertyChanged
+    /// on every transition so XAML / code-behind can subscribe via standard
+    /// INotifyPropertyChanged plumbing. <see cref="LoadStateChanged"/> is also
+    /// raised for consumers that prefer a typed event.</summary>
+    public DeckLoadState LoadState
+    {
+        get => _loadState;
+        private set
+        {
+            if (_loadState == value) return;
+            _loadState = value;
+            Notify();
+            Notify(nameof(CanPlay));
+            LoadStateChanged?.Invoke(value);
+        }
+    }
+
+    /// <summary>Typed-event mirror of <see cref="LoadState"/> changes. Subscribe
+    /// here when you'd rather listen for one specific signal than filter the
+    /// generic PropertyChanged stream.</summary>
+    public event Action<DeckLoadState>? LoadStateChanged;
+
+    /// <summary>True once the track on this deck has completed basic analysis
+    /// (BPM + beat grid). Magnet-lock and other analysis-derived features gate
+    /// on this so they only engage when the data they need is actually present.</summary>
+    public bool HasAnalysis => Analysis.Basic is not null;
+
+    /// <summary>True once Demucs stems have landed for this track. Until then
+    /// the stem mute toggles do nothing audibly, so the chip row hides — the
+    /// deck progressively unlocks each feature as its analysis becomes available.</summary>
+    public bool HasStems => Analysis.Get<Sholto.Analysis.StemPaths>() is not null;
+
     /// <summary>Camelot code for the loaded track (e.g. "8B"), or empty if key
     /// analysis hasn't completed yet.</summary>
     public string Camelot => Analysis.Get<Sholto.Analysis.KeyAnalysis>()?.Camelot ?? "";
@@ -216,20 +303,83 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public bool HasKey => !string.IsNullOrEmpty(Camelot);
 
     /// <summary>Avalonia brush coloured by the Camelot key — used to tint the deck's
-    /// key chip so the same colour shows here and in the library row.</summary>
-    public Avalonia.Media.IBrush KeyBrush => string.IsNullOrEmpty(Camelot)
-        ? Avalonia.Media.Brushes.Transparent
-        : new Avalonia.Media.SolidColorBrush(
-            unchecked((uint)0xFF000000 | Sholto.Analysis.CamelotKeys.Rgb(Camelot)));
+    /// key chip so the same colour shows here and in the library row. Pulls
+    /// hue/sat/lightness from the active <see cref="ThemeContext.Current"/>'s
+    /// CamelotPalette so theme switches retone live.</summary>
+    public Avalonia.Media.IBrush KeyBrush
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Camelot)) return Avalonia.Media.Brushes.Transparent;
+            var p = ThemeContext.Current.CamelotPalette;
+            uint rgb = CamelotKeys.Rgb(Camelot, p.HueOffset, p.Saturation, p.MajorLightness, p.MinorLightness);
+            return new Avalonia.Media.SolidColorBrush(unchecked((uint)0xFF000000 | rgb));
+        }
+    }
 
-    /// <summary>Forward the FLX-4 tempo fader to the player. Position 0..1, 0.5 = unity.</summary>
+    /// <summary>Re-emit theme-derived bindings after a theme switch.</summary>
+    public void RefreshThemeBindings() => Notify(nameof(KeyBrush));
+
+    /// <summary>Adjust this deck's tempo fader so its <see cref="EffectiveBpm"/>
+    /// matches <paramref name="targetBpm"/>. Used by magnet-snap: once two decks
+    /// phase-align, locking their effective BPMs is what keeps them locked. If
+    /// the required shift falls outside <see cref="DeckPlayer.PitchRange"/>,
+    /// clamps to the edge of the fader range and gets as close as possible.
+    /// Returns false on inputs that don't make sense (target ≤ 0, no source BPM,
+    /// no pitch range configured).</summary>
+    public bool MatchEffectiveBpm(double targetBpm)
+    {
+        if (targetBpm <= 0) return false;
+        double current = EffectiveBpm;
+        if (current <= 0) return false;
+
+        // Already at the target (within display precision) — no shift needed
+        // and no chip-pop. The magnet glyph already told the user they're
+        // locked; popping the OriginalBpm side chip here would be a lie since
+        // the deck wasn't actually retuned.
+        if (Math.Abs(targetBpm - current) < 0.01) return false;
+
+        // Work in PlaybackSpeed-space to dodge any subtlety in how SourceBpm /
+        // BpmMultiplier compose. EffectiveBpm scales linearly with PlaybackSpeed,
+        // so the ratio is what we need.
+        double desiredPlaybackSpeed = _player.PlaybackSpeed * (targetBpm / current);
+
+        double mult = _bpmMultiplier > 0 ? _bpmMultiplier : 1.0;
+        double desiredFader = desiredPlaybackSpeed / mult;
+
+        double range = _player.PitchRange;
+        if (range <= 0) return false;
+
+        // PlaybackSpeed fader = 1 + (-1 + 2*pos) * range  ⇒  pos = 0.5 + (fader-1)/(2*range).
+        double pos = 0.5 + (desiredFader - 1.0) / (2.0 * range);
+        ApplyTempoPosition(Math.Clamp(pos, 0.0, 1.0));
+        // Flag this as a magnet-driven adjustment so the OriginalBpm chip pops
+        // out even though the actual shift may be far below IsTempoShifted's
+        // 0.2 % threshold (a 176.5 → 176.6 lock is only 0.06 %).
+        WasMagnetAdjusted = true;
+        return true;
+    }
+
+    /// <summary>Forward the FLX-4 tempo fader to the player. Position 0..1, 0.5 = unity.
+    /// User-driven — also clears the magnet-adjusted flag, since touching the
+    /// fader means "I'm taking control back."</summary>
     public void SetTempoPosition(double pos)
+    {
+        ApplyTempoPosition(pos);
+        WasMagnetAdjusted = false;
+    }
+
+    /// <summary>Internal tempo-fader write that doesn't touch the magnet flag.
+    /// Used by <see cref="MatchEffectiveBpm"/> so the magnet-driven shift can
+    /// set <see cref="WasMagnetAdjusted"/> itself.</summary>
+    private void ApplyTempoPosition(double pos)
     {
         _player.TempoPosition = pos;
         Notify(nameof(BpmDisplay));
         Notify(nameof(BpmDisplayShort));
         Notify(nameof(EffectiveBpm));
         Notify(nameof(IsTempoShifted));
+        Notify(nameof(ShowOriginalBpm));
         Notify(nameof(OriginalBpmDisplay));
         Notify(nameof(OriginalBpmShort));
         Notify(nameof(PlaybackSpeed));
@@ -252,6 +402,29 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// correction to the analysed source, not a live performance shift.</summary>
     public bool IsTempoShifted => Math.Abs(_player.PlaybackSpeed - 1.0) > 0.002;
 
+    private bool _wasMagnetAdjusted;
+    /// <summary>True when the magnet snap retuned this deck's tempo to match
+    /// its partner. Stays true until the user touches their tempo fader or a
+    /// new track loads. Drives <see cref="ShowOriginalBpm"/> so the user gets
+    /// visual confirmation even for sub-percent magnet shifts that wouldn't
+    /// trip <see cref="IsTempoShifted"/>.</summary>
+    public bool WasMagnetAdjusted
+    {
+        get => _wasMagnetAdjusted;
+        private set
+        {
+            if (_wasMagnetAdjusted == value) return;
+            _wasMagnetAdjusted = value;
+            Notify();
+            Notify(nameof(ShowOriginalBpm));
+        }
+    }
+
+    /// <summary>Should the "original BPM" side chip be popped out? True when the
+    /// fader is meaningfully shifted OR when magnet snap just adjusted us.
+    /// XAML's bpm-chip-top/bottom styles bind to this.</summary>
+    public bool ShowOriginalBpm => IsTempoShifted || WasMagnetAdjusted;
+
     /// <summary>"Original" = source × half/double override, but without the live
     /// tempo-fader shift. That's the BPM the user thinks of as "the track's BPM"
     /// once they've corrected any madmom octave error.</summary>
@@ -264,10 +437,83 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <summary>"±6%" / "±10%" / "±16%" / "±50%" — the current pitch-range mode.</summary>
     public string PitchRangeDisplay => $"±{_player.PitchRange * 100:F0}%";
 
+    /// <summary>Update the deck's UI for the incoming track *immediately*, before
+    /// audio samples have been decoded. Clears stale analysis-derived bindings
+    /// (waveform, BPM, key, beat grid) so the deck doesn't show the previous
+    /// track's data under the new title for the 1–3 s decode wait.
+    /// Audio for the previous track keeps playing until <see cref="LoadTrack"/>
+    /// lands — this is purely a visual responsiveness fix.</summary>
+    /// <summary>Mark the in-progress load as failed (decode error etc.). Lets
+    /// the UI reflect the failure without us having to invent error semantics
+    /// inside <see cref="LoadTrack"/>.</summary>
+    public void LoadFailed() => LoadState = DeckLoadState.Failed;
+
+    public void BeginLoad(Track track, double bpmMultiplier = 1.0)
+    {
+        LoadState = DeckLoadState.Loading;
+        WasMagnetAdjusted = false;  // fresh track, no magnet activity yet
+        _player.BeginLoad();
+        // _player.Analysis was just replaced with a fresh instance; hook our
+        // per-type event handlers onto it so the new track's analyses notify
+        // the correct VM (not the previous track's stale subscription).
+        RebindAnalysisSubscription();
+        LoadedTrack = track;
+        _bpmMultiplier = bpmMultiplier;
+        _player.BpmMultiplier = bpmMultiplier;
+        IsPlaying = false;
+        PlayPosition = 0;
+        Notify(nameof(BpmMultiplier));
+        Notify(nameof(Analysis));
+        Notify(nameof(Peaks));
+        Notify(nameof(BeatTimes));
+        Notify(nameof(DownbeatTimes));
+        Notify(nameof(BpmDisplay));
+        Notify(nameof(BpmDisplayShort));
+        Notify(nameof(SourceBpm));
+        Notify(nameof(HasBpm));
+        Notify(nameof(HasAnalysis));
+        Notify(nameof(Camelot));
+        Notify(nameof(KeyName));
+        Notify(nameof(HasKey));
+        Notify(nameof(KeyBrush));
+        Notify(nameof(EffectiveBpm));
+    }
+
+    /// <summary>Streaming load: hands the file path to the audio engine via
+    /// <see cref="DeckPlayer.LoadStreaming"/> so audio starts in ~100 ms, no
+    /// upfront MP3 decode. Analysis (BPM/key) still happens in the background
+    /// and unlocks features progressively as each event lands.</summary>
+    public void LoadStreaming(Track track, string filePath, double bpmMultiplier = 1.0)
+    {
+        _player.LoadStreaming(filePath);
+        // _player.LoadStreaming replaced TrackAnalysis with a fresh instance;
+        // hook our per-type event handlers onto it.
+        RebindAnalysisSubscription();
+        LoadedTrack = track;
+        LoadState = DeckLoadState.Loaded;
+        _bpmMultiplier = bpmMultiplier;
+        _player.BpmMultiplier = bpmMultiplier;
+        Notify(nameof(BpmMultiplier));
+        Notify(nameof(EffectiveBpm));
+        IsPlaying = false;
+        PlayPosition = 0;
+        Notify(nameof(IsLoaded));
+        Notify(nameof(Analysis));
+        Notify(nameof(Peaks));
+        Notify(nameof(BeatTimes));
+        Notify(nameof(DownbeatTimes));
+        Notify(nameof(BpmDisplay));
+    }
+
     public void LoadTrack(Track track, string filePath, float[] samples, double bpmMultiplier = 1.0)
     {
         _player.Load(filePath, samples, sampleRate: AudioFileDecoder.TargetSampleRate);
+        // _player.Load replaces TrackAnalysis again (in case the caller skipped
+        // BeginLoad). Resubscribe so per-type events from the new instance
+        // reach the VM.
+        RebindAnalysisSubscription();
         LoadedTrack = track;
+        LoadState = DeckLoadState.Loaded;
         // Apply any persisted ½ / ×2 override for this track. Direct field set
         // (not the property) so we don't fire PersistBpmMultiplier — this came
         // from disk, not the user.
@@ -285,8 +531,24 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(BpmDisplay));
     }
 
+    /// <summary>True when the deck is allowed to start playback. Gated on basic
+    /// analysis being available — we deliberately deny play until the beat grid /
+    /// BPM are known, because every downstream feature (magnet, sync, beat-jump,
+    /// EffectiveBpm display) assumes that data exists. A small one-time wait per
+    /// load is the price for keeping the rest of the app honest.</summary>
+    public bool CanPlay => LoadState == DeckLoadState.Loaded && HasAnalysis;
+
     public void TogglePlay()
     {
+        // Refuse to start playing until basic analysis (BPM + beat grid) is in.
+        // Silent ignore on the *first* press is friendlier than a beep — the
+        // user usually just presses again a moment later and it works. Allow
+        // pause/resume freely once a track is actually playing.
+        if (!_player.IsPlaying && !CanPlay)
+        {
+            Console.WriteLine($"[Deck] play denied: analysis not ready (state={LoadState}, hasAnalysis={HasAnalysis})");
+            return;
+        }
         _player.TogglePlay();
         IsPlaying = _player.IsPlaying;
     }
@@ -295,6 +557,8 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     {
         _player.Unload();
         LoadedTrack = null;
+        LoadState = DeckLoadState.Idle;
+        WasMagnetAdjusted = false;
         IsPlaying = false;
         PlayPosition = 0;
         Notify(nameof(Analysis));

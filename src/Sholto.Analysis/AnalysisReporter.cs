@@ -58,18 +58,34 @@ public sealed class AnalysisReport : INotifyPropertyChanged
     public AnalysisReport(string filePath) { FilePath = filePath; }
 
     private readonly Dictionary<string, AnalysisStepStatus> _steps = new();
-    public IReadOnlyDictionary<string, AnalysisStepStatus> Steps => _steps;
+    // Writes (GetOrCreate) happen on whichever analyser thread is reporting;
+    // reads (Overall / IsBusy / AllComplete) usually happen on the UI thread
+    // when handling the Updated event. A plain Dictionary throws
+    // InvalidOperationException if a read enumerates while a write is in flight.
+    private readonly object _stepsGate = new();
+
+    /// <summary>Snapshot of registered steps. Returns a fresh dictionary so
+    /// callers can iterate without racing concurrent <see cref="GetOrCreate"/>.</summary>
+    public IReadOnlyDictionary<string, AnalysisStepStatus> Steps
+    {
+        get { lock (_stepsGate) return new Dictionary<string, AnalysisStepStatus>(_steps); }
+    }
 
     public AnalysisStepStatus GetOrCreate(string stepName)
     {
-        if (!_steps.TryGetValue(stepName, out var s))
+        lock (_stepsGate)
         {
-            s = new AnalysisStepStatus(stepName);
-            s.PropertyChanged += (_, _) => NotifyAggregate();
-            _steps[stepName] = s;
-            NotifyAggregate();
+            if (!_steps.TryGetValue(stepName, out var s))
+            {
+                s = new AnalysisStepStatus(stepName);
+                s.PropertyChanged += (_, _) => NotifyAggregate();
+                _steps[stepName] = s;
+                // Fire outside the lock would be cleaner, but callers don't
+                // re-enter GetOrCreate from PropertyChanged handlers, so this is safe.
+                NotifyAggregate();
+            }
+            return s;
         }
-        return s;
     }
 
     /// <summary>Fraction of total registered steps that have completed (counting Running by its progress).</summary>
@@ -77,23 +93,33 @@ public sealed class AnalysisReport : INotifyPropertyChanged
     {
         get
         {
-            if (_steps.Count == 0) return 0;
-            double sum = 0;
-            foreach (var s in _steps.Values)
+            lock (_stepsGate)
             {
-                sum += s.State switch
+                if (_steps.Count == 0) return 0;
+                double sum = 0;
+                foreach (var s in _steps.Values)
                 {
-                    AnalysisState.Complete => 1.0,
-                    AnalysisState.Running  => Math.Clamp(s.Progress, 0, 1),
-                    _ => 0.0,
-                };
+                    sum += s.State switch
+                    {
+                        AnalysisState.Complete => 1.0,
+                        AnalysisState.Running  => Math.Clamp(s.Progress, 0, 1),
+                        _ => 0.0,
+                    };
+                }
+                return sum / _steps.Count;
             }
-            return sum / _steps.Count;
         }
     }
 
-    public bool IsBusy => _steps.Values.Any(s => s.State == AnalysisState.Running);
-    public bool AllComplete => _steps.Values.All(s => s.State == AnalysisState.Complete);
+    public bool IsBusy
+    {
+        get { lock (_stepsGate) return _steps.Values.Any(s => s.State == AnalysisState.Running); }
+    }
+
+    public bool AllComplete
+    {
+        get { lock (_stepsGate) return _steps.Values.All(s => s.State == AnalysisState.Complete); }
+    }
 
     private void NotifyAggregate()
     {

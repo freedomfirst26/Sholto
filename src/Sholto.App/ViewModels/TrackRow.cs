@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media;
 using Sholto.Analysis;
+using Sholto.App.Theming;
 using Sholto.Library;
 
 namespace Sholto.App.ViewModels;
@@ -68,14 +69,28 @@ public sealed class TrackRow : INotifyPropertyChanged
     public string? Key
     {
         get => _key;
-        set { if (_key == value) return; _key = value; Notify(); Notify(nameof(HarmonyOpacity)); Notify(nameof(KeyBrush)); }
+        set { if (_key == value) return; _key = value; Notify(); Notify(nameof(HarmonyOpacity)); Notify(nameof(KeyBrush)); Notify(nameof(KeyEligible)); }
     }
 
-    /// <summary>Camelot key colored brush — same hue convention DJ apps use so
-    /// the eye can scan keys without reading the codes.</summary>
-    public IBrush KeyBrush => string.IsNullOrEmpty(_key)
-        ? Brushes.Transparent
-        : new SolidColorBrush(unchecked((uint)0xFF000000 | CamelotKeys.Rgb(_key!)));
+    /// <summary>Camelot key chip background — same hue convention DJ apps use so
+    /// the eye can scan keys without reading the codes. Hue/saturation/lightness
+    /// come from the active theme's <see cref="CamelotPalette"/>, so switching
+    /// theme retones the whole library at once.</summary>
+    public IBrush KeyBrush
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_key)) return Brushes.Transparent;
+            var p = ThemeContext.Current.CamelotPalette;
+            uint rgb = CamelotKeys.Rgb(_key!, p.HueOffset, p.Saturation, p.MajorLightness, p.MinorLightness);
+            return new SolidColorBrush(unchecked((uint)0xFF000000 | rgb));
+        }
+    }
+
+    /// <summary>Refresh theme-derived properties after a theme switch. Called by
+    /// <see cref="MainViewModel"/> when the active theme changes so we don't have
+    /// to subscribe to a static event (which would pin TrackRow instances).</summary>
+    public void RefreshThemeBindings() => Notify(nameof(KeyBrush));
 
     private string? _referenceKey;
     /// <summary>The active deck's Camelot key (or null/empty). When set, every
@@ -84,13 +99,20 @@ public sealed class TrackRow : INotifyPropertyChanged
     public string? ReferenceKey
     {
         get => _referenceKey;
-        set { if (_referenceKey == value) return; _referenceKey = value; Notify(); Notify(nameof(HarmonyOpacity)); }
+        set
+        {
+            if (_referenceKey == value) return;
+            _referenceKey = value;
+            Notify();
+            Notify(nameof(HarmonyOpacity));
+            Notify(nameof(KeyEligible));
+        }
     }
 
     /// <summary>Opacity to apply to the whole row based on Camelot compatibility
-    /// with <see cref="ReferenceKey"/>. Perfect/no-reference = full, Close/boost
-    /// = slightly dim, Far = muted. Drives a one-binding row-level tint without
-    /// needing a value converter.</summary>
+    /// with <see cref="ReferenceKey"/>. Kept for any callers that still want a
+    /// fade-style signal; the library list now uses <see cref="KeyEligible"/>
+    /// to highlight eligible chips with an outline instead of fading the rest.</summary>
     public double HarmonyOpacity =>
         (string.IsNullOrEmpty(_referenceKey) || string.IsNullOrEmpty(_key))
             ? 1.0
@@ -102,7 +124,31 @@ public sealed class TrackRow : INotifyPropertyChanged
                 _                               => 0.30,
             };
 
+    /// <summary>True when this track's key mixes harmonically with the active
+    /// deck's key (Perfect / Close / EnergyBoost — anything but Far). Used to
+    /// draw a primary-colour outline around eligible key chips so the user can
+    /// scan the list for mix candidates without dimming everything else.</summary>
+    public bool KeyEligible
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_referenceKey) || string.IsNullOrEmpty(_key)) return false;
+            return CamelotKeys.Compatibility(_referenceKey!, _key!) != CamelotKeys.Harmony.Far;
+        }
+    }
+
     public string DurationDisplay => $"{(int)Duration.TotalMinutes:00}:{Duration.Seconds:00}";
+
+    private bool _isPlayed;
+    /// <summary>True once this track has been loaded into a deck during the
+    /// current session. Drives an italic artist/title in the library so the
+    /// user can see at a glance what they've already touched. Reset only by
+    /// app restart — the Session that owns the truth is process-scoped.</summary>
+    public bool IsPlayed
+    {
+        get => _isPlayed;
+        set { if (_isPlayed == value) return; _isPlayed = value; Notify(); }
+    }
 
     private void Notify([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

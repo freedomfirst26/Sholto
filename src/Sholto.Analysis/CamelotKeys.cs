@@ -31,18 +31,25 @@ public static class CamelotKeys
     /// → cyan → blue → magenta) so adjacent numbers read as adjacent on the
     /// rainbow. Returns 0xRRGGBB; callers wrap in their Avalonia / Skia brush.
     /// </summary>
-    public static uint Rgb(string camelot)
+    public static uint Rgb(string camelot) =>
+        Rgb(camelot, hueOffset: 0, saturation: 0.78, majorLightness: 0.55, minorLightness: 0.42);
+
+    /// <summary>Theme-tunable variant. Hue rotates around a 12-position wheel
+    /// (one per Camelot number) starting from amber at 8B/8A; <paramref name="hueOffset"/>
+    /// rotates that start point (positive = warmer/redder, negative = cooler/bluer).
+    /// Major keys use <paramref name="majorLightness"/>; minor keys use the lower
+    /// <paramref name="minorLightness"/> so relative pairs read as "same hue,
+    /// different mood".</summary>
+    public static uint Rgb(string camelot,
+                           double hueOffset,
+                           double saturation,
+                           double majorLightness,
+                           double minorLightness)
     {
         if (!TryParse(camelot, out int n, out bool isMajor)) return 0xFFFFFF;
-        // Hue spread evenly across 12 positions of the wheel, offset so 8B/8A
-        // (= C major / A minor) come out warm-amber — matches the "C is yellow"
-        // mnemonic in Mixed In Key.
-        double hue = ((n - 8) * 30.0 + 360.0) % 360.0;
-        // B (major) is fully saturated and bright. A (minor) drops lightness so
-        // relative pairs read as "same hue, different mood".
-        double sat = 0.78;
-        double light = isMajor ? 0.55 : 0.42;
-        return HslToRgb(hue, sat, light);
+        double hue = (((n - 8) * 30.0 + hueOffset) % 360.0 + 360.0) % 360.0;
+        double light = isMajor ? majorLightness : minorLightness;
+        return HslToRgb(hue, saturation, light);
     }
 
     private static uint HslToRgb(double h, double s, double l)

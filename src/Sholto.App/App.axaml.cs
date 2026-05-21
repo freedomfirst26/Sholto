@@ -21,6 +21,10 @@ public partial class App : Application
     private DispatcherTimer? _statsTimer;
     private MainViewModel? _vm;
     private SholtoDatabase? _db;
+    // Other startup tasks (music-dir resolution, audio init) need the DB to read
+    // settings. They await this TCS so they don't race the DB open task.
+    private readonly TaskCompletionSource<SholtoDatabase?> _dbReady =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     // Jog-wheel scrubs are coalesced per frame so we issue one Seek per deck per ~16 ms.
     private double _pendingJog1, _pendingJog2;
     // Browse-button long-press: hold for 1s to force-reanalyze the highlighted track.
@@ -54,7 +58,12 @@ public partial class App : Application
             try
             {
                 _db = await SholtoDatabase.OpenAsync();
-                Console.WriteLine($"[DB] opened {_db.DatabasePath}");
+                Console.WriteLine($"[DB] opened {_db.DatabasePath} (schema v{await _db.GetSchemaVersionAsync()})");
+
+                // One-shot import of legacy ~/.config/sholto/config.json so users
+                // upgrading from the JSON-config era don't get prompted for music
+                // dir / output device again.
+                await LegacyConfigImporter.ImportIfNeededAsync(_db);
 
                 // Build one 3-tier provider per deck. They share the same memory + DB cache
                 // so analysing a track once benefits whichever deck loads it next.
@@ -103,22 +112,37 @@ public partial class App : Application
             {
                 Console.WriteLine($"[DB] failed to open: {ex.Message}");
             }
+            finally
+            {
+                // Unblock startup tasks waiting on the DB whether we succeeded or not.
+                _dbReady.TrySetResult(_db);
+            }
         });
 
-        // Resolve which folder to scan. Order: env var override → saved config →
+        // Resolve which folder to scan. Order: env var override → saved setting →
         // first-run picker. The picker fires on the UI thread once the main window
         // is up so the user can see what they're choosing for.
         _ = Task.Run(async () =>
         {
-            var musicDir = Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR")
-                           ?? AppConfig.Load().MusicDir;
+            var db = await _dbReady.Task;
+            var saved = db is not null ? await db.GetSettingAsync(SettingsKeys.MusicDir) : null;
+            var musicDir = Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR") ?? saved;
 
-            if (string.IsNullOrEmpty(musicDir) || !Directory.Exists(musicDir))
+            if (string.IsNullOrEmpty(musicDir))
             {
+                // No saved music dir at all — first run. Prompt the user.
                 musicDir = await Dispatcher.UIThread.InvokeAsync(async () =>
                     await PickMusicDirAsync(desktop.MainWindow!, "Choose your music library"));
-                if (!string.IsNullOrEmpty(musicDir))
-                    AppConfig.Update(c => c.MusicDir = musicDir);
+                if (!string.IsNullOrEmpty(musicDir) && db is not null)
+                    await db.SetSettingAsync(SettingsKeys.MusicDir, musicDir);
+            }
+            else if (!Directory.Exists(musicDir))
+            {
+                // We *have* a saved music dir but it isn't reachable right now —
+                // most likely an unmounted external drive. Don't clobber the saved
+                // setting or pester the user with a picker; just skip the scan.
+                Console.WriteLine($"[Library] saved music dir not reachable: {musicDir} — skipping scan");
+                return;
             }
 
             if (string.IsNullOrEmpty(musicDir)) return;  // user cancelled — nothing to scan
@@ -179,12 +203,13 @@ public partial class App : Application
                         if (sel is not null)
                         {
                             var deck = vm.DeckFor(l.Deck);
+                            var mult = vm.GetBpmMultiplierFor(sel.FilePath);
+                            deck.BeginLoad(sel, mult);
                             _ = Task.Run(async () =>
                             {
                                 var samples = AudioFileDecoder.Decode(sel.FilePath);
                                 await Dispatcher.UIThread.InvokeAsync(() =>
-                                    deck.LoadTrack(sel, sel.FilePath, samples,
-                                        vm.GetBpmMultiplierFor(sel.FilePath)));
+                                    deck.LoadTrack(sel, sel.FilePath, samples, mult));
                             });
                         }
                         break;
@@ -236,7 +261,12 @@ public partial class App : Application
                         if (j.Deck == 0) _pendingJog1 += j.Delta * secsPerTick;
                         else             _pendingJog2 += j.Delta * secsPerTick;
                         vm.LastJoggedDeck = j.Deck == 0 ? 1 : 2;
-                        vm.LastJogAt = DateTime.UtcNow;
+                        var nowUtc = DateTime.UtcNow;
+                        vm.LastJogAt = nowUtc;
+                        // Per-deck timestamps so MainViewModel can tell "both
+                        // decks being touched right now" apart from "just one".
+                        if (j.Deck == 0) vm.LastJogAt1 = nowUtc;
+                        else             vm.LastJogAt2 = nowUtc;
                         break;
                     }
                 }
@@ -298,15 +328,16 @@ public partial class App : Application
             return;
         }
 
-        var config = AppConfig.Load();
-        var chosen = devices.FirstOrDefault(d => d.Name == config.OutputDeviceName);
+        var db = await _dbReady.Task;
+        var savedName = db is not null ? await db.GetSettingAsync(SettingsKeys.OutputDevice) : null;
+        var chosen = devices.FirstOrDefault(d => d.Name == savedName);
 
         if (chosen is null)
-            chosen = await PromptForDeviceAsync(devices, config.OutputDeviceName, desktop.MainWindow!);
+            chosen = await PromptForDeviceAsync(devices, savedName, desktop.MainWindow!);
 
         if (chosen is null) return;
 
-        AppConfig.Update(c => c.OutputDeviceName = chosen.Name);
+        if (db is not null) await db.SetSettingAsync(SettingsKeys.OutputDevice, chosen.Name);
 
         await Task.Run(() =>
         {
@@ -385,8 +416,12 @@ public partial class App : Application
         var picked = await PickMusicDirAsync(owner, "Choose your music library");
         if (string.IsNullOrEmpty(picked)) return;
 
-        if (picked == AppConfig.Load().MusicDir) return;
-        AppConfig.Update(c => c.MusicDir = picked);
+        var db = await _dbReady.Task;
+        if (db is not null)
+        {
+            if (picked == await db.GetSettingAsync(SettingsKeys.MusicDir)) return;
+            await db.SetSettingAsync(SettingsKeys.MusicDir, picked);
+        }
 
         await ScanLibraryAsync(_vm, picked);
     }
@@ -398,11 +433,12 @@ public partial class App : Application
         var devices = await Task.Run(() => AudioDevices.EnumerateOutputs());
         if (devices.Count == 0) return;
 
-        var config = AppConfig.Load();
-        var chosen = await PromptForDeviceAsync(devices, config.OutputDeviceName, owner);
-        if (chosen is null || chosen.Name == config.OutputDeviceName) return;
+        var db = await _dbReady.Task;
+        var currentName = db is not null ? await db.GetSettingAsync(SettingsKeys.OutputDevice) : null;
+        var chosen = await PromptForDeviceAsync(devices, currentName, owner);
+        if (chosen is null || chosen.Name == currentName) return;
 
-        AppConfig.Update(c => c.OutputDeviceName = chosen.Name);
+        if (db is not null) await db.SetSettingAsync(SettingsKeys.OutputDevice, chosen.Name);
 
         // Use SoundFlow's runtime device switch (preserves the audio graph).
         await Task.Run(() =>
