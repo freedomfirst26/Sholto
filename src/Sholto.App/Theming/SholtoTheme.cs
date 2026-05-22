@@ -101,279 +101,37 @@ public sealed record SholtoTheme(
     }
 }
 
+/// <summary>
+/// Theme registry. Themes are no longer hard-coded — they're loaded from JSON
+/// files at startup via <see cref="SholtoThemeJson.LoadAll"/>: bundled themes
+/// from <c>avares://Sholto.App/Themes/</c> plus optional user themes from
+/// <c>~/.config/opendj/themes/</c>. The named static accessors (Classic,
+/// Serato, …) survive for compile-time callers and just look up by name in
+/// <see cref="All"/>. If a theme is missing (e.g. user deleted its JSON), the
+/// accessor falls back to the first available theme so the UI never crashes.
+/// </summary>
 public static class Themes
 {
-    private static IBrush B(string hex) => new SolidColorBrush(Color.Parse(hex));
-    private static Color  C(string hex) => Color.Parse(hex);
+    public static IReadOnlyList<SholtoTheme> All { get; } = SholtoThemeJson.LoadAll();
 
-    public static SholtoTheme Classic { get; } = new(
-        Name: "Classic",
-        BgDeep:        B("#111111"),
-        Surface:       B("#1A1A1A"),
-        SurfaceRaised: B("#222222"),
-        Border:        B("#333333"),
-        Primary:       B("#00FFCC"),
-        Accent:        B("#FFC700"),
-        AccentBg:      B("#33FFC700"),
-        Mint:          B("#FFFFFF"),
-        TextBright:    B("#EEEEEE"),
-        TextMuted:     B("#888888"),
-        PlayedFadeColor: C("#111111"),
-        WaveformPalette: WaveformPalette.Bands,
-        // Classic — the original baseline. Vivid rainbow, deep navy text.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.78,
-                            MajorLightness: 0.55, MinorLightness: 0.42,
-                            OnChipForeground: B("#101820"))
-    );
+    private static SholtoTheme ByName(string name)
+    {
+        foreach (var t in All)
+            if (string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase))
+                return t;
+        // Missing theme — fall back so the UI doesn't NRE during startup.
+        return All.Count > 0 ? All[0] : throw new InvalidOperationException("No themes loaded");
+    }
 
-
-    public static SholtoTheme Serato { get; } = new(
-        Name: "Serato",
-        BgDeep:        B("#0F0F0F"),
-        Surface:       B("#161616"),
-        SurfaceRaised: B("#1E1E1E"),
-        Border:        B("#3D3D3D"),
-        Primary:       B("#FF3D3D"),
-        Accent:        B("#3D8BFF"),
-        AccentBg:      B("#333D8BFF"),
-        Mint:          B("#3DFF7A"),
-        TextBright:    B("#F2F2F2"),
-        TextMuted:     B("#909090"),
-        PlayedFadeColor: C("#0F0F0F"),
-        WaveformPalette: WaveformPalette.Hot,
-        // Serato — punchy, high-sat rainbow to match the red/blue accents.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.82,
-                            MajorLightness: 0.55, MinorLightness: 0.42,
-                            OnChipForeground: B("#0F0F0F"))
-    );
-
-    /// <summary>Front Line Assembly — late-night vinyl-bar moody. Warm charcoal
-    /// browns with whiskey amber and candle gold. Named after the Canadian
-    /// industrial / EBM pioneers; palette stays the same as the original
-    /// "Smoke" theme.</summary>
-    public static SholtoTheme FrontLineAssembly { get; } = new(
-        Name: "Front Line Assembly",
-        BgDeep:        B("#1C1917"),
-        Surface:       B("#2A2522"),
-        SurfaceRaised: B("#332C28"),
-        Border:        B("#463C36"),
-        Primary:       B("#A88468"),
-        Accent:        B("#F2C879"),
-        AccentBg:      B("#33F2C879"),
-        Mint:          B("#D4A574"),
-        TextBright:    B("#F0E5D2"),
-        TextMuted:     B("#8A7B6E"),
-        PlayedFadeColor: C("#1C1917"),
-        WaveformPalette: WaveformPalette.Smoke,
-        // Front Line Assembly — warm shift (amber/whiskey lean), desaturated so the rainbow
-        // reads as candle-lit rather than neon. Dark chip text matches the bg.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.45,
-                            MajorLightness: 0.54, MinorLightness: 0.40,
-                            OnChipForeground: B("#1C1917"))
-    );
-
-    /// <summary>Silence Groove — cyberpunk-rain neon. Deep navy with hot magenta
-    /// and electric cyan. Crowd-pleaser dev-theme aesthetic. Named after the
-    /// liquid-DnB / atmospheric producer.</summary>
-    public static SholtoTheme SilenceGroove { get; } = new(
-        Name: "Silence Groove",
-        BgDeep:        B("#0F172A"),
-        Surface:       B("#1A2238"),
-        SurfaceRaised: B("#222C46"),
-        Border:        B("#2F3B57"),
-        Primary:       B("#7AA2F7"),
-        Accent:        B("#FF7AC6"),
-        AccentBg:      B("#33FF7AC6"),
-        Mint:          B("#7AE6FF"),
-        TextBright:    B("#E2E7F5"),
-        TextMuted:     B("#7C89B8"),
-        PlayedFadeColor: C("#0F172A"),
-        WaveformPalette: WaveformPalette.Plasma,
-        // Silence Groove — slight cool shift, high saturation. Rainbow leans into
-        // the magenta/cyan neon energy the rest of the theme is built around.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.80,
-                            MajorLightness: 0.58, MinorLightness: 0.44,
-                            OnChipForeground: B("#0F172A"))
-    );
-
-    /// <summary>Jeremy Soule — Skyrim-inspired. Pine and moss greens, stone
-    /// grays, snow-white text. Named after the Elder Scrolls composer; palette
-    /// drawn from the game's Falkreath/Riverwood-pine and Whiterun-stone
-    /// aesthetic. Calm, atmospheric, long-session friendly.</summary>
-    public static SholtoTheme JeremySoule { get; } = new(
-        Name: "Jeremy Soule",
-        BgDeep:        B("#0D1310"),    // night-forest dark, slight green-gray
-        Surface:       B("#161D19"),
-        SurfaceRaised: B("#1D2622"),
-        Border:        B("#2E3B33"),    // stone with moss
-        Primary:       B("#4A7A52"),    // deep pine (Falkreath)
-        Accent:        B("#8FAA88"),    // sage / lichen on stone
-        AccentBg:      B("#338FAA88"),
-        Mint:          B("#C5D4BE"),    // pale moss for "alive" states
-        TextBright:    B("#E8EDE5"),    // snow white with faint green wash
-        TextMuted:     B("#7A8479"),    // warm stone gray
-        PlayedFadeColor: C("#0D1310"),
-        WaveformPalette: WaveformPalette.Soule,
-        // Jeremy Soule — cool / slightly desaturated green-shifted rainbow,
-        // moderate lightness. Reads as "moss-on-stone-on-snow" across the
-        // wheel instead of vivid neon.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.45,
-                            MajorLightness: 0.58, MinorLightness: 0.44,
-                            OnChipForeground: B("#0D1310"))
-    );
-
-    /// <summary>Drab Majesty — gothic darkwave. Slate-blue surfaces with frost
-    /// and aurora-violet accents. Reads more "studio" than "club". Named after
-    /// the gothic post-punk duo.</summary>
-    public static SholtoTheme DrabMajesty { get; } = new(
-        Name: "Drab Majesty",
-        BgDeep:        B("#1E293B"),
-        Surface:       B("#243044"),
-        SurfaceRaised: B("#293548"),
-        Border:        B("#3B4860"),
-        Primary:       B("#88C0D0"),
-        Accent:        B("#B48EAD"),
-        AccentBg:      B("#33B48EAD"),
-        Mint:          B("#A3BE8C"),
-        TextBright:    B("#ECEFF4"),
-        TextMuted:     B("#7B8A9E"),
-        PlayedFadeColor: C("#1E293B"),
-        WaveformPalette: WaveformPalette.Glacier,
-        // Drab Majesty — cool shift, low saturation. Reads more "studio" than "club".
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.55,
-                            MajorLightness: 0.58, MinorLightness: 0.45,
-                            OnChipForeground: B("#1E293B"))
-    );
-
-    /// <summary>Sub Focus — Nick Douwma's brand identity: vivid red on near-black
-    /// with clean white accents. Logo runs bright red, *Torus* cover is a red
-    /// prism on black, live shows are washed in red lighting. Aggressive but
-    /// clean — less smoky than the old Bloodmoon, more "headline DnB drop."</summary>
-    public static SholtoTheme SubFocus { get; } = new(
-        Name: "Sub Focus",
-        BgDeep:        B("#050203"),
-        Surface:       B("#0F0608"),
-        SurfaceRaised: B("#170A0D"),
-        Border:        B("#381418"),
-        Primary:       B("#FF1F3D"),   // signature bright red
-        Accent:        B("#FF4D5E"),   // slightly softer red for BPM display
-        AccentBg:      B("#33FF1F3D"),
-        Mint:          B("#FF5A6E"),   // bright pink-red for "alive" states
-        TextBright:    B("#F8F2F2"),   // clean off-white, near pure
-        TextMuted:     B("#7E6B6E"),
-        PlayedFadeColor: C("#050203"),
-        WaveformPalette: WaveformPalette.SubFocus,
-        // Sub Focus — red-anchored, high saturation, the rainbow leans into the
-        // red end of the wheel. Vivid Camelot chips read as "the same family"
-        // as the theme's red branding instead of competing with it.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.78,
-                            MajorLightness: 0.55, MinorLightness: 0.42,
-                            OnChipForeground: B("#170A0D"))
-    );
-
-    /// <summary>Type O Negative — gothic doom metal aesthetic. Pantone 369 C
-    /// (#69BE28) as the signature green on near-black charcoal. Same album-
-    /// cover palette of vivid green over blacks with bone-coloured text.</summary>
-    public static SholtoTheme TypeONegative { get; } = new(
-        Name: "Type O Negative",
-        BgDeep:        B("#050A07"),
-        Surface:       B("#0B130E"),
-        SurfaceRaised: B("#0F1A13"),
-        Border:        B("#2D4A20"),
-        Primary:       B("#69BE28"),   // Pantone 369 C — band's signature green
-        Accent:        B("#8FDA4A"),   // brighter variant for BPM display vs Primary
-        AccentBg:      B("#3369BE28"),
-        Mint:          B("#A8DD7A"),   // lighter shade for "alive" states
-        TextBright:    B("#DCE6CF"),   // off-white with faint green wash
-        TextMuted:     B("#6A8472"),
-        PlayedFadeColor: C("#050A07"),
-        WaveformPalette: WaveformPalette.OctoberRust,
-        // Type O Negative — green-shifted hues, low sat, dark lightness for
-        // that "ritual candlelight on green velvet" mood. Bone text on chips
-        // matches the band's typeface.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.50,
-                            MajorLightness: 0.45, MinorLightness: 0.34,
-                            OnChipForeground: B("#D8E6DC"))
-    );
-
-    /// <summary>Birthday Massacre — near-black with signature hot magenta-pink.
-    /// Named after the Toronto darkwave/electronic-rock band. Palette pulled
-    /// from the Pins &amp; Needles / Walking with Strangers album covers:
-    /// black grounds, fluorescent-pink primary, deeper crimson-pink secondary,
-    /// stark white type. Less "lavender goth", more "horror-cartoon neon."</summary>
-    public static SholtoTheme BirthdayMassacre { get; } = new(
-        Name: "Birthday Massacre",
-        BgDeep:        B("#07020A"),
-        Surface:       B("#110724"),
-        SurfaceRaised: B("#1B0D31"),
-        Border:        B("#401E5A"),
-        Primary:       B("#FF3D9F"),   // hot magenta-pink, album-cover signature
-        Accent:        B("#DA2470"),   // deeper crimson-pink for headers / BPM
-        AccentBg:      B("#33FF3D9F"),
-        Mint:          B("#FFA8D6"),   // bright pink for "alive" states
-        TextBright:    B("#F4EBF1"),   // clean off-white with faint pink wash
-        TextMuted:     B("#836B89"),
-        PlayedFadeColor: C("#07020A"),
-        WaveformPalette: WaveformPalette.Massacre,
-        // Birthday Massacre — magenta-shifted. HueOffset 280 puts the rainbow's
-        // 0° anchor in the red-magenta range so the closest Camelot keys lean
-        // pink instead of fighting the theme's signature colour.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.72,
-                            MajorLightness: 0.58, MinorLightness: 0.45,
-                            OnChipForeground: B("#1B0D31"))
-    );
-
-    /// <summary>Boards of Canada — dreamy 80s VHS. Faded ocean blues, dusty
-    /// mauve warmth, pale cassette-cream highlights. The Campfire Headphase
-    /// washed-out summer-cassette vibe and the cool-blue family-photo wash
-    /// from Music Has the Right to Children. Nostalgic, hazy, analog.</summary>
-    public static SholtoTheme BoardsOfCanada { get; } = new(
-        Name: "Boards of Canada",
-        BgDeep:        B("#0E1820"),    // dark teal-navy night
-        Surface:       B("#16242C"),
-        SurfaceRaised: B("#1D2D36"),
-        Border:        B("#32485A"),    // dusty slate-navy
-        Primary:       B("#7FB6C9"),    // faded VHS blue — signature dreamy hue
-        Accent:        B("#C4A2A2"),    // dusty mauve / cassette-photo warmth
-        AccentBg:      B("#337FB6C9"),
-        Mint:          B("#B5D5E3"),    // pale sky for "alive" states
-        TextBright:    B("#DDE5EA"),    // cream-white with blue wash
-        TextMuted:     B("#6F8590"),    // muted slate
-        PlayedFadeColor: C("#0E1820"),
-        WaveformPalette: WaveformPalette.BoardsOfCanada,
-        // BoC — cool-shifted, low saturation. Rainbow reads as a sun-faded
-        // photo of itself, dreamy rather than vivid.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.42,
-                            MajorLightness: 0.58, MinorLightness: 0.46,
-                            OnChipForeground: B("#0E1820"))
-    );
-
-    /// <summary>Pantera — Cowboys From Hell black grounds with gunmetal silver
-    /// typography and flame orange accents. Industrial, gritty, mostly
-    /// monochrome with one hot Texas-flame highlight.</summary>
-    public static SholtoTheme Pantera { get; } = new(
-        Name: "Pantera",
-        BgDeep:        B("#0A0908"),    // near-pure black
-        Surface:       B("#14110E"),
-        SurfaceRaised: B("#1A1612"),
-        Border:        B("#3A3328"),    // warm gunmetal
-        Primary:       B("#C5BFB5"),    // gunmetal silver, main UI accent
-        Accent:        B("#E84C1B"),    // flame orange for BPM display — pops out
-        AccentBg:      B("#33E84C1B"),
-        Mint:          B("#FF8E3C"),    // brighter orange for "alive" states
-        TextBright:    B("#F0EAE0"),    // warm off-white
-        TextMuted:     B("#6E6258"),    // steel gray-brown
-        PlayedFadeColor: C("#0A0908"),
-        WaveformPalette: WaveformPalette.Pantera,
-        // Pantera — warm-shifted, high saturation, dark-leaning lightness.
-        // Camelot chips run hot and a little burnt to sit alongside the
-        // flame-orange accents instead of clashing with them.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.72,
-                            MajorLightness: 0.50, MinorLightness: 0.38,
-                            OnChipForeground: B("#0A0908"))
-    );
-
-    public static IReadOnlyList<SholtoTheme> All { get; } =
-        [Classic, Serato, FrontLineAssembly, SilenceGroove, JeremySoule, DrabMajesty,
-         SubFocus, TypeONegative, BirthdayMassacre, BoardsOfCanada, Pantera];
+    public static SholtoTheme Classic           => ByName("Classic");
+    public static SholtoTheme Serato            => ByName("Serato");
+    public static SholtoTheme FrontLineAssembly => ByName("Front Line Assembly");
+    public static SholtoTheme SilenceGroove     => ByName("Silence Groove");
+    public static SholtoTheme JeremySoule       => ByName("Jeremy Soule");
+    public static SholtoTheme DrabMajesty       => ByName("Drab Majesty");
+    public static SholtoTheme SubFocus          => ByName("Sub Focus");
+    public static SholtoTheme TypeONegative     => ByName("Type O Negative");
+    public static SholtoTheme BirthdayMassacre  => ByName("Birthday Massacre");
+    public static SholtoTheme BoardsOfCanada    => ByName("Boards of Canada");
+    public static SholtoTheme Pantera           => ByName("Pantera");
 }

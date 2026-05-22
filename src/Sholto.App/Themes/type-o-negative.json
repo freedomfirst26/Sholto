@@ -1,0 +1,22 @@
+{
+  "name": "Type O Negative",
+  "bgDeep":        "#050A07",
+  "surface":       "#0B130E",
+  "surfaceRaised": "#0F1A13",
+  "border":        "#2D4A20",
+  "primary":       "#69BE28",
+  "accent":        "#8FDA4A",
+  "accentBg":      "#3369BE28",
+  "mint":          "#A8DD7A",
+  "textBright":    "#DCE6CF",
+  "textMuted":     "#6A8472",
+  "playedFadeColor": "#050A07",
+  "waveformPalette": "OctoberRust",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.50,
+    "majorLightness":   0.45,
+    "minorLightness":   0.34,
+    "onChipForeground": "#D8E6DC"
+  }
+}

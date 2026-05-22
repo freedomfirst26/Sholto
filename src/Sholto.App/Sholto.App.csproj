@@ -18,6 +18,8 @@
   <ItemGroup>
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
+    <!-- Theme JSON + manifest, loaded by SholtoThemeJson via avares:// at startup. -->
+    <AvaloniaResource Include="Themes\**" />
   </ItemGroup>
 
   <ItemGroup>

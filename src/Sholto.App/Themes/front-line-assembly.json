@@ -1,0 +1,22 @@
+{
+  "name": "Front Line Assembly",
+  "bgDeep":        "#1C1917",
+  "surface":       "#2A2522",
+  "surfaceRaised": "#332C28",
+  "border":        "#463C36",
+  "primary":       "#A88468",
+  "accent":        "#F2C879",
+  "accentBg":      "#33F2C879",
+  "mint":          "#D4A574",
+  "textBright":    "#F0E5D2",
+  "textMuted":     "#8A7B6E",
+  "playedFadeColor": "#1C1917",
+  "waveformPalette": "Smoke",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.45,
+    "majorLightness":   0.54,
+    "minorLightness":   0.40,
+    "onChipForeground": "#1C1917"
+  }
+}

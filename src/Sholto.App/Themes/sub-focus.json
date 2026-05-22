@@ -1,0 +1,22 @@
+{
+  "name": "Sub Focus",
+  "bgDeep":        "#050203",
+  "surface":       "#0F0608",
+  "surfaceRaised": "#170A0D",
+  "border":        "#381418",
+  "primary":       "#FF1F3D",
+  "accent":        "#FF4D5E",
+  "accentBg":      "#33FF1F3D",
+  "mint":          "#FF5A6E",
+  "textBright":    "#F8F2F2",
+  "textMuted":     "#7E6B6E",
+  "playedFadeColor": "#050203",
+  "waveformPalette": "SubFocus",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.78,
+    "majorLightness":   0.55,
+    "minorLightness":   0.42,
+    "onChipForeground": "#170A0D"
+  }
+}

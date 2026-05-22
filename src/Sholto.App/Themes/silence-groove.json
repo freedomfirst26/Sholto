@@ -1,0 +1,22 @@
+{
+  "name": "Silence Groove",
+  "bgDeep":        "#0F172A",
+  "surface":       "#1A2238",
+  "surfaceRaised": "#222C46",
+  "border":        "#2F3B57",
+  "primary":       "#7AA2F7",
+  "accent":        "#FF7AC6",
+  "accentBg":      "#33FF7AC6",
+  "mint":          "#7AE6FF",
+  "textBright":    "#E2E7F5",
+  "textMuted":     "#7C89B8",
+  "playedFadeColor": "#0F172A",
+  "waveformPalette": "Plasma",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.80,
+    "majorLightness":   0.58,
+    "minorLightness":   0.44,
+    "onChipForeground": "#0F172A"
+  }
+}

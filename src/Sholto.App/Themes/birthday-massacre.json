@@ -1,0 +1,22 @@
+{
+  "name": "Birthday Massacre",
+  "bgDeep":        "#07020A",
+  "surface":       "#110724",
+  "surfaceRaised": "#1B0D31",
+  "border":        "#401E5A",
+  "primary":       "#FF3D9F",
+  "accent":        "#DA2470",
+  "accentBg":      "#33FF3D9F",
+  "mint":          "#FFA8D6",
+  "textBright":    "#F4EBF1",
+  "textMuted":     "#836B89",
+  "playedFadeColor": "#07020A",
+  "waveformPalette": "Massacre",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.72,
+    "majorLightness":   0.58,
+    "minorLightness":   0.45,
+    "onChipForeground": "#1B0D31"
+  }
+}

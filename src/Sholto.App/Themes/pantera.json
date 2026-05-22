@@ -1,0 +1,22 @@
+{
+  "name": "Pantera",
+  "bgDeep":        "#0A0908",
+  "surface":       "#14110E",
+  "surfaceRaised": "#1A1612",
+  "border":        "#3A3328",
+  "primary":       "#C5BFB5",
+  "accent":        "#E84C1B",
+  "accentBg":      "#33E84C1B",
+  "mint":          "#FF8E3C",
+  "textBright":    "#F0EAE0",
+  "textMuted":     "#6E6258",
+  "playedFadeColor": "#0A0908",
+  "waveformPalette": "Pantera",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.72,
+    "majorLightness":   0.50,
+    "minorLightness":   0.38,
+    "onChipForeground": "#0A0908"
+  }
+}
