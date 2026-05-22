@@ -179,27 +179,30 @@ public static class Themes
                             OnChipForeground: B("#0F172A"))
     );
 
-    /// <summary>Catppuccin Mocha — soft pastel peach / mauve / sky on warm dark.
-    /// The cosy dev-community favourite; easy on the eyes for long sessions.</summary>
-    public static SholtoTheme CatppuccinMocha { get; } = new(
-        Name: "Catppuccin Mocha",
-        BgDeep:        B("#1E1E2E"),
-        Surface:       B("#28283C"),
-        SurfaceRaised: B("#313244"),
-        Border:        B("#45475A"),
-        Primary:       B("#CBA6F7"),
-        Accent:        B("#F5C2E7"),
-        AccentBg:      B("#33F5C2E7"),
-        Mint:          B("#94E2D5"),
-        TextBright:    B("#CDD6F4"),
-        TextMuted:     B("#7F849C"),
-        PlayedFadeColor: C("#1E1E2E"),
-        WaveformPalette: WaveformPalette.Plasma,
-        // Catppuccin Mocha — pastel. Lower saturation + higher lightness so the
-        // chips match the cosy soft-color aesthetic instead of clashing with it.
-        CamelotPalette: new(HueOffset: 0, Saturation: 0.50,
-                            MajorLightness: 0.70, MinorLightness: 0.55,
-                            OnChipForeground: B("#1E1E2E"))
+    /// <summary>Jeremy Soule — Skyrim-inspired. Pine and moss greens, stone
+    /// grays, snow-white text. Named after the Elder Scrolls composer; palette
+    /// drawn from the game's Falkreath/Riverwood-pine and Whiterun-stone
+    /// aesthetic. Calm, atmospheric, long-session friendly.</summary>
+    public static SholtoTheme JeremySoule { get; } = new(
+        Name: "Jeremy Soule",
+        BgDeep:        B("#0D1310"),    // night-forest dark, slight green-gray
+        Surface:       B("#161D19"),
+        SurfaceRaised: B("#1D2622"),
+        Border:        B("#2E3B33"),    // stone with moss
+        Primary:       B("#4A7A52"),    // deep pine (Falkreath)
+        Accent:        B("#8FAA88"),    // sage / lichen on stone
+        AccentBg:      B("#338FAA88"),
+        Mint:          B("#C5D4BE"),    // pale moss for "alive" states
+        TextBright:    B("#E8EDE5"),    // snow white with faint green wash
+        TextMuted:     B("#7A8479"),    // warm stone gray
+        PlayedFadeColor: C("#0D1310"),
+        WaveformPalette: WaveformPalette.Soule,
+        // Jeremy Soule — cool / slightly desaturated green-shifted rainbow,
+        // moderate lightness. Reads as "moss-on-stone-on-snow" across the
+        // wheel instead of vivid neon.
+        CamelotPalette: new(HueOffset: 30, Saturation: 0.45,
+                            MajorLightness: 0.58, MinorLightness: 0.44,
+                            OnChipForeground: B("#0D1310"))
     );
 
     /// <summary>Drab Majesty — gothic darkwave. Slate-blue surfaces with frost
@@ -304,6 +307,6 @@ public static class Themes
     );
 
     public static IReadOnlyList<SholtoTheme> All { get; } =
-        [Classic, Serato, FrontLineAssembly, SilenceGroove, CatppuccinMocha, DrabMajesty,
+        [Classic, Serato, FrontLineAssembly, SilenceGroove, JeremySoule, DrabMajesty,
          SubFocus, TypeONegative, BirthdayMassacre];
 }

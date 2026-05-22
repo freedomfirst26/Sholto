@@ -10,7 +10,7 @@ using SkiaSharp;
 
 namespace Sholto.App.Controls;
 
-public enum WaveformPalette { Bands, Hot, Plasma, Smoke, Glacier, SubFocus, OctoberRust, Massacre }
+public enum WaveformPalette { Bands, Hot, Plasma, Smoke, Glacier, SubFocus, OctoberRust, Massacre, Soule }
 
 /// <summary>
 /// Pre-renders the entire waveform to an offscreen SKImage at track load,
@@ -191,8 +191,9 @@ public sealed class WaveformControl : Control
         // Smoke:  warm whiskey — coal / cream / amber
         // Glacier: nordic — slate-blue / frost-white / aurora-violet
         // SubFocus:    Nick Douwma's brand — deep crimson / signature bright red / pale rose
-        // OctoberRust: Type O Negative album palette — deep forest / electric lime / bone
+        // OctoberRust: Type O Negative album palette — deep forest / Pantone 369 C / bone
         // Massacre:    Birthday Massacre — deep crimson / hot magenta / pale pink (all-pink family)
+        // Soule:       Jeremy Soule / Skyrim — pine green / forest moss / snow white
         var (lowColor, midColor, highColor) = palette switch
         {
             WaveformPalette.Hot         => (new SKColor(0xFF, 0x3D, 0x3D), new SKColor(0x3D, 0xFF, 0x7A), new SKColor(0x3D, 0x8B, 0xFF)),
@@ -202,6 +203,7 @@ public sealed class WaveformControl : Control
             WaveformPalette.SubFocus    => (new SKColor(0x80, 0x14, 0x2E), new SKColor(0xFF, 0x1F, 0x3D), new SKColor(0xFF, 0xE5, 0xEA)),
             WaveformPalette.OctoberRust => (new SKColor(0x2D, 0x55, 0x12), new SKColor(0x69, 0xBE, 0x28), new SKColor(0xDC, 0xE6, 0xCF)),
             WaveformPalette.Massacre    => (new SKColor(0xB0, 0x24, 0x5C), new SKColor(0xFF, 0x3D, 0x9F), new SKColor(0xFF, 0xC2, 0xDA)),
+            WaveformPalette.Soule       => (new SKColor(0x2E, 0x47, 0x34), new SKColor(0x6A, 0x8F, 0x62), new SKColor(0xE8, 0xED, 0xE5)),
             _                           => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
         };
         using var lowPaint  = new SKPaint { Color = lowColor, StrokeWidth = 1, IsAntialias = false };
@@ -294,6 +296,7 @@ public sealed class WaveformControl : Control
             WaveformPalette.SubFocus  => new SKColor(0xFF, 0xFF, 0xFF, 0xE0), // pure white on crimson/red/rose — Sub Focus's typography accent
             WaveformPalette.OctoberRust => new SKColor(0xD8, 0xA2, 0x4F, 0xD8), // rust amber on forest/lime/bone — picks up the album title's orange
             WaveformPalette.Massacre    => new SKColor(0xFF, 0xFA, 0xF5, 0xD8), // warm white on crimson/magenta/pale-pink — bone contrast against pink family
+            WaveformPalette.Soule       => new SKColor(0xD4, 0xB8, 0x6A, 0xD8), // dragon gold on pine/moss/snow — Skyrim treasure-glint against the forest greens
             _                         => new SKColor(0xE6, 0xF0, 0xFF, 0xD8), // cool white on Rekordbox bands
         };
         // Volume/crossfader gain-line colour comes from the theme.

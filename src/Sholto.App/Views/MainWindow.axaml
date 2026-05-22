@@ -46,7 +46,7 @@
                     <MenuItem Header="Serato" Click="OnThemeSerato"/>
                     <MenuItem Header="Front Line Assembly" Click="OnThemeFrontLineAssembly"/>
                     <MenuItem Header="Silence Groove" Click="OnThemeSilenceGroove"/>
-                    <MenuItem Header="Catppuccin Mocha" Click="OnThemeCatppuccin"/>
+                    <MenuItem Header="Jeremy Soule" Click="OnThemeJeremySoule"/>
                     <MenuItem Header="Drab Majesty" Click="OnThemeDrabMajesty"/>
                     <MenuItem Header="Sub Focus" Click="OnThemeSubFocus"/>
                     <MenuItem Header="Type O Negative" Click="OnThemeTypeONegative"/>
