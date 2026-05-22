@@ -243,7 +243,30 @@ public sealed class DeckViewModel : INotifyPropertyChanged
                 if (src.High[i] > hi[i])  hi[i]  = src.High[i];
             }
         }
+
+        // Band arrays came in unnormalized (see DeckPlayer's per-stem peak compute);
+        // normalize each merged band to its own max so the rendered gradient uses
+        // the full [0,1] range across whatever stems are currently active. The
+        // outline arrays (Min/Max) stay in absolute scale — WaveformControl
+        // expects them in linear amplitude.
+        NormalizeInPlace(lo);
+        NormalizeInPlace(mid);
+        NormalizeInPlace(hi);
+
         return new WaveformPeaks(min, max, lo, mid, hi, sources[0].SamplesPerPeak);
+    }
+
+    /// <summary>Scale an array in place so its max becomes 1.0. Inlined here
+    /// (rather than reusing WaveformPeaks.Normalize) because that helper is
+    /// private to the Analysis assembly. Trivial loop, not worth a public API.</summary>
+    private static void NormalizeInPlace(float[] arr)
+    {
+        float m = 0f;
+        for (int i = 0; i < arr.Length; i++)
+            if (arr[i] > m) m = arr[i];
+        if (m <= 0f) return;
+        float inv = 1f / m;
+        for (int i = 0; i < arr.Length; i++) arr[i] *= inv;
     }
     public double[] BeatTimes => Analysis.Basic?.BeatTimes ?? [];
     public double[] DownbeatTimes => Analysis.Basic?.DownbeatTimes ?? [];

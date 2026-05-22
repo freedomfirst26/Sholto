@@ -488,10 +488,17 @@ public sealed class DeckPlayer
             try
             {
                 int sr = AudioFileDecoder.TargetSampleRate;
-                var pd = Task.Run(() => WaveformPeaks.Compute(drumsSamples,  channels: 2, sampleRate: sr));
-                var pv = Task.Run(() => WaveformPeaks.Compute(vocalsSamples, channels: 2, sampleRate: sr));
-                var pb = Task.Run(() => WaveformPeaks.Compute(bassSamples,   channels: 2, sampleRate: sr));
-                var po = Task.Run(() => WaveformPeaks.Compute(otherSamples,  channels: 2, sampleRate: sr));
+                // normalizeBands: false — independent per-stem normalisation
+                // would map each stem's bands to [0,1] of its OWN max, breaking
+                // cross-stem comparison at merge time (a quiet vocal stem
+                // would look as energetic as a loud drum stem in the colour
+                // gradient). DeckViewModel.MergeActiveStemPeaks normalises the
+                // merged result instead, so the gradient reflects real
+                // relative energy across whatever stems are active.
+                var pd = Task.Run(() => WaveformPeaks.Compute(drumsSamples,  channels: 2, sampleRate: sr, normalizeBands: false));
+                var pv = Task.Run(() => WaveformPeaks.Compute(vocalsSamples, channels: 2, sampleRate: sr, normalizeBands: false));
+                var pb = Task.Run(() => WaveformPeaks.Compute(bassSamples,   channels: 2, sampleRate: sr, normalizeBands: false));
+                var po = Task.Run(() => WaveformPeaks.Compute(otherSamples,  channels: 2, sampleRate: sr, normalizeBands: false));
                 Task.WaitAll(pd, pv, pb, po);
                 Analysis.Set(new StemPeaks(pd.Result, pv.Result, pb.Result, po.Result));
                 Console.WriteLine("[DeckPlayer] per-stem peaks computed");

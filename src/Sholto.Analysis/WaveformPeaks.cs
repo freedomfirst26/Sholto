@@ -15,20 +15,28 @@ public sealed record WaveformPeaks(
     public static WaveformPeaks Empty { get; } = new([], [], [], [], [], 512);
 
     /// <summary>Convenience: just the peaks, no onset envelope. Used by tests + callers
-    /// that don't need beat analysis.</summary>
+    /// that don't need beat analysis. Set <paramref name="normalizeBands"/> to false
+    /// when computing peaks that will later be merged with other peaks (e.g. one
+    /// per stem) — independent per-stem normalization breaks cross-stem
+    /// comparison; normalize the merged result instead.</summary>
     public static WaveformPeaks Compute(
-        float[] samples, int channels, int sampleRate = 44100, int samplesPerPeak = 1024)
-        => ComputeWithOnsets(samples, channels, sampleRate, samplesPerPeak).Peaks;
+        float[] samples, int channels, int sampleRate = 44100,
+        int samplesPerPeak = 1024, bool normalizeBands = true)
+        => ComputeWithOnsets(samples, channels, sampleRate, samplesPerPeak, normalizeBands).Peaks;
 
     /// <summary>
     /// Computes min/max + per-band peak amplitudes from interleaved float samples,
     /// and the kick-band onset envelope (caller can use it for tempo estimation).
+    /// <paramref name="normalizeBands"/> scales Low/Mid/High to [0,1] within this
+    /// signal; turn it off when the result will be merged with peers (one per stem)
+    /// since independent normalization compresses cross-stem energy differences.
     /// </summary>
     internal static (WaveformPeaks Peaks, float[] KickEnvelope, int OnsetHopSamples) ComputeWithOnsets(
         float[] samples,
         int channels,
         int sampleRate,
-        int samplesPerPeak = 1024)
+        int samplesPerPeak = 1024,
+        bool normalizeBands = true)
     {
         if (samples.Length == 0) return (Empty, [], sampleRate / 100);
 
@@ -110,9 +118,12 @@ public sealed record WaveformPeaks(
         Smooth(min, radius: 2);
         Smooth(max, radius: 2);
 
-        Normalize(lowOut);
-        Normalize(midOut);
-        Normalize(highOut);
+        if (normalizeBands)
+        {
+            Normalize(lowOut);
+            Normalize(midOut);
+            Normalize(highOut);
+        }
 
         var peaks = new WaveformPeaks(min, max, lowOut, midOut, highOut, samplesPerPeak);
         return (peaks, lowEnv, onsetHop);
