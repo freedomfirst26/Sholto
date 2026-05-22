@@ -180,6 +180,7 @@
                                 <TextBlock.Styles>
                                     <Style Selector="TextBlock.played">
                                         <Setter Property="FontStyle" Value="Italic"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
                                     </Style>
                                 </TextBlock.Styles>
                             </TextBlock>
@@ -191,6 +192,7 @@
                                 <TextBlock.Styles>
                                     <Style Selector="TextBlock.played">
                                         <Setter Property="FontStyle" Value="Italic"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
                                     </Style>
                                 </TextBlock.Styles>
                             </TextBlock>
