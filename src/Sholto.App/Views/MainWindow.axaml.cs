@@ -137,7 +137,7 @@ public partial class MainWindow : Window
     private void OnThemeSilenceGroove    (object? sender, RoutedEventArgs e) => SetTheme(Themes.SilenceGroove);
     private void OnThemeCatppuccin       (object? sender, RoutedEventArgs e) => SetTheme(Themes.CatppuccinMocha);
     private void OnThemeDrabMajesty      (object? sender, RoutedEventArgs e) => SetTheme(Themes.DrabMajesty);
-    private void OnThemeBloodmoon        (object? sender, RoutedEventArgs e) => SetTheme(Themes.Bloodmoon);
+    private void OnThemeSubFocus         (object? sender, RoutedEventArgs e) => SetTheme(Themes.SubFocus);
     private void OnThemeTypeONegative    (object? sender, RoutedEventArgs e) => SetTheme(Themes.TypeONegative);
     private void OnThemeBirthdayMassacre (object? sender, RoutedEventArgs e) => SetTheme(Themes.BirthdayMassacre);
 

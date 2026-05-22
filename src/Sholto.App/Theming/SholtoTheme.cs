@@ -225,43 +225,46 @@ public static class Themes
                             OnChipForeground: B("#1E293B"))
     );
 
-    /// <summary>Bloodmoon — high-drama. Near-black carbon with crimson and bone.
-    /// Aggressive / metal / dark-techno energy.</summary>
-    public static SholtoTheme Bloodmoon { get; } = new(
-        Name: "Bloodmoon",
-        BgDeep:        B("#0A0606"),
-        Surface:       B("#140B0B"),
-        SurfaceRaised: B("#1A0E0E"),
-        Border:        B("#2E1414"),
-        Primary:       B("#C8324D"),
-        Accent:        B("#E8A54B"),
-        AccentBg:      B("#33C8324D"),
-        Mint:          B("#F5E6D8"),
-        TextBright:    B("#F2E8DC"),
-        TextMuted:     B("#8A6F65"),
-        PlayedFadeColor: C("#0A0606"),
-        WaveformPalette: WaveformPalette.Bloodmoon,
-        // Bloodmoon — warm shift, dimmed and brooding. Bone-coloured chip text
-        // because the chips themselves run dark in this theme.
-        CamelotPalette: new(HueOffset: -20, Saturation: 0.55,
-                            MajorLightness: 0.50, MinorLightness: 0.36,
-                            OnChipForeground: B("#F2E8DC"))
+    /// <summary>Sub Focus — Nick Douwma's brand identity: vivid red on near-black
+    /// with clean white accents. Logo runs bright red, *Torus* cover is a red
+    /// prism on black, live shows are washed in red lighting. Aggressive but
+    /// clean — less smoky than the old Bloodmoon, more "headline DnB drop."</summary>
+    public static SholtoTheme SubFocus { get; } = new(
+        Name: "Sub Focus",
+        BgDeep:        B("#050203"),
+        Surface:       B("#0F0608"),
+        SurfaceRaised: B("#170A0D"),
+        Border:        B("#381418"),
+        Primary:       B("#FF1F3D"),   // signature bright red
+        Accent:        B("#FF4D5E"),   // slightly softer red for BPM display
+        AccentBg:      B("#33FF1F3D"),
+        Mint:          B("#FF5A6E"),   // bright pink-red for "alive" states
+        TextBright:    B("#F8F2F2"),   // clean off-white, near pure
+        TextMuted:     B("#7E6B6E"),
+        PlayedFadeColor: C("#050203"),
+        WaveformPalette: WaveformPalette.SubFocus,
+        // Sub Focus — red-anchored, high saturation, the rainbow leans into the
+        // red end of the wheel. Vivid Camelot chips read as "the same family"
+        // as the theme's red branding instead of competing with it.
+        CamelotPalette: new(HueOffset: -5, Saturation: 0.78,
+                            MajorLightness: 0.55, MinorLightness: 0.42,
+                            OnChipForeground: B("#170A0D"))
     );
 
-    /// <summary>Type O Negative — gothic doom metal aesthetic. Deep forest
-    /// green on near-black charcoal. Named after the Brooklyn band — same
-    /// album-cover palette of greens-on-blacks with bone-coloured text.</summary>
+    /// <summary>Type O Negative — gothic doom metal aesthetic. Pantone 369 C
+    /// (#69BE28) as the signature green on near-black charcoal. Same album-
+    /// cover palette of vivid green over blacks with bone-coloured text.</summary>
     public static SholtoTheme TypeONegative { get; } = new(
         Name: "Type O Negative",
         BgDeep:        B("#050A07"),
         Surface:       B("#0B130E"),
         SurfaceRaised: B("#0F1A13"),
-        Border:        B("#1F3526"),
-        Primary:       B("#2C7A47"),
-        Accent:        B("#4FA66E"),
-        AccentBg:      B("#334FA66E"),
-        Mint:          B("#7FC894"),
-        TextBright:    B("#D8E6DC"),
+        Border:        B("#2D4A20"),
+        Primary:       B("#69BE28"),   // Pantone 369 C — band's signature green
+        Accent:        B("#8FDA4A"),   // brighter variant for BPM display vs Primary
+        AccentBg:      B("#3369BE28"),
+        Mint:          B("#A8DD7A"),   // lighter shade for "alive" states
+        TextBright:    B("#DCE6CF"),   // off-white with faint green wash
         TextMuted:     B("#6A8472"),
         PlayedFadeColor: C("#050A07"),
         WaveformPalette: WaveformPalette.OctoberRust,
@@ -302,5 +305,5 @@ public static class Themes
 
     public static IReadOnlyList<SholtoTheme> All { get; } =
         [Classic, Serato, FrontLineAssembly, SilenceGroove, CatppuccinMocha, DrabMajesty,
-         Bloodmoon, TypeONegative, BirthdayMassacre];
+         SubFocus, TypeONegative, BirthdayMassacre];
 }
