@@ -570,31 +570,44 @@ public sealed class DeckPlayer
             return;
         }
 
+        double bpm = Analysis.Basic?.Bpm ?? 0;
+        if (bpm <= 0)
+        {
+            Console.WriteLine("[DeckPlayer] loop: BPM unknown — ignored");
+            return;
+        }
+
         double nowSec = PositionFrames / (double)AudioFileDecoder.TargetSampleRate;
         int inIdx = NearestBeatIndex(downbeats, nowSec);
         double inSec = downbeats[inIdx];
 
-        // Loop-out is N downbeats later from the actual grid, so the seam falls
-        // on a real downbeat transient (the kick of the next phrase). No
-        // crossfade needed — the transient masks any sample discontinuity.
-        double outSec;
-        int outIdx = inIdx + bars;
-        if (outIdx < downbeats.Length)
-        {
-            outSec = downbeats[outIdx];
-        }
-        else
-        {
-            // Downbeat grid doesn't reach far enough — fall back to median bar
-            // interval. Happens near track end or for very long loops.
-            double secPerBar = MedianBeatInterval(downbeats);
-            if (secPerBar <= 0) return;
-            outSec = inSec + bars * secPerBar;
-        }
+        // Loop length is derived from the BPM, not from `downbeats[idx + N]`.
+        // The downbeat grid sets the START (musically correct phase), but the
+        // length is guaranteed to be exactly N bars at the track's BPM. This
+        // avoids "unexpected beat" artefacts if madmom mis-detected an
+        // intermediate downbeat. Assumes 4/4 time, which is true for ~all
+        // DJ-able music.
+        double secondsPerBar = 60.0 / bpm * 4.0;
+        double outSec = inSec + bars * secondsPerBar;
 
         long inSample = SecondsToInterleavedSample(inSec);
-        long outSample = SecondsToInterleavedSample(outSec);
-        // Clamp to track end.
+
+        // Period (loopEnd - loopStart) is fixed to exactly N bars at the
+        // detected BPM. This is the key invariant: the loop period must NOT
+        // drift between iterations, or the rhythm slowly skews and the user
+        // hears it as a "pause / extra beat" each wrap.
+        long periodSamples = SecondsToInterleavedSample(outSec) - inSample;
+
+        // Shift BOTH boundaries together by the same offset to find the
+        // sample-value-matched seam. Same offset → same period → no drift.
+        // Search ±5 ms; the loopStart shifts by up to 5 ms from the actual
+        // downbeat (imperceptible), but the wrap will have a value-matched
+        // seam with no click.
+        int searchRadius = AudioFileDecoder.TargetSampleRate * 5 / 1000;
+        long offset = _stemProvider.FindLoopOffset(inSample, periodSamples, searchRadius);
+        inSample  += offset;
+        long outSample = inSample + periodSamples;
+
         long maxSample = (long)_sampleCount * 2;
         if (outSample > maxSample) outSample = maxSample;
         if (outSample - inSample < 64) // sanity floor
@@ -606,7 +619,8 @@ public sealed class DeckPlayer
         var region = new LoopRegion(inSample, outSample);
         _activeLoop = region;
         _stemProvider.SetLoop(region);
-        Console.WriteLine($"[DeckPlayer] loop ON: {bars} bars, {inSec:F3}s → {outSec:F3}s");
+        double actualLen = (outSample - inSample) / 2.0 / AudioFileDecoder.TargetSampleRate;
+        Console.WriteLine($"[DeckPlayer] loop ON: {bars} bars @ {bpm:F1} BPM, {inSec:F3}s → {outSec:F3}s, length {actualLen:F3}s (expected {bars*secondsPerBar:F3}s)");
         LoopChanged?.Invoke(region);
     }
 

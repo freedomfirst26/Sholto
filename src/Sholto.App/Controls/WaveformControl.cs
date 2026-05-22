@@ -250,7 +250,10 @@ public sealed class WaveformControl : Control
         // Glacier: nordic — slate-blue / frost-white / aurora-violet
         // SubFocus:    Nick Douwma's brand — deep crimson / signature bright red / pale rose
         // OctoberRust: Type O Negative album palette — deep forest / Pantone 369 C / bone
-        // Massacre:    Birthday Massacre — deep crimson / hot magenta / pale pink (all-pink family)
+        // Massacre:    Birthday Massacre — pulled from the Walking with Strangers / Imaginary
+        //              Monsters cover palette: deep royal purple bass, vivid orchid/violet mid,
+        //              pale lilac highs. Purple is BM's true brand colour even when the album
+        //              merch leans pink, so the waveform leads with it.
         // Soule:       Jeremy Soule / Skyrim — pine green / forest moss / snow white
         // BoardsOfCanada: dreamy 80s VHS — deep ocean teal / faded blue / pale cassette cream
         // Pantera:     Cowboys From Hell — charcoal / flame orange / bone
@@ -262,7 +265,7 @@ public sealed class WaveformControl : Control
             WaveformPalette.Glacier     => (new SKColor(0x4C, 0x6B, 0x8A), new SKColor(0xEC, 0xF0, 0xF6), new SKColor(0xB4, 0x8E, 0xAD)),
             WaveformPalette.SubFocus    => (new SKColor(0x80, 0x14, 0x2E), new SKColor(0xFF, 0x1F, 0x3D), new SKColor(0xFF, 0xE5, 0xEA)),
             WaveformPalette.OctoberRust => (new SKColor(0x2D, 0x55, 0x12), new SKColor(0x69, 0xBE, 0x28), new SKColor(0xDC, 0xE6, 0xCF)),
-            WaveformPalette.Massacre    => (new SKColor(0xB0, 0x24, 0x5C), new SKColor(0xFF, 0x3D, 0x9F), new SKColor(0xFF, 0xC2, 0xDA)),
+            WaveformPalette.Massacre    => (new SKColor(0x3A, 0x17, 0x58), new SKColor(0xA0, 0x40, 0xD0), new SKColor(0xE8, 0xCF, 0xFF)),
             WaveformPalette.Soule       => (new SKColor(0x2E, 0x47, 0x34), new SKColor(0x6A, 0x8F, 0x62), new SKColor(0xE8, 0xED, 0xE5)),
             WaveformPalette.BoardsOfCanada => (new SKColor(0x2A, 0x44, 0x52), new SKColor(0x7F, 0xB6, 0xC9), new SKColor(0xDD, 0xF0, 0xF2)),
             WaveformPalette.Pantera     => (new SKColor(0x2A, 0x25, 0x20), new SKColor(0xFF, 0x6B, 0x2C), new SKColor(0xE0, 0xD8, 0xCC)),
@@ -529,20 +532,28 @@ public sealed class WaveformControl : Control
             if (_beats is { Length: > 0 } && refSecondsPerPeak is double btSpp)
             {
                 _beatTickPaint ??= new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xC0), StrokeWidth = 1, IsAntialias = false };
-                // Build a HashSet of downbeat columns once per frame — cheap relative
-                // to the per-beat hit test and avoids drawing a downbeat twice.
-                HashSet<int>? dbCols = null;
-                if (_downbeats is { Length: > 0 })
-                {
-                    dbCols = new HashSet<int>(_downbeats.Length);
-                    foreach (var t in _downbeats) dbCols.Add((int)Math.Round(t / btSpp));
-                }
+                // De-dupe against downbeats: a beat that's within ~1 ms of a
+                // downbeat is the downbeat (already drawn full-height above).
+                // Tolerance in seconds rather than rounded columns so this
+                // never drifts off the downbeat line at high zoom.
+                const double dedupeTol = 0.001;
                 for (int i = 0; i < _beats.Length; i++)
                 {
-                    int col = (int)Math.Round(_beats[i] / btSpp);
-                    bool isDownbeat = dbCols is not null ? dbCols.Contains(col) : (i % 4) == 0;
+                    double bt = _beats[i];
+                    bool isDownbeat = false;
+                    if (_downbeats is { Length: > 0 })
+                    {
+                        foreach (var dt in _downbeats)
+                        {
+                            if (Math.Abs(dt - bt) < dedupeTol) { isDownbeat = true; break; }
+                        }
+                    }
+                    else if ((i % 4) == 0) isDownbeat = true;
                     if (isDownbeat) continue;
-                    float x = (float)((col - refCenterPeak) / _playbackSpeed) + dstW / 2f;
+                    // Use float positions — matches the downbeat math above so
+                    // ticks and full-height lines stay perfectly aligned.
+                    float beatCol = (float)(bt / btSpp);
+                    float x = (float)((beatCol - refCenterPeak) / _playbackSpeed) + dstW / 2f;
                     if (x >= -2 && x < dstW + 2)
                         canvas.DrawLine(x, 0, x, 5, _beatTickPaint);
                 }

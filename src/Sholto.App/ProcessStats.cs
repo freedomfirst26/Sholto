@@ -18,9 +18,12 @@ public static class ProcessStats
     private static DateTime _lastSample = DateTime.UtcNow;
     private static readonly int Cores = Math.Max(1, Environment.ProcessorCount);
 
-    // Always on for now. Re-gate behind SHOLTO_DEBUG_STATS=1 later if it ever
-    // becomes intrusive.
-    public static bool Enabled => true;
+    // Visible whenever any debug instrumentation is active. Right now that
+    // means "loop-output WAV recording is on" — when you ask for that, you
+    // probably want to see whether the recorder is impacting CPU / RAM too.
+    public static bool Enabled =>
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OPENDJ_LOOP_DEBUG_WAV"))
+        || Environment.GetEnvironmentVariable("SHOLTO_DEBUG_STATS") == "1";
 
     public static (double cpuPercent, long workingSetBytes) Sample()
     {

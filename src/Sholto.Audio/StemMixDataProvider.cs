@@ -77,6 +77,45 @@ public sealed class StemMixDataProvider : ISoundDataProvider
         }
     }
 
+    /// <summary>Find an integer-frame offset within ±<paramref name="radiusFrames"/>
+    /// of zero such that shifting BOTH loop boundaries by the same offset gives
+    /// the best value match at the wrap seam. The period (loopEnd - loopStart)
+    /// is kept exactly equal to <paramref name="periodSamples"/> so the loop
+    /// can't drift in timing — every iteration is the same musical length
+    /// regardless of which offset we picked. Called from the UI thread at
+    /// loop-engage time. Returns the offset in interleaved samples (always
+    /// even, frame-aligned).</summary>
+    public long FindLoopOffset(long downbeatStartSample, long periodSamples, int radiusFrames)
+    {
+        var stems = _stems;
+        if (stems is null) return 0;
+        int half = _length / 2;
+        int startFrame = (int)(downbeatStartSample / 2);
+        int periodFrames = (int)(periodSamples / 2);
+
+        var s0 = stems[0]; var s1 = stems[1]; var s2 = stems[2]; var s3 = stems[3];
+
+        float bestDiff = float.MaxValue;
+        int bestOffset = 0;
+        for (int o = -radiusFrames; o <= radiusFrames; o++)
+        {
+            int sf = startFrame + o;
+            int ef = sf + periodFrames;
+            // Need: sf > 0 (so we can read sf - 1 if needed), ef-1 in bounds.
+            if (sf < 0 || ef - 1 >= half) continue;
+
+            int startIdx = sf * 2;
+            int lastIdx  = (ef - 1) * 2;
+            float refL = s0[startIdx]     + s1[startIdx]     + s2[startIdx]     + s3[startIdx];
+            float refR = s0[startIdx + 1] + s1[startIdx + 1] + s2[startIdx + 1] + s3[startIdx + 1];
+            float l = s0[lastIdx]     + s1[lastIdx]     + s2[lastIdx]     + s3[lastIdx];
+            float r = s0[lastIdx + 1] + s1[lastIdx + 1] + s2[lastIdx + 1] + s3[lastIdx + 1];
+            float diff = MathF.Abs(l - refL) + MathF.Abs(r - refR);
+            if (diff < bestDiff) { bestDiff = diff; bestOffset = o; }
+        }
+        return (long)bestOffset * 2;
+    }
+
     // Declick on Seek. Naïve "fade in from 0" produces its OWN click at the
     // start of the fade because the previous buffer ended at some non-zero
     // value. So we remember the last output sample per channel and crossfade
@@ -158,12 +197,9 @@ public sealed class StemMixDataProvider : ISoundDataProvider
             if (produced == 0) break;
             written += produced;
 
-            // Hard wrap, no fade. Matches SuperCollider's PlayBuf UGen — the
-            // engine behind Sonic Pi and most live-looping tools — which just
-            // does `phase = sc_loop(phase, loopMax, loop)` and reads the next
-            // sample from offset 0 with zero smoothing. The loop-out is on a
-            // beat (set by DeckPlayer.EnableBeatLoop using the actual beatgrid),
-            // so the transient at the beat boundary masks the seam.
+            // Hard wrap, no fade. The seam discontinuity is small because
+            // FindLoopOffset shifts both boundaries together to a value-matched
+            // position with the rigid period preserved.
             double pos = Volatile.Read(ref _position);
             if (looping && pos >= loopEndSnap)
                 Volatile.Write(ref _position, (double)loopStartSnap);
@@ -171,10 +207,12 @@ public sealed class StemMixDataProvider : ISoundDataProvider
 
         int producedSamples = written * 2;
         if (written == 0) EndOfStreamReached?.Invoke(this, EventArgs.Empty);
-        // Apply the Seek-armed declick fade (if any) once at end-of-buffer. This
-        // is unrelated to looping — it handles jog-wheel / manual seeks where
-        // the read cursor jumps somewhere unrelated to the audio context.
+        // Seek-armed declick fade (jog wheel / manual seeks only — wrap doesn't
+        // arm this any more). Applied at end of buffer because Seek happens
+        // between buffers, so the fade always lands at the buffer start.
         ApplyFadeIn(buffer[..producedSamples]);
+        // Debug recorder: enabled by env var, no-op when off.
+        LoopDebug.Append(buffer[..producedSamples]);
         return producedSamples;
     }
 
