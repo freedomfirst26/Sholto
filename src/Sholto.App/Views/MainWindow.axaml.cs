@@ -140,6 +140,8 @@ public partial class MainWindow : Window
     private void OnThemeSubFocus         (object? sender, RoutedEventArgs e) => SetTheme(Themes.SubFocus);
     private void OnThemeTypeONegative    (object? sender, RoutedEventArgs e) => SetTheme(Themes.TypeONegative);
     private void OnThemeBirthdayMassacre (object? sender, RoutedEventArgs e) => SetTheme(Themes.BirthdayMassacre);
+    private void OnThemeBoardsOfCanada   (object? sender, RoutedEventArgs e) => SetTheme(Themes.BoardsOfCanada);
+    private void OnThemePantera          (object? sender, RoutedEventArgs e) => SetTheme(Themes.Pantera);
 
     private void SetTheme(SholtoTheme theme)
     {

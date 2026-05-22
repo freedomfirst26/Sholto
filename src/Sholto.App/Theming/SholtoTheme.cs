@@ -306,7 +306,56 @@ public static class Themes
                             OnChipForeground: B("#1B0D31"))
     );
 
+    /// <summary>Boards of Canada — faded-VHS warmth. Sepia browns, dusty
+    /// oranges, mustard yellows, parchment creams. Tomorrow's Harvest sunset
+    /// over land, washed-out Geogaddi golds — analog, nostalgic, sun-bleached.</summary>
+    public static SholtoTheme BoardsOfCanada { get; } = new(
+        Name: "Boards of Canada",
+        BgDeep:        B("#1A1208"),    // warm dark sepia
+        Surface:       B("#251A0D"),
+        SurfaceRaised: B("#2E2010"),
+        Border:        B("#4A3A22"),    // sun-aged brown
+        Primary:       B("#C77A3A"),    // Tomorrow's Harvest sunset orange
+        Accent:        B("#D4A95A"),    // mustard / dusty gold
+        AccentBg:      B("#33D4A95A"),
+        Mint:          B("#E8C088"),    // cream-amber for "alive" states
+        TextBright:    B("#E5D8C0"),    // warm cream parchment
+        TextMuted:     B("#856E50"),    // sun-bleached brown
+        PlayedFadeColor: C("#1A1208"),
+        WaveformPalette: WaveformPalette.BoardsOfCanada,
+        // BoC — warm-shifted, low saturation, the rainbow gets a sepia veil
+        // so the chips read as faded-photo-of-a-rainbow rather than neon.
+        CamelotPalette: new(HueOffset: 15, Saturation: 0.45,
+                            MajorLightness: 0.55, MinorLightness: 0.42,
+                            OnChipForeground: B("#1A1208"))
+    );
+
+    /// <summary>Pantera — Cowboys From Hell black grounds with gunmetal silver
+    /// typography and flame orange accents. Industrial, gritty, mostly
+    /// monochrome with one hot Texas-flame highlight.</summary>
+    public static SholtoTheme Pantera { get; } = new(
+        Name: "Pantera",
+        BgDeep:        B("#0A0908"),    // near-pure black
+        Surface:       B("#14110E"),
+        SurfaceRaised: B("#1A1612"),
+        Border:        B("#3A3328"),    // warm gunmetal
+        Primary:       B("#C5BFB5"),    // gunmetal silver, main UI accent
+        Accent:        B("#E84C1B"),    // flame orange for BPM display — pops out
+        AccentBg:      B("#33E84C1B"),
+        Mint:          B("#FF8E3C"),    // brighter orange for "alive" states
+        TextBright:    B("#F0EAE0"),    // warm off-white
+        TextMuted:     B("#6E6258"),    // steel gray-brown
+        PlayedFadeColor: C("#0A0908"),
+        WaveformPalette: WaveformPalette.Pantera,
+        // Pantera — warm-shifted, high saturation, dark-leaning lightness.
+        // Camelot chips run hot and a little burnt to sit alongside the
+        // flame-orange accents instead of clashing with them.
+        CamelotPalette: new(HueOffset: -10, Saturation: 0.72,
+                            MajorLightness: 0.50, MinorLightness: 0.38,
+                            OnChipForeground: B("#0A0908"))
+    );
+
     public static IReadOnlyList<SholtoTheme> All { get; } =
         [Classic, Serato, FrontLineAssembly, SilenceGroove, JeremySoule, DrabMajesty,
-         SubFocus, TypeONegative, BirthdayMassacre];
+         SubFocus, TypeONegative, BirthdayMassacre, BoardsOfCanada, Pantera];
 }

@@ -51,6 +51,8 @@
                     <MenuItem Header="Sub Focus" Click="OnThemeSubFocus"/>
                     <MenuItem Header="Type O Negative" Click="OnThemeTypeONegative"/>
                     <MenuItem Header="Birthday Massacre" Click="OnThemeBirthdayMassacre"/>
+                    <MenuItem Header="Boards of Canada" Click="OnThemeBoardsOfCanada"/>
+                    <MenuItem Header="Pantera" Click="OnThemePantera"/>
                 </MenuItem>
                 <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
