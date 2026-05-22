@@ -194,7 +194,7 @@ public sealed class WaveformControl : Control
         // OctoberRust: Type O Negative album palette — deep forest / Pantone 369 C / bone
         // Massacre:    Birthday Massacre — deep crimson / hot magenta / pale pink (all-pink family)
         // Soule:       Jeremy Soule / Skyrim — pine green / forest moss / snow white
-        // BoardsOfCanada: faded-VHS warmth — sepia brown / dusty orange / parchment cream
+        // BoardsOfCanada: dreamy 80s VHS — deep ocean teal / faded blue / pale cassette cream
         // Pantera:     Cowboys From Hell — charcoal / flame orange / bone
         var (lowColor, midColor, highColor) = palette switch
         {
@@ -206,7 +206,7 @@ public sealed class WaveformControl : Control
             WaveformPalette.OctoberRust => (new SKColor(0x2D, 0x55, 0x12), new SKColor(0x69, 0xBE, 0x28), new SKColor(0xDC, 0xE6, 0xCF)),
             WaveformPalette.Massacre    => (new SKColor(0xB0, 0x24, 0x5C), new SKColor(0xFF, 0x3D, 0x9F), new SKColor(0xFF, 0xC2, 0xDA)),
             WaveformPalette.Soule       => (new SKColor(0x2E, 0x47, 0x34), new SKColor(0x6A, 0x8F, 0x62), new SKColor(0xE8, 0xED, 0xE5)),
-            WaveformPalette.BoardsOfCanada => (new SKColor(0x5C, 0x3E, 0x1A), new SKColor(0xC7, 0x7A, 0x3A), new SKColor(0xE5, 0xD8, 0xC0)),
+            WaveformPalette.BoardsOfCanada => (new SKColor(0x2A, 0x44, 0x52), new SKColor(0x7F, 0xB6, 0xC9), new SKColor(0xDD, 0xF0, 0xF2)),
             WaveformPalette.Pantera     => (new SKColor(0x2A, 0x25, 0x20), new SKColor(0xFF, 0x6B, 0x2C), new SKColor(0xE0, 0xD8, 0xCC)),
             _                           => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
         };
@@ -301,7 +301,7 @@ public sealed class WaveformControl : Control
             WaveformPalette.OctoberRust => new SKColor(0xD8, 0xA2, 0x4F, 0xD8), // rust amber on forest/lime/bone — picks up the album title's orange
             WaveformPalette.Massacre    => new SKColor(0xFF, 0xFA, 0xF5, 0xD8), // warm white on crimson/magenta/pale-pink — bone contrast against pink family
             WaveformPalette.Soule       => new SKColor(0xD4, 0xB8, 0x6A, 0xD8), // dragon gold on pine/moss/snow — Skyrim treasure-glint against the forest greens
-            WaveformPalette.BoardsOfCanada => new SKColor(0xE8, 0xC0, 0x88, 0xD0), // warm parchment-yellow on sepia — sun-bleached BoC vintage glow
+            WaveformPalette.BoardsOfCanada => new SKColor(0xD4, 0xA8, 0x9A, 0xD0), // dusty mauve-peach on ocean/blue/cream — warm cassette-photo contrast against the cool blues
             WaveformPalette.Pantera     => new SKColor(0xC5, 0xBF, 0xB5, 0xD8), // gunmetal silver on charcoal/flame/bone — chrome contrast against the orange
             _                         => new SKColor(0xE6, 0xF0, 0xFF, 0xD8), // cool white on Rekordbox bands
         };

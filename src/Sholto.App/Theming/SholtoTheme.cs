@@ -306,28 +306,29 @@ public static class Themes
                             OnChipForeground: B("#1B0D31"))
     );
 
-    /// <summary>Boards of Canada — faded-VHS warmth. Sepia browns, dusty
-    /// oranges, mustard yellows, parchment creams. Tomorrow's Harvest sunset
-    /// over land, washed-out Geogaddi golds — analog, nostalgic, sun-bleached.</summary>
+    /// <summary>Boards of Canada — dreamy 80s VHS. Faded ocean blues, dusty
+    /// mauve warmth, pale cassette-cream highlights. The Campfire Headphase
+    /// washed-out summer-cassette vibe and the cool-blue family-photo wash
+    /// from Music Has the Right to Children. Nostalgic, hazy, analog.</summary>
     public static SholtoTheme BoardsOfCanada { get; } = new(
         Name: "Boards of Canada",
-        BgDeep:        B("#1A1208"),    // warm dark sepia
-        Surface:       B("#251A0D"),
-        SurfaceRaised: B("#2E2010"),
-        Border:        B("#4A3A22"),    // sun-aged brown
-        Primary:       B("#C77A3A"),    // Tomorrow's Harvest sunset orange
-        Accent:        B("#D4A95A"),    // mustard / dusty gold
-        AccentBg:      B("#33D4A95A"),
-        Mint:          B("#E8C088"),    // cream-amber for "alive" states
-        TextBright:    B("#E5D8C0"),    // warm cream parchment
-        TextMuted:     B("#856E50"),    // sun-bleached brown
-        PlayedFadeColor: C("#1A1208"),
+        BgDeep:        B("#0E1820"),    // dark teal-navy night
+        Surface:       B("#16242C"),
+        SurfaceRaised: B("#1D2D36"),
+        Border:        B("#32485A"),    // dusty slate-navy
+        Primary:       B("#7FB6C9"),    // faded VHS blue — signature dreamy hue
+        Accent:        B("#C4A2A2"),    // dusty mauve / cassette-photo warmth
+        AccentBg:      B("#337FB6C9"),
+        Mint:          B("#B5D5E3"),    // pale sky for "alive" states
+        TextBright:    B("#DDE5EA"),    // cream-white with blue wash
+        TextMuted:     B("#6F8590"),    // muted slate
+        PlayedFadeColor: C("#0E1820"),
         WaveformPalette: WaveformPalette.BoardsOfCanada,
-        // BoC — warm-shifted, low saturation, the rainbow gets a sepia veil
-        // so the chips read as faded-photo-of-a-rainbow rather than neon.
-        CamelotPalette: new(HueOffset: 15, Saturation: 0.45,
-                            MajorLightness: 0.55, MinorLightness: 0.42,
-                            OnChipForeground: B("#1A1208"))
+        // BoC — cool-shifted, low saturation. Rainbow reads as a sun-faded
+        // photo of itself, dreamy rather than vivid.
+        CamelotPalette: new(HueOffset: -30, Saturation: 0.42,
+                            MajorLightness: 0.58, MinorLightness: 0.46,
+                            OnChipForeground: B("#0E1820"))
     );
 
     /// <summary>Pantera — Cowboys From Hell black grounds with gunmetal silver
