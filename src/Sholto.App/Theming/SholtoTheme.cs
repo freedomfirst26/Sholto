@@ -262,7 +262,7 @@ public static class Themes
         TextBright:    B("#D8E6DC"),
         TextMuted:     B("#6A8472"),
         PlayedFadeColor: C("#050A07"),
-        WaveformPalette: WaveformPalette.Bloodmoon,
+        WaveformPalette: WaveformPalette.OctoberRust,
         // Type O Negative — green-shifted hues, low sat, dark lightness for
         // that "ritual candlelight on green velvet" mood. Bone text on chips
         // matches the band's typeface.

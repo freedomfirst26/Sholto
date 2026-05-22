@@ -15,32 +15,60 @@ public static class Beatgrid
 {
     /// <summary>Synthesize a constant-spacing downbeat grid covering the track.
     /// Returns an empty array if BPM or duration are missing — caller should
-    /// fall back to "no grid" rather than guessing.</summary>
+    /// fall back to "no grid" rather than guessing. Equivalent to
+    /// <see cref="SynthesizeFullGrid"/>.Downbeats; kept for callers that only
+    /// need the downbeats.</summary>
     public static double[] Synthesize(
         double bpm,
         double[] rawBeats,
         double[] rawDownbeats,
         double durationSec)
+        => SynthesizeFullGrid(bpm, rawBeats, rawDownbeats, durationSec).Downbeats;
+
+    /// <summary>
+    /// Synthesize both the per-beat grid and the per-bar (downbeat) grid from
+    /// the same constant-spacing math. Crucially, beats and downbeats share an
+    /// anchor + period so every Nth beat is a downbeat by construction. This
+    /// is what guarantees the waveform's small per-beat ticks line up exactly
+    /// with the tall downbeat bars — without it, the two would drift apart by
+    /// 1-2 columns whenever the synth anchor didn't fall on a raw beat.
+    /// </summary>
+    public static (double[] Beats, double[] Downbeats) SynthesizeFullGrid(
+        double bpm,
+        double[] rawBeats,
+        double[] rawDownbeats,
+        double durationSec)
     {
-        if (bpm <= 0 || durationSec <= 0) return [];
+        if (bpm <= 0 || durationSec <= 0) return ([], []);
 
         int beatsPerBar = InferBeatsPerBar(rawBeats, rawDownbeats);
-        double period = 60.0 / bpm * beatsPerBar;
-        if (period <= 0) return [];
+        double beatPeriod = 60.0 / bpm;
+        double barPeriod  = beatPeriod * beatsPerBar;
+        if (barPeriod <= 0) return ([], []);
 
-        double anchor = ComputeAnchor(rawDownbeats, period);
+        double anchor = ComputeAnchor(rawDownbeats, barPeriod);
 
-        // Walk both directions from the anchor so we don't drop a downbeat that
-        // sits before the anchor itself (anchor is in [0, period), but the
-        // densest cluster could be mid-song).
-        var result = new List<double>(capacity: (int)(durationSec / period) + 2);
+        // Anchor is in [0, barPeriod). Walk backward to the first downbeat
+        // ≥ 0 so we cover the very start of the song.
         double t0 = anchor;
-        while (t0 - period >= 0) t0 -= period;
-        for (double t = t0; t <= durationSec + period / 2; t += period)
+        while (t0 - barPeriod >= 0) t0 -= barPeriod;
+
+        var downbeats = new List<double>(capacity: (int)(durationSec / barPeriod) + 2);
+        var beats     = new List<double>(capacity: (int)(durationSec / beatPeriod) + 2);
+
+        for (double db = t0; db <= durationSec + barPeriod / 2; db += barPeriod)
         {
-            if (t >= 0) result.Add(t);
+            if (db >= 0) downbeats.Add(db);
+            // Emit beatsPerBar beats starting AT this downbeat. The first one
+            // IS the downbeat itself; the next (beatsPerBar - 1) are the
+            // intermediate beats.
+            for (int i = 0; i < beatsPerBar; i++)
+            {
+                double bt = db + i * beatPeriod;
+                if (bt >= 0 && bt <= durationSec + beatPeriod / 2) beats.Add(bt);
+            }
         }
-        return result.ToArray();
+        return (beats.ToArray(), downbeats.ToArray());
     }
 
     /// <summary>Beats-per-bar from the *mode* of beat-counts between consecutive

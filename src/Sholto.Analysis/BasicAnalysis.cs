@@ -38,17 +38,19 @@ public sealed record BasicAnalysis(
         reporter?.Running(filePath, BeatsStep);
         try
         {
-            var (bpm, beats, rawDownbeats) = await MadmomBeatAnalyzer.AnalyzeAsync(filePath, ct);
+            var (bpm, rawBeats, rawDownbeats) = await MadmomBeatAnalyzer.AnalyzeAsync(filePath, ct);
 
-            // Replace madmom's per-bar detections with a constant-spacing beatgrid
-            // derived from the song's BPM and the densest-cluster phase anchor.
-            // This is the grid the UI / sync / quantised-loops all see. Raw beats
-            // are kept untouched — they're still the input for tempo/transient work.
+            // Replace madmom's raw beat + downbeat detections with a constant-
+            // spacing beatgrid derived from the song's BPM and the densest-
+            // cluster phase anchor. Every Nth synthesized beat is a synthesized
+            // downbeat by construction — guarantees the waveform's small beat
+            // ticks always coincide with the tall downbeat bars, and gives sync
+            // / quantised-loops a single canonical grid.
             double durationSec = stereoSamples.Length / (double)Math.Max(channels, 1) / Math.Max(sampleRate, 1);
-            var downbeats = Beatgrid.Synthesize(bpm, beats, rawDownbeats, durationSec);
+            var (beats, downbeats) = Beatgrid.SynthesizeFullGrid(bpm, rawBeats, rawDownbeats, durationSec);
 
             reporter?.Complete(filePath, BeatsStep,
-                $"{bpm:F1} BPM, {downbeats.Length} downbeats (from {rawDownbeats.Length} raw)");
+                $"{bpm:F1} BPM, {downbeats.Length} downbeats / {beats.Length} beats (from {rawDownbeats.Length}/{rawBeats.Length} raw)");
             return new BasicAnalysis(peaks, bpm, beats, downbeats);
         }
         catch (Exception ex)
