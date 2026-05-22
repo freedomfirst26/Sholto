@@ -473,6 +473,34 @@ public sealed class DeckPlayer
 
         if (wasPlaying) _player.Play();
         Console.WriteLine("[DeckPlayer] switched to stem-mix playback (single player)");
+
+        // Compute per-stem waveform peaks in the background. Each
+        // WaveformPeaks.Compute is ~100-200 ms for a 4-min track; fan all four
+        // out across cores so the slowest dictates total time. Once landed,
+        // Analysis.Set fires StemPeaksReady → deck VM re-emits Peaks → waveform
+        // rebakes against the current active-stem mask.
+        var drumsSamples  = drums;
+        var vocalsSamples = vocals;
+        var bassSamples   = bass;
+        var otherSamples  = other;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                int sr = AudioFileDecoder.TargetSampleRate;
+                var pd = Task.Run(() => WaveformPeaks.Compute(drumsSamples,  channels: 2, sampleRate: sr));
+                var pv = Task.Run(() => WaveformPeaks.Compute(vocalsSamples, channels: 2, sampleRate: sr));
+                var pb = Task.Run(() => WaveformPeaks.Compute(bassSamples,   channels: 2, sampleRate: sr));
+                var po = Task.Run(() => WaveformPeaks.Compute(otherSamples,  channels: 2, sampleRate: sr));
+                Task.WaitAll(pd, pv, pb, po);
+                Analysis.Set(new StemPeaks(pd.Result, pv.Result, pb.Result, po.Result));
+                Console.WriteLine("[DeckPlayer] per-stem peaks computed");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DeckPlayer] per-stem peaks failed: {ex.Message}");
+            }
+        });
     }
 
     /// <summary>Mute/unmute one of the 3 UI groups (drums / vocals / instrumental).

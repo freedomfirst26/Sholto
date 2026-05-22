@@ -52,14 +52,16 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     {
         if (_subscribedAnalysis is not null)
         {
-            _subscribedAnalysis.BasicReady  -= OnBasicReady;
-            _subscribedAnalysis.KeyReady    -= OnKeyReady;
-            _subscribedAnalysis.StemsReady  -= OnStemsReady;
+            _subscribedAnalysis.BasicReady      -= OnBasicReady;
+            _subscribedAnalysis.KeyReady        -= OnKeyReady;
+            _subscribedAnalysis.StemsReady      -= OnStemsReady;
+            _subscribedAnalysis.StemPeaksReady  -= OnStemPeaksReady;
         }
         _subscribedAnalysis = _player.Analysis;
-        _subscribedAnalysis.BasicReady  += OnBasicReady;
-        _subscribedAnalysis.KeyReady    += OnKeyReady;
-        _subscribedAnalysis.StemsReady  += OnStemsReady;
+        _subscribedAnalysis.BasicReady      += OnBasicReady;
+        _subscribedAnalysis.KeyReady        += OnKeyReady;
+        _subscribedAnalysis.StemsReady      += OnStemsReady;
+        _subscribedAnalysis.StemPeaksReady  += OnStemPeaksReady;
     }
 
     // Each per-type handler only re-notifies the bindings that DEPEND on that
@@ -92,6 +94,9 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     private void OnStemsReady(StemPaths _) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => Notify(nameof(HasStems)));
+
+    private void OnStemPeaksReady(StemPeaks _) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => Notify(nameof(Peaks)));
 
     public DeckPlayer Player => _player;
 
@@ -183,7 +188,63 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     }
 
     public TrackAnalysis Analysis => _player.Analysis;
-    public WaveformPeaks Peaks => Analysis.Basic?.Peaks ?? WaveformPeaks.Empty;
+
+    /// <summary>
+    /// Waveform peaks for rendering. When per-stem peaks are available, returns
+    /// a merge across the currently-active stems so toggling DRMS / VOX / INST
+    /// visibly shrinks or grows the waveform. Otherwise falls back to the mixed
+    /// peaks from basic analysis.
+    /// </summary>
+    public WaveformPeaks Peaks
+    {
+        get
+        {
+            var stems = Analysis.Get<StemPeaks>();
+            if (stems is null) return Analysis.Basic?.Peaks ?? WaveformPeaks.Empty;
+            return MergeActiveStemPeaks(stems);
+        }
+    }
+
+    /// <summary>Combine per-stem peaks across the currently-active stems. At each
+    /// peak slot: take the min of Mins / max of Maxes for the outline, and the
+    /// max of each band (Low / Mid / High) for the colour gradient. Returns the
+    /// mixed peaks if nothing is active so the waveform doesn't go blank
+    /// (the user can still see the song's shape while everything's muted).</summary>
+    private WaveformPeaks MergeActiveStemPeaks(StemPeaks s)
+    {
+        // "Instrumental" maps to Bass + Other internally — same convention as
+        // StemMixDataProvider / SetStemGroup, so the audio you hear matches the
+        // waveform you see.
+        var sources = new List<WaveformPeaks>(4);
+        if (_drumsActive)        sources.Add(s.Drums);
+        if (_vocalsActive)       sources.Add(s.Vocals);
+        if (_instrumentalActive) { sources.Add(s.Bass); sources.Add(s.Other); }
+        if (sources.Count == 0)  return Analysis.Basic?.Peaks ?? WaveformPeaks.Empty;
+
+        int n = sources[0].Min.Length;
+        if (n == 0) return WaveformPeaks.Empty;
+
+        var min = new float[n];
+        var max = new float[n];
+        var lo  = new float[n];
+        var mid = new float[n];
+        var hi  = new float[n];
+        foreach (var src in sources)
+        {
+            // Defensive: every per-stem WaveformPeaks should be the same length,
+            // but guard against off-by-one truncation between decoders.
+            int len = Math.Min(n, src.Min.Length);
+            for (int i = 0; i < len; i++)
+            {
+                if (src.Min[i] < min[i]) min[i] = src.Min[i];
+                if (src.Max[i] > max[i]) max[i] = src.Max[i];
+                if (src.Low[i]  > lo[i])  lo[i]  = src.Low[i];
+                if (src.Mid[i]  > mid[i]) mid[i] = src.Mid[i];
+                if (src.High[i] > hi[i])  hi[i]  = src.High[i];
+            }
+        }
+        return new WaveformPeaks(min, max, lo, mid, hi, sources[0].SamplesPerPeak);
+    }
     public double[] BeatTimes => Analysis.Basic?.BeatTimes ?? [];
     public double[] DownbeatTimes => Analysis.Basic?.DownbeatTimes ?? [];
 
@@ -452,6 +513,13 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     {
         LoadState = DeckLoadState.Loading;
         WasMagnetAdjusted = false;  // fresh track, no magnet activity yet
+        // Reset per-stem mute state — a new track always starts with all stems
+        // active. Without this, "vocals muted" from track 1 would silently
+        // carry over to track 2 (audio resets via SwitchToStemMode, but the
+        // UI toggles would show stale state).
+        DrumsActive = true;
+        VocalsActive = true;
+        InstrumentalActive = true;
         _player.BeginLoad();
         // _player.Analysis was just replaced with a fresh instance; hook our
         // per-type event handlers onto it so the new track's analyses notify
@@ -594,12 +662,26 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             ? times[idx] : times[idx - 1];
     }
 
-    // Stem state — UI hint only for now; actual Demucs separation + per-stem mute
-    // will land later. Default ON so a freshly-loaded track shows all three filled.
+    // Stem state — controls the per-stem mute toggles AND the per-stem
+    // waveform merge. Setters Notify(Peaks) so the waveform shrinks/grows in
+    // real time as the user flips stems on and off. Default ON so a
+    // freshly-loaded track shows all three filled.
     private bool _vocalsActive = true, _instrumentalActive = true, _drumsActive = true;
-    public bool VocalsActive       { get => _vocalsActive;       set { if (_vocalsActive == value) return;       _vocalsActive = value;       Notify(); } }
-    public bool InstrumentalActive { get => _instrumentalActive; set { if (_instrumentalActive == value) return; _instrumentalActive = value; Notify(); } }
-    public bool DrumsActive        { get => _drumsActive;        set { if (_drumsActive == value) return;        _drumsActive = value;        Notify(); } }
+    public bool VocalsActive
+    {
+        get => _vocalsActive;
+        set { if (_vocalsActive == value) return; _vocalsActive = value; Notify(); Notify(nameof(Peaks)); }
+    }
+    public bool InstrumentalActive
+    {
+        get => _instrumentalActive;
+        set { if (_instrumentalActive == value) return; _instrumentalActive = value; Notify(); Notify(nameof(Peaks)); }
+    }
+    public bool DrumsActive
+    {
+        get => _drumsActive;
+        set { if (_drumsActive == value) return; _drumsActive = value; Notify(); Notify(nameof(Peaks)); }
+    }
 
     private bool _isScrubbing;
     /// <summary>True while the user is actively turning the jog wheel on this deck.

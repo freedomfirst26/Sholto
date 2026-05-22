@@ -33,6 +33,12 @@ public sealed class TrackAnalysis
     /// Listeners can then surface per-stem mute controls.</summary>
     public event Action<StemPaths>? StemsReady;
 
+    /// <summary>Fires when per-stem waveform peaks have been computed (some time
+    /// after StemsReady, since computing peaks for 4 buffers takes a moment).
+    /// The deck view model re-emits its Peaks binding so the waveform redraws
+    /// using the new per-stem-aware merge.</summary>
+    public event Action<StemPeaks>? StemPeaksReady;
+
     public IReadOnlyCollection<IAnalysis> All => _byType.Values;
 
     public T? Get<T>() where T : class, IAnalysis =>
@@ -49,9 +55,10 @@ public sealed class TrackAnalysis
         // consumers should marshal to the dispatcher themselves.
         switch (analysis)
         {
-            case BasicAnalysis b: BasicReady?.Invoke(b); break;
-            case KeyAnalysis k:   KeyReady?.Invoke(k);   break;
-            case StemPaths s:     StemsReady?.Invoke(s); break;
+            case BasicAnalysis b: BasicReady?.Invoke(b);     break;
+            case KeyAnalysis k:   KeyReady?.Invoke(k);       break;
+            case StemPaths s:     StemsReady?.Invoke(s);     break;
+            case StemPeaks p:     StemPeaksReady?.Invoke(p); break;
         }
         AnyReady?.Invoke(analysis);
     }
