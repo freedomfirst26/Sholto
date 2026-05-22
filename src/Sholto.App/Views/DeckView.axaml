@@ -8,6 +8,7 @@
 
         <Panel>
             <controls:WaveformControl Peaks="{Binding Peaks}"
+                                      GridPeaks="{Binding GridPeaks}"
                                       BeatTimes="{Binding BeatTimes}"
                                       DownbeatTimes="{Binding DownbeatTimes}"
                                       PlayPosition="{Binding PlayPosition}"

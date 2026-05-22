@@ -78,6 +78,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             Notify(nameof(BpmDisplayShort));
             Notify(nameof(EffectiveBpm));
             Notify(nameof(Peaks));
+            Notify(nameof(GridPeaks));
             Notify(nameof(BeatTimes));
             Notify(nameof(DownbeatTimes));
             Notify(nameof(CanPlay));   // unlocked once basic analysis lands
@@ -205,11 +206,17 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Always the basic mixed peaks (or Empty until basic analysis lands).
+    /// Used by <see cref="Controls.WaveformControl"/> as the time-mapping reference
+    /// so the beatgrid keeps scrolling even when every stem is muted and the
+    /// stem-coloured body has gone dark.</summary>
+    public WaveformPeaks GridPeaks => Analysis.Basic?.Peaks ?? WaveformPeaks.Empty;
+
     /// <summary>Combine per-stem peaks across the currently-active stems. At each
     /// peak slot: take the min of Mins / max of Maxes for the outline, and the
-    /// max of each band (Low / Mid / High) for the colour gradient. Returns the
-    /// mixed peaks if nothing is active so the waveform doesn't go blank
-    /// (the user can still see the song's shape while everything's muted).</summary>
+    /// max of each band (Low / Mid / High) for the colour gradient. Returns
+    /// empty peaks when nothing is active so the waveform body disappears —
+    /// matches what you hear (silence) with what you see (nothing).</summary>
     private WaveformPeaks MergeActiveStemPeaks(StemPeaks s)
     {
         // "Instrumental" maps to Bass + Other internally — same convention as
@@ -219,7 +226,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         if (_drumsActive)        sources.Add(s.Drums);
         if (_vocalsActive)       sources.Add(s.Vocals);
         if (_instrumentalActive) { sources.Add(s.Bass); sources.Add(s.Other); }
-        if (sources.Count == 0)  return Analysis.Basic?.Peaks ?? WaveformPeaks.Empty;
+        if (sources.Count == 0)  return WaveformPeaks.Empty;
 
         int n = sources[0].Min.Length;
         if (n == 0) return WaveformPeaks.Empty;

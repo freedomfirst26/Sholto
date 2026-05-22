@@ -25,6 +25,12 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<WaveformPeaks?> PeaksProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(Peaks));
 
+    /// <summary>Mixed-track peaks used purely as the time→pixel reference for the
+    /// scrolling beatgrid and live overlays. Stays populated even when every stem
+    /// is muted, so the grid keeps moving while <see cref="Peaks"/> is empty.</summary>
+    public static readonly StyledProperty<WaveformPeaks?> GridPeaksProperty =
+        AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(GridPeaks));
+
     public static readonly StyledProperty<double[]?> BeatTimesProperty =
         AvaloniaProperty.Register<WaveformControl, double[]?>(nameof(BeatTimes));
 
@@ -78,15 +84,24 @@ public sealed class WaveformControl : Control
         AffectsRender<WaveformControl>(MagneticGlowSecProperty);
         AffectsRender<WaveformControl>(IsScrubbingProperty);
         PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
-        BeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
-        DownbeatTimesProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         PaletteProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+        // Beatgrid is drawn live (not baked), so it doesn't need a rebake — just
+        // an invalidate so the next frame picks up the new ticks.
+        AffectsRender<WaveformControl>(GridPeaksProperty);
+        AffectsRender<WaveformControl>(BeatTimesProperty);
+        AffectsRender<WaveformControl>(DownbeatTimesProperty);
     }
 
     public WaveformPeaks? Peaks
     {
         get => GetValue(PeaksProperty);
         set => SetValue(PeaksProperty, value);
+    }
+
+    public WaveformPeaks? GridPeaks
+    {
+        get => GetValue(GridPeaksProperty);
+        set => SetValue(GridPeaksProperty, value);
     }
 
     public double[]? BeatTimes
@@ -156,11 +171,9 @@ public sealed class WaveformControl : Control
         _bakeCts = cts;
         var snapshot = peaks;
         var palette = Palette;
-        var beats = BeatTimes ?? [];
-        var downbeats = DownbeatTimes ?? [];
         Task.Run(() =>
         {
-            var img = BakeWaveform(snapshot, beats, downbeats, palette, cts.Token);
+            var img = BakeWaveform(snapshot, palette, cts.Token);
             if (cts.IsCancellationRequested || img is null) { img?.Dispose(); return; }
             Dispatcher.UIThread.Post(() =>
             {
@@ -173,7 +186,7 @@ public sealed class WaveformControl : Control
         });
     }
 
-    private static SKImage? BakeWaveform(WaveformPeaks peaks, double[] beatTimes, double[] downbeatTimes, WaveformPalette palette, CancellationToken ct)
+    private static SKImage? BakeWaveform(WaveformPeaks peaks, WaveformPalette palette, CancellationToken ct)
     {
         int width = peaks.Min.Length;
         if (width == 0) return null;
@@ -253,36 +266,8 @@ public sealed class WaveformControl : Control
             canvas.DrawLine(x, midY - midEdge, x, midY - highEdge, highPaint);
         }
 
-        // Beat ticks at the top edge. Real downbeats from madmom if available,
-        // otherwise fall back to "every 4th beat".
-        if (beatTimes.Length > 0)
-        {
-            using var tickPaint     = new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xC0), StrokeWidth = 1, IsAntialias = false };
-            using var downbeatPaint = new SKPaint { Color = new SKColor(0xFF, 0xCC, 0x00), StrokeWidth = 2, IsAntialias = false };
-            double secondsPerPeak = peaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
-
-            // Build a HashSet of downbeat column indices for fast lookup.
-            HashSet<int>? downbeatCols = null;
-            if (downbeatTimes.Length > 0)
-            {
-                downbeatCols = new HashSet<int>();
-                foreach (var t in downbeatTimes)
-                    downbeatCols.Add((int)Math.Round(t / secondsPerPeak));
-            }
-
-            // Non-downbeat beat ticks only — downbeats are drawn at full height in
-            // the live overlay (see BlitOperation) so they read as a fixed grid.
-            for (int i = 0; i < beatTimes.Length; i++)
-            {
-                int col = (int)Math.Round(beatTimes[i] / secondsPerPeak);
-                if (col < 0 || col >= width) continue;
-                bool downbeat = downbeatCols is not null
-                    ? downbeatCols.Contains(col)
-                    : (i % 4) == 0;
-                if (downbeat) continue;
-                canvas.DrawLine(col, 0, col, 5, tickPaint);
-            }
-        }
+        // Beat ticks + downbeat grid are drawn live in BlitOperation so they
+        // keep scrolling even when this baked body is empty (all stems muted).
 
         return surface.Snapshot();
     }
@@ -307,7 +292,7 @@ public sealed class WaveformControl : Control
         };
         // Volume/crossfader gain-line colour comes from the theme.
         var gainColor = new SKColor(GainOverlayColor.R, GainOverlayColor.G, GainOverlayColor.B, GainOverlayColor.A);
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, PlayPosition, PlaybackSpeed, GainOverlay, MagneticGlowSec, IsScrubbing, DownbeatTimes, downbeatColor, gainColor));
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, downbeatColor, gainColor));
     }
 
     private sealed class BlitOperation : ICustomDrawOperation
@@ -320,29 +305,34 @@ public sealed class WaveformControl : Control
         [ThreadStatic] private static SKPaint? _gainPaint;
         [ThreadStatic] private static SKPaint? _dbPaint;
         [ThreadStatic] private static SKPaint? _glowPaint;
+        [ThreadStatic] private static SKPaint? _beatTickPaint;
 
         private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
+        private readonly WaveformPeaks? _gridPeaks;
         private readonly double _playPosition;
         private readonly double _playbackSpeed;
         private readonly double _gain;
         private readonly double _magneticGlowSec;
         private readonly bool _isScrubbing;
+        private readonly double[]? _beats;
         private readonly double[]? _downbeats;
         private readonly SKColor _downbeatColor;
         private readonly SKColor _gainColor;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, double playPosition, double playbackSpeed, double gain, double magneticGlowSec, bool isScrubbing, double[]? downbeats, SKColor downbeatColor, SKColor gainColor)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, SKColor downbeatColor, SKColor gainColor)
         {
             Bounds = bounds;
             _image = image;
             _peaks = peaks;
+            _gridPeaks = gridPeaks;
             _playPosition = playPosition;
             // Guard: never let a runaway 0 collapse the window to zero width.
             _playbackSpeed = playbackSpeed > 0.01 ? playbackSpeed : 1.0;
             _gain = gain;
             _magneticGlowSec = magneticGlowSec;
             _isScrubbing = isScrubbing;
+            _beats = beats;
             _downbeats = downbeats;
             _downbeatColor = downbeatColor;
             _gainColor = gainColor;
@@ -409,13 +399,22 @@ public sealed class WaveformControl : Control
             _gainPaint.Color = _gainColor;
             canvas.DrawLine(0, gainY, dstW, gainY, _gainPaint);
 
+            // Time-mapping reference for every live overlay below. Prefer GridPeaks
+            // (the always-on basic peaks) so the beatgrid keeps scrolling when every
+            // stem is muted and the stem body has gone empty. Fall back to body peaks
+            // if grid peaks haven't landed yet.
+            var refPeaks = (_gridPeaks is { Min.Length: > 0 }) ? _gridPeaks
+                         : (_peaks is { Min.Length: > 0 })     ? _peaks
+                         : null;
+            double? refSecondsPerPeak = refPeaks is null ? null
+                : refPeaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
+            int refTotalPeaks = refPeaks?.Min.Length ?? 0;
+            float refCenterPeak = (float)(_playPosition * refTotalPeaks);
+
             // Full-height downbeat guides — always on. Acts as a fixed yellow grid
             // so the user can eyeball alignment between decks at a glance.
-            if (_downbeats is { Length: > 0 } && _peaks is not null && _peaks.Min.Length > 0)
+            if (_downbeats is { Length: > 0 } && refSecondsPerPeak is double dbSpp)
             {
-                double secondsPerPeak = _peaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
-                int totalPeaks = _peaks.Min.Length;
-                float centerPeak = (float)(_playPosition * totalPeaks);
                 // Vertical lines look fine without AA, and AA on N lines per frame
                 // across two decks is a real cost on Skia's CPU rasteriser.
                 _dbPaint ??= new SKPaint { StrokeWidth = 2, IsAntialias = false };
@@ -423,24 +422,47 @@ public sealed class WaveformControl : Control
                 var dbPaint = _dbPaint;
                 foreach (var t in _downbeats)
                 {
-                    float beatCol = (float)(t / secondsPerPeak);
+                    float beatCol = (float)(t / dbSpp);
                     // Same source→screen mapping as the waveform blit above: 1 screen pixel
                     // shows _playbackSpeed source peaks, so divide the peak offset by speed.
-                    float x = (float)((beatCol - centerPeak) / _playbackSpeed) + dstW / 2f;
+                    float x = (float)((beatCol - refCenterPeak) / _playbackSpeed) + dstW / 2f;
                     if (x >= -2 && x < dstW + 2)
                         canvas.DrawLine(x, 0, x, dstH, dbPaint);
                 }
             }
 
+            // Small white beat ticks along the top edge — non-downbeat beats only,
+            // downbeats already get the full-height yellow line above. Lives in
+            // the live overlay (not the baked image) so it keeps scrolling when
+            // the stem body is empty.
+            if (_beats is { Length: > 0 } && refSecondsPerPeak is double btSpp)
+            {
+                _beatTickPaint ??= new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xC0), StrokeWidth = 1, IsAntialias = false };
+                // Build a HashSet of downbeat columns once per frame — cheap relative
+                // to the per-beat hit test and avoids drawing a downbeat twice.
+                HashSet<int>? dbCols = null;
+                if (_downbeats is { Length: > 0 })
+                {
+                    dbCols = new HashSet<int>(_downbeats.Length);
+                    foreach (var t in _downbeats) dbCols.Add((int)Math.Round(t / btSpp));
+                }
+                for (int i = 0; i < _beats.Length; i++)
+                {
+                    int col = (int)Math.Round(_beats[i] / btSpp);
+                    bool isDownbeat = dbCols is not null ? dbCols.Contains(col) : (i % 4) == 0;
+                    if (isDownbeat) continue;
+                    float x = (float)((col - refCenterPeak) / _playbackSpeed) + dstW / 2f;
+                    if (x >= -2 && x < dstW + 2)
+                        canvas.DrawLine(x, 0, x, 5, _beatTickPaint);
+                }
+            }
+
             // Magnetic glow: when both decks are beat-locked-ish, paint a bright
             // green stripe at the top and bottom of the nearest beat in each deck.
-            if (_magneticGlowSec >= 0 && _peaks is not null && _peaks.Min.Length > 0)
+            if (_magneticGlowSec >= 0 && refSecondsPerPeak is double mgSpp)
             {
-                double secondsPerPeak = _peaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
-                float beatCol = (float)(_magneticGlowSec / secondsPerPeak);
-                int totalPeaks = _peaks.Min.Length;
-                float centerPeak = (float)(_playPosition * totalPeaks);
-                float x = (float)((beatCol - centerPeak) / _playbackSpeed) + dstW / 2f;
+                float beatCol = (float)(_magneticGlowSec / mgSpp);
+                float x = (float)((beatCol - refCenterPeak) / _playbackSpeed) + dstW / 2f;
                 if (x >= -2 && x < dstW + 2)
                 {
                     _glowPaint ??= new SKPaint { Color = new SKColor(0x34, 0xF0, 0x6F, 0xF0), IsAntialias = false };
