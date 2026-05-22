@@ -212,68 +212,61 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// stem-coloured body has gone dark.</summary>
     public WaveformPeaks GridPeaks => Analysis.Basic?.Peaks ?? WaveformPeaks.Empty;
 
-    /// <summary>Combine per-stem peaks across the currently-active stems. At each
-    /// peak slot: take the min of Mins / max of Maxes for the outline, and the
-    /// max of each band (Low / Mid / High) for the colour gradient. Returns
-    /// empty peaks when nothing is active so the waveform body disappears —
-    /// matches what you hear (silence) with what you see (nothing).</summary>
+    /// <summary>Stem-coloured waveform peaks. The three band fields are repurposed
+    /// from "frequency bands" to "stem amplitudes":
+    ///   Low  = Instrumental (Bass + Other) — innermost, deep-end of the bar
+    ///   Mid  = Vocals                       — middle stripe
+    ///   High = Drums                        — outermost, the transient layer
+    /// Per-slot amplitudes are the per-stem peak magnitudes (kept raw, not
+    /// per-band normalised, so the visual balance of drums vs vocals vs
+    /// instrumental at any moment is faithful). The Min/Max outline scales with
+    /// the sum of active-stem amplitudes — louder moments → taller bars.
+    /// Returns empty when nothing is active so the body disappears entirely.</summary>
     private WaveformPeaks MergeActiveStemPeaks(StemPeaks s)
     {
-        // "Instrumental" maps to Bass + Other internally — same convention as
-        // StemMixDataProvider / SetStemGroup, so the audio you hear matches the
-        // waveform you see.
-        var sources = new List<WaveformPeaks>(4);
-        if (_drumsActive)        sources.Add(s.Drums);
-        if (_vocalsActive)       sources.Add(s.Vocals);
-        if (_instrumentalActive) { sources.Add(s.Bass); sources.Add(s.Other); }
-        if (sources.Count == 0)  return WaveformPeaks.Empty;
-
-        int n = sources[0].Min.Length;
+        int n = s.Drums.Min.Length;
         if (n == 0) return WaveformPeaks.Empty;
+        if (!_drumsActive && !_vocalsActive && !_instrumentalActive) return WaveformPeaks.Empty;
 
-        var min = new float[n];
-        var max = new float[n];
-        var lo  = new float[n];
-        var mid = new float[n];
-        var hi  = new float[n];
-        foreach (var src in sources)
+        // Defensive: every per-stem WaveformPeaks should be the same length,
+        // but guard against off-by-one truncation between decoders.
+        int len = Math.Min(n, Math.Min(s.Vocals.Min.Length,
+                                       Math.Min(s.Bass.Min.Length, s.Other.Min.Length)));
+
+        var min      = new float[n];
+        var max      = new float[n];
+        var inst     = new float[n]; // → WaveformPeaks.Low
+        var vox      = new float[n]; // → WaveformPeaks.Mid
+        var drums    = new float[n]; // → WaveformPeaks.High
+
+        for (int i = 0; i < len; i++)
         {
-            // Defensive: every per-stem WaveformPeaks should be the same length,
-            // but guard against off-by-one truncation between decoders.
-            int len = Math.Min(n, src.Min.Length);
-            for (int i = 0; i < len; i++)
+            float drumA = _drumsActive
+                ? MathF.Max(MathF.Abs(s.Drums.Min[i]), MathF.Abs(s.Drums.Max[i]))
+                : 0f;
+            float voxA = _vocalsActive
+                ? MathF.Max(MathF.Abs(s.Vocals.Min[i]), MathF.Abs(s.Vocals.Max[i]))
+                : 0f;
+            float instA = 0f;
+            if (_instrumentalActive)
             {
-                if (src.Min[i] < min[i]) min[i] = src.Min[i];
-                if (src.Max[i] > max[i]) max[i] = src.Max[i];
-                if (src.Low[i]  > lo[i])  lo[i]  = src.Low[i];
-                if (src.Mid[i]  > mid[i]) mid[i] = src.Mid[i];
-                if (src.High[i] > hi[i])  hi[i]  = src.High[i];
+                float bassA  = MathF.Max(MathF.Abs(s.Bass.Min[i]),  MathF.Abs(s.Bass.Max[i]));
+                float otherA = MathF.Max(MathF.Abs(s.Other.Min[i]), MathF.Abs(s.Other.Max[i]));
+                instA = bassA + otherA;
             }
+
+            drums[i] = drumA;
+            vox[i]   = voxA;
+            inst[i]  = instA;
+
+            // Outline = sum of active-stem amplitudes. Mirrored ± so the bar grows
+            // symmetrically around the centre line, matching the basic-peaks look.
+            float total = drumA + voxA + instA;
+            min[i] = -total;
+            max[i] =  total;
         }
 
-        // Band arrays came in unnormalized (see DeckPlayer's per-stem peak compute);
-        // normalize each merged band to its own max so the rendered gradient uses
-        // the full [0,1] range across whatever stems are currently active. The
-        // outline arrays (Min/Max) stay in absolute scale — WaveformControl
-        // expects them in linear amplitude.
-        NormalizeInPlace(lo);
-        NormalizeInPlace(mid);
-        NormalizeInPlace(hi);
-
-        return new WaveformPeaks(min, max, lo, mid, hi, sources[0].SamplesPerPeak);
-    }
-
-    /// <summary>Scale an array in place so its max becomes 1.0. Inlined here
-    /// (rather than reusing WaveformPeaks.Normalize) because that helper is
-    /// private to the Analysis assembly. Trivial loop, not worth a public API.</summary>
-    private static void NormalizeInPlace(float[] arr)
-    {
-        float m = 0f;
-        for (int i = 0; i < arr.Length; i++)
-            if (arr[i] > m) m = arr[i];
-        if (m <= 0f) return;
-        float inv = 1f / m;
-        for (int i = 0; i < arr.Length; i++) arr[i] *= inv;
+        return new WaveformPeaks(min, max, inst, vox, drums, s.Drums.SamplesPerPeak);
     }
     public double[] BeatTimes => Analysis.Basic?.BeatTimes ?? [];
     public double[] DownbeatTimes => Analysis.Basic?.DownbeatTimes ?? [];

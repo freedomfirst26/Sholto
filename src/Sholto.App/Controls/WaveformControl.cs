@@ -198,6 +198,15 @@ public sealed class WaveformControl : Control
         var canvas = surface.Canvas;
         canvas.Clear(BgColor);
 
+        // The three colours map to the three band fields in WaveformPeaks. In
+        // stem mode (the common case once Demucs lands) those bands are repurposed
+        // from frequency bands to stem amplitudes — Low = Instrumental, Mid =
+        // Vocals, High = Drums (see DeckViewModel.MergeActiveStemPeaks). In the
+        // pre-stem basic-peaks path the same colours still mean low/mid/high
+        // frequency, which is consistent enough visually (deep stuff in the low
+        // colour, transient stuff in the high colour) that we don't need to swap
+        // palettes between modes.
+        //
         // Bands: authentic Rekordbox — blue / white / yellow
         // Hot:    Serato — red / green / blue
         // Plasma: Sholto 2026 — violet / hot-pink / mint
