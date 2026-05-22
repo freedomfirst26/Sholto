@@ -140,13 +140,16 @@ public partial class App : Application
             {
                 // We *have* a saved music dir but it isn't reachable right now —
                 // most likely an unmounted external drive. Don't clobber the saved
-                // setting or pester the user with a picker; just skip the scan.
+                // setting or pester the user with a picker; surface a banner in
+                // the UI so the user knows what happened and can re-pick if they
+                // want to.
                 Console.WriteLine($"[Library] saved music dir not reachable: {musicDir} — skipping scan");
+                await Dispatcher.UIThread.InvokeAsync(() => vm.Library.UnreachablePath = musicDir);
                 return;
             }
 
             if (string.IsNullOrEmpty(musicDir)) return;  // user cancelled — nothing to scan
-            await ScanLibraryAsync(vm, musicDir);
+            await vm.Library.ScanAsync(musicDir, _db);
         });
 
         // Pick audio output device (prompt user on first run or if saved device is gone)
@@ -380,36 +383,11 @@ public partial class App : Application
         return uri.IsFile ? uri.LocalPath : uri.ToString();
     }
 
-    /// <summary>Run a full library scan from <paramref name="musicDir"/> and hydrate
-    /// the view-model with tracks, BPMs from cache, and stem-on-disk state.</summary>
-    private async Task ScanLibraryAsync(ViewModels.MainViewModel vm, string musicDir)
-    {
-        Console.WriteLine($"[Library] scanning {musicDir}");
-        var tracks = await TrackScanner.ScanAsync(musicDir);
-
-        Dictionary<string, double>? cachedBpms = null;
-        Dictionary<string, double>? cachedMults = null;
-        Dictionary<string, string>? cachedKeys = null;
-        if (_db is not null)
-        {
-            foreach (var t in tracks) await _db.UpsertTrackAsync(t);
-            cachedBpms = await _db.GetAllBpmsAsync();
-            cachedMults = await _db.GetAllBpmMultipliersAsync();
-            cachedKeys = await _db.GetAllKeysAsync();
-        }
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            vm.Tracks.Clear();
-            foreach (var t in tracks) vm.Tracks.Add(new TrackRow(t));
-            if (cachedBpms is not null) vm.SetKnownBpms(cachedBpms);
-            if (cachedMults is not null) vm.SetKnownBpmMultipliers(cachedMults);
-            if (cachedKeys is not null) vm.SetKnownKeys(cachedKeys);
-        });
-        await vm.HydrateStemStateAsync();
-    }
-
     /// <summary>Menu entry point: prompt for a new music folder, persist it,
-    /// then re-scan. No-ops if the user cancels.</summary>
+    /// then re-scan. No-ops if the user cancels.
+    /// Note: re-scans even if the user picks the same folder that's already
+    /// saved — important for the banner re-pick flow, where confirming the
+    /// same path (after the drive re-mounts) should reload the library.</summary>
     public async Task ChangeMusicDirAsync(Avalonia.Controls.Window owner)
     {
         if (_vm is null) return;
@@ -417,13 +395,9 @@ public partial class App : Application
         if (string.IsNullOrEmpty(picked)) return;
 
         var db = await _dbReady.Task;
-        if (db is not null)
-        {
-            if (picked == await db.GetSettingAsync(SettingsKeys.MusicDir)) return;
-            await db.SetSettingAsync(SettingsKeys.MusicDir, picked);
-        }
+        if (db is not null) await db.SetSettingAsync(SettingsKeys.MusicDir, picked);
 
-        await ScanLibraryAsync(_vm, picked);
+        await _vm.Library.ScanAsync(picked, db);
     }
 
     public async Task ChangeOutputDeviceAsync(Avalonia.Controls.Window owner)

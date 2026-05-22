@@ -85,6 +85,39 @@
                            Margin="8,8" VerticalAlignment="Center"/>
             </Grid>
 
+            <!-- Library-unreachable banner. Pops in when a music dir is saved but
+                 the path doesn't exist on disk right now (typical cause: the
+                 external drive that holds the user's library wasn't mounted at
+                 app launch). Banner offers a "Choose folder…" button that runs
+                 the same picker as the View menu's "Change Music Folder…" entry.
+                 Sits in Row 1 so it overlays the empty track-list area; hidden
+                 once a successful scan completes. -->
+            <Border Grid.Row="1"
+                    IsVisible="{Binding LibraryUnreachableVisible}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="{DynamicResource SholtoSurfaceRaised}"
+                    BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1"
+                    CornerRadius="8" Padding="20,16" MaxWidth="520">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Music library not reachable"
+                               Foreground="{DynamicResource SholtoAccent}"
+                               FontWeight="Bold" FontSize="15"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding LibraryUnreachablePath}"
+                               Foreground="{DynamicResource SholtoTextBright}"
+                               FontFamily="monospace" FontSize="12"
+                               TextWrapping="Wrap" HorizontalAlignment="Center"/>
+                    <TextBlock Text="The saved path doesn't exist right now — usually because an external drive hasn't mounted yet. Mount the drive and relaunch, or pick a different folder."
+                               Foreground="{DynamicResource SholtoTextMuted}"
+                               FontSize="12"
+                               TextWrapping="Wrap" HorizontalAlignment="Center"
+                               MaxWidth="460"/>
+                    <Button Content="Choose folder…"
+                            Click="OnMusicFolderClick"
+                            HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
             <ListBox Grid.Row="1"
                      Name="TrackList"
                      ItemsSource="{Binding Tracks}"
@@ -182,7 +215,7 @@
                                     </Style>
                                 </Border.Styles>
                                 <TextBlock Text="{Binding Key}"
-                                           Foreground="{DynamicResource SholtoChipForeground}"
+                                           Foreground="White"
                                            FontWeight="Bold" FontSize="12"/>
                             </Border>
                             <TextBlock Grid.Column="5" Text="{Binding DurationDisplay}"

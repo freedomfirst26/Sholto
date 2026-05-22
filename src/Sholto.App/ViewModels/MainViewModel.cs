@@ -17,7 +17,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public ObservableCollection<TrackRow> Tracks { get; } = [];
+    /// <summary>The user's music library — owns track rows and scan logic.
+    /// MainViewModel observes its <see cref="MusicLibrary.Scanned"/> event to
+    /// hook in cross-deck concerns (refresh harmony reference, hydrate stems).</summary>
+    public MusicLibrary Library { get; } = new();
+
+    /// <summary>Proxy through to <see cref="Library"/>.Tracks so existing XAML
+    /// bindings keep working without churn.</summary>
+    public ObservableCollection<TrackRow> Tracks => Library.Tracks;
 
     /// <summary>Per-app-run session state — which tracks have been loaded into a
     /// deck so the library can italicise them. Owned here because both decks
@@ -41,11 +48,42 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
     public bool DebugStatsVisible => !string.IsNullOrEmpty(_debugStats);
 
+    /// <summary>Proxies for the unreachable-banner XAML bindings. The real state
+    /// lives on <see cref="Library"/>; we re-emit the PropertyChanged here so
+    /// existing bindings on the MainViewModel didn't need to change paths.</summary>
+    public string? LibraryUnreachablePath
+    {
+        get => Library.UnreachablePath;
+        set => Library.UnreachablePath = value;
+    }
+    public bool LibraryUnreachableVisible => Library.IsUnreachable;
+
     public MainViewModel()
     {
         // Make the initial theme visible to anything that reads ThemeContext
         // before the user picks a different theme.
         ThemeContext.Current = _theme;
+
+        // Re-emit Library's PropertyChanged for the proxied banner properties
+        // so XAML bindings on the MainViewModel light up without each control
+        // having to subscribe to Library directly.
+        Library.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MusicLibrary.UnreachablePath))
+            {
+                Notify(nameof(LibraryUnreachablePath));
+                Notify(nameof(LibraryUnreachableVisible));
+            }
+        };
+        // After every scan: refresh the harmony reference and walk the new rows
+        // to see which already have stems on disk. Same cross-deck wiring as
+        // before, just hung off the typed event instead of inlined in App.axaml.cs.
+        Library.Scanned += scannedPath => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            RefreshHarmonyReference();
+            _ = HydrateStemStateAsync();
+        });
+
         Deck1 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
         Deck2 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
         Deck1.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
