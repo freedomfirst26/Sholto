@@ -291,7 +291,7 @@ public static class Themes
         TextBright:    B("#F4EBF1"),   // clean off-white with faint pink wash
         TextMuted:     B("#836B89"),
         PlayedFadeColor: C("#07020A"),
-        WaveformPalette: WaveformPalette.Plasma,
+        WaveformPalette: WaveformPalette.Massacre,
         // Birthday Massacre — magenta-shifted. HueOffset 280 puts the rainbow's
         // 0° anchor in the red-magenta range so the closest Camelot keys lean
         // pink instead of fighting the theme's signature colour.

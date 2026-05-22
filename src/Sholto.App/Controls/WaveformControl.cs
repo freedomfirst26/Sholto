@@ -10,7 +10,7 @@ using SkiaSharp;
 
 namespace Sholto.App.Controls;
 
-public enum WaveformPalette { Bands, Hot, Plasma, Smoke, Glacier, Bloodmoon, OctoberRust }
+public enum WaveformPalette { Bands, Hot, Plasma, Smoke, Glacier, Bloodmoon, OctoberRust, Massacre }
 
 /// <summary>
 /// Pre-renders the entire waveform to an offscreen SKImage at track load,
@@ -192,6 +192,7 @@ public sealed class WaveformControl : Control
         // Glacier: nordic — slate-blue / frost-white / aurora-violet
         // Bloodmoon: dramatic — blood / amber / bone
         // OctoberRust: Type O Negative album palette — deep forest / electric lime / bone
+        // Massacre:    Birthday Massacre — deep crimson / hot magenta / pale pink (all-pink family)
         var (lowColor, midColor, highColor) = palette switch
         {
             WaveformPalette.Hot         => (new SKColor(0xFF, 0x3D, 0x3D), new SKColor(0x3D, 0xFF, 0x7A), new SKColor(0x3D, 0x8B, 0xFF)),
@@ -200,6 +201,7 @@ public sealed class WaveformControl : Control
             WaveformPalette.Glacier     => (new SKColor(0x4C, 0x6B, 0x8A), new SKColor(0xEC, 0xF0, 0xF6), new SKColor(0xB4, 0x8E, 0xAD)),
             WaveformPalette.Bloodmoon   => (new SKColor(0xC8, 0x32, 0x4D), new SKColor(0xE8, 0xA5, 0x4B), new SKColor(0xF5, 0xE6, 0xD8)),
             WaveformPalette.OctoberRust => (new SKColor(0x1F, 0x4A, 0x2A), new SKColor(0x62, 0xFF, 0x8E), new SKColor(0xDC, 0xD0, 0xB6)),
+            WaveformPalette.Massacre    => (new SKColor(0xB0, 0x24, 0x5C), new SKColor(0xFF, 0x3D, 0x9F), new SKColor(0xFF, 0xC2, 0xDA)),
             _                           => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
         };
         using var lowPaint  = new SKPaint { Color = lowColor, StrokeWidth = 1, IsAntialias = false };
@@ -291,6 +293,7 @@ public sealed class WaveformControl : Control
             WaveformPalette.Glacier   => new SKColor(0xA3, 0xBE, 0x8C, 0xD0), // sage on slate/frost/violet
             WaveformPalette.Bloodmoon => new SKColor(0xF5, 0xE6, 0xD8, 0xD8), // bone on blood/amber/bone
             WaveformPalette.OctoberRust => new SKColor(0xD8, 0xA2, 0x4F, 0xD8), // rust amber on forest/lime/bone — picks up the album title's orange
+            WaveformPalette.Massacre    => new SKColor(0xFF, 0xFA, 0xF5, 0xD8), // warm white on crimson/magenta/pale-pink — bone contrast against pink family
             _                         => new SKColor(0xE6, 0xF0, 0xFF, 0xD8), // cool white on Rekordbox bands
         };
         // Volume/crossfader gain-line colour comes from the theme.
