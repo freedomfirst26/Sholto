@@ -292,7 +292,7 @@ public partial class App : Application
                         break;
                     }
                     case ControllerEvent.BeatLoopToggle bl:
-                        vm.DeckFor(bl.Deck).Player.EnableBeatLoop(bl.Beats);
+                        vm.DeckFor(bl.Deck).Player.EnableBeatLoop(bl.Bars);
                         break;
                     case ControllerEvent.BeatLoopHalve bh:
                         vm.DeckFor(bh.Deck).Player.HalveLoop();
@@ -302,6 +302,11 @@ public partial class App : Application
                         break;
                     case ControllerEvent.JogRotated j:
                     {
+                        // Loop is locked: the jog wheel is ignored entirely while a
+                        // loop is active. Otherwise scrubbing could pull the playhead
+                        // outside the loop region and break the wrap.
+                        if (vm.DeckFor(j.Deck).Player.ActiveLoop is not null) break;
+
                         // Accumulate the jog delta; the 60 Hz timer below flushes it
                         // into a single Seek per frame. Each Seek causes SoundFlow to
                         // flush its audio buffer; firing one per event (the wheel sends

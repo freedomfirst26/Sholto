@@ -551,30 +551,46 @@ public sealed class DeckPlayer
     /// is the new region or null on exit.</summary>
     public event Action<LoopRegion?>? LoopChanged;
 
-    /// <summary>Engage an N-beat auto-loop snapped to the nearest beat. If a
-    /// loop is already active this toggles it off (matches the FLX-4's 4 BEAT
-    /// button's "press again to exit" behaviour). No-op if the beatgrid hasn't
-    /// landed yet.</summary>
-    public void EnableBeatLoop(int beats)
+    /// <summary>Engage an N-bar auto-loop snapped to the nearest downbeat. If
+    /// a loop is already active this toggles it off (matches the FLX-4's 4
+    /// BEAT button's "press again to exit" behaviour). No-op if the beatgrid
+    /// hasn't landed yet.
+    /// <para>The button is labelled "4 BEAT" on the controller but in practice
+    /// — confirmed with the user's workflow — we treat the parameter as BARS,
+    /// not beats. Default 4 = a 4-bar loop, which is the musically useful
+    /// scale for DJing (it's a phrase, not just a beat).</para></summary>
+    public void EnableBeatLoop(int bars)
     {
         if (_activeLoop is not null) { ExitLoop(); return; }
         if (_stemProvider is null) { Console.WriteLine("[DeckPlayer] loop: stems not loaded — ignored"); return; }
-        var beatTimes = Analysis.Basic?.BeatTimes;
-        if (beatTimes is null || beatTimes.Length < 2)
+        var downbeats = Analysis.Basic?.DownbeatTimes;
+        if (downbeats is null || downbeats.Length < 2)
         {
-            Console.WriteLine("[DeckPlayer] loop: beatgrid not ready — ignored");
+            Console.WriteLine("[DeckPlayer] loop: downbeat grid not ready — ignored");
             return;
         }
 
-        // Loop length comes from the median beat interval (robust against
-        // missing/extra beats from madmom near transitions). Median over the
-        // first ~16 beats is plenty.
-        double secPerBeat = MedianBeatInterval(beatTimes);
-        if (secPerBeat <= 0) return;
-
         double nowSec = PositionFrames / (double)AudioFileDecoder.TargetSampleRate;
-        double inSec = NearestBeat(beatTimes, nowSec);
-        double outSec = inSec + beats * secPerBeat;
+        int inIdx = NearestBeatIndex(downbeats, nowSec);
+        double inSec = downbeats[inIdx];
+
+        // Loop-out is N downbeats later from the actual grid, so the seam falls
+        // on a real downbeat transient (the kick of the next phrase). No
+        // crossfade needed — the transient masks any sample discontinuity.
+        double outSec;
+        int outIdx = inIdx + bars;
+        if (outIdx < downbeats.Length)
+        {
+            outSec = downbeats[outIdx];
+        }
+        else
+        {
+            // Downbeat grid doesn't reach far enough — fall back to median bar
+            // interval. Happens near track end or for very long loops.
+            double secPerBar = MedianBeatInterval(downbeats);
+            if (secPerBar <= 0) return;
+            outSec = inSec + bars * secPerBar;
+        }
 
         long inSample = SecondsToInterleavedSample(inSec);
         long outSample = SecondsToInterleavedSample(outSec);
@@ -590,7 +606,7 @@ public sealed class DeckPlayer
         var region = new LoopRegion(inSample, outSample);
         _activeLoop = region;
         _stemProvider.SetLoop(region);
-        Console.WriteLine($"[DeckPlayer] loop ON: {beats} beats, {inSec:F3}s → {outSec:F3}s");
+        Console.WriteLine($"[DeckPlayer] loop ON: {bars} bars, {inSec:F3}s → {outSec:F3}s");
         LoopChanged?.Invoke(region);
     }
 
@@ -646,16 +662,16 @@ public sealed class DeckPlayer
         return s & ~1L;
     }
 
-    private static double NearestBeat(double[] beatTimes, double pos)
+    private static int NearestBeatIndex(double[] beatTimes, double pos)
     {
         // Linear scan is fine — beat counts are O(few hundred). Binary search
         // would shave microseconds nobody will feel.
-        double best = beatTimes[0];
+        int best = 0;
         double bestDelta = Math.Abs(beatTimes[0] - pos);
         for (int i = 1; i < beatTimes.Length; i++)
         {
             double d = Math.Abs(beatTimes[i] - pos);
-            if (d < bestDelta) { best = beatTimes[i]; bestDelta = d; }
+            if (d < bestDelta) { best = i; bestDelta = d; }
         }
         return best;
     }

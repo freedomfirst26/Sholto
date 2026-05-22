@@ -282,11 +282,14 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             vox[i]   = voxA;
             inst[i]  = instA;
 
-            // Outline = sum of active-stem amplitudes. Mirrored ± so the bar grows
-            // symmetrically around the centre line, matching the basic-peaks look.
-            float total = drumA + voxA + instA;
-            min[i] = -total;
-            max[i] =  total;
+            // Outline = max of active-stem amplitudes (not sum). Each stem peak
+            // is ≤ 1.0 from the analysis, so the bar is guaranteed to fit
+            // inside the deck — no second-pass normalization needed. Segments
+            // still stack proportionally inside the outline, so the colour
+            // balance still reflects "drums vs vocals vs instrumental".
+            float peak = MathF.Max(drumA, MathF.Max(voxA, instA));
+            min[i] = -peak;
+            max[i] =  peak;
         }
 
         return new WaveformPeaks(min, max, inst, vox, drums, s.Drums.SamplesPerPeak);

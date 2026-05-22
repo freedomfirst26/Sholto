@@ -464,6 +464,18 @@ public sealed class WaveformControl : Control
                     _loopPaint ??= new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = false };
                     _loopPaint.Color = _loopColor;
                     canvas.DrawRect(x0, 0, x1 - x0, dstH, _loopPaint);
+
+                    // Bright edge stripes at loop-in and loop-out — full-opacity
+                    // accent so the region reads as a clearly bounded box rather
+                    // than a vague tint. Only draws the edge if it's actually
+                    // on-screen (clipped sides skip it).
+                    var edgeColor = new SKColor(_loopColor.Red, _loopColor.Green, _loopColor.Blue, 0xFF);
+                    _loopPaint.Color = edgeColor;
+                    _loopPaint.Style = SKPaintStyle.Stroke;
+                    _loopPaint.StrokeWidth = 2;
+                    if (xStart >= 0)     canvas.DrawLine(xStart, 0, xStart, dstH, _loopPaint);
+                    if (xEnd   <= dstW)  canvas.DrawLine(xEnd,   0, xEnd,   dstH, _loopPaint);
+                    _loopPaint.Style = SKPaintStyle.Fill; // restore for next frame
                 }
             }
 

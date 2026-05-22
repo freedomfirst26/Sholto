@@ -35,10 +35,12 @@ public abstract record ControllerEvent
     /// pitch range (±6 / ±10 / ±16 / wide).</summary>
     public record TempoMoved(int Deck, double Position) : ControllerEvent;
 
-    /// <summary>FLX-4 4 BEAT / EXIT button. Toggles an N-beat auto-loop on the
-    /// deck — first press engages, second press exits. <paramref name="Beats"/>
-    /// is the loop length in beats (4 on the FLX-4).</summary>
-    public record BeatLoopToggle(int Deck, int Beats) : ControllerEvent;
+    /// <summary>FLX-4 4 BEAT / EXIT button. Toggles an N-bar auto-loop on the
+    /// deck — first press engages (snapping in to the nearest downbeat),
+    /// second press exits. The Pioneer button is labelled "4 BEAT" but in
+    /// practice it acts as a 4-bar loop (one musical phrase), which is the
+    /// useful scale for DJing.</summary>
+    public record BeatLoopToggle(int Deck, int Bars) : ControllerEvent;
 
     /// <summary>FLX-4 ½× button. Halves the active loop's length (loop-in stays).</summary>
     public record BeatLoopHalve(int Deck) : ControllerEvent;

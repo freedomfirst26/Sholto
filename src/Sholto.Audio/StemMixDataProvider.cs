@@ -151,24 +151,29 @@ public sealed class StemMixDataProvider : ISoundDataProvider
         // common one and must be sample-accurate).
         while (written < outFrames)
         {
-            int produced = ReadChunk(buffer.Slice(written * 2),
+            int sampleOffset = written * 2;
+            int produced = ReadChunk(buffer.Slice(sampleOffset),
                 outFrames - written, speed, g0, g1, g2, g3,
                 stems, looping, loopStartSnap, loopEndSnap);
             if (produced == 0) break;
             written += produced;
 
-            // Did we land exactly on (or past) the loop-out? Wrap.
+            // Hard wrap, no fade. Matches SuperCollider's PlayBuf UGen — the
+            // engine behind Sonic Pi and most live-looping tools — which just
+            // does `phase = sc_loop(phase, loopMax, loop)` and reads the next
+            // sample from offset 0 with zero smoothing. The loop-out is on a
+            // beat (set by DeckPlayer.EnableBeatLoop using the actual beatgrid),
+            // so the transient at the beat boundary masks the seam.
             double pos = Volatile.Read(ref _position);
             if (looping && pos >= loopEndSnap)
-            {
                 Volatile.Write(ref _position, (double)loopStartSnap);
-                // Cross-fade across the seam so the discontinuity doesn't click.
-                Volatile.Write(ref _fadeRemaining, FadeFrames);
-            }
         }
 
         int producedSamples = written * 2;
         if (written == 0) EndOfStreamReached?.Invoke(this, EventArgs.Empty);
+        // Apply the Seek-armed declick fade (if any) once at end-of-buffer. This
+        // is unrelated to looping — it handles jog-wheel / manual seeks where
+        // the read cursor jumps somewhere unrelated to the audio context.
         ApplyFadeIn(buffer[..producedSamples]);
         return producedSamples;
     }
