@@ -17,6 +17,9 @@
                                       GainOverlayColor="{Binding $parent[Window].DataContext.Theme.MintColor}"
                                       MagneticGlowSec="{Binding MagneticGlowSec}"
                                       IsScrubbing="{Binding IsScrubbing}"
+                                      LoopStartSec="{Binding LoopStartSec}"
+                                      LoopEndSec="{Binding LoopEndSec}"
+                                      LoopColor="{Binding $parent[Window].DataContext.Theme.LoopBandColor}"
                                       Palette="{Binding $parent[Window].DataContext.WaveformPalette}"/>
 
             <!-- Fade-to-background over the played half. -->

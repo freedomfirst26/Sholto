@@ -42,6 +42,15 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             (10, 0x31) => new ControllerEvent.StemToggle(Deck: 1, Group: 1),
             (10, 0x32) => new ControllerEvent.StemToggle(Deck: 1, Group: 2),
 
+            // Beat-loop trio: 4 BEAT / EXIT, ½×, 2×. Channel 1 = deck 0, channel
+            // 2 = deck 1 on the FLX-4 (confirmed via raw MIDI capture).
+            (1,  0x4D) => new ControllerEvent.BeatLoopToggle(Deck: 0, Beats: 4),
+            (1,  0x51) => new ControllerEvent.BeatLoopHalve(Deck: 0),
+            (1,  0x53) => new ControllerEvent.BeatLoopDouble(Deck: 0),
+            (2,  0x4D) => new ControllerEvent.BeatLoopToggle(Deck: 1, Beats: 4),
+            (2,  0x51) => new ControllerEvent.BeatLoopHalve(Deck: 1),
+            (2,  0x53) => new ControllerEvent.BeatLoopDouble(Deck: 1),
+
             _ => null,
         };
     }

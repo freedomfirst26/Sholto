@@ -46,6 +46,18 @@ public sealed record SholtoTheme(
     public Color MintColor =>
         (Mint as SolidColorBrush)?.Color ?? Color.FromArgb(0xC0, 0x34, 0xF0, 0xC6);
 
+    /// <summary>Translucent variant of <see cref="Accent"/> used as the active
+    /// loop band over the waveform. Alpha 0x55 (~33 %) lets the beatgrid and
+    /// waveform read through clearly while still flagging the looped region.</summary>
+    public Color LoopBandColor
+    {
+        get
+        {
+            var c = (Accent as SolidColorBrush)?.Color ?? Color.FromArgb(0xFF, 0xFF, 0xC7, 0x00);
+            return Color.FromArgb(0x55, c.R, c.G, c.B);
+        }
+    }
+
     /// <summary>Album-art radial gradient using the theme's primary + accent.</summary>
     public IBrush AlbumArtBrush
     {

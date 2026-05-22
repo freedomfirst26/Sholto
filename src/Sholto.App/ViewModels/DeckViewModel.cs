@@ -40,7 +40,30 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     {
         _player = player;
         RebindAnalysisSubscription();
+        _player.LoopChanged += OnLoopChanged;
     }
+
+    private void OnLoopChanged(LoopRegion? _) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            Notify(nameof(IsLooping));
+            Notify(nameof(LoopStartSec));
+            Notify(nameof(LoopEndSec));
+        });
+
+    /// <summary>True while a beat-loop is engaged on this deck.</summary>
+    public bool IsLooping => _player.ActiveLoop is not null;
+
+    /// <summary>Loop-in point in seconds, or null when not looping. Bound to
+    /// the waveform's loop band overlay.</summary>
+    public double? LoopStartSec => _player.ActiveLoop is { } r
+        ? r.StartSample / 2.0 / AudioFileDecoder.TargetSampleRate
+        : null;
+
+    /// <summary>Loop-out point in seconds, or null when not looping.</summary>
+    public double? LoopEndSec => _player.ActiveLoop is { } r
+        ? r.EndSample / 2.0 / AudioFileDecoder.TargetSampleRate
+        : null;
 
     /// <summary>(Re)subscribe to per-type events on <c>_player.Analysis</c>.
     /// Called at construction time and again after each <see cref="BeginLoad"/>,

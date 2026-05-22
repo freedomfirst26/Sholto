@@ -46,6 +46,37 @@ public sealed class StemMixDataProvider : ISoundDataProvider
     private float _speed = 1f;
     public void SetSpeed(float speed) => Volatile.Write(ref _speed, MathF.Max(0.01f, speed));
 
+    // Active loop region in interleaved-sample units. Read lock-free per buffer
+    // by the audio thread (one volatile pair, no allocation). null on the
+    // managed side maps to long.MinValue here so we can encode "no loop" without
+    // boxing a Nullable struct.
+    private long _loopStart = long.MinValue;
+    private long _loopEnd   = long.MinValue;
+    public void SetLoop(LoopRegion? loop)
+    {
+        if (loop is null)
+        {
+            Volatile.Write(ref _loopEnd, long.MinValue);
+            Volatile.Write(ref _loopStart, long.MinValue);
+            return;
+        }
+        // Order matters: clear End first when disabling so the audio thread
+        // never sees a half-updated region. When enabling, write Start first
+        // for the same reason — the read side checks End != MinValue last.
+        var r = loop.Value;
+        Volatile.Write(ref _loopStart, r.StartSample);
+        Volatile.Write(ref _loopEnd,   r.EndSample);
+    }
+    public LoopRegion? ActiveLoop
+    {
+        get
+        {
+            long end = Volatile.Read(ref _loopEnd);
+            if (end == long.MinValue) return null;
+            return new LoopRegion(Volatile.Read(ref _loopStart), end);
+        }
+    }
+
     // Declick on Seek. Naïve "fade in from 0" produces its OWN click at the
     // start of the fade because the previous buffer ended at some non-zero
     // value. So we remember the last output sample per channel and crossfade
@@ -94,61 +125,111 @@ public sealed class StemMixDataProvider : ISoundDataProvider
 
     public int ReadBytes(Span<float> buffer)
     {
-        // Snapshot speed + gains once per buffer.
+        // Snapshot speed + gains + loop once per buffer.
         float speed = Volatile.Read(ref _speed);
         float g0 = Volatile.Read(ref _g0);
         float g1 = Volatile.Read(ref _g1);
         float g2 = Volatile.Read(ref _g2);
         float g3 = Volatile.Read(ref _g3);
+        long loopEndSnap   = Volatile.Read(ref _loopEnd);
+        long loopStartSnap = Volatile.Read(ref _loopStart);
+        bool looping = loopEndSnap != long.MinValue && loopEndSnap > loopStartSnap;
 
-        double pos = Volatile.Read(ref _position);
         // Dispose may have nulled _stems out from under us between buffers.
-        // In that case the provider is dead and ReadBytes should yield silence;
-        // the SoundPlayer is being torn down anyway.
         var stems = _stems;
         if (stems is null) return 0;
+
+        int outFrames = buffer.Length / 2;
+        int written = 0;
+
+        // Chunked outer loop: each iteration fills up to the next "must stop"
+        // boundary — either the loop-end (if looping) or end-of-track — then
+        // wraps or breaks. A single buffer can survive any number of wraps,
+        // which matters for very short loops (e.g. an ⅛-beat loop at 174 BPM
+        // is ~115 ms, smaller than a typical 50 ms audio buffer? not usually,
+        // but the boundary case where a buffer crosses the wrap once is the
+        // common one and must be sample-accurate).
+        while (written < outFrames)
+        {
+            int produced = ReadChunk(buffer.Slice(written * 2),
+                outFrames - written, speed, g0, g1, g2, g3,
+                stems, looping, loopStartSnap, loopEndSnap);
+            if (produced == 0) break;
+            written += produced;
+
+            // Did we land exactly on (or past) the loop-out? Wrap.
+            double pos = Volatile.Read(ref _position);
+            if (looping && pos >= loopEndSnap)
+            {
+                Volatile.Write(ref _position, (double)loopStartSnap);
+                // Cross-fade across the seam so the discontinuity doesn't click.
+                Volatile.Write(ref _fadeRemaining, FadeFrames);
+            }
+        }
+
+        int producedSamples = written * 2;
+        if (written == 0) EndOfStreamReached?.Invoke(this, EventArgs.Empty);
+        ApplyFadeIn(buffer[..producedSamples]);
+        return producedSamples;
+    }
+
+    /// <summary>Fill up to <paramref name="maxFrames"/> output frames, stopping
+    /// at end-of-track or — when looping — at loop-out. Returns frames written.
+    /// Position is advanced; the caller decides whether to wrap or break based
+    /// on where Position landed.</summary>
+    private int ReadChunk(Span<float> outBuf, int maxFrames, float speed,
+        float g0, float g1, float g2, float g3,
+        float[][] stems, bool looping, long loopStart, long loopEnd)
+    {
         var s0 = stems[0];
         var s1 = stems[1];
         var s2 = stems[2];
         var s3 = stems[3];
 
-        int outFrames = buffer.Length / 2;       // stereo
+        double pos = Volatile.Read(ref _position);
         int maxSrcFrame = (_length / 2) - 2;     // need room for [n] and [n+1] interp
 
-        // Unity-speed fast path: integer step, no interpolation. This is the
-        // common case (tempo fader centred) — keep it as fast as the old code.
         if (speed == 1f)
         {
             int ipos = (int)pos & ~1;            // align to a frame boundary
-            int framesAvailable = (_length - ipos) / 2;
-            int frames = Math.Min(outFrames, framesAvailable);
-            if (frames <= 0) { EndOfStreamReached?.Invoke(this, EventArgs.Empty); return 0; }
+            // Source end for this chunk: loop-out (if looping and we're inside
+            // the loop) wins over end-of-track. Outside the loop region, ignore
+            // loop bounds — the user might have seeked away and we shouldn't
+            // teleport them back.
+            int chunkEnd = _length;
+            if (looping && ipos < loopEnd && ipos >= loopStart)
+                chunkEnd = (int)Math.Min(loopEnd, _length);
+            int framesAvailable = (chunkEnd - ipos) / 2;
+            int frames = Math.Min(maxFrames, framesAvailable);
+            if (frames <= 0) return 0;
 
             int samples = frames * 2;
             if (g0 == 1f && g1 == 1f && g2 == 1f && g3 == 1f)
             {
                 for (int i = 0; i < samples; i++)
-                    buffer[i] = s0[ipos + i] + s1[ipos + i] + s2[ipos + i] + s3[ipos + i];
+                    outBuf[i] = s0[ipos + i] + s1[ipos + i] + s2[ipos + i] + s3[ipos + i];
             }
             else
             {
                 for (int i = 0; i < samples; i++)
-                    buffer[i] = s0[ipos + i] * g0 + s1[ipos + i] * g1
+                    outBuf[i] = s0[ipos + i] * g0 + s1[ipos + i] * g1
                               + s2[ipos + i] * g2 + s3[ipos + i] * g3;
             }
-            Volatile.Write(ref _position, ipos + samples);
-            ApplyFadeIn(buffer[..samples]);
-            return samples;
+            Volatile.Write(ref _position, (double)(ipos + samples));
+            return frames;
         }
 
-        // Speed != 1: vinyl-style linear interpolation. Each output frame reads
-        // from a fractional source-frame index; we advance the source position
-        // by `speed` frames per output frame. Sub-frame precision (double pos)
-        // avoids drift over long tracks.
+        // Vinyl-speed path: linear-interp resample. Stop the chunk before the
+        // source crosses loop-out (or track-end), so the caller's wrap logic
+        // runs at the right moment.
+        double srcFrame = pos / 2.0;
+        double boundaryFrame = looping && srcFrame * 2.0 >= loopStart && srcFrame * 2.0 < loopEnd
+            ? loopEnd / 2.0
+            : maxSrcFrame;
         int writtenFrames = 0;
-        double srcFrame = pos / 2.0;             // convert interleaved-sample pos → frame pos
-        for (int of = 0; of < outFrames; of++)
+        for (int of = 0; of < maxFrames; of++)
         {
+            if (srcFrame >= boundaryFrame) break;
             int iFrame = (int)srcFrame;
             if (iFrame >= maxSrcFrame) break;
             float frac = (float)(srcFrame - iFrame);
@@ -172,17 +253,13 @@ public sealed class StemMixDataProvider : ISoundDataProvider
                         + (r2a + frac * (r2b - r2a)) * g2
                         + (r3a + frac * (r3b - r3a)) * g3;
 
-            buffer[of * 2] = left;
-            buffer[of * 2 + 1] = right;
+            outBuf[of * 2]     = left;
+            outBuf[of * 2 + 1] = right;
             srcFrame += speed;
             writtenFrames++;
         }
-
         Volatile.Write(ref _position, srcFrame * 2.0);
-        if (writtenFrames == 0) EndOfStreamReached?.Invoke(this, EventArgs.Empty);
-        int produced = writtenFrames * 2;
-        ApplyFadeIn(buffer[..produced]);
-        return produced;
+        return writtenFrames;
     }
 
     public void Seek(int offset)

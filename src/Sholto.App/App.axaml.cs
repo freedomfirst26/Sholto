@@ -291,6 +291,15 @@ public partial class App : Application
                         deckVm.Player.SetStemGroup(st.Group, nextActive);
                         break;
                     }
+                    case ControllerEvent.BeatLoopToggle bl:
+                        vm.DeckFor(bl.Deck).Player.EnableBeatLoop(bl.Beats);
+                        break;
+                    case ControllerEvent.BeatLoopHalve bh:
+                        vm.DeckFor(bh.Deck).Player.HalveLoop();
+                        break;
+                    case ControllerEvent.BeatLoopDouble bd:
+                        vm.DeckFor(bd.Deck).Player.DoubleLoop();
+                        break;
                     case ControllerEvent.JogRotated j:
                     {
                         // Accumulate the jog delta; the 60 Hz timer below flushes it

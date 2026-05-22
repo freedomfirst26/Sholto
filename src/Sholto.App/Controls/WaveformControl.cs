@@ -70,6 +70,21 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<WaveformPalette> PaletteProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPalette>(nameof(Palette), WaveformPalette.Bands);
 
+    /// <summary>Loop-in point in seconds, or null = no loop. The control paints
+    /// a translucent band between this and <see cref="LoopEndSec"/>.</summary>
+    public static readonly StyledProperty<double?> LoopStartSecProperty =
+        AvaloniaProperty.Register<WaveformControl, double?>(nameof(LoopStartSec));
+
+    /// <summary>Loop-out point in seconds, or null = no loop.</summary>
+    public static readonly StyledProperty<double?> LoopEndSecProperty =
+        AvaloniaProperty.Register<WaveformControl, double?>(nameof(LoopEndSec));
+
+    /// <summary>Theme-driven colour for the active-loop band. Alpha here drives
+    /// the band's transparency over the beatgrid.</summary>
+    public static readonly StyledProperty<Avalonia.Media.Color> LoopColorProperty =
+        AvaloniaProperty.Register<WaveformControl, Avalonia.Media.Color>(
+            nameof(LoopColor), Avalonia.Media.Color.FromArgb(0x55, 0xFF, 0xC7, 0x00));
+
     private SKImage? _baked;
     private WaveformPeaks? _bakedFor;
     private WaveformPalette _bakedPalette;
@@ -90,6 +105,9 @@ public sealed class WaveformControl : Control
         AffectsRender<WaveformControl>(GridPeaksProperty);
         AffectsRender<WaveformControl>(BeatTimesProperty);
         AffectsRender<WaveformControl>(DownbeatTimesProperty);
+        AffectsRender<WaveformControl>(LoopStartSecProperty);
+        AffectsRender<WaveformControl>(LoopEndSecProperty);
+        AffectsRender<WaveformControl>(LoopColorProperty);
     }
 
     public WaveformPeaks? Peaks
@@ -153,6 +171,24 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(PaletteProperty);
         set => SetValue(PaletteProperty, value);
+    }
+
+    public double? LoopStartSec
+    {
+        get => GetValue(LoopStartSecProperty);
+        set => SetValue(LoopStartSecProperty, value);
+    }
+
+    public double? LoopEndSec
+    {
+        get => GetValue(LoopEndSecProperty);
+        set => SetValue(LoopEndSecProperty, value);
+    }
+
+    public Avalonia.Media.Color LoopColor
+    {
+        get => GetValue(LoopColorProperty);
+        set => SetValue(LoopColorProperty, value);
     }
 
     private void Rebake()
@@ -301,7 +337,8 @@ public sealed class WaveformControl : Control
         };
         // Volume/crossfader gain-line colour comes from the theme.
         var gainColor = new SKColor(GainOverlayColor.R, GainOverlayColor.G, GainOverlayColor.B, GainOverlayColor.A);
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, downbeatColor, gainColor));
+        var loopColor = new SKColor(LoopColor.R, LoopColor.G, LoopColor.B, LoopColor.A);
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor));
     }
 
     private sealed class BlitOperation : ICustomDrawOperation
@@ -315,6 +352,7 @@ public sealed class WaveformControl : Control
         [ThreadStatic] private static SKPaint? _dbPaint;
         [ThreadStatic] private static SKPaint? _glowPaint;
         [ThreadStatic] private static SKPaint? _beatTickPaint;
+        [ThreadStatic] private static SKPaint? _loopPaint;
 
         private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
@@ -326,10 +364,13 @@ public sealed class WaveformControl : Control
         private readonly bool _isScrubbing;
         private readonly double[]? _beats;
         private readonly double[]? _downbeats;
+        private readonly double? _loopStartSec;
+        private readonly double? _loopEndSec;
         private readonly SKColor _downbeatColor;
         private readonly SKColor _gainColor;
+        private readonly SKColor _loopColor;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, SKColor downbeatColor, SKColor gainColor)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor)
         {
             Bounds = bounds;
             _image = image;
@@ -343,8 +384,11 @@ public sealed class WaveformControl : Control
             _isScrubbing = isScrubbing;
             _beats = beats;
             _downbeats = downbeats;
+            _loopStartSec = loopStartSec;
+            _loopEndSec = loopEndSec;
             _downbeatColor = downbeatColor;
             _gainColor = gainColor;
+            _loopColor = loopColor;
         }
 
         public Rect Bounds { get; }
@@ -394,6 +438,32 @@ public sealed class WaveformControl : Control
                     var dst = new SKRect(clipLeftDst, 0, dstW - clipRightDst, dstH);
                     _blitPaint ??= new SKPaint { FilterQuality = SKFilterQuality.Low };
                     canvas.DrawImage(_image, src, dst, _blitPaint);
+                }
+            }
+
+            // Active loop band — translucent stripe spanning the loop region.
+            // Drawn before the playhead so the head stays on top; uses the same
+            // refPeaks time mapping as the beatgrid, so it stays locked at any
+            // tempo and survives all-stems-off (the band itself doesn't depend
+            // on a body waveform existing).
+            var loopTimeRef = (_gridPeaks is { Min.Length: > 0 }) ? _gridPeaks
+                            : (_peaks is { Min.Length: > 0 })     ? _peaks
+                            : null;
+            if (_loopStartSec is double loopS && _loopEndSec is double loopE
+                && loopE > loopS && loopTimeRef is not null)
+            {
+                double lpSpp = loopTimeRef.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
+                int totalPeaks = loopTimeRef.Min.Length;
+                float lpCenter = (float)(_playPosition * totalPeaks);
+                float xStart = (float)(((loopS / lpSpp) - lpCenter) / _playbackSpeed) + dstW / 2f;
+                float xEnd   = (float)(((loopE / lpSpp) - lpCenter) / _playbackSpeed) + dstW / 2f;
+                if (xEnd > 0 && xStart < dstW)
+                {
+                    float x0 = Math.Max(0, xStart);
+                    float x1 = Math.Min(dstW, xEnd);
+                    _loopPaint ??= new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = false };
+                    _loopPaint.Color = _loopColor;
+                    canvas.DrawRect(x0, 0, x1 - x0, dstH, _loopPaint);
                 }
             }
 

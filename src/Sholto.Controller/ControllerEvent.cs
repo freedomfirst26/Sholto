@@ -34,6 +34,17 @@ public abstract record ControllerEvent
     /// 0.5 = neutral. The deck multiplies the offset by the currently selected
     /// pitch range (±6 / ±10 / ±16 / wide).</summary>
     public record TempoMoved(int Deck, double Position) : ControllerEvent;
+
+    /// <summary>FLX-4 4 BEAT / EXIT button. Toggles an N-beat auto-loop on the
+    /// deck — first press engages, second press exits. <paramref name="Beats"/>
+    /// is the loop length in beats (4 on the FLX-4).</summary>
+    public record BeatLoopToggle(int Deck, int Beats) : ControllerEvent;
+
+    /// <summary>FLX-4 ½× button. Halves the active loop's length (loop-in stays).</summary>
+    public record BeatLoopHalve(int Deck) : ControllerEvent;
+
+    /// <summary>FLX-4 2× button. Doubles the active loop's length, clamped to track end.</summary>
+    public record BeatLoopDouble(int Deck) : ControllerEvent;
 }
 
 public enum EqBand { Low, Mid, High }

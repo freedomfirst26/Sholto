@@ -534,6 +534,142 @@ public sealed class DeckPlayer
         if (_player is not null) _player.Volume = _volume;
     }
 
+    // — Beat loops —
+    //
+    // The data provider does the actual sample-accurate wrap; DeckPlayer just
+    // computes where the loop in/out points sit (snapped to the beatgrid) and
+    // pushes the LoopRegion in. v1 only supports the stem path — the chunked
+    // / raw provider paths log and no-op until we wire wrap support there too.
+
+    private LoopRegion? _activeLoop;
+
+    /// <summary>The deck's current loop, or null if none. Setting is internal;
+    /// the UI subscribes to <see cref="LoopChanged"/>.</summary>
+    public LoopRegion? ActiveLoop => _activeLoop;
+
+    /// <summary>Fires on the thread that mutated the loop (UI / MIDI). Argument
+    /// is the new region or null on exit.</summary>
+    public event Action<LoopRegion?>? LoopChanged;
+
+    /// <summary>Engage an N-beat auto-loop snapped to the nearest beat. If a
+    /// loop is already active this toggles it off (matches the FLX-4's 4 BEAT
+    /// button's "press again to exit" behaviour). No-op if the beatgrid hasn't
+    /// landed yet.</summary>
+    public void EnableBeatLoop(int beats)
+    {
+        if (_activeLoop is not null) { ExitLoop(); return; }
+        if (_stemProvider is null) { Console.WriteLine("[DeckPlayer] loop: stems not loaded — ignored"); return; }
+        var beatTimes = Analysis.Basic?.BeatTimes;
+        if (beatTimes is null || beatTimes.Length < 2)
+        {
+            Console.WriteLine("[DeckPlayer] loop: beatgrid not ready — ignored");
+            return;
+        }
+
+        // Loop length comes from the median beat interval (robust against
+        // missing/extra beats from madmom near transitions). Median over the
+        // first ~16 beats is plenty.
+        double secPerBeat = MedianBeatInterval(beatTimes);
+        if (secPerBeat <= 0) return;
+
+        double nowSec = PositionFrames / (double)AudioFileDecoder.TargetSampleRate;
+        double inSec = NearestBeat(beatTimes, nowSec);
+        double outSec = inSec + beats * secPerBeat;
+
+        long inSample = SecondsToInterleavedSample(inSec);
+        long outSample = SecondsToInterleavedSample(outSec);
+        // Clamp to track end.
+        long maxSample = (long)_sampleCount * 2;
+        if (outSample > maxSample) outSample = maxSample;
+        if (outSample - inSample < 64) // sanity floor
+        {
+            Console.WriteLine("[DeckPlayer] loop: computed range too small — ignored");
+            return;
+        }
+
+        var region = new LoopRegion(inSample, outSample);
+        _activeLoop = region;
+        _stemProvider.SetLoop(region);
+        Console.WriteLine($"[DeckPlayer] loop ON: {beats} beats, {inSec:F3}s → {outSec:F3}s");
+        LoopChanged?.Invoke(region);
+    }
+
+    /// <summary>Halve the active loop's length (loop-in stays, loop-out moves).
+    /// Floor at 64 samples. No-op if not looping.</summary>
+    public void HalveLoop()
+    {
+        if (_activeLoop is null || _stemProvider is null) return;
+        var r = _activeLoop.Value;
+        long newLen = r.LengthSamples / 2;
+        if (newLen < 64) { Console.WriteLine("[DeckPlayer] loop: at minimum length"); return; }
+        // Keep loop-out frame-aligned (stereo, so even).
+        newLen &= ~1L;
+        var next = new LoopRegion(r.StartSample, r.StartSample + newLen);
+        _activeLoop = next;
+        _stemProvider.SetLoop(next);
+        Console.WriteLine($"[DeckPlayer] loop ½×: now {next.LengthSamples} samples");
+        LoopChanged?.Invoke(next);
+    }
+
+    /// <summary>Double the active loop's length, clamped to track end. No-op if
+    /// not looping.</summary>
+    public void DoubleLoop()
+    {
+        if (_activeLoop is null || _stemProvider is null) return;
+        var r = _activeLoop.Value;
+        long newLen = r.LengthSamples * 2;
+        long maxSample = (long)_sampleCount * 2;
+        long newOut = r.StartSample + newLen;
+        if (newOut > maxSample) newOut = maxSample;
+        if (newOut <= r.StartSample) return;
+        var next = new LoopRegion(r.StartSample, newOut & ~1L);
+        _activeLoop = next;
+        _stemProvider.SetLoop(next);
+        Console.WriteLine($"[DeckPlayer] loop 2×: now {next.LengthSamples} samples");
+        LoopChanged?.Invoke(next);
+    }
+
+    /// <summary>Exit the active loop; playback continues forward from the
+    /// current cursor (no snap-back to loop-in). No-op if not looping.</summary>
+    public void ExitLoop()
+    {
+        if (_activeLoop is null) return;
+        _activeLoop = null;
+        _stemProvider?.SetLoop(null);
+        Console.WriteLine("[DeckPlayer] loop OFF");
+        LoopChanged?.Invoke(null);
+    }
+
+    private long SecondsToInterleavedSample(double sec)
+    {
+        long s = (long)Math.Round(sec * AudioFileDecoder.TargetSampleRate) * 2;
+        return s & ~1L;
+    }
+
+    private static double NearestBeat(double[] beatTimes, double pos)
+    {
+        // Linear scan is fine — beat counts are O(few hundred). Binary search
+        // would shave microseconds nobody will feel.
+        double best = beatTimes[0];
+        double bestDelta = Math.Abs(beatTimes[0] - pos);
+        for (int i = 1; i < beatTimes.Length; i++)
+        {
+            double d = Math.Abs(beatTimes[i] - pos);
+            if (d < bestDelta) { best = beatTimes[i]; bestDelta = d; }
+        }
+        return best;
+    }
+
+    private static double MedianBeatInterval(double[] beatTimes)
+    {
+        int n = Math.Min(beatTimes.Length - 1, 16);
+        if (n <= 0) return 0;
+        var intervals = new double[n];
+        for (int i = 0; i < n; i++) intervals[i] = beatTimes[i + 1] - beatTimes[i];
+        Array.Sort(intervals);
+        return intervals[n / 2];
+    }
+
     /// <summary>Raised on the analysis thread once BasicAnalysis completes.</summary>
     public event Action? AnalysisUpdated;
 
@@ -543,6 +679,7 @@ public sealed class DeckPlayer
         TearDownPlayers();
         _sampleCount = 0;
         Analysis = new TrackAnalysis();
+        if (_activeLoop is not null) { _activeLoop = null; LoopChanged?.Invoke(null); }
         // Stem state lives inside StemMixDataProvider; TearDownPlayers drops the
         // reference, so the next track loads with all stems audible by default.
         AnalysisUpdated?.Invoke();
