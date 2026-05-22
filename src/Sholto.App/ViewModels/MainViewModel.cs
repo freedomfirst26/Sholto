@@ -171,8 +171,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
             foreach (var row in Tracks) row.RefreshThemeBindings();
             Deck1.RefreshThemeBindings();
             Deck2.RefreshThemeBindings();
+            // Typed event so App.axaml.cs can persist the new selection without
+            // having to filter the generic PropertyChanged stream.
+            ThemeChanged?.Invoke(value);
         }
     }
+
+    /// <summary>Fires when <see cref="Theme"/> changes. App.axaml.cs subscribes
+    /// to persist the choice into the settings table so it survives restarts.</summary>
+    public event Action<SholtoTheme>? ThemeChanged;
 
     public WaveformPalette WaveformPalette => _theme.WaveformPalette;
 

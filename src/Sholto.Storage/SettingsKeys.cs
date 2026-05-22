@@ -6,4 +6,5 @@ public static class SettingsKeys
 {
     public const string MusicDir       = "music_dir";
     public const string OutputDevice   = "output_device";
+    public const string Theme          = "theme";
 }

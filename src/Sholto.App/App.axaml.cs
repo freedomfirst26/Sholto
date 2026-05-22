@@ -7,6 +7,7 @@ using Sholto.Analysis;
 using Sholto.Storage;
 using Sholto.Controller;
 using Sholto.Library;
+using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.App.Views;
 using TrackRow = Sholto.App.ViewModels.TrackRow;
@@ -117,6 +118,44 @@ public partial class App : Application
                 // Unblock startup tasks waiting on the DB whether we succeeded or not.
                 _dbReady.TrySetResult(_db);
             }
+        });
+
+        // Restore the previously-selected theme + wire persistence so any future
+        // theme change writes through to the settings table. Runs on its own
+        // task so it doesn't block the music-dir resolution below.
+        _ = Task.Run(async () =>
+        {
+            var db = await _dbReady.Task;
+            if (db is null) return;
+
+            // Restore: look up the saved theme name and find the matching theme
+            // by display Name (the saved value is the human-readable string, so
+            // adding/renaming themes won't trash someone's selection unless
+            // their exact theme is gone — in which case fall back to default).
+            var savedName = await db.GetSettingAsync(SettingsKeys.Theme);
+            if (!string.IsNullOrEmpty(savedName))
+            {
+                var match = Themes.All.FirstOrDefault(t => t.Name == savedName);
+                if (match is not null)
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() => vm.Theme = match);
+                }
+                else
+                {
+                    Console.WriteLine($"[Theme] saved name '{savedName}' no longer exists — keeping default");
+                }
+            }
+
+            // Persist on change. Fires on the UI thread (Theme setter is UI-driven);
+            // hop to a background write so we don't stall the menu click.
+            vm.ThemeChanged += theme =>
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await db.SetSettingAsync(SettingsKeys.Theme, theme.Name); }
+                    catch (Exception ex) { Console.WriteLine($"[Theme] persist failed: {ex.Message}"); }
+                });
+            };
         });
 
         // Resolve which folder to scan. Order: env var override → saved setting →
