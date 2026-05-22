@@ -153,10 +153,11 @@ public static class Themes
                             OnChipForeground: B("#1C1917"))
     );
 
-    /// <summary>Tokyo Night — cyberpunk-rain neon. Deep navy with hot magenta
-    /// and electric cyan. Crowd-pleaser dev-theme aesthetic.</summary>
-    public static SholtoTheme TokyoNight { get; } = new(
-        Name: "Tokyo Night",
+    /// <summary>Silence Groove — cyberpunk-rain neon. Deep navy with hot magenta
+    /// and electric cyan. Crowd-pleaser dev-theme aesthetic. Named after the
+    /// liquid-DnB / atmospheric producer.</summary>
+    public static SholtoTheme SilenceGroove { get; } = new(
+        Name: "Silence Groove",
         BgDeep:        B("#0F172A"),
         Surface:       B("#1A2238"),
         SurfaceRaised: B("#222C46"),
@@ -169,7 +170,7 @@ public static class Themes
         TextMuted:     B("#7C89B8"),
         PlayedFadeColor: C("#0F172A"),
         WaveformPalette: WaveformPalette.Plasma,
-        // Tokyo Night — slight cool shift, high saturation. Rainbow leans into
+        // Silence Groove — slight cool shift, high saturation. Rainbow leans into
         // the magenta/cyan neon energy the rest of the theme is built around.
         CamelotPalette: new(HueOffset: -10, Saturation: 0.80,
                             MajorLightness: 0.58, MinorLightness: 0.44,
@@ -199,10 +200,11 @@ public static class Themes
                             OnChipForeground: B("#1E1E2E"))
     );
 
-    /// <summary>Glacier — calm Nordic dark. Slate-blue surfaces with frost and
-    /// aurora-violet accents. Reads more "studio" than "club".</summary>
-    public static SholtoTheme Glacier { get; } = new(
-        Name: "Glacier",
+    /// <summary>Drab Majesty — gothic darkwave. Slate-blue surfaces with frost
+    /// and aurora-violet accents. Reads more "studio" than "club". Named after
+    /// the gothic post-punk duo.</summary>
+    public static SholtoTheme DrabMajesty { get; } = new(
+        Name: "Drab Majesty",
         BgDeep:        B("#1E293B"),
         Surface:       B("#243044"),
         SurfaceRaised: B("#293548"),
@@ -215,7 +217,7 @@ public static class Themes
         TextMuted:     B("#7B8A9E"),
         PlayedFadeColor: C("#1E293B"),
         WaveformPalette: WaveformPalette.Glacier,
-        // Glacier — cool shift, low saturation. Reads more "studio" than "club".
+        // Drab Majesty — cool shift, low saturation. Reads more "studio" than "club".
         CamelotPalette: new(HueOffset: -15, Saturation: 0.55,
                             MajorLightness: 0.58, MinorLightness: 0.45,
                             OnChipForeground: B("#1E293B"))
@@ -244,6 +246,57 @@ public static class Themes
                             OnChipForeground: B("#F2E8DC"))
     );
 
+    /// <summary>Type O Negative — gothic doom metal aesthetic. Deep forest
+    /// green on near-black charcoal. Named after the Brooklyn band — same
+    /// album-cover palette of greens-on-blacks with bone-coloured text.</summary>
+    public static SholtoTheme TypeONegative { get; } = new(
+        Name: "Type O Negative",
+        BgDeep:        B("#050A07"),
+        Surface:       B("#0B130E"),
+        SurfaceRaised: B("#0F1A13"),
+        Border:        B("#1F3526"),
+        Primary:       B("#2C7A47"),
+        Accent:        B("#4FA66E"),
+        AccentBg:      B("#334FA66E"),
+        Mint:          B("#7FC894"),
+        TextBright:    B("#D8E6DC"),
+        TextMuted:     B("#6A8472"),
+        PlayedFadeColor: C("#050A07"),
+        WaveformPalette: WaveformPalette.Bloodmoon,
+        // Type O Negative — green-shifted hues, low sat, dark lightness for
+        // that "ritual candlelight on green velvet" mood. Bone text on chips
+        // matches the band's typeface.
+        CamelotPalette: new(HueOffset: 60, Saturation: 0.50,
+                            MajorLightness: 0.45, MinorLightness: 0.34,
+                            OnChipForeground: B("#D8E6DC"))
+    );
+
+    /// <summary>Birthday Massacre — black with vivid magenta / violet. Named
+    /// after the Toronto darksynth-rock band. Aggressive nightclub-meets-
+    /// horror-cartoon aesthetic.</summary>
+    public static SholtoTheme BirthdayMassacre { get; } = new(
+        Name: "Birthday Massacre",
+        BgDeep:        B("#0A0612"),
+        Surface:       B("#150B22"),
+        SurfaceRaised: B("#1E1133"),
+        Border:        B("#3D2858"),
+        Primary:       B("#B85FD8"),
+        Accent:        B("#E83FB4"),
+        AccentBg:      B("#33E83FB4"),
+        Mint:          B("#D8AAFF"),
+        TextBright:    B("#EEDFFA"),
+        TextMuted:     B("#806B95"),
+        PlayedFadeColor: C("#0A0612"),
+        WaveformPalette: WaveformPalette.Plasma,
+        // Birthday Massacre — purple-shifted, vivid saturation. Chips run hot
+        // pink/violet → bright; the rainbow rotates so it leans into the
+        // theme's magenta/purple territory instead of competing with it.
+        CamelotPalette: new(HueOffset: 200, Saturation: 0.70,
+                            MajorLightness: 0.58, MinorLightness: 0.45,
+                            OnChipForeground: B("#1E1133"))
+    );
+
     public static IReadOnlyList<SholtoTheme> All { get; } =
-        [Classic, Serato, Smoke, TokyoNight, CatppuccinMocha, Glacier, Bloodmoon];
+        [Classic, Serato, Smoke, SilenceGroove, CatppuccinMocha, DrabMajesty,
+         Bloodmoon, TypeONegative, BirthdayMassacre];
 }

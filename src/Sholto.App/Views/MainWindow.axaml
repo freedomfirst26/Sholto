@@ -45,10 +45,12 @@
                     <MenuItem Header="Classic" Click="OnThemeClassic"/>
                     <MenuItem Header="Serato" Click="OnThemeSerato"/>
                     <MenuItem Header="Smoke" Click="OnThemeSmoke"/>
-                    <MenuItem Header="Tokyo Night" Click="OnThemeTokyoNight"/>
+                    <MenuItem Header="Silence Groove" Click="OnThemeSilenceGroove"/>
                     <MenuItem Header="Catppuccin Mocha" Click="OnThemeCatppuccin"/>
-                    <MenuItem Header="Glacier" Click="OnThemeGlacier"/>
+                    <MenuItem Header="Drab Majesty" Click="OnThemeDrabMajesty"/>
                     <MenuItem Header="Bloodmoon" Click="OnThemeBloodmoon"/>
+                    <MenuItem Header="Type O Negative" Click="OnThemeTypeONegative"/>
+                    <MenuItem Header="Birthday Massacre" Click="OnThemeBirthdayMassacre"/>
                 </MenuItem>
                 <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>

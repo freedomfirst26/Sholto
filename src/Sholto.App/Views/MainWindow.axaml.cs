@@ -131,13 +131,15 @@ public partial class MainWindow : Window
     }
 
 
-    private void OnThemeClassic    (object? sender, RoutedEventArgs e) => SetTheme(Themes.Classic);
-    private void OnThemeSerato     (object? sender, RoutedEventArgs e) => SetTheme(Themes.Serato);
-    private void OnThemeSmoke      (object? sender, RoutedEventArgs e) => SetTheme(Themes.Smoke);
-    private void OnThemeTokyoNight (object? sender, RoutedEventArgs e) => SetTheme(Themes.TokyoNight);
-    private void OnThemeCatppuccin (object? sender, RoutedEventArgs e) => SetTheme(Themes.CatppuccinMocha);
-    private void OnThemeGlacier    (object? sender, RoutedEventArgs e) => SetTheme(Themes.Glacier);
-    private void OnThemeBloodmoon  (object? sender, RoutedEventArgs e) => SetTheme(Themes.Bloodmoon);
+    private void OnThemeClassic          (object? sender, RoutedEventArgs e) => SetTheme(Themes.Classic);
+    private void OnThemeSerato           (object? sender, RoutedEventArgs e) => SetTheme(Themes.Serato);
+    private void OnThemeSmoke            (object? sender, RoutedEventArgs e) => SetTheme(Themes.Smoke);
+    private void OnThemeSilenceGroove    (object? sender, RoutedEventArgs e) => SetTheme(Themes.SilenceGroove);
+    private void OnThemeCatppuccin       (object? sender, RoutedEventArgs e) => SetTheme(Themes.CatppuccinMocha);
+    private void OnThemeDrabMajesty      (object? sender, RoutedEventArgs e) => SetTheme(Themes.DrabMajesty);
+    private void OnThemeBloodmoon        (object? sender, RoutedEventArgs e) => SetTheme(Themes.Bloodmoon);
+    private void OnThemeTypeONegative    (object? sender, RoutedEventArgs e) => SetTheme(Themes.TypeONegative);
+    private void OnThemeBirthdayMassacre (object? sender, RoutedEventArgs e) => SetTheme(Themes.BirthdayMassacre);
 
     private void SetTheme(SholtoTheme theme)
     {

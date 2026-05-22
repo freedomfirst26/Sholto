@@ -12,7 +12,7 @@ namespace Sholto.App.ViewModels;
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     private int _selectedTrackIndex = -1;
-    private SholtoTheme _theme = Themes.TokyoNight;
+    private SholtoTheme _theme = Themes.SilenceGroove;
     private bool _isMagnetEligible;
 
     public event PropertyChangedEventHandler? PropertyChanged;
