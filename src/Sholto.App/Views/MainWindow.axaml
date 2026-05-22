@@ -208,10 +208,17 @@
                                     <Style Selector="Border.key-chip">
                                         <Setter Property="BorderThickness" Value="0"/>
                                         <Setter Property="BorderBrush" Value="Transparent"/>
+                                        <Setter Property="BoxShadow" Value="0 0 0 0 Transparent"/>
                                     </Style>
+                                    <!-- Eligible chips get a bright white outline + soft white
+                                         outer glow. Hardcoded white instead of the theme's
+                                         Primary so the "this key mixes" signal reads identically
+                                         across every theme (Primary blends with similar-hue
+                                         chip backgrounds in some themes). -->
                                     <Style Selector="Border.key-chip.eligible">
                                         <Setter Property="BorderThickness" Value="2"/>
-                                        <Setter Property="BorderBrush" Value="{DynamicResource SholtoPrimary}"/>
+                                        <Setter Property="BorderBrush" Value="White"/>
+                                        <Setter Property="BoxShadow" Value="0 0 6 1 #B0FFFFFF"/>
                                     </Style>
                                 </Border.Styles>
                                 <TextBlock Text="{Binding Key}"

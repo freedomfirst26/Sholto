@@ -527,13 +527,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
         //    Done first so the phase math below works against the locked tempo.
         adjusted.MatchEffectiveBpm(reference.EffectiveBpm);
 
-        // 2) Phase-snap: shift the adjusted deck so its downbeat aligns with the
-        //    reference deck's current phase.
+        // 2) Phase-snap: shift adjusted so its next downbeat lands at the same
+        //    wall-clock moment as the reference's next downbeat. Math: place
+        //    adj at (its nearest downbeat) + (ref's offset past *its* nearest
+        //    downbeat). Walks the same number of seconds past a downbeat as
+        //    ref, so the next beats fire together — independent of which bar
+        //    of either song they happen to be in.
         double refPhase = reference.PlaybackSeconds - reference.NearestDownbeatSec();
         double adjDownbeat = adjusted.NearestDownbeatSec();
         if (adjDownbeat < 0) return;
         double delta = (adjDownbeat + refPhase) - adjusted.PlaybackSeconds;
         if (Math.Abs(delta) > 0.0001) adjusted.Player.SeekRelative(delta);
+        Console.WriteLine($"[Magnet] snap: refPhase={refPhase:F4}s adjDownbeat={adjDownbeat:F4}s delta={delta:F4}s | refBpm={reference.EffectiveBpm:F3} adjBpm={adjusted.EffectiveBpm:F3}");
     }
 
     private void Notify([CallerMemberName] string? name = null) =>
