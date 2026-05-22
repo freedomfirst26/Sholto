@@ -133,7 +133,7 @@ public partial class MainWindow : Window
 
     private void OnThemeClassic          (object? sender, RoutedEventArgs e) => SetTheme(Themes.Classic);
     private void OnThemeSerato           (object? sender, RoutedEventArgs e) => SetTheme(Themes.Serato);
-    private void OnThemeSmoke            (object? sender, RoutedEventArgs e) => SetTheme(Themes.Smoke);
+    private void OnThemeFrontLineAssembly(object? sender, RoutedEventArgs e) => SetTheme(Themes.FrontLineAssembly);
     private void OnThemeSilenceGroove    (object? sender, RoutedEventArgs e) => SetTheme(Themes.SilenceGroove);
     private void OnThemeCatppuccin       (object? sender, RoutedEventArgs e) => SetTheme(Themes.CatppuccinMocha);
     private void OnThemeDrabMajesty      (object? sender, RoutedEventArgs e) => SetTheme(Themes.DrabMajesty);

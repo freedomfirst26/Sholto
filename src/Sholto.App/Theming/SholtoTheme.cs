@@ -130,10 +130,12 @@ public static class Themes
                             OnChipForeground: B("#0F0F0F"))
     );
 
-    /// <summary>Smoke — late-night vinyl-bar moody. Warm charcoal browns with
-    /// whiskey amber and candle gold. No neon; this one feels lit by candles.</summary>
-    public static SholtoTheme Smoke { get; } = new(
-        Name: "Smoke",
+    /// <summary>Front Line Assembly — late-night vinyl-bar moody. Warm charcoal
+    /// browns with whiskey amber and candle gold. Named after the Canadian
+    /// industrial / EBM pioneers; palette stays the same as the original
+    /// "Smoke" theme.</summary>
+    public static SholtoTheme FrontLineAssembly { get; } = new(
+        Name: "Front Line Assembly",
         BgDeep:        B("#1C1917"),
         Surface:       B("#2A2522"),
         SurfaceRaised: B("#332C28"),
@@ -146,7 +148,7 @@ public static class Themes
         TextMuted:     B("#8A7B6E"),
         PlayedFadeColor: C("#1C1917"),
         WaveformPalette: WaveformPalette.Smoke,
-        // Smoke — warm shift (amber/whiskey lean), desaturated so the rainbow
+        // Front Line Assembly — warm shift (amber/whiskey lean), desaturated so the rainbow
         // reads as candle-lit rather than neon. Dark chip text matches the bg.
         CamelotPalette: new(HueOffset: 15, Saturation: 0.45,
                             MajorLightness: 0.54, MinorLightness: 0.40,
@@ -271,32 +273,34 @@ public static class Themes
                             OnChipForeground: B("#D8E6DC"))
     );
 
-    /// <summary>Birthday Massacre — black with vivid magenta / violet. Named
-    /// after the Toronto darksynth-rock band. Aggressive nightclub-meets-
-    /// horror-cartoon aesthetic.</summary>
+    /// <summary>Birthday Massacre — near-black with signature hot magenta-pink.
+    /// Named after the Toronto darkwave/electronic-rock band. Palette pulled
+    /// from the Pins &amp; Needles / Walking with Strangers album covers:
+    /// black grounds, fluorescent-pink primary, deeper crimson-pink secondary,
+    /// stark white type. Less "lavender goth", more "horror-cartoon neon."</summary>
     public static SholtoTheme BirthdayMassacre { get; } = new(
         Name: "Birthday Massacre",
-        BgDeep:        B("#0A0612"),
-        Surface:       B("#150B22"),
-        SurfaceRaised: B("#1E1133"),
-        Border:        B("#3D2858"),
-        Primary:       B("#B85FD8"),
-        Accent:        B("#E83FB4"),
-        AccentBg:      B("#33E83FB4"),
-        Mint:          B("#D8AAFF"),
-        TextBright:    B("#EEDFFA"),
-        TextMuted:     B("#806B95"),
-        PlayedFadeColor: C("#0A0612"),
+        BgDeep:        B("#07020A"),
+        Surface:       B("#110724"),
+        SurfaceRaised: B("#1B0D31"),
+        Border:        B("#401E5A"),
+        Primary:       B("#FF3D9F"),   // hot magenta-pink, album-cover signature
+        Accent:        B("#DA2470"),   // deeper crimson-pink for headers / BPM
+        AccentBg:      B("#33FF3D9F"),
+        Mint:          B("#FFA8D6"),   // bright pink for "alive" states
+        TextBright:    B("#F4EBF1"),   // clean off-white with faint pink wash
+        TextMuted:     B("#836B89"),
+        PlayedFadeColor: C("#07020A"),
         WaveformPalette: WaveformPalette.Plasma,
-        // Birthday Massacre — purple-shifted, vivid saturation. Chips run hot
-        // pink/violet → bright; the rainbow rotates so it leans into the
-        // theme's magenta/purple territory instead of competing with it.
-        CamelotPalette: new(HueOffset: 200, Saturation: 0.70,
+        // Birthday Massacre — magenta-shifted. HueOffset 280 puts the rainbow's
+        // 0° anchor in the red-magenta range so the closest Camelot keys lean
+        // pink instead of fighting the theme's signature colour.
+        CamelotPalette: new(HueOffset: 280, Saturation: 0.72,
                             MajorLightness: 0.58, MinorLightness: 0.45,
-                            OnChipForeground: B("#1E1133"))
+                            OnChipForeground: B("#1B0D31"))
     );
 
     public static IReadOnlyList<SholtoTheme> All { get; } =
-        [Classic, Serato, Smoke, SilenceGroove, CatppuccinMocha, DrabMajesty,
+        [Classic, Serato, FrontLineAssembly, SilenceGroove, CatppuccinMocha, DrabMajesty,
          Bloodmoon, TypeONegative, BirthdayMassacre];
 }

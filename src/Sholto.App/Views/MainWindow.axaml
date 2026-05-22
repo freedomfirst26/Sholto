@@ -44,7 +44,7 @@
                 <MenuItem Header="Theme">
                     <MenuItem Header="Classic" Click="OnThemeClassic"/>
                     <MenuItem Header="Serato" Click="OnThemeSerato"/>
-                    <MenuItem Header="Smoke" Click="OnThemeSmoke"/>
+                    <MenuItem Header="Front Line Assembly" Click="OnThemeFrontLineAssembly"/>
                     <MenuItem Header="Silence Groove" Click="OnThemeSilenceGroove"/>
                     <MenuItem Header="Catppuccin Mocha" Click="OnThemeCatppuccin"/>
                     <MenuItem Header="Drab Majesty" Click="OnThemeDrabMajesty"/>
