@@ -56,6 +56,21 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel vm) return;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
 
+        // Search overlay swallows its own keys (see SearchOverlay.OnQueryKeyDown).
+        // While it's open we don't process anything globally except the spacebar
+        // itself (which got us here) — and that's already been handled by the
+        // overlay's TextBox. Bail out so transport keys don't fire underneath.
+        if (vm.IsSearchOpen) return;
+
+        // Spacebar opens search (from anywhere outside an input). Caught BEFORE
+        // the transport-key block below so the prior space=play binding is gone.
+        if (e.Key == Key.Space)
+        {
+            vm.IsSearchOpen = true;
+            e.Handled = true;
+            return;
+        }
+
         switch (e.Key)
         {
             // 1 / 2 — load the highlighted track into Deck 1 / Deck 2.
@@ -70,7 +85,10 @@ public partial class MainWindow : Window
         if (!deck.Player.IsLoaded) return;
         switch (e.Key)
         {
-            case Key.Space:
+            // P = play/pause. Replaces the old spacebar binding now that
+            // space opens the search overlay. Shift+P = deck 2 (same modifier
+            // pattern as the other transport keys).
+            case Key.P:
                 vm.OnPlayPressed(shift ? 1 : 0);
                 e.Handled = true;
                 break;

@@ -26,6 +26,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// bindings keep working without churn.</summary>
     public ObservableCollection<TrackRow> Tracks => Library.Tracks;
 
+    /// <summary>Spacebar search overlay state. Built lazily so the
+    /// recompute-on-collection-change subscription doesn't fire during MainViewModel
+    /// construction (Library.Tracks is still being populated then).</summary>
+    public SearchViewModel Search { get; }
+
+    private bool _isSearchOpen;
+    public bool IsSearchOpen
+    {
+        get => _isSearchOpen;
+        set
+        {
+            if (_isSearchOpen == value) return;
+            _isSearchOpen = value;
+            if (!value) Search.Reset();
+            Notify();
+        }
+    }
+
     /// <summary>Per-app-run session state — which tracks have been loaded into a
     /// deck so the library can italicise them. Owned here because both decks
     /// produce "played" events and the same row consumes them.</summary>
@@ -63,6 +81,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         // Make the initial theme visible to anything that reads ThemeContext
         // before the user picks a different theme.
         ThemeContext.Current = _theme;
+
+        Search = new SearchViewModel(Tracks);
 
         // Re-emit Library's PropertyChanged for the proxied banner properties
         // so XAML bindings on the MainViewModel light up without each control

@@ -75,14 +75,19 @@ public sealed class TrackRow : INotifyPropertyChanged
     /// <summary>Camelot key chip background — same hue convention DJ apps use so
     /// the eye can scan keys without reading the codes. Hue/saturation/lightness
     /// come from the active theme's <see cref="CamelotPalette"/>, so switching
-    /// theme retones the whole library at once.</summary>
+    /// theme retones the whole library at once.
+    /// <para>Played tracks render the chip with ~30 % of the normal saturation
+    /// so the eye is drawn to the still-unplayed rows. Combined with the
+    /// italic+bold title styling, this makes "already in the set" rows visibly
+    /// recede without hiding them.</para></summary>
     public IBrush KeyBrush
     {
         get
         {
             if (string.IsNullOrEmpty(_key)) return Brushes.Transparent;
             var p = ThemeContext.Current.CamelotPalette;
-            uint rgb = CamelotKeys.Rgb(_key!, p.HueOffset, p.Saturation, p.MajorLightness, p.MinorLightness);
+            double sat = _isPlayed ? p.Saturation * 0.3 : p.Saturation;
+            uint rgb = CamelotKeys.Rgb(_key!, p.HueOffset, sat, p.MajorLightness, p.MinorLightness);
             return new SolidColorBrush(unchecked((uint)0xFF000000 | rgb));
         }
     }
@@ -147,7 +152,15 @@ public sealed class TrackRow : INotifyPropertyChanged
     public bool IsPlayed
     {
         get => _isPlayed;
-        set { if (_isPlayed == value) return; _isPlayed = value; Notify(); }
+        set
+        {
+            if (_isPlayed == value) return;
+            _isPlayed = value;
+            Notify();
+            // KeyBrush desaturates when IsPlayed flips — fire so the chip
+            // restyles immediately instead of waiting for the next theme switch.
+            Notify(nameof(KeyBrush));
+        }
     }
 
     private void Notify([CallerMemberName] string? name = null) =>

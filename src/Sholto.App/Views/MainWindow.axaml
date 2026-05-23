@@ -25,6 +25,7 @@
         <SolidColorBrush x:Key="SholtoTextMuted"     Color="#8B7FB8"/>
     </Window.Resources>
 
+    <Grid>
     <DockPanel>
         <!-- Top bar: Menu on the left, optional CPU/RAM readout on the right (visible
              only when SHOLTO_DEBUG_STATS=1 has been set on launch). Both share the
@@ -181,6 +182,9 @@
                                     <Style Selector="TextBlock.played">
                                         <Setter Property="FontStyle" Value="Italic"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
+                                        <!-- Mute the title/artist so unplayed rows visually pop;
+                                             keeps the row readable but flags "out of the running". -->
+                                        <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
                                     </Style>
                                 </TextBlock.Styles>
                             </TextBlock>
@@ -193,6 +197,9 @@
                                     <Style Selector="TextBlock.played">
                                         <Setter Property="FontStyle" Value="Italic"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
+                                        <!-- Mute the title/artist so unplayed rows visually pop;
+                                             keeps the row readable but flags "out of the running". -->
+                                        <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
                                     </Style>
                                 </TextBlock.Styles>
                             </TextBlock>
@@ -352,4 +359,9 @@
 
     </Grid>
     </DockPanel>
+
+    <!-- Spacebar search overlay. Sibling of DockPanel inside the top-level
+         Grid so it z-orders ABOVE the entire app when its IsVisible flips on. -->
+    <v:SearchOverlay/>
+    </Grid>
 </Window>
