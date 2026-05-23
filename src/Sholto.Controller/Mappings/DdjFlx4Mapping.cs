@@ -32,15 +32,17 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             (7,  0x46) => new ControllerEvent.LoadToDeck(Deck: 0),
             (7,  0x47) => new ControllerEvent.LoadToDeck(Deck: 1),
 
-            // Hot-cue pads (temporarily): pads 1/2/3 mute Drums / Vocals / Instrumental.
-            //   Deck 1 (ch 8 wire): notes 0x00 / 0x01 / 0x02
-            //   Deck 2 (ch 10 wire): notes 0x30 / 0x31 / 0x32
+            // Hot Cue pads — pads 1/2/3 mute Drums / Vocals / Instrumental on the
+            // matching deck. We assume the controller is in "Hot Cue" pad mode
+            // (which is what Rekordbox leaves it in, and what we explicitly put
+            // it into via SysEx at startup — see AlsaRawMidi). Hot Cue mode
+            // emits notes 0x00-0x07 on each deck's wire channel.
             (8,  0x00) => new ControllerEvent.StemToggle(Deck: 0, Group: 0),
             (8,  0x01) => new ControllerEvent.StemToggle(Deck: 0, Group: 1),
             (8,  0x02) => new ControllerEvent.StemToggle(Deck: 0, Group: 2),
-            (10, 0x30) => new ControllerEvent.StemToggle(Deck: 1, Group: 0),
-            (10, 0x31) => new ControllerEvent.StemToggle(Deck: 1, Group: 1),
-            (10, 0x32) => new ControllerEvent.StemToggle(Deck: 1, Group: 2),
+            (10, 0x00) => new ControllerEvent.StemToggle(Deck: 1, Group: 0),
+            (10, 0x01) => new ControllerEvent.StemToggle(Deck: 1, Group: 1),
+            (10, 0x02) => new ControllerEvent.StemToggle(Deck: 1, Group: 2),
 
             // Beat-loop trio: 4 BEAT / EXIT, ½×, 2×. Channel 1 = deck 0, channel
             // 2 = deck 1 on the FLX-4 (confirmed via raw MIDI capture).

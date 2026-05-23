@@ -42,10 +42,44 @@ internal sealed class AlsaRawMidi : IDisposable
 
             var path = $"/dev/snd/midiC{card}D0";
             if (!File.Exists(path)) continue;
-            var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            return new AlsaRawMidi(fs);
+            // ReadWrite so we can send MIDI back to the controller — used at
+            // startup to put the pads in Hot Cue mode (see SendStartupInit).
+            var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+            var midi = new AlsaRawMidi(fs);
+            midi.SendStartupInit();
+            return midi;
         }
         return null;
+    }
+
+    /// <summary>Send the MIDI sequence that puts the FLX-4 pads into Hot Cue
+    /// mode on both decks. Captured from the controller itself: pressing the
+    /// HOT CUE button emits NoteOn/NoteOff on ch 1 (deck 1) or ch 2 (deck 2),
+    /// note 0x1B. Sending the same bytes back asks the controller to enter
+    /// that mode. Without this, Rekordbox may have left the pads in a
+    /// layout we don't have mapped.
+    /// Wire channel = displayed channel - 1, so:
+    ///   Deck 1 displayed ch 1 → wire 0 → NoteOn status byte 0x90
+    ///   Deck 2 displayed ch 2 → wire 1 → NoteOn status byte 0x91
+    /// </summary>
+    private void SendStartupInit()
+    {
+        try
+        {
+            // NoteOn vel 0x7F then NoteOff (vel 0x00) for both decks.
+            byte[] init =
+            [
+                0x90, 0x1B, 0x7F, 0x90, 0x1B, 0x00,  // Deck 1 HOT CUE press+release
+                0x91, 0x1B, 0x7F, 0x91, 0x1B, 0x00,  // Deck 2 HOT CUE press+release
+            ];
+            _stream.Write(init, 0, init.Length);
+            _stream.Flush();
+            Console.WriteLine("[MIDI] sent HOT CUE mode select to both decks on startup");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MIDI] startup init failed: {ex.Message}");
+        }
     }
 
     private async Task ReadLoop()
