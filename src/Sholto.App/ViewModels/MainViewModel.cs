@@ -225,6 +225,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
         };
         Notify(nameof(CratePicker));
 
+        // "All Tracks" is a real crate every song belongs to. New songs that appear
+        // in the folder raise Library.TracksAdded → we file them in. On each scan we
+        // also reconcile (backfill) any track not yet a member.
+        async Task FileIntoAllTracksAsync(IEnumerable<Guid> ids)
+        {
+            var list = ids as IReadOnlyCollection<Guid> ?? ids.ToList();
+            if (list.Count == 0) return;
+            int crateId = await crate.CreateAsync("All Tracks"); // get-or-create
+            foreach (var id in list) await crate.AddTrackAsync(crateId, id);
+        }
+        Library.TracksAdded += ids => { _ = FileIntoAllTracksAsync(ids); };
+        Library.Scanned += _path => { _ = FileIntoAllTracksAsync(Tracks.Select(r => r.TrackId).ToList()); };
+
         Search.SetCrateService(crate);
         Search.CratePicked += async c =>
         {

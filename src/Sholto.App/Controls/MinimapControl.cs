@@ -31,6 +31,11 @@ public sealed class MinimapControl : Control
     public static readonly StyledProperty<double> PlayPositionProperty =
         AvaloniaProperty.Register<MinimapControl, double>(nameof(PlayPosition));
 
+    /// <summary>Structural sections; when present they colour the strip (intro/build/
+    /// drop/…). Falls back to energy-tier colours when null.</summary>
+    public static readonly StyledProperty<SongSegments?> SegmentsProperty =
+        AvaloniaProperty.Register<MinimapControl, SongSegments?>(nameof(Segments));
+
     /// <summary>Raised with a 0..1 fraction when the user clicks/drags to seek.</summary>
     public event Action<double>? Seeked;
 
@@ -41,12 +46,19 @@ public sealed class MinimapControl : Control
     {
         AffectsRender<MinimapControl>(PlayPositionProperty);
         PeaksProperty.Changed.AddClassHandler<MinimapControl>((c, _) => c.Rebake());
+        SegmentsProperty.Changed.AddClassHandler<MinimapControl>((c, _) => c.Rebake());
     }
 
     public WaveformPeaks? Peaks
     {
         get => GetValue(PeaksProperty);
         set => SetValue(PeaksProperty, value);
+    }
+
+    public SongSegments? Segments
+    {
+        get => GetValue(SegmentsProperty);
+        set => SetValue(SegmentsProperty, value);
     }
 
     public double PlayPosition
@@ -63,9 +75,10 @@ public sealed class MinimapControl : Control
             _baked = null; _bakedFor = null; InvalidateVisual(); return;
         }
         var snapshot = peaks;
+        var segs = Segments;
         Task.Run(() =>
         {
-            var img = Bake(snapshot);
+            var img = Bake(snapshot, segs);
             Dispatcher.UIThread.Post(() =>
             {
                 _baked?.Dispose();
@@ -76,7 +89,7 @@ public sealed class MinimapControl : Control
         });
     }
 
-    private static SKImage? Bake(WaveformPeaks p)
+    private static SKImage? Bake(WaveformPeaks p, SongSegments? segs)
     {
         int w = p.Min.Length;
         if (w == 0) return null;
@@ -90,30 +103,72 @@ public sealed class MinimapControl : Control
         var scaling = hasBands ? WaveformBandScaling.Calibrate(p.Low, p.Mid, p.High) : default;
         using var paint = new SKPaint { IsAntialias = false, StrokeWidth = 1 };
 
+        // Column x ↔ track seconds (same time domain as the segments' downbeats).
+        double spp = p.SamplesPerPeak / (double)Sholto.Audio.AudioFileDecoder.TargetSampleRate;
+        var segList = segs?.Segments;
+        int segCursor = 0;
+
         for (int x = 0; x < w; x++)
         {
             float energy;
-            SKColor color;
             if (hasBands)
             {
                 var (nl, nm, nh) = scaling.Normalize(p.Low[x], p.Mid[x], p.High[x]);
                 energy = Math.Clamp((nl + nm + nh) / (scaling.MaxTotal <= 0 ? 1 : scaling.MaxTotal), 0f, 1f);
-                // Colour by energy tier so sections read: quiet=slate, mid=blue, peak=cyan.
-                color = energy < 0.33f ? new SKColor(0x3A, 0x44, 0x55)
-                      : energy < 0.66f ? new SKColor(0x2E, 0x6B, 0xE0)
-                      :                  new SKColor(0x34, 0xE0, 0xF0);
             }
             else
             {
                 energy = MathF.Max(MathF.Abs(p.Max[x]), MathF.Abs(p.Min[x]));
-                color = new SKColor(0x3A, 0x44, 0x55);
             }
-            float barH = MathF.Max(1f, energy * h);
+
+            SKColor color;
+            if (segList is { Count: > 0 })
+            {
+                double sec = x * spp;
+                while (segCursor < segList.Count - 1 && sec >= segList[segCursor].EndSec) segCursor++;
+                color = SegmentColor(segList[segCursor].Kind);
+            }
+            else
+            {
+                // No sections yet — fall back to energy tiers.
+                color = energy < 0.33f ? new SKColor(0x5A, 0x66, 0x7C)
+                      : energy < 0.66f ? new SKColor(0x3A, 0x86, 0xFF)
+                      :                  new SKColor(0x3A, 0xEC, 0xFF);
+            }
+
+            // Baseline of at least 25% so even quiet sections show as a coloured lane.
+            float barH = MathF.Max(h * 0.25f, energy * h);
             paint.Color = color;
             canvas.DrawLine(x, h - barH, x, h, paint);
         }
+
+        // Thin dividers at section boundaries.
+        if (segList is { Count: > 1 })
+        {
+            paint.Color = new SKColor(0x00, 0x00, 0x00, 0xB0);
+            paint.StrokeWidth = 1;
+            for (int i = 1; i < segList.Count; i++)
+            {
+                int x = (int)(segList[i].StartSec / spp);
+                if (x > 0 && x < w) canvas.DrawLine(x, 0, x, h, paint);
+            }
+        }
         return surface.Snapshot();
     }
+
+    // Section palette — distinct hues so the arrangement reads at a glance.
+    private static SKColor SegmentColor(SegmentKind kind) => kind switch
+    {
+        SegmentKind.Intro     => new SKColor(0x5A, 0x66, 0x7C), // slate
+        SegmentKind.BuildUp   => new SKColor(0xF0, 0xA0, 0x30), // amber (rising)
+        SegmentKind.Drop      => new SKColor(0xFF, 0x5A, 0x2C), // hot orange (peak)
+        SegmentKind.Breakdown => new SKColor(0x8A, 0x5C, 0xE0), // purple (atmospheric)
+        SegmentKind.Verse     => new SKColor(0x3A, 0x86, 0xFF), // blue
+        SegmentKind.Chorus    => new SKColor(0x3A, 0xEC, 0xFF), // cyan
+        SegmentKind.Bridge    => new SKColor(0x2F, 0xB6, 0xA8), // teal
+        SegmentKind.Outro     => new SKColor(0x4A, 0x54, 0x68), // dim slate
+        _                     => new SKColor(0x5A, 0x66, 0x7C),
+    };
 
     public override void Render(DrawingContext context)
     {
@@ -170,6 +225,10 @@ public sealed class MinimapControl : Control
                     canvas.DrawImage(_image, new SKRect(0, 0, _image.Width, _image.Height), new SKRect(0, 0, w, h), _blit);
                 }
                 _head ??= new SKPaint { Color = SKColors.White, StrokeWidth = 2, IsAntialias = false };
+                // Bottom divider so the strip reads as its own lane above the waveform.
+                _head.Color = new SKColor(0x00, 0x00, 0x00, 0xC0); _head.StrokeWidth = 2;
+                canvas.DrawLine(0, h - 1, w, h - 1, _head);
+                _head.Color = SKColors.White;
                 float x = (float)(_pos * w);
                 canvas.DrawLine(x, 0, x, h, _head);
             }

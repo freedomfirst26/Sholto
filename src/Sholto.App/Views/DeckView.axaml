@@ -11,6 +11,7 @@
              click/drag to jump to any section. -->
         <controls:MinimapControl x:Name="Minimap" Grid.Row="0" Height="42"
                                  Peaks="{Binding GridPeaks}"
+                                 Segments="{Binding Segments}"
                                  PlayPosition="{Binding PlayPosition}"/>
 
         <Panel Grid.Row="1">

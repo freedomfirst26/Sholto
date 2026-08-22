@@ -36,19 +36,25 @@
                     </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:TrackActionItem">
-                            <Grid ColumnDefinitions="34,*" Margin="6,4">
+                            <Grid ColumnDefinitions="34,*,Auto" Margin="6,4">
                                 <TextBlock Grid.Column="0" Text="{Binding Icon}"
                                            FontSize="18" HorizontalAlignment="Center"
                                            VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="{Binding Label}"
                                            FontSize="15" VerticalAlignment="Center"
                                            Foreground="{DynamicResource SholtoTextBright}"/>
+                                <Border Grid.Column="2" CornerRadius="4" Padding="7,1"
+                                        Margin="8,0,4,0" VerticalAlignment="Center"
+                                        Background="{DynamicResource SholtoBgDeep}">
+                                    <TextBlock Text="{Binding Key}" FontSize="12" FontWeight="Bold"
+                                               Foreground="{DynamicResource SholtoTextMuted}"/>
+                                </Border>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <TextBlock Text="↑ ↓ move · Enter choose · Esc close"
+                <TextBlock Text="↑↓ move · Enter or press the key · Esc close"
                            FontSize="11"
                            Foreground="{DynamicResource SholtoTextMuted}"
                            Margin="20,6,20,0"/>

@@ -164,6 +164,15 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     private void OnBasicReady(BasicAnalysis _) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
+            // Enrich with coarse structural sections (intro/build/drop/…) from the
+            // energy envelope + beatgrid — drives the minimap colouring.
+            var basic = Analysis.Basic;
+            if (basic is not null)
+            {
+                Segments = SongSegmentAnalyzer.Analyze(
+                    basic.Peaks, basic.DownbeatTimes, AudioFileDecoder.TargetSampleRate);
+                Notify(nameof(Segments));
+            }
             Notify(nameof(Analysis));
             Notify(nameof(HasAnalysis));
             Notify(nameof(HasBpm));
@@ -331,6 +340,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         MarkerSecs = secs is double[] a ? a : secs.ToArray();
         Notify(nameof(MarkerSecs));
     }
+
+    /// <summary>Coarse structural sections of the loaded track (intro/build/drop/…),
+    /// or null until basic analysis lands. Drives the minimap colouring.</summary>
+    public SongSegments? Segments { get; private set; }
 
     /// <summary>Jump to an absolute fraction of the track (0..1) — minimap click/drag.</summary>
     public void SeekToFraction(double fraction)
@@ -664,6 +677,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(BpmMultiplier));
         Notify(nameof(Analysis));
         SetMarkers([]);                 // clear the old track's markers
+        Segments = null; Notify(nameof(Segments));
         Notify(nameof(Peaks));
         Notify(nameof(VocalRegions));   // clear the old track's vocal overlay
         Notify(nameof(BeatTimes));

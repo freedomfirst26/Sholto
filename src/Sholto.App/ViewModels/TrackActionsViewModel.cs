@@ -8,7 +8,7 @@ namespace Sholto.App.ViewModels;
 /// first — the whole point is "one key, a short menu, get out of the way".</summary>
 public enum TrackActionKind { Tag, AddToCrate, LoadDeck1, LoadDeck2 }
 
-public sealed record TrackActionItem(string Icon, string Label, TrackActionKind Kind);
+public sealed record TrackActionItem(string Icon, string Label, TrackActionKind Kind, string Key);
 
 /// <summary>Drives the Enter-mode action menu for a highlighted track. Replaces the
 /// old <c>T</c>-to-tag shortcut with a small chooser: Tag / Add to crate / Load.</summary>
@@ -23,10 +23,10 @@ public sealed class TrackActionsViewModel : INotifyPropertyChanged
 
     public ObservableCollection<TrackActionItem> Actions { get; } = new()
     {
-        new("🏷", "Tag",            TrackActionKind.Tag),
-        new("📦", "Add to crate",   TrackActionKind.AddToCrate),
-        new("①", "Load to Deck 1", TrackActionKind.LoadDeck1),
-        new("②", "Load to Deck 2", TrackActionKind.LoadDeck2),
+        new("①", "Load to Deck 1", TrackActionKind.LoadDeck1, "1"),
+        new("②", "Load to Deck 2", TrackActionKind.LoadDeck2, "2"),
+        new("📦", "Add to crate",   TrackActionKind.AddToCrate, "C"),
+        new("🏷", "Tag",            TrackActionKind.Tag, "T"),
     };
 
     private int _selectedIndex;

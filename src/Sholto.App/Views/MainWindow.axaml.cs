@@ -80,7 +80,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Enter-mode action menu (no text field): arrows move, Enter fires, Esc closes.
+        // Enter-mode action menu: arrows move + Enter fires, plus direct shortcuts
+        // (1/2 load a deck, C crate, T tag), Esc closes.
         if (vm.IsTrackActionsOpen)
         {
             switch (e.Key)
@@ -89,6 +90,10 @@ public partial class MainWindow : Window
                 case Key.Down:   vm.TrackActions.Move(+1); e.Handled = true; break;
                 case Key.Enter:  vm.TrackActions.Commit();  e.Handled = true; break;
                 case Key.Escape: vm.TrackActions.Close();   e.Handled = true; break;
+                case Key.D1: case Key.NumPad1: vm.TrackActions.Invoke(TrackActionKind.LoadDeck1); e.Handled = true; break;
+                case Key.D2: case Key.NumPad2: vm.TrackActions.Invoke(TrackActionKind.LoadDeck2); e.Handled = true; break;
+                case Key.C: vm.TrackActions.Invoke(TrackActionKind.AddToCrate); e.Handled = true; break;
+                case Key.T: vm.TrackActions.Invoke(TrackActionKind.Tag); e.Handled = true; break;
             }
             return;
         }
@@ -195,9 +200,18 @@ public partial class MainWindow : Window
             case Key.Up:
             case Key.Down:
             {
-                int sign = e.Key == Key.Up ? +1 : -1;   // up = faster BPM
-                double delta = shift ? 0.01 : 0.1;
-                GridTarget(vm)?.Player.AdjustBpm(sign * delta);
+                // In grid-edit mode ↑/↓ tune the BPM; otherwise they move the
+                // track-list selection (up = previous row, down = next).
+                if (vm.Deck1.GridEditActive || vm.Deck2.GridEditActive)
+                {
+                    int sign = e.Key == Key.Up ? +1 : -1;   // up = faster BPM
+                    double delta = shift ? 0.01 : 0.1;
+                    GridTarget(vm)?.Player.AdjustBpm(sign * delta);
+                }
+                else
+                {
+                    vm.SelectTrack(vm.SelectedTrackIndex + (e.Key == Key.Up ? -1 : +1));
+                }
                 e.Handled = true;
                 break;
             }

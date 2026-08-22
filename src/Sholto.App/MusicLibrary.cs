@@ -18,6 +18,11 @@ public sealed class MusicLibrary : INotifyPropertyChanged
     public ObservableCollection<TrackRow> Tracks { get; } = new();
     public event Action<string>? Scanned;
 
+    /// <summary>Fires after a scan with the ids of tracks that were newly added to the
+    /// library this scan (songs that just appeared in the folder). Handled by filing
+    /// them into the "All Tracks" crate. Empty list = nothing new.</summary>
+    public event Action<IReadOnlyList<Guid>>? TracksAdded;
+
     private string? _currentDir;
     public string? CurrentDir
     {
@@ -100,6 +105,7 @@ public sealed class MusicLibrary : INotifyPropertyChanged
             {
                 await using var db = factory.CreateDbContext();
 
+                var newPaths = new List<string>();
                 foreach (var t in scanned)
                 {
                     var info = new FileInfo(t.FilePath);
@@ -110,6 +116,7 @@ public sealed class MusicLibrary : INotifyPropertyChanged
                     var existing = await db.Tracks.FirstOrDefaultAsync(x => x.Path == t.FilePath);
                     if (existing is null)
                     {
+                        newPaths.Add(t.FilePath);
                         db.Tracks.Add(new EfTrack
                         {
                             Path = t.FilePath,
@@ -135,6 +142,14 @@ public sealed class MusicLibrary : INotifyPropertyChanged
                     .Select(t => new { t.Path, t.Id })
                     .ToDictionaryAsync(x => x.Path, x => x.Id);
                 cachedIds = pathToId;
+
+                // Kick off the "new songs appeared" event so they get filed into the
+                // All Tracks crate. Fires even when empty so handlers can reconcile.
+                var newIds = newPaths
+                    .Where(pathToId.ContainsKey)
+                    .Select(p => pathToId[p])
+                    .ToList();
+                TracksAdded?.Invoke(newIds);
 
                 var tagsByTrackId = await db.TrackTags.AsNoTracking()
                     .OrderBy(tt => tt.Tag.Name)
