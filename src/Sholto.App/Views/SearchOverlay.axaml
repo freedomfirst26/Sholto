@@ -154,7 +154,7 @@
                                                 HorizontalAlignment="Right" VerticalAlignment="Center"
                                                 IsVisible="{Binding Key, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <TextBlock Text="{Binding Key}" FontSize="11" FontWeight="Bold"
-                                                       Foreground="{DynamicResource SholtoChipForeground}"
+                                                       Foreground="White"
                                                        HorizontalAlignment="Center"/>
                                         </Border>
                                     </Grid>

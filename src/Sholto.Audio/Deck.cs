@@ -439,6 +439,19 @@ public sealed class Deck
             }
         });
 
+        // Model-based song sections (allin1). Optional + cached; when it lands it
+        // overrides the deck VM's cheap energy-heuristic segments with real labelled
+        // structure. No-op (and no cost) when allin1 isn't installed.
+        if (AllInOneSegmentAnalyzer.IsAvailable)
+        {
+            var segAnalysis = Analysis;
+            _ = Task.Run(async () =>
+            {
+                var segs = await AllInOneSegmentAnalyzer.AnalyzeAsync(filePath, Reporter);
+                if (segs is not null) segAnalysis.Set(segs);
+            });
+        }
+
         // Stems run independently of the BPM pipeline — slower (demucs takes 30-180s
         // on CPU for one track) and isolated from playback. Cached on disk so we only
         // pay the cost the first time a track is loaded ever.

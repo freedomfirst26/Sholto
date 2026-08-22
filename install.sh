@@ -86,6 +86,23 @@ else
     ok "demucs installed at ~/.local/bin/"
 fi
 
+# ── 4b. allin1 (AI song-structure analysis) — OPTIONAL ────────────────────────
+# Model-based section labels (intro/verse/chorus/bridge/outro) that drive the
+# minimap. Heavy (PyTorch + NATTEN + model download); the app works without it,
+# falling back to a fast energy heuristic. Set SHOLTO_INSTALL_ALLIN1=1 to install.
+section "allin1 (AI song sections — optional)"
+if [ -x "$HOME/.local/bin/allin1" ]; then
+    ok "allin1 already installed"
+elif [ "${SHOLTO_INSTALL_ALLIN1:-0}" = "1" ]; then
+    info "Installing allin1 (PyTorch + NATTEN + madmom; large download)..."
+    uv tool install "allin1" --with "torch" --with "natten" \
+        --with "madmom @ git+https://github.com/CPJKU/madmom" \
+        && ok "allin1 installed at ~/.local/bin/" \
+        || info "allin1 install failed — app still runs with the heuristic segmenter"
+else
+    info "Skipping allin1 (set SHOLTO_INSTALL_ALLIN1=1 to enable AI sections)"
+fi
+
 # ── 5. NuGet restore ──────────────────────────────────────────────────────────
 section "NuGet packages"
 dotnet restore Sholto.slnx

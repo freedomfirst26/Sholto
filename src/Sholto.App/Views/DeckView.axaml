@@ -10,6 +10,7 @@
         <!-- Compressed full-song overview: energy-coloured strip + playhead,
              click/drag to jump to any section. -->
         <controls:MinimapControl x:Name="Minimap" Grid.Row="0" Height="42"
+                                 IsVisible="{Binding HasSegments}"
                                  Peaks="{Binding GridPeaks}"
                                  Segments="{Binding Segments}"
                                  PlayPosition="{Binding PlayPosition}"/>

@@ -150,13 +150,27 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             _subscribedAnalysis.KeyReady        -= OnKeyReady;
             _subscribedAnalysis.StemsReady        -= OnStemsReady;
             _subscribedAnalysis.VocalRegionsReady -= OnVocalRegionsReady;
+            _subscribedAnalysis.SongSegmentsReady -= OnSongSegmentsReady;
         }
         _subscribedAnalysis = _player.Analysis;
         _subscribedAnalysis.BasicReady        += OnBasicReady;
         _subscribedAnalysis.KeyReady          += OnKeyReady;
         _subscribedAnalysis.StemsReady        += OnStemsReady;
         _subscribedAnalysis.VocalRegionsReady += OnVocalRegionsReady;
+        _subscribedAnalysis.SongSegmentsReady += OnSongSegmentsReady;
     }
+
+    // Model-based sections (allin1) arrive after the instant heuristic; when they do,
+    // they replace it (higher quality, real labels).
+    private void OnSongSegmentsReady(SongSegments g) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (g.Segments.Count == 0) return;
+            Segments = g;
+            Console.WriteLine($"[Deck] AI song segments: {g.Segments.Count} (allin1)");
+            Notify(nameof(Segments));
+            Notify(nameof(HasSegments));
+        });
 
     // Each per-type handler only re-notifies the bindings that DEPEND on that
     // analysis type. Cheaper than the old "fire everything on AnalysisUpdated"
@@ -171,7 +185,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             {
                 Segments = SongSegmentAnalyzer.Analyze(
                     basic.Peaks, basic.DownbeatTimes, AudioFileDecoder.TargetSampleRate);
+                Console.WriteLine($"[Deck] song segments: {Segments.Segments.Count} " +
+                    $"(peaks={basic.Peaks.Min.Length}, downbeats={basic.DownbeatTimes.Length})");
                 Notify(nameof(Segments));
+                Notify(nameof(HasSegments));
             }
             Notify(nameof(Analysis));
             Notify(nameof(HasAnalysis));
@@ -344,6 +361,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <summary>Coarse structural sections of the loaded track (intro/build/drop/…),
     /// or null until basic analysis lands. Drives the minimap colouring.</summary>
     public SongSegments? Segments { get; private set; }
+
+    /// <summary>True once song-section analysis has produced sections — the songmap
+    /// (minimap) is only shown when this is true.</summary>
+    public bool HasSegments => Segments is { Segments.Count: > 0 };
 
     /// <summary>Jump to an absolute fraction of the track (0..1) — minimap click/drag.</summary>
     public void SeekToFraction(double fraction)
@@ -677,7 +698,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(BpmMultiplier));
         Notify(nameof(Analysis));
         SetMarkers([]);                 // clear the old track's markers
-        Segments = null; Notify(nameof(Segments));
+        Segments = null; Notify(nameof(Segments)); Notify(nameof(HasSegments));
         Notify(nameof(Peaks));
         Notify(nameof(VocalRegions));   // clear the old track's vocal overlay
         Notify(nameof(BeatTimes));

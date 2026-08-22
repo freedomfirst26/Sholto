@@ -44,6 +44,10 @@ public sealed class TrackAnalysis
     /// binding so the waveform paints the green "vocals here" rectangles.</summary>
     public event Action<VocalRegions>? VocalRegionsReady;
 
+    /// <summary>Fires when model-based song sections land (allin1). The deck view
+    /// model replaces its heuristic segments with these higher-quality ones.</summary>
+    public event Action<SongSegments>? SongSegmentsReady;
+
     public IReadOnlyCollection<IAnalysis> All => _byType.Values;
 
     public T? Get<T>() where T : class, IAnalysis =>
@@ -65,6 +69,7 @@ public sealed class TrackAnalysis
             case StemPaths s:     StemsReady?.Invoke(s);     break;
             case StemPeaks p:     StemPeaksReady?.Invoke(p); break;
             case VocalRegions v:  VocalRegionsReady?.Invoke(v); break;
+            case SongSegments g:  SongSegmentsReady?.Invoke(g); break;
         }
         AnyReady?.Invoke(analysis);
     }
