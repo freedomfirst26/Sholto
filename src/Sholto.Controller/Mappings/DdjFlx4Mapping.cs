@@ -189,6 +189,10 @@ public sealed class DdjFlx4Mapping : IControllerMapping
                 => [(byte)(0x90 + light.Deck), 0x54, vel],
             LightFunction.MasterCue
                 => [0x96, 0x63, vel],
+            // BEAT SYNC LED — same note as the SYNC button press (0x58) on the
+            // per-deck output channel (0x90 + deck), mirroring the Cue light.
+            LightFunction.BeatSync when light.Deck is 0 or 1
+                => [(byte)(0x90 + light.Deck), 0x58, vel],
             _ => null,
         };
     }

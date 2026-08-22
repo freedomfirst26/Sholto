@@ -250,6 +250,8 @@ public partial class App : Application
 
         _orchestrator = new Orchestrator(vm, () => _factory);
         _controller.Action += evt => Dispatcher.UIThread.Post(() => _orchestrator.HandleControllerEvent(evt));
+        // App→controller output: orchestrator asks, controller lights the LED.
+        _orchestrator.BeatSyncLightRequested += (deck, on) => _controller.SetBeatSync(deck, on);
 
         // Known state on boot: every button LED off + cue audio cleared, emitted
         // after Action is wired so the cleared-cue events reach the Session.

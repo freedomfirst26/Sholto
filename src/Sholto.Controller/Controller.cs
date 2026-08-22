@@ -16,9 +16,11 @@ public sealed class Controller : IDisposable
 {
     private readonly MidiManager _midi = new() { LogAllMessages = false };
 
-    public Button MasterCue { get; }
-    public Button Deck1Cue { get; }
-    public Button Deck2Cue { get; }
+    public ButtonWithLight MasterCue { get; }
+    public ButtonWithLight Deck1Cue { get; }
+    public ButtonWithLight Deck2Cue { get; }
+    public ButtonWithLight Deck1BeatSync { get; }
+    public ButtonWithLight Deck2BeatSync { get; }
     public Fader Deck1Volume { get; } = new("Deck1Volume");
     public Fader Deck2Volume { get; } = new("Deck2Volume");
     private readonly IReadOnlyList<Component> _components;
@@ -29,10 +31,12 @@ public sealed class Controller : IDisposable
 
     public Controller()
     {
-        MasterCue = MakeButton("MasterCue", new ControllerLight(0, LightFunction.MasterCue));
-        Deck1Cue  = MakeButton("Deck1Cue",  new ControllerLight(0, LightFunction.Cue));
-        Deck2Cue  = MakeButton("Deck2Cue",  new ControllerLight(1, LightFunction.Cue));
-        _components = [MasterCue, Deck1Cue, Deck2Cue, Deck1Volume, Deck2Volume];
+        MasterCue     = MakeButton("MasterCue",     new ControllerLight(0, LightFunction.MasterCue));
+        Deck1Cue      = MakeButton("Deck1Cue",      new ControllerLight(0, LightFunction.Cue));
+        Deck2Cue      = MakeButton("Deck2Cue",      new ControllerLight(1, LightFunction.Cue));
+        Deck1BeatSync = MakeButton("Deck1BeatSync", new ControllerLight(0, LightFunction.BeatSync));
+        Deck2BeatSync = MakeButton("Deck2BeatSync", new ControllerLight(1, LightFunction.BeatSync));
+        _components = [MasterCue, Deck1Cue, Deck2Cue, Deck1BeatSync, Deck2BeatSync, Deck1Volume, Deck2Volume];
 
         Deck1Cue.Clicked += _ => OnCueClicked(0, Deck1Cue);
         Deck2Cue.Clicked += _ => OnCueClicked(1, Deck2Cue);
@@ -44,12 +48,17 @@ public sealed class Controller : IDisposable
         Deck2Volume.ValueChanged += v => Action?.Invoke(new ControllerEvent.ChannelVolumeMoved(1, v));
     }
 
-    private Button MakeButton(string name, ControllerLight light) =>
+    private ButtonWithLight MakeButton(string name, ControllerLight light) =>
         new(name, on =>
         {
             var bytes = _midi.Mapping?.RenderLight(light, on);
             if (bytes is not null) _midi.Send(bytes);
         });
+
+    /// <summary>Output command from the App (via the orchestrator): drive a deck's
+    /// BEAT SYNC LED. Called when the deck starts/stops playing.</summary>
+    public void SetBeatSync(int deck, bool on) =>
+        (deck == 0 ? Deck1BeatSync : Deck2BeatSync).SetLit(on);
 
     /// <summary>Connect to the hardware. Returns false if no controller is found
     /// (the App can still run from the UI).</summary>
@@ -94,7 +103,7 @@ public sealed class Controller : IDisposable
         }
     }
 
-    private void OnCueClicked(int deck, Button button)
+    private void OnCueClicked(int deck, ButtonWithLight button)
     {
         button.SetLit(!button.IsLit);                                   // orchestrate the light
         Action?.Invoke(new ControllerEvent.CueChanged(deck, button.IsLit)); // tell the App

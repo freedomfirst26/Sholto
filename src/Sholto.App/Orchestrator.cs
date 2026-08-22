@@ -39,7 +39,17 @@ public sealed class Orchestrator : IDisposable
         // Double-clicking a library row re-analyzes it — same path as the browse
         // long-press. The VM only raises the request; we hold the provider + factory.
         _vm.ReanalyzeSelectedRequested += OnReanalyzeSelectedRequested;
+
+        // Deck transport → controller output: when a deck starts/stops playing it
+        // broadcasts here, and we ask the controller to light/clear that deck's
+        // BEAT SYNC LED (App wires BeatSyncLightRequested to Controller.SetBeatSync).
+        _vm.Deck1.PlayStateChanged += s => BeatSyncLightRequested?.Invoke(0, s == DeckPlayState.Playing);
+        _vm.Deck2.PlayStateChanged += s => BeatSyncLightRequested?.Invoke(1, s == DeckPlayState.Playing);
     }
+
+    /// <summary>Raised to request a deck's BEAT SYNC LED be set (deck index, on/off).
+    /// The App forwards this to the controller.</summary>
+    public event Action<int, bool>? BeatSyncLightRequested;
 
     private void OnReanalyzeSelectedRequested() => ReanalyzeHighlighted("double-click");
 

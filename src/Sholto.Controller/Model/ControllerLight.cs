@@ -6,6 +6,7 @@ public enum LightFunction
 {
     Cue,
     MasterCue,
+    BeatSync,
 }
 
 /// <summary>Addresses one lightable control: which deck (0 = Deck 1, 1 = Deck 2;

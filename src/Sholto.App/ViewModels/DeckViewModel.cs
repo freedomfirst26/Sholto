@@ -22,6 +22,15 @@ public enum DeckLoadState
     Failed,
 }
 
+/// <summary>Transport state of a deck.</summary>
+public enum DeckPlayState
+{
+    /// <summary>Not playing (paused or never started).</summary>
+    Stopped,
+    /// <summary>Audio is playing.</summary>
+    Playing,
+}
+
 public sealed class DeckViewModel : INotifyPropertyChanged
 {
     private readonly Deck _player;
@@ -195,8 +204,24 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public bool IsPlaying
     {
         get => _isPlaying;
-        private set { _isPlaying = value; Notify(); }
+        private set
+        {
+            if (_isPlaying == value) return;
+            _isPlaying = value;
+            Notify();
+            Notify(nameof(PlayState));
+            // Broadcast the transport change up to the orchestration layer, which
+            // drives controller output (e.g. the BEAT SYNC LED).
+            PlayStateChanged?.Invoke(PlayState);
+        }
     }
+
+    /// <summary>Transport state as an enum mirror of <see cref="IsPlaying"/>.</summary>
+    public DeckPlayState PlayState => _isPlaying ? DeckPlayState.Playing : DeckPlayState.Stopped;
+
+    /// <summary>Raised when this deck starts or stops playing. The orchestrator
+    /// listens and tells the controller to light/clear the deck's BEAT SYNC LED.</summary>
+    public event Action<DeckPlayState>? PlayStateChanged;
 
     // Cached so we don't allocate a fresh brush every 16 ms — that was Avalonia's
     // binding system seeing a "new" IBrush per frame and invalidating the whole disc.
