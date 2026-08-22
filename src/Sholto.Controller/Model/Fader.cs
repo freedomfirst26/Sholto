@@ -7,10 +7,8 @@ namespace Sholto.Controller;
 /// position <em>crosses</em> the current software value; then it engages and
 /// tracks. That means bringing a fader up from the bottom smoothly introduces a
 /// track, and there is never a sudden jump when software and hardware disagree.</summary>
-public sealed class Fader : Component
+public sealed class Fader : AnalogueControl
 {
-    public string Name { get; }
-
     private float _value;          // authoritative software value, 0..1
     private bool _engaged;
     private float? _lastPhysical;
@@ -21,7 +19,7 @@ public sealed class Fader : Component
     /// <summary>Fires with the new value only while engaged (after pickup).</summary>
     public event Action<float>? ValueChanged;
 
-    public Fader(string name) => Name = name;
+    public Fader(string name) : base(name) { }
 
     /// <summary>Report a physical fader position in [0,1].</summary>
     public void Move(float physical)
@@ -48,16 +46,4 @@ public sealed class Fader : Component
         }
     }
 
-    /// <summary>Back to the known state: disengaged and down. Re-pickup is needed
-    /// before the fader affects level again.</summary>
-    public override void Reset()
-    {
-        _engaged = false;
-        _lastPhysical = null;
-        if (_value != 0f)
-        {
-            _value = 0f;
-            ValueChanged?.Invoke(0f);
-        }
-    }
 }

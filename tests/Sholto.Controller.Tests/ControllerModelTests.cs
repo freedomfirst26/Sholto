@@ -80,18 +80,18 @@ public class ControllerModelTests
     }
 
     [Fact]
-    public void Fader_Reset_DisengagesAndDropsToZero()
+    public void Fader_Reset_IsNoOp_PhysicalStateIsTruth()
     {
         var f = new Fader("vol");
         f.Move(0.5f); f.Move(0.0f); f.Move(0.7f);   // pick up and move to 0.7
         Assert.True(f.Engaged);
 
-        float? last = null;
-        f.ValueChanged += v => last = v;
+        bool fired = false;
+        f.ValueChanged += _ => fired = true;
         f.Reset();
 
-        Assert.False(f.Engaged);
-        Assert.Equal(0f, f.Value);
-        Assert.Equal(0f, last);              // app told the fader is down
+        Assert.True(f.Engaged);              // untouched — a slider isn't reset
+        Assert.Equal(0.7f, f.Value);
+        Assert.False(fired);
     }
 }
