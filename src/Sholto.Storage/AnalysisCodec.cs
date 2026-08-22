@@ -16,7 +16,11 @@ namespace Sholto.Storage;
 /// </summary>
 public static class AnalysisCodec
 {
-    public const uint Version = 1;
+    // v2: BPM is now the mean (not median) of madmom's inter-beat gaps — the
+    // median biased quantized beat times high (174 DnB read 176.5). Bumping the
+    // version invalidates cached basic analyses so tracks re-derive the fixed BPM
+    // (and re-bake the calibrated waveform) on next load.
+    public const uint Version = 2;
 
     public static byte[] Encode(BasicAnalysis a)
     {

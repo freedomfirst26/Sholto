@@ -56,18 +56,36 @@ public static class MadmomBeatAnalyzer
             if (parts.Length >= 2 && parts[1].Trim() == "1") downbeats.Add(t);
         }
 
-        // BPM from median inter-beat interval.
-        double bpm = 0;
-        if (beats.Count >= 2)
-        {
-            var gaps = new double[beats.Count - 1];
-            for (int i = 1; i < beats.Count; i++) gaps[i - 1] = beats[i] - beats[i - 1];
-            Array.Sort(gaps);
-            double median = gaps[gaps.Length / 2];
-            bpm = Math.Round(60.0 / median * 10) / 10.0;
-        }
-
+        double bpm = BpmFromBeats(beats);
         return (bpm, beats.ToArray(), downbeats.ToArray());
+    }
+
+    /// <summary>Tempo (BPM, 0.1 resolution) from beat times. Uses the MEAN of the
+    /// inter-beat gaps, not the median: madmom quantizes beat times to its ~10 ms
+    /// frame grid, so a true gap that falls between two frames (174 BPM = 0.3448 s)
+    /// is emitted as an alternating mix of the neighbouring quantized values
+    /// (0.34 / 0.35). The median then locks onto whichever is slightly more common
+    /// and biases the tempo high — a 174 BPM DnB track reads 176.5. The mean
+    /// averages the quantization back to the true value. Gaps far from the median
+    /// (missed or doubled beats) are trimmed first so dropouts don't drag it.</summary>
+    public static double BpmFromBeats(IReadOnlyList<double> beats)
+    {
+        if (beats.Count < 3) return 0;
+
+        var gaps = new double[beats.Count - 1];
+        for (int i = 1; i < beats.Count; i++) gaps[i - 1] = beats[i] - beats[i - 1];
+        Array.Sort(gaps);
+        double median = gaps[gaps.Length / 2];
+        if (median <= 0) return 0;
+
+        double lo = median * 0.5, hi = median * 1.5;
+        double sum = 0;
+        int n = 0;
+        foreach (var g in gaps)
+            if (g >= lo && g <= hi) { sum += g; n++; }
+
+        double mean = n > 0 ? sum / n : median;
+        return Math.Round(60.0 / mean * 10) / 10.0;
     }
 
     private static string? FindBinary(string name)
