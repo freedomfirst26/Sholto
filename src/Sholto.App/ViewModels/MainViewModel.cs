@@ -7,6 +7,7 @@ using Sholto.App.Controls;
 using Sholto.App.Theming;
 using Sholto.Audio;
 using Sholto.Music;
+using Microsoft.Extensions.Options;
 
 namespace Sholto.App.ViewModels;
 
@@ -181,8 +182,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
     public bool LibraryUnreachableVisible => Library.IsUnreachable;
 
-    public MainViewModel()
+    private readonly MagnetismOptions _magnetism;
+
+    public MainViewModel(IOptions<MagnetismOptions> magnetism)
     {
+        _magnetism = magnetism.Value;
+
         // Make the initial theme visible to anything that reads ThemeContext
         // before the user picks a different theme.
         ThemeContext.Current = _theme;
@@ -493,12 +498,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         });
     }
 
-    // "Fraction of a percent" — magnet only kicks in when the two decks are
-    // already very close. At 0.5% the tempo snap is essentially inaudible (a
-    // 120-BPM deck snapping by 0.6 BPM); a wider tolerance would cause a
-    // pitch jump the listener could hear. The user is expected to have done
-    // the rough beat-match already; the magnet just locks the last bit.
-    private const double BpmEligibilityTolerance = 0.005;
+    // How close the two decks' tempos must be for the magnet to engage — now
+    // configurable via MagnetismOptions (default 1%). See that type for the rationale.
 
     /// <summary>
     /// Magnet-lock eligibility. True iff:
@@ -506,7 +507,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     ///   <item>both decks have completed basic analysis (BPM + beat grid),</item>
     ///   <item>both decks are actually playing,</item>
     ///   <item>their <em>playback</em> BPMs (source × multiplier × tempo fader)
-    ///         are within <see cref="BpmEligibilityTolerance"/>,</item>
+    ///         are within <see cref="MagnetismOptions.BpmEligibilityTolerance"/>,</item>
     ///   <item>the user isn't currently rotating <em>both</em> jog wheels at
     ///         once (a dual-jog gesture is the user doing something deliberate;
     ///         the magnet should hold off until they release one).</item>
@@ -524,7 +525,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (eff1 <= 0 || eff2 <= 0) return false;
 
             double diff = Math.Abs(eff1 - eff2) / Math.Max(eff1, eff2);
-            if (diff > BpmEligibilityTolerance) return false;
+            if (diff > _magnetism.BpmEligibilityTolerance) return false;
 
             // Both decks being jogged simultaneously → user is in the middle of
             // a manual adjustment, don't surprise them with a lock.

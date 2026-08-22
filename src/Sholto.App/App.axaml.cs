@@ -34,7 +34,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var vm = new MainViewModel();
+            var vm = new MainViewModel(Microsoft.Extensions.Options.Options.Create(new MagnetismOptions()));
             _vm = vm;
             desktop.MainWindow = new Views.MainWindow { DataContext = vm };
 
