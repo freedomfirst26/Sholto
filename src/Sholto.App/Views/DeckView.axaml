@@ -13,6 +13,7 @@
                                       Peaks="{Binding Peaks}"
                                       GridPeaks="{Binding GridPeaks}"
                                       VocalRegions="{Binding VocalRegions}"
+                                      VocalsActive="{Binding VocalsActive}"
                                       BeatTimes="{Binding BeatTimes}"
                                       DownbeatTimes="{Binding DownbeatTimes}"
                                       PlayPosition="{Binding PlayPosition}"
@@ -53,9 +54,19 @@
                  pointer events, but the waveform has no click handlers and the
                  ÷2 / ×2 BPM buttons need to be clickable — so allow hit-test
                  here and let individual decorative children opt out below. -->
-            <StackPanel Orientation="Horizontal"
+            <!-- INFO component: disc, BPM, title, key, stem chips. Reacts to the
+                 deck's load state — dimmed (transparent) while Loading, full once
+                 Loaded. The Waveform component above stays at full opacity. -->
+            <StackPanel x:Name="Info"
+                        Orientation="Horizontal"
                         HorizontalAlignment="Left" VerticalAlignment="Center"
-                        Margin="20,0,0,0" Spacing="16">
+                        Margin="20,0,0,0" Spacing="16"
+                        Opacity="{Binding InfoOpacity}">
+                <StackPanel.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                    </Transitions>
+                </StackPanel.Transitions>
 
                 <StackPanel Orientation="Vertical" Spacing="6">
                 <Grid Width="140" Height="140">

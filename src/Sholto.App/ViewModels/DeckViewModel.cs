@@ -387,9 +387,19 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             _loadState = value;
             Notify();
             Notify(nameof(CanPlay));
+            Notify(nameof(InfoOpacity));
             LoadStateChanged?.Invoke(value);
         }
     }
+
+    /// <summary>Opacity for the deck's Info component (disc, title, BPM, key, stem
+    /// chips) — it reacts to <see cref="LoadState"/>: dimmed while the track is still
+    /// loading, full once <see cref="DeckLoadState.Loaded"/>. The waveform component
+    /// stays at full opacity throughout.</summary>
+    public double InfoOpacity => LoadState == DeckLoadState.Loaded ? 1.0 : LoadingInfoOpacity;
+
+    /// <summary>Info opacity while a track is loading/idle (0.3 = 70% transparent).</summary>
+    private const double LoadingInfoOpacity = 0.3;
 
     /// <summary>Typed-event mirror of <see cref="LoadState"/> changes. Subscribe
     /// here when you'd rather listen for one specific signal than filter the
