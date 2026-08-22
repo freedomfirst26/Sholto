@@ -31,6 +31,13 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<WaveformPeaks?> GridPeaksProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(GridPeaks));
 
+    /// <summary>Vocal-presence regions (from <see cref="VocalRegionAnalyzer"/>). Not a
+    /// waveform — the control paints one solid green rectangle per span on top of the
+    /// band waveform, so you can see where the vocals sit at a glance. Null until
+    /// stems land.</summary>
+    public static readonly StyledProperty<VocalRegions?> VocalRegionsProperty =
+        AvaloniaProperty.Register<WaveformControl, VocalRegions?>(nameof(VocalRegions));
+
     public static readonly StyledProperty<double[]?> BeatTimesProperty =
         AvaloniaProperty.Register<WaveformControl, double[]?>(nameof(BeatTimes));
 
@@ -112,6 +119,12 @@ public sealed class WaveformControl : Control
     private WaveformPalette _bakedPalette;
     private CancellationTokenSource? _bakeCts;
 
+    // Contiguous vocal-present spans in track SECONDS (start, end), derived from
+    // VocalPeaks whenever it changes. Precomputed (not per-frame) since it's a
+    // full pass over the stem's per-column envelope; the render loop just maps
+    // each span through the same time→screen transform the beatgrid uses.
+    private (double Start, double End)[] _vocalRegions = [];
+
     static WaveformControl()
     {
         AffectsRender<WaveformControl>(GridEditModeProperty);
@@ -124,6 +137,9 @@ public sealed class WaveformControl : Control
         AffectsRender<WaveformControl>(IsScrubbingProperty);
         PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         PaletteProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+        // Vocal overlay is drawn live (not baked); cache the incoming spans then
+        // invalidate so the next frame paints the green rectangles.
+        VocalRegionsProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.OnVocalRegionsChanged());
         // Beatgrid is drawn live (not baked), so it doesn't need a rebake — just
         // an invalidate so the next frame picks up the new ticks.
         AffectsRender<WaveformControl>(GridPeaksProperty);
@@ -144,6 +160,12 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(GridPeaksProperty);
         set => SetValue(GridPeaksProperty, value);
+    }
+
+    public VocalRegions? VocalRegions
+    {
+        get => GetValue(VocalRegionsProperty);
+        set => SetValue(VocalRegionsProperty, value);
     }
 
     public double[]? BeatTimes
@@ -219,6 +241,18 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(LoopColorProperty);
         set => SetValue(LoopColorProperty, value);
+    }
+
+    /// <summary>Cache the analyzer's spans in render-friendly form. The presence
+    /// detection itself lives in <see cref="VocalRegionAnalyzer"/> — here we just
+    /// project to (start, end) seconds and invalidate.</summary>
+    private void OnVocalRegionsChanged()
+    {
+        var vr = VocalRegions;
+        _vocalRegions = vr is null
+            ? []
+            : vr.Regions.Select(r => (r.StartSec, r.EndSec)).ToArray();
+        InvalidateVisual();
     }
 
     private void Rebake()
@@ -376,7 +410,7 @@ public sealed class WaveformControl : Control
         // Volume/crossfader gain-line colour comes from the theme.
         var gainColor = new SKColor(GainOverlayColor.R, GainOverlayColor.G, GainOverlayColor.B, GainOverlayColor.A);
         var loopColor = new SKColor(LoopColor.R, LoopColor.G, LoopColor.B, LoopColor.A);
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor));
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor, _vocalRegions));
 
         // Grid-edit mode: red border tint so the user knows clicks set anchors.
         if (GridEditMode)
@@ -428,6 +462,7 @@ public sealed class WaveformControl : Control
         [ThreadStatic] private static SKPaint? _glowPaint;
         [ThreadStatic] private static SKPaint? _beatTickPaint;
         [ThreadStatic] private static SKPaint? _loopPaint;
+        [ThreadStatic] private static SKPaint? _vocalPaint;
 
         private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
@@ -445,8 +480,9 @@ public sealed class WaveformControl : Control
         private readonly SKColor _downbeatColor;
         private readonly SKColor _gainColor;
         private readonly SKColor _loopColor;
+        private readonly (double Start, double End)[] _vocalRegions;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor, (double Start, double End)[] vocalRegions)
         {
             Bounds = bounds;
             _image = image;
@@ -466,6 +502,7 @@ public sealed class WaveformControl : Control
             _downbeatColor = downbeatColor;
             _gainColor = gainColor;
             _loopColor = loopColor;
+            _vocalRegions = vocalRegions;
         }
 
         public Rect Bounds { get; }
@@ -515,6 +552,36 @@ public sealed class WaveformControl : Control
                     var dst = new SKRect(clipLeftDst, 0, dstW - clipRightDst, dstH);
                     _blitPaint ??= new SKPaint { FilterQuality = SKFilterQuality.Low };
                     canvas.DrawImage(_image, src, dst, _blitPaint);
+                }
+            }
+
+            // Vocal-presence rectangles — the 4th layer, drawn over the frequency
+            // bands. Solid green blocks wherever the isolated vocal stem is active,
+            // so you can see the vocals in the track at a glance. Deliberately NOT a
+            // waveform — a flat block per contiguous vocal span. The playhead and
+            // beatgrid draw on top, so they stay readable. Same time→screen mapping
+            // as the grid, so the blocks stay locked at any tempo.
+            if (_vocalRegions.Length > 0)
+            {
+                var vref = (_gridPeaks is { Min.Length: > 0 }) ? _gridPeaks
+                         : (_peaks is { Min.Length: > 0 })     ? _peaks : null;
+                if (vref is not null)
+                {
+                    double vspp = vref.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
+                    int vtotal = vref.Min.Length;
+                    float vcenter = (float)(_playPosition * vtotal);
+                    _vocalPaint ??= new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = false };
+                    _vocalPaint.Color = new SKColor(0x34, 0xF0, 0x6F, 0xD0); // VOX green
+                    const float bandH = 6f; // a thick line centred in the lane, not a tall block
+                    float y0 = (dstH - bandH) / 2f;
+                    foreach (var (s, e) in _vocalRegions)
+                    {
+                        float x0 = (float)(((s / vspp) - vcenter) / _playbackSpeed) + dstW / 2f;
+                        float x1 = (float)(((e / vspp) - vcenter) / _playbackSpeed) + dstW / 2f;
+                        if (x1 <= 0 || x0 >= dstW) continue;
+                        float cx0 = Math.Max(0, x0), cx1 = Math.Min(dstW, x1);
+                        canvas.DrawRect(cx0, y0, cx1 - cx0, bandH, _vocalPaint);
+                    }
                 }
             }
 

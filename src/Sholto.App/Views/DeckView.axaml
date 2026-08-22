@@ -12,6 +12,7 @@
                                       GridEditMode="{Binding GridEditActive}"
                                       Peaks="{Binding Peaks}"
                                       GridPeaks="{Binding GridPeaks}"
+                                      VocalRegions="{Binding VocalRegions}"
                                       BeatTimes="{Binding BeatTimes}"
                                       DownbeatTimes="{Binding DownbeatTimes}"
                                       PlayPosition="{Binding PlayPosition}"

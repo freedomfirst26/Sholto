@@ -139,12 +139,14 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         {
             _subscribedAnalysis.BasicReady      -= OnBasicReady;
             _subscribedAnalysis.KeyReady        -= OnKeyReady;
-            _subscribedAnalysis.StemsReady      -= OnStemsReady;
+            _subscribedAnalysis.StemsReady        -= OnStemsReady;
+            _subscribedAnalysis.VocalRegionsReady -= OnVocalRegionsReady;
         }
         _subscribedAnalysis = _player.Analysis;
-        _subscribedAnalysis.BasicReady      += OnBasicReady;
-        _subscribedAnalysis.KeyReady        += OnKeyReady;
-        _subscribedAnalysis.StemsReady      += OnStemsReady;
+        _subscribedAnalysis.BasicReady        += OnBasicReady;
+        _subscribedAnalysis.KeyReady          += OnKeyReady;
+        _subscribedAnalysis.StemsReady        += OnStemsReady;
+        _subscribedAnalysis.VocalRegionsReady += OnVocalRegionsReady;
     }
 
     // Each per-type handler only re-notifies the bindings that DEPEND on that
@@ -178,6 +180,9 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     private void OnStemsReady(StemPaths _) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => Notify(nameof(HasStems)));
+
+    private void OnVocalRegionsReady(VocalRegions _) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => Notify(nameof(VocalRegions)));
 
     public Deck Player => _player;
 
@@ -285,6 +290,12 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// so the beatgrid keeps scrolling even when every stem is muted and the
     /// stem-coloured body has gone dark.</summary>
     public WaveformPeaks GridPeaks => Analysis.Basic?.Peaks ?? WaveformPeaks.Empty;
+
+    /// <summary>Vocal-presence regions derived from the isolated vocal stem, or null
+    /// until stems land. Drives the green "vocals present" rectangle overlay on the
+    /// waveform. Not part of the silhouette (which stays the full mix, see
+    /// <see cref="Peaks"/>) — it's a separate presence layer on top.</summary>
+    public VocalRegions? VocalRegions => Analysis.Get<VocalRegions>();
 
     public double[] BeatTimes => Analysis.Basic?.BeatTimes ?? [];
     public double[] DownbeatTimes => Analysis.Basic?.DownbeatTimes ?? [];
@@ -600,6 +611,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(BpmMultiplier));
         Notify(nameof(Analysis));
         Notify(nameof(Peaks));
+        Notify(nameof(VocalRegions));   // clear the old track's vocal overlay
         Notify(nameof(BeatTimes));
         Notify(nameof(DownbeatTimes));
         Notify(nameof(BpmDisplay));
@@ -818,8 +830,9 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     /// <summary>Channel fader 0..1, or null until the fader is measured. The FLX-4
     /// only reports a fader's position on movement, so at startup we don't know it;
-    /// null is that unmeasured truth (distinct from 0). Unmeasured → the deck is
-    /// silent and the UI shows no level (see <see cref="GainKnown"/>).</summary>
+    /// null is that unmeasured truth (distinct from 0). Unmeasured → the deck plays
+    /// at unity (so there's sound after a restart) but the UI shows no level until
+    /// the first move (see <see cref="GainKnown"/> and <see cref="ApplyVolume"/>).</summary>
     public double? ChannelGain
     {
         get => _channelGain;
@@ -847,7 +860,12 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     private void ApplyVolume()
     {
-        _player.Volume = (_channelGain ?? 0f) * _crossfadeGain; // unmeasured → silent
+        // Unmeasured → play at UNITY, not silent. The FLX-4 sends no fader position
+        // until moved, so gating audio on measurement left every deck dead-silent
+        // after a restart until you jiggled the fader. Default audible; the first
+        // physical move adopts the real position (soft-takeover has no prior value
+        // to take over from). The UI still hides the gain line until GainKnown.
+        _player.Volume = (_channelGain ?? 1f) * _crossfadeGain;
         Notify(nameof(EffectiveGain));
         Notify(nameof(IsMuted));
         Notify(nameof(GainKnown));

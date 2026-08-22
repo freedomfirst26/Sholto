@@ -131,6 +131,7 @@
                      ItemsSource="{Binding Tracks}"
                      SelectedIndex="{Binding SelectedTrackIndex, Mode=TwoWay}"
                      SelectionChanged="OnTrackSelectionChanged"
+                     DoubleTapped="OnTrackDoubleTapped"
                      Background="{DynamicResource SholtoSurface}">
                 <ListBox.Styles>
                     <!-- Override Fluent's hover/selected backgrounds so they don't clobber

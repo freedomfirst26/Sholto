@@ -36,6 +36,29 @@ public sealed class Orchestrator : IDisposable
     {
         _vm = vm;
         _dbFactory = dbFactory;
+        // Double-clicking a library row re-analyzes it — same path as the browse
+        // long-press. The VM only raises the request; we hold the provider + factory.
+        _vm.ReanalyzeSelectedRequested += OnReanalyzeSelectedRequested;
+    }
+
+    private void OnReanalyzeSelectedRequested() => ReanalyzeHighlighted("double-click");
+
+    /// <summary>Force-reanalyze the highlighted library track (BPM/beats/peaks + key)
+    /// via the deck's AnalysisProvider, writing through every cache tier. Shared by the
+    /// browse-knob long-press and the library double-click.</summary>
+    private void ReanalyzeHighlighted(string source)
+    {
+        var vm = _vm;
+        var provider = vm.Deck1.Player.AnalysisProvider;
+        if (provider is null) { Console.WriteLine($"[Orchestrator] {source} re-analyze: no AnalysisProvider yet"); return; }
+        Console.WriteLine($"[Orchestrator] {source} → re-analyzing {vm.SelectedTrack?.FilePath}");
+        var factory = _dbFactory();
+        _ = vm.OnBrowseHeldAsync(
+            t => AudioFileDecoder.Decode(t.FilePath),
+            provider,
+            saveKey: factory is not null
+                ? (path, key) => new KeyAnalysisCache(factory).PutAsync(path, key)
+                : null);
     }
 
     /// <summary>Start the 60 Hz tick (jog flush + magnetism + playhead sync).</summary>
@@ -67,16 +90,7 @@ public sealed class Orchestrator : IDisposable
                     {
                         timer.Stop();
                         if (ReferenceEquals(_browseHoldTimer, timer)) _browseHoldTimer = null;
-                        var provider = vm.Deck1.Player.AnalysisProvider;
-                        if (provider is null) { Console.WriteLine("[Session] browse-hold: no AnalysisProvider yet"); return; }
-                        Console.WriteLine($"[Session] browse-hold fired → re-analyzing {vm.SelectedTrack?.FilePath}");
-                        var factory = _dbFactory();
-                        _ = vm.OnBrowseHeldAsync(
-                            t => AudioFileDecoder.Decode(t.FilePath),
-                            provider,
-                            saveKey: factory is not null
-                                ? (path, key) => new KeyAnalysisCache(factory).PutAsync(path, key)
-                                : null);
+                        ReanalyzeHighlighted("browse-hold");
                     };
                     _browseHoldTimer = timer;
                     timer.Start();
@@ -238,6 +252,7 @@ public sealed class Orchestrator : IDisposable
 
     public void Dispose()
     {
+        _vm.ReanalyzeSelectedRequested -= OnReanalyzeSelectedRequested;
         _positionTimer?.Stop();
         _browseHoldTimer?.Stop();
     }

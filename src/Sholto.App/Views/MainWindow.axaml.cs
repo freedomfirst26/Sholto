@@ -197,6 +197,14 @@ public partial class MainWindow : Window
             Console.WriteLine($"[Track] selected {row.Title}");
     }
 
+    // Double-click a library row → re-run analysis on it. The single click already
+    // selected the row; the VM raises the request and the orchestration layer runs
+    // the same decode + re-analyze path as the browse-knob long-press.
+    private void OnTrackDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.RequestReanalyzeSelected();
+    }
+
     private void OnTagIndicatorPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {
         if (DataContext is not MainViewModel vm) return;

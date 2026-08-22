@@ -407,6 +407,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Raised when the user asks to re-analyze the highlighted track from the
+    /// library (double-click a row). The orchestration layer handles it with the same
+    /// decode + AnalysisProvider.Recompute path as the browse-knob long-press, since
+    /// only it holds the provider and DB factory. See <see cref="OnBrowseHeldAsync"/>.</summary>
+    public event Action? ReanalyzeSelectedRequested;
+
+    /// <summary>Fire <see cref="ReanalyzeSelectedRequested"/> for the current selection.</summary>
+    public void RequestReanalyzeSelected() => ReanalyzeSelectedRequested?.Invoke();
+
     public DeckViewModel DeckFor(int deck) => deck == 1 ? Deck2 : Deck1;
 
     private double _crossfader = 0.5;

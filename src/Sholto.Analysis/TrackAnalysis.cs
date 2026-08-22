@@ -39,6 +39,11 @@ public sealed class TrackAnalysis
     /// using the new per-stem-aware merge.</summary>
     public event Action<StemPeaks>? StemPeaksReady;
 
+    /// <summary>Fires when the vocal-presence regions have been derived from the
+    /// vocal stem (after StemsReady). The deck view model re-emits its VocalRegions
+    /// binding so the waveform paints the green "vocals here" rectangles.</summary>
+    public event Action<VocalRegions>? VocalRegionsReady;
+
     public IReadOnlyCollection<IAnalysis> All => _byType.Values;
 
     public T? Get<T>() where T : class, IAnalysis =>
@@ -59,6 +64,7 @@ public sealed class TrackAnalysis
             case KeyAnalysis k:   KeyReady?.Invoke(k);       break;
             case StemPaths s:     StemsReady?.Invoke(s);     break;
             case StemPeaks p:     StemPeaksReady?.Invoke(p); break;
+            case VocalRegions v:  VocalRegionsReady?.Invoke(v); break;
         }
         AnyReady?.Invoke(analysis);
     }

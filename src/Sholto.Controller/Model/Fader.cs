@@ -4,8 +4,9 @@ namespace Sholto.Controller;
 /// FLX-4 only reports a fader's position when it is moved, so at startup we
 /// genuinely do not know where the fader sits — <c>null</c> is that "unmeasured"
 /// truth, distinct from 0. The first move adopts the physical position (there is
-/// no prior value to soft-takeover against); every move tracks it. The deck stays
-/// silent and the UI shows no level until that first measurement.</summary>
+/// no prior value to soft-takeover against); every move tracks it. The UI shows no
+/// level until that first measurement (the deck itself plays at unity meanwhile, so
+/// there's sound after a restart — see DeckViewModel.ApplyVolume).</summary>
 public sealed class Fader : AnalogueControl
 {
     private float? _value; // null = not yet measured

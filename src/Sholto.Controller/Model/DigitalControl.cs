@@ -21,5 +21,14 @@ public abstract class DigitalControl : Control
         _applyLight(on);
     }
 
-    public override void Reset() => SetLit(false);
+    /// <summary>Assert the LED off on the hardware, unconditionally. Unlike
+    /// <see cref="SetLit"/> this bypasses the idempotency guard: on boot our model
+    /// starts <c>IsLit=false</c>, but the physical LED may still be lit from a prior
+    /// session or the hardware's own default — so a plain <c>SetLit(false)</c> would
+    /// send nothing and leave it glowing. Reset must always emit the note-off.</summary>
+    public override void Reset()
+    {
+        IsLit = false;
+        _applyLight(false);
+    }
 }

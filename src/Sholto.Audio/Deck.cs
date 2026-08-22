@@ -574,6 +574,12 @@ public sealed class Deck
                 Task.WaitAll(pd, pv, pb, po);
                 Analysis.Set(new StemPeaks(pd.Result, pv.Result, pb.Result, po.Result));
                 Console.WriteLine("[Deck] per-stem peaks computed");
+
+                // Feed the vocal stem layer through the region analyzer and publish
+                // the regions to the deck view (green "vocals present" rectangles).
+                var regions = VocalRegionAnalyzer.Analyze(pv.Result, sr);
+                Analysis.Set(regions);
+                Console.WriteLine($"[Deck] vocal regions: {regions.Regions.Count}");
             }
             catch (Exception ex)
             {
