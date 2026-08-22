@@ -835,6 +835,17 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(IsMuted));
     }
 
+    private bool _cueActive;
+    /// <summary>Headphone cue (PFL) membership. When on, this deck is summed into
+    /// the ch3-4 headphone mix at full level, pre-fader, so it can be pre-listened
+    /// even with the channel fader down. Toggled by the deck CUE button.</summary>
+    public bool CueActive
+    {
+        get => _cueActive;
+        set { if (_cueActive == value) return; _cueActive = value; _player.CueActive = value; Notify(); }
+    }
+    public void ToggleCue() => CueActive = !CueActive;
+
     /// <summary>Combined channel × crossfade gain, 0..1. Used to draw the gain line on the waveform.</summary>
     public double EffectiveGain => _channelGain * _crossfadeGain;
 

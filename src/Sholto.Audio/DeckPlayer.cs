@@ -264,7 +264,8 @@ public sealed class DeckPlayer
         // Carry the channel fader's current attenuation forward — otherwise
         // SoundPlayer defaults to 1.0 and a deck loaded with the fader down
         // bursts in at full volume until the user touches the fader.
-        _player.Volume = _volume;
+        _player.Volume = 1.0f; // unity — master gain applied downstream by the router (pre-fader cue tap)
+        Volatile.Write(ref _masterGain, _volume);
         _currentFilePath = filePath;
 
         Console.WriteLine($"[DeckPlayer] streaming {Path.GetFileName(filePath)} @ {provider.SampleRate}Hz; engine={_format.SampleRate}Hz; length={provider.Length} samples");
@@ -372,7 +373,8 @@ public sealed class DeckPlayer
         // Carry the channel fader's current attenuation forward — otherwise
         // SoundPlayer defaults to 1.0 and a deck loaded with the fader down
         // bursts in at full volume until the user touches the fader.
-        _player.Volume = _volume;
+        _player.Volume = 1.0f; // unity — master gain applied downstream by the router (pre-fader cue tap)
+        Volatile.Write(ref _masterGain, _volume);
         _currentFilePath = filePath;
 
         // EQ lives on _deckMixer (post-mix) — see AttachEngine. Don't attach here.
@@ -537,7 +539,8 @@ public sealed class DeckPlayer
         _deckMixer.AddComponent(_player);
         // Speed is owned by the provider, not the SoundPlayer (see ApplyPlaybackSpeed).
         provider.SetSpeed(PlaybackSpeed);
-        _player.Volume = _volume;
+        _player.Volume = 1.0f; // unity — master gain applied downstream by the router (pre-fader cue tap)
+        Volatile.Write(ref _masterGain, _volume);
         _player.Seek(TimeSpan.FromSeconds(Math.Max(0, posSeconds)));
 
         if (wasPlaying) _player.Play();
@@ -637,8 +640,22 @@ public sealed class DeckPlayer
     /// data provider.)</summary>
     private void ApplyDeckGain()
     {
-        if (_player is not null) _player.Volume = _volume;
+        // The channel × crossfade gain no longer scales the SoundPlayer — that
+        // would apply it BEFORE the cue tap. It becomes the master-path gain,
+        // read lock-free per buffer by CueOutputRouter. The SoundPlayer stays at
+        // unity so the headphone cue mix is genuinely pre-fader (PFL).
+        Volatile.Write(ref _masterGain, _volume);
     }
+
+    // Master-path gain (channel × crossfade), read lock-free by CueOutputRouter.
+    private float _masterGain = 1.0f;
+    public float MasterGain => Volatile.Read(ref _masterGain);
+
+    // PFL cue selection — toggled by the deck CUE button. When true this deck is
+    // summed into the headphone (ch3-4) mix at full level, pre-fader.
+    private volatile bool _cueActive;
+    public bool CueActive { get => _cueActive; set => _cueActive = value; }
+    public void ToggleCue() => _cueActive = !_cueActive;
 
     // — Beat loops —
     //

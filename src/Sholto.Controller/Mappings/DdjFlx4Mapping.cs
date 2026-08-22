@@ -45,6 +45,12 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             (1,  0x0C) => new ControllerEvent.SetDownbeatHere(Deck: 0),
             (2,  0x0C) => new ControllerEvent.SetDownbeatHere(Deck: 1),
 
+            // Headphone CUE buttons (per deck, note 0x54) — toggle this deck into
+            // the pre-fader headphone cue mix (output ch3-4). Master/cue blend is
+            // done by the FLX-4 hardware MIXING knob, so we only track membership.
+            (1,  0x54) => new ControllerEvent.CueToggle(Deck: 0),
+            (2,  0x54) => new ControllerEvent.CueToggle(Deck: 1),
+
             // Top scroll-wheel cluster — per-deck LOAD buttons.
             (7,  0x46) => new ControllerEvent.LoadToDeck(Deck: 0),
             (7,  0x47) => new ControllerEvent.LoadToDeck(Deck: 1),

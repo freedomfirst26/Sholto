@@ -330,6 +330,9 @@ public partial class App : Application
                     case ControllerEvent.ChannelVolumeMoved v:
                         vm.DeckFor(v.Deck).ChannelGain = v.Value;
                         break;
+                    case ControllerEvent.CueToggle ct:
+                        vm.DeckFor(ct.Deck).ToggleCue();
+                        break;
                     case ControllerEvent.EqMoved e:
                     {
                         // While the dedicated stem-level button (ch=5 0x47)
