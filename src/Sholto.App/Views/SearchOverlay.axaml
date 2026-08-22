@@ -27,8 +27,13 @@
                      Colours come from the live theme via Window.DataContext
                      so the chip retones along with the rest of the UI. -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal"
-                            HorizontalAlignment="Center"
-                            Spacing="14" Margin="0,14,0,10">
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Spacing="12" Margin="0,14,0,10">
+                    <!-- Label so the two circles read as "which deck to load into",
+                         not page numbers. -->
+                    <TextBlock Text="LOAD TO" FontSize="11" FontWeight="Bold"
+                               LetterSpacing="1.5" VerticalAlignment="Center"
+                               Foreground="{DynamicResource SholtoTextMuted}"/>
                     <StackPanel.Styles>
                         <Style Selector="Border.deckChip">
                             <Setter Property="Background" Value="Transparent"/>
@@ -62,12 +67,16 @@
                     </Border>
                 </StackPanel>
 
+                <!-- Search identity: magnifier icon left of the big input. -->
+                <TextBlock Grid.Row="1" Text="🔍" FontSize="20"
+                           HorizontalAlignment="Left" VerticalAlignment="Center"
+                           Margin="20,0,0,0" IsHitTestVisible="False"/>
                 <!-- Big search input -->
                 <TextBox x:Name="QueryBox"
                          Grid.Row="1"
                          Text="{Binding Search.Query, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         Watermark="Search artist or title…"
-                         FontSize="24" Padding="20,16"
+                         Watermark="Search tracks or crates…"
+                         FontSize="24" Padding="54,16,20,16"
                          BorderThickness="0"
                          Background="Transparent"
                          Foreground="{DynamicResource SholtoTextBright}"
@@ -79,6 +88,39 @@
                 <!-- Filtered results + tag bucket -->
                 <ScrollViewer Grid.Row="2">
                     <StackPanel>
+                        <!-- CRATES section — matches crate names; click to filter the
+                             library to that crate. Grouped above the tracks. -->
+                        <TextBlock Text="📦  CRATES"
+                                   Foreground="{DynamicResource SholtoTextMuted}"
+                                   FontWeight="Bold" FontSize="11" LetterSpacing="1"
+                                   Margin="20,10,20,4"
+                                   IsVisible="{Binding Search.CrateHits.Count}"/>
+                        <ItemsControl ItemsSource="{Binding Search.CrateHits}" Padding="0,0,0,6">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="Transparent" Cursor="Hand"
+                                            PointerPressed="OnCrateRowPressed" Tag="{Binding}">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,5">
+                                            <TextBlock Grid.Column="0" Text="📦" FontSize="15"
+                                                       Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource SholtoTextBright}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding TrackCount}"
+                                                       Foreground="{DynamicResource SholtoTextMuted}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="🎵  TRACKS"
+                                   Foreground="{DynamicResource SholtoTextMuted}"
+                                   FontWeight="Bold" FontSize="11" LetterSpacing="1"
+                                   Margin="20,6,20,4"
+                                   IsVisible="{Binding Search.Results.Count}"/>
                         <ListBox x:Name="ResultsList"
                                  ItemsSource="{Binding Search.Results}"
                                  SelectedIndex="{Binding Search.SelectedIndex, Mode=TwoWay}"

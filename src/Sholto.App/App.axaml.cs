@@ -59,7 +59,14 @@ public partial class App : Application
                 Console.WriteLine($"[DB] opened {SholtoStorage.DefaultDbPath()}");
 
                 var tagService = new TagService(_factory);
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => vm.AttachTagService(tagService));
+                var crateService = new CrateService(_factory);
+                var markerService = new MarkerService(_factory);
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    vm.AttachTagService(tagService);
+                    vm.AttachCrateService(crateService);
+                    vm.AttachMarkerService(markerService);
+                });
 
                 var basicCache = new BasicAnalysisCache(_factory);
                 var keyCache   = new KeyAnalysisCache(_factory);

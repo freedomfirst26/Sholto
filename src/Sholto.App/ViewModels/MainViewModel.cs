@@ -150,6 +150,139 @@ public sealed class MainViewModel : INotifyPropertyChanged
         IsTagEditorOpen = true;
     }
 
+    // ---- Enter-mode: the track action menu + crate picker ----------------------
+
+    public TrackActionsViewModel TrackActions { get; } = new();
+    public CratePickerViewModel? CratePicker { get; private set; }
+    private Sholto.Storage.MarkerService? _markerService;
+
+    private bool _isTrackActionsOpen;
+    public bool IsTrackActionsOpen
+    {
+        get => _isTrackActionsOpen;
+        private set { if (_isTrackActionsOpen == value) return; _isTrackActionsOpen = value; Notify(); }
+    }
+
+    private bool _isCratePickerOpen;
+    public bool IsCratePickerOpen
+    {
+        get => _isCratePickerOpen;
+        private set { if (_isCratePickerOpen == value) return; _isCratePickerOpen = value; Notify(); }
+    }
+
+    private string? _toast;
+    /// <summary>Brief confirmation text (e.g. "Added to Warmup Set"); null = hidden.</summary>
+    public string? Toast
+    {
+        get => _toast;
+        private set { _toast = value; Notify(); Notify(nameof(HasToast)); }
+    }
+    public bool HasToast => !string.IsNullOrEmpty(_toast);
+
+    private void WireTrackActions()
+    {
+        TrackActions.RequestClose += () => IsTrackActionsOpen = false;
+        TrackActions.Invoked += kind =>
+        {
+            var row = TrackActions.Row;
+            IsTrackActionsOpen = false;
+            if (row is null) return;
+            switch (kind)
+            {
+                case TrackActionKind.Tag:        _ = OpenTagEditorAsync(row); break;
+                case TrackActionKind.AddToCrate: _ = OpenCratePickerAsync(row); break;
+                case TrackActionKind.LoadDeck1:  _ = LoadSelectedToDeckAsync(0); break;
+                case TrackActionKind.LoadDeck2:  _ = LoadSelectedToDeckAsync(1); break;
+            }
+        };
+    }
+
+    /// <summary>Enter on a library row opens the action menu for it.</summary>
+    public void OpenTrackActions(TrackRow row)
+    {
+        TrackActions.Open(row);
+        IsTrackActionsOpen = true;
+    }
+
+    public async Task OpenCratePickerAsync(TrackRow row)
+    {
+        if (CratePicker is null) return;
+        await CratePicker.OpenAsync(row);
+        IsCratePickerOpen = true;
+    }
+
+    /// <summary>Wire the crate + marker services once the DB is up (mirrors
+    /// <see cref="AttachTagService"/>). Enables Enter→Add-to-crate and the CRATES
+    /// section of search.</summary>
+    public void AttachCrateService(Sholto.Storage.CrateService crate)
+    {
+        CratePicker = new CratePickerViewModel(crate);
+        CratePicker.RequestClose += () => IsCratePickerOpen = false;
+        CratePicker.Added += (crateName, title) =>
+        {
+            ShowToast($"Added to {crateName}");
+            Console.WriteLine($"[Crate] added \"{title}\" to \"{crateName}\"");
+        };
+        Notify(nameof(CratePicker));
+
+        Search.SetCrateService(crate);
+        Search.CratePicked += async c =>
+        {
+            var ids = await crate.TrackIdsAsync(c.Id);
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                Library.ApplyCrateFilter(c.Name, ids);
+                IsSearchOpen = false;
+            });
+        };
+    }
+
+    public void AttachMarkerService(Sholto.Storage.MarkerService marker)
+    {
+        _markerService = marker;
+        // Load a track's saved markers onto its deck whenever a load completes,
+        // across every load path (keyboard, controller, Enter-mode).
+        Deck1.LoadStateChanged += s => { if (s == DeckLoadState.Loaded) _ = LoadMarkersForDeckAsync(Deck1); };
+        Deck2.LoadStateChanged += s => { if (s == DeckLoadState.Loaded) _ = LoadMarkersForDeckAsync(Deck2); };
+    }
+
+    private async Task LoadMarkersForDeckAsync(DeckViewModel deck)
+    {
+        if (_markerService is null) return;
+        var path = deck.LoadedTrack?.FilePath;
+        var row = Tracks.FirstOrDefault(r => r.FilePath == path);
+        if (row is null) return;
+        var markers = await _markerService.ListForTrackAsync(row.TrackId);
+        var secs = markers.Select(m => m.PositionSecs).ToArray();
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => deck.SetMarkers(secs));
+    }
+
+    /// <summary>Drop a marker on the target deck at its current playback position and
+    /// persist it (M key; Shift = Deck 2). Refreshes the deck's marker overlay.</summary>
+    public async Task AddMarkerToTargetDeckAsync(int deckIndex)
+    {
+        if (_markerService is null) return;
+        var deck = DeckFor(deckIndex);
+        if (!deck.Player.IsLoaded) return;
+        var path = deck.LoadedTrack?.FilePath;
+        var row = Tracks.FirstOrDefault(r => r.FilePath == path);
+        if (row is null) return;
+        double secs = deck.Player.PositionFrames / (double)Sholto.Audio.AudioFileDecoder.TargetSampleRate;
+        await _markerService.AddAsync(row.TrackId, secs);
+        await LoadMarkersForDeckAsync(deck);
+        ShowToast($"Marker · Deck {deckIndex + 1} · {TimeSpan.FromSeconds(secs):m\\:ss}");
+    }
+
+    private void ShowToast(string text)
+    {
+        Toast = text;
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1800);
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Toast = null);
+        });
+    }
+
     /// <summary>Per-app-run session state — which tracks have been loaded into a
     /// deck so the library can italicise them. Owned here because both decks
     /// produce "played" events and the same row consumes them.</summary>
@@ -193,6 +326,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ThemeContext.Current = _theme;
 
         Search = new SearchViewModel(Tracks);
+        WireTrackActions();
 
         // Re-emit Library's PropertyChanged for the proxied banner properties
         // so XAML bindings on the MainViewModel light up without each control

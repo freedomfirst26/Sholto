@@ -49,6 +49,11 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<bool> VocalsActiveProperty =
         AvaloniaProperty.Register<WaveformControl, bool>(nameof(VocalsActive), true);
 
+    /// <summary>Marker positions (seconds) to flag on the waveform — saved cue points
+    /// (Rekordbox-style memory cues). Drawn as thin vertical lines with a top flag.</summary>
+    public static readonly StyledProperty<double[]?> MarkerSecsProperty =
+        AvaloniaProperty.Register<WaveformControl, double[]?>(nameof(MarkerSecs));
+
     public static readonly StyledProperty<double[]?> BeatTimesProperty =
         AvaloniaProperty.Register<WaveformControl, double[]?>(nameof(BeatTimes));
 
@@ -154,6 +159,7 @@ public sealed class WaveformControl : Control
         // invalidate so the next frame paints the green rectangles.
         VocalRegionsProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.OnVocalRegionsChanged());
         AffectsRender<WaveformControl>(VocalsActiveProperty);
+        AffectsRender<WaveformControl>(MarkerSecsProperty);
         // Beatgrid is drawn live (not baked), so it doesn't need a rebake — just
         // an invalidate so the next frame picks up the new ticks.
         AffectsRender<WaveformControl>(GridPeaksProperty);
@@ -186,6 +192,12 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(VocalsActiveProperty);
         set => SetValue(VocalsActiveProperty, value);
+    }
+
+    public double[]? MarkerSecs
+    {
+        get => GetValue(MarkerSecsProperty);
+        set => SetValue(MarkerSecsProperty, value);
     }
 
     public double[]? BeatTimes
@@ -430,7 +442,7 @@ public sealed class WaveformControl : Control
         // Volume/crossfader gain-line colour comes from the theme.
         var gainColor = new SKColor(GainOverlayColor.R, GainOverlayColor.G, GainOverlayColor.B, GainOverlayColor.A);
         var loopColor = new SKColor(LoopColor.R, LoopColor.G, LoopColor.B, LoopColor.A);
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor, _vocalRegions, VocalsActive));
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor, _vocalRegions, VocalsActive, MarkerSecs));
 
         // Grid-edit mode: red border tint so the user knows clicks set anchors.
         if (GridEditMode)
@@ -483,6 +495,7 @@ public sealed class WaveformControl : Control
         [ThreadStatic] private static SKPaint? _beatTickPaint;
         [ThreadStatic] private static SKPaint? _loopPaint;
         [ThreadStatic] private static SKPaint? _vocalPaint;
+        [ThreadStatic] private static SKPaint? _markerPaint;
 
         private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
@@ -502,8 +515,9 @@ public sealed class WaveformControl : Control
         private readonly SKColor _loopColor;
         private readonly (double Start, double End)[]? _vocalRegions;
         private readonly bool _vocalsActive;
+        private readonly double[]? _markerSecs;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor, (double Start, double End)[]? vocalRegions, bool vocalsActive)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor, (double Start, double End)[]? vocalRegions, bool vocalsActive, double[]? markerSecs)
         {
             Bounds = bounds;
             _image = image;
@@ -525,6 +539,7 @@ public sealed class WaveformControl : Control
             _loopColor = loopColor;
             _vocalRegions = vocalRegions;
             _vocalsActive = vocalsActive;
+            _markerSecs = markerSecs;
         }
 
         public Rect Bounds { get; }
@@ -727,6 +742,27 @@ public sealed class WaveformControl : Control
                     float x = (float)((beatCol - refCenterPeak) / _playbackSpeed) + dstW / 2f;
                     if (x >= -2 && x < dstW + 2)
                         canvas.DrawLine(x, 0, x, 5, _beatTickPaint);
+                }
+            }
+
+            // Saved markers (memory cues) — amber vertical line + a small top flag,
+            // using the same time→screen mapping as the grid so they track playback.
+            if (_markerSecs is { Length: > 0 } && refSecondsPerPeak is double mkSpp)
+            {
+                _markerPaint ??= new SKPaint { IsAntialias = false };
+                var mk = _markerPaint;
+                var amber = new SKColor(0xFF, 0xB3, 0x00, 0xE6);
+                foreach (var t in _markerSecs)
+                {
+                    float beatCol = (float)(t / mkSpp);
+                    float x = (float)((beatCol - refCenterPeak) / _playbackSpeed) + dstW / 2f;
+                    if (x < -4 || x >= dstW + 4) continue;
+                    mk.Color = amber;
+                    mk.Style = SKPaintStyle.Stroke;
+                    mk.StrokeWidth = 2;
+                    canvas.DrawLine(x, 0, x, dstH, mk);
+                    mk.Style = SKPaintStyle.Fill;
+                    canvas.DrawRect(x, 0, 7, 7, mk); // top flag tab
                 }
             }
 

@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sholto.App.ViewModels"
+             x:Class="Sholto.App.Views.TrackActionsOverlay"
+             x:DataType="vm:MainViewModel"
+             IsVisible="{Binding IsTrackActionsOpen}"
+             Focusable="False">
+
+    <Grid Background="#A0000000" PointerPressed="OnBackdropPressed">
+        <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                Width="380"
+                Background="{DynamicResource SholtoSurfaceRaised}"
+                BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1"
+                CornerRadius="10" Padding="0"
+                PointerPressed="OnPanelPressed">
+            <StackPanel Margin="0,16,0,10" Spacing="2">
+                <!-- eyebrow: distinct ⏎ identity so this never reads like search/tags -->
+                <TextBlock Text="⏎  TRACK ACTIONS"
+                           FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                           Foreground="{DynamicResource SholtoAccent}"
+                           Margin="20,0,20,0"/>
+                <TextBlock Text="{Binding TrackActions.Title}"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SholtoTextBright}"
+                           TextTrimming="CharacterEllipsis"
+                           Margin="20,0,20,8"/>
+
+                <ListBox ItemsSource="{Binding TrackActions.Actions}"
+                         SelectedIndex="{Binding TrackActions.SelectedIndex, Mode=TwoWay}"
+                         Background="Transparent" BorderThickness="0"
+                         DoubleTapped="OnActionActivated">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TrackActionItem">
+                            <Grid ColumnDefinitions="34,*" Margin="6,4">
+                                <TextBlock Grid.Column="0" Text="{Binding Icon}"
+                                           FontSize="18" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Label}"
+                                           FontSize="15" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SholtoTextBright}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <TextBlock Text="↑ ↓ move · Enter choose · Esc close"
+                           FontSize="11"
+                           Foreground="{DynamicResource SholtoTextMuted}"
+                           Margin="20,6,20,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

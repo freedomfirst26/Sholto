@@ -65,6 +65,12 @@ public sealed class MusicLibrary : INotifyPropertyChanged
         ActiveTagFilter = tag;
     }
 
+    /// <summary>Filter the library down to a crate's tracks. Reuses the same
+    /// snapshot mechanism as the tag filter; <see cref="ClearTagFilter"/> clears it.
+    /// The label carries a 📦 so the active-filter chip reads as a crate, not a tag.</summary>
+    public void ApplyCrateFilter(string crateName, IReadOnlyCollection<Guid> trackIds)
+        => ApplyTagFilter($"📦 {crateName}", trackIds);
+
     public void ClearTagFilter()
     {
         if (_unfilteredSnapshot is null) return;

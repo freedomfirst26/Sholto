@@ -386,5 +386,19 @@
     <Panel IsVisible="{Binding IsTagEditorOpen}">
         <v:TagEditorView DataContext="{Binding TagEditor}"/>
     </Panel>
+    <!-- Enter-mode action menu + add-to-crate picker. Above everything. -->
+    <v:TrackActionsOverlay/>
+    <v:CratePickerOverlay/>
+
+    <!-- Brief bottom-centre toast (e.g. "Added to Warmup Set"). -->
+    <Border IsVisible="{Binding HasToast}"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom"
+            Margin="0,0,0,40" Padding="18,10"
+            Background="{DynamicResource SholtoSurfaceRaised}"
+            BorderBrush="{DynamicResource SholtoAccent}" BorderThickness="1"
+            CornerRadius="20" IsHitTestVisible="False">
+        <TextBlock Text="{Binding Toast}" FontSize="14" FontWeight="SemiBold"
+                   Foreground="{DynamicResource SholtoTextBright}"/>
+    </Border>
     </Grid>
 </Window>

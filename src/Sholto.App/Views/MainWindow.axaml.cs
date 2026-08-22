@@ -73,6 +73,26 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Crate picker owns input via its TextBox; Esc is a global backstop.
+        if (vm.IsCratePickerOpen)
+        {
+            if (e.Key == Key.Escape) { vm.CratePicker?.Close(); e.Handled = true; }
+            return;
+        }
+
+        // Enter-mode action menu (no text field): arrows move, Enter fires, Esc closes.
+        if (vm.IsTrackActionsOpen)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:     vm.TrackActions.Move(-1); e.Handled = true; break;
+                case Key.Down:   vm.TrackActions.Move(+1); e.Handled = true; break;
+                case Key.Enter:  vm.TrackActions.Commit();  e.Handled = true; break;
+                case Key.Escape: vm.TrackActions.Close();   e.Handled = true; break;
+            }
+            return;
+        }
+
         // Same isolation for the search overlay.
         if (vm.IsSearchOpen) return;
 
@@ -90,15 +110,25 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.Key == Key.T)
+        // Enter on a highlighted library row → the track action menu (Tag / Add to
+        // crate / Load). Replaces the old T-to-tag shortcut.
+        if (e.Key == Key.Enter)
         {
             var row = vm.SelectedTrackRow;
             if (row is not null)
             {
-                _ = vm.OpenTagEditorAsync(row);
+                vm.OpenTrackActions(row);
                 e.Handled = true;
                 return;
             }
+        }
+
+        // M — drop a marker on the target deck at its current position.
+        if (e.Key == Key.M)
+        {
+            _ = vm.AddMarkerToTargetDeckAsync(shift ? 1 : 0);
+            e.Handled = true;
+            return;
         }
 
         switch (e.Key)

@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sholto.App.ViewModels"
+             x:Class="Sholto.App.Views.CratePickerOverlay"
+             x:DataType="vm:MainViewModel"
+             IsVisible="{Binding IsCratePickerOpen}"
+             Focusable="False">
+
+    <Grid Background="#A0000000" PointerPressed="OnBackdropPressed">
+        <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                Width="440" MaxHeight="480"
+                Background="{DynamicResource SholtoSurfaceRaised}"
+                BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1"
+                CornerRadius="10" Padding="0"
+                PointerPressed="OnPanelPressed">
+            <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="0">
+                <TextBlock Grid.Row="0" Text="📦  ADD TO CRATE"
+                           FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                           Foreground="{DynamicResource SholtoAccent}"
+                           Margin="20,16,20,0"/>
+                <TextBlock Grid.Row="1" Text="{Binding CratePicker.Title}"
+                           FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SholtoTextBright}"
+                           TextTrimming="CharacterEllipsis"
+                           Margin="20,2,20,8"/>
+
+                <TextBox x:Name="CrateQueryBox" Grid.Row="2"
+                         Text="{Binding CratePicker.Query, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Watermark="Find or create a crate…"
+                         FontSize="18" Padding="20,12" Margin="8,0"
+                         BorderThickness="0" Background="Transparent"
+                         Foreground="{DynamicResource SholtoTextBright}"
+                         KeyDown="OnQueryKeyDown"/>
+
+                <ScrollViewer Grid.Row="3">
+                    <ListBox ItemsSource="{Binding CratePicker.Options}"
+                             SelectedIndex="{Binding CratePicker.SelectedIndex, Mode=TwoWay}"
+                             Background="Transparent" BorderThickness="0"
+                             Focusable="False"
+                             DoubleTapped="OnOptionActivated">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CratePickerOption">
+                                <Grid ColumnDefinitions="*,Auto" Margin="12,6">
+                                    <TextBlock Grid.Column="0" Text="{Binding Display}"
+                                               FontSize="15" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SholtoTextBright}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding TrackCount}"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource SholtoTextMuted}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding !IsCreate}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

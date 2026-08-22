@@ -100,6 +100,16 @@ public partial class SearchOverlay : UserControl
         e.Handled = true;
     }
 
+    private void OnCrateRowPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        if (sender is Control { Tag: Sholto.Storage.CrateSummary crate })
+        {
+            e.Handled = true;
+            vm.Search.PickCrate(crate);
+        }
+    }
+
     private void OnTagChipPressed(object? sender, PointerPressedEventArgs e)
     {
         if (DataContext is not ViewModels.MainViewModel vm) return;

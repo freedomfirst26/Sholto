@@ -15,11 +15,15 @@
 
             <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0">
 
-                <!-- Title -->
-                <TextBlock Grid.Row="0" Text="{Binding Title}"
-                           Foreground="{DynamicResource SholtoTextBright}"
-                           FontSize="16" FontWeight="Bold"
-                           Padding="20,16,20,8"/>
+                <!-- Title with a 🏷 identity so the tag overlay never reads like search. -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10"
+                            Margin="20,16,20,8">
+                    <TextBlock Text="🏷" FontSize="18" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Title}"
+                               Foreground="{DynamicResource SholtoTextBright}"
+                               FontSize="16" FontWeight="Bold" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
 
                 <!-- Input box -->
                 <TextBox x:Name="InputBox" Grid.Row="1"

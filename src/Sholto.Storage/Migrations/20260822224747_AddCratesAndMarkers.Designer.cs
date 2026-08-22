@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Sholto.Storage;
 
@@ -10,9 +11,11 @@ using Sholto.Storage;
 namespace Sholto.Storage.Migrations
 {
     [DbContext(typeof(SholtoDbContext))]
-    partial class SholtoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260822224747_AddCratesAndMarkers")]
+    partial class AddCratesAndMarkers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");

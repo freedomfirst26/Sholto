@@ -16,6 +16,7 @@ public sealed class SearchViewModel : INotifyPropertyChanged
 {
     private readonly ObservableCollection<TrackRow> _all;
     private Sholto.Storage.TagService? _tagService;
+    private Sholto.Storage.CrateService? _crateService;
 
     public void SetTagService(Sholto.Storage.TagService service)
     {
@@ -23,9 +24,21 @@ public sealed class SearchViewModel : INotifyPropertyChanged
         _ = RefreshTagHitsAsync();
     }
 
+    public void SetCrateService(Sholto.Storage.CrateService service)
+    {
+        _crateService = service;
+        _ = RefreshCrateHitsAsync();
+    }
+
     public ObservableCollection<Sholto.Storage.TagSearchHit> TagHits { get; } = new();
     public event Action<string>? TagPicked;
     public void PickTag(string name) => TagPicked?.Invoke(name);
+
+    /// <summary>Crates whose name matches the query — the CRATES section of the
+    /// grouped results. Empty query shows all crates so space-bar is a crate browser.</summary>
+    public ObservableCollection<Sholto.Storage.CrateSummary> CrateHits { get; } = new();
+    public event Action<Sholto.Storage.CrateSummary>? CratePicked;
+    public void PickCrate(Sholto.Storage.CrateSummary crate) => CratePicked?.Invoke(crate);
 
     public SearchViewModel(ObservableCollection<TrackRow> allRows)
     {
@@ -98,6 +111,23 @@ public sealed class SearchViewModel : INotifyPropertyChanged
         Notify(nameof(SelectedIndex));
         Notify(nameof(SelectedRow));
         _ = RefreshTagHitsAsync();
+        _ = RefreshCrateHitsAsync();
+    }
+
+    private async Task RefreshCrateHitsAsync()
+    {
+        if (_crateService is null) return;
+        try
+        {
+            var hits = await _crateService.SearchAsync(_query);
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                CrateHits.Clear();
+                foreach (var h in hits) CrateHits.Add(h);
+                Notify(nameof(CrateHits));
+            });
+        }
+        catch (Exception ex) { Console.WriteLine($"[Search] crate search failed: {ex.Message}"); }
     }
 
     private async Task RefreshTagHitsAsync()

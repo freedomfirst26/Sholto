@@ -322,6 +322,16 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <see cref="Peaks"/>) — it's a separate presence layer on top.</summary>
     public VocalRegions? VocalRegions => Analysis.Get<VocalRegions>();
 
+    /// <summary>Marker positions on the loaded track, in seconds — rendered as flags
+    /// on the waveform. Populated by MainViewModel from MarkerService when a track
+    /// loads; cleared on a new load.</summary>
+    public double[] MarkerSecs { get; private set; } = [];
+    public void SetMarkers(IReadOnlyList<double> secs)
+    {
+        MarkerSecs = secs is double[] a ? a : secs.ToArray();
+        Notify(nameof(MarkerSecs));
+    }
+
     public double[] BeatTimes => Analysis.Basic?.BeatTimes ?? [];
     public double[] DownbeatTimes => Analysis.Basic?.DownbeatTimes ?? [];
 
@@ -645,6 +655,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         PlayPosition = 0;
         Notify(nameof(BpmMultiplier));
         Notify(nameof(Analysis));
+        SetMarkers([]);                 // clear the old track's markers
         Notify(nameof(Peaks));
         Notify(nameof(VocalRegions));   // clear the old track's vocal overlay
         Notify(nameof(BeatTimes));

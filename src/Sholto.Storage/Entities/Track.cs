@@ -16,4 +16,6 @@ public sealed class Track
     public GridAdjustment? GridAdjustment { get; set; }
 
     public ICollection<TrackTag> TrackTags { get; set; } = new List<TrackTag>();
+    public ICollection<CrateTrack> CrateTracks { get; set; } = new List<CrateTrack>();
+    public ICollection<Marker> Markers { get; set; } = new List<Marker>();
 }
