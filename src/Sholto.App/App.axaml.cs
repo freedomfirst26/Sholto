@@ -20,7 +20,7 @@ public partial class App : Application
 {
     private AudioEngine? _audioEngine;
     private Sholto.Controller.Controller? _controller;
-    private DispatcherTimer? _positionTimer;
+    private Orchestrator? _orchestrator;
     private DispatcherTimer? _statsTimer;
     private MainViewModel? _vm;
     private IDbContextFactory<SholtoDbContext>? _factory;
@@ -28,22 +28,6 @@ public partial class App : Application
     // settings. They await this TCS so they don't race the DB open task.
     private readonly TaskCompletionSource<IDbContextFactory<SholtoDbContext>?> _dbReady =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
-    // Jog-wheel scrubs are coalesced per frame so we issue one Seek per deck per ~16 ms.
-    private double _pendingJog1, _pendingJog2;
-    // Browse-button long-press: hold for 1s to force-reanalyze the highlighted track.
-    private DispatcherTimer? _browseHoldTimer;
-
-    // Per-deck Shift modifier state (deck 1 / deck 2). The FLX-4 emits
-    // combined events (e.g. Shift+Left → ch=5 0x4A) without disclosing
-    // which deck's Shift was held — we track press/release here so the
-    // NudgeGrid handler can route to the right deck.
-    private readonly bool[] _shiftHeld = new bool[2];
-
-    // Stem-level modifier (deck-agnostic). Hold the dedicated FLX-4 button
-    // (ch=5 0x47) and the 3 EQ knobs on both decks become per-stem
-    // attenuators (HI → Drums, MID → Vocals, LOW → Instrumental).
-    private bool _stemLevelMode;
-
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -264,228 +248,13 @@ public partial class App : Application
         if (!_controller.Connect())
             Console.WriteLine("DDJ-FLX4 not found — use UI controls.");
 
-        _controller.Action += evt =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                switch (evt)
-                {
-                    case ControllerEvent.BrowseRotated r:
-                        vm.OnBrowseRotated(r.Delta);
-                        break;
-                    case ControllerEvent.BrowsePressed:
-                        // Short tap: no-op (Load 1 / Load 2 buttons do the loading).
-                        // Long press (≥1 s): force-reanalyze the highlighted track —
-                        // rescue path for tracks whose cached BPM/beats are wrong.
-                        // Some controllers retransmit NoteOn while held; if a timer is
-                        // already counting, leave it alone instead of resetting it.
-                        if (_browseHoldTimer is null)
-                        {
-                            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-                            timer.Tick += (_, _) =>
-                            {
-                                timer.Stop();
-                                if (ReferenceEquals(_browseHoldTimer, timer)) _browseHoldTimer = null;
-                                var provider = vm.Deck1.Player.AnalysisProvider;
-                                if (provider is null) { Console.WriteLine("[App] browse-hold: no AnalysisProvider yet"); return; }
-                                Console.WriteLine($"[App] browse-hold fired → re-analyzing {vm.SelectedTrack?.FilePath}");
-                                _ = vm.OnBrowseHeldAsync(
-                                    t => AudioFileDecoder.Decode(t.FilePath),
-                                    provider,
-                                    saveKey: _factory is not null
-                                        ? (path, key) => new KeyAnalysisCache(_factory!).PutAsync(path, key)
-                                        : null);
-                            };
-                            _browseHoldTimer = timer;
-                            timer.Start();
-                        }
-                        break;
-                    case ControllerEvent.BrowseReleased:
-                        _browseHoldTimer?.Stop();
-                        _browseHoldTimer = null;
-                        break;
-                    case ControllerEvent.LoadToDeck l:
-                    {
-                        var sel = vm.SelectedTrack;
-                        if (sel is not null)
-                        {
-                            var deck = vm.DeckFor(l.Deck);
-                            var mult = vm.GetBpmMultiplierFor(sel.FilePath);
-                            deck.BeginLoad(sel, mult);
-                            _ = Task.Run(async () =>
-                            {
-                                var samples = AudioFileDecoder.Decode(sel.FilePath);
-                                await Dispatcher.UIThread.InvokeAsync(() =>
-                                    deck.LoadTrack(sel, sel.FilePath, samples, mult));
-                            });
-                        }
-                        break;
-                    }
-                    case ControllerEvent.PlayPressed p:
-                        vm.OnPlayPressed(p.Deck);
-                        break;
-                    case ControllerEvent.CrossfaderMoved c:
-                        vm.Crossfader = c.Position;
-                        break;
-                    case ControllerEvent.ChannelVolumeMoved v:
-                        vm.DeckFor(v.Deck).ChannelGain = v.Value;
-                        break;
-                    case ControllerEvent.CueChanged cc:
-                        vm.DeckFor(cc.Deck).CueActive = cc.On;
-                        break;
-                    case ControllerEvent.EqMoved e:
-                    {
-                        // While the dedicated stem-level button (ch=5 0x47)
-                        // is held, the 3 EQ knobs on BOTH decks are
-                        // repurposed as stem-group attenuators (HI → Drums,
-                        // MID → Vocals, LOW → Instrumental). Going via the
-                        // VM so the level flows through DeckViewModel for
-                        // any future UI hooks (the visual fade was reverted
-                        // — VM properties drive audio only for now).
-                        if (_stemLevelMode)
-                        {
-                            var deckVm = vm.DeckFor(e.Deck);
-                            switch (e.Band)
-                            {
-                                case EqBand.High: deckVm.DrumsLevel        = e.Value; break;
-                                case EqBand.Mid:  deckVm.VocalsLevel       = e.Value; break;
-                                default:          deckVm.InstrumentalLevel = e.Value; break;
-                            }
-                        }
-                        else
-                        {
-                            vm.DeckFor(e.Deck).Player.SetEq((int)e.Band, e.Value);
-                        }
-                        break;
-                    }
-                    case ControllerEvent.FilterMoved f:
-                        vm.DeckFor(f.Deck).Player.SetFilter(f.Position);
-                        break;
-                    case ControllerEvent.TempoMoved t:
-                        vm.DeckFor(t.Deck).SetTempoPosition(t.Position);
-                        break;
-                    case ControllerEvent.StemToggle st:
-                    {
-                        var deckVm = vm.DeckFor(st.Deck);
-                        // VM bools are the source of truth for "is this group on now".
-                        // Flip them, then push the new gain into the audio path.
-                        bool nextActive = st.Group switch
-                        {
-                            0 => !deckVm.DrumsActive,
-                            1 => !deckVm.VocalsActive,
-                            _ => !deckVm.InstrumentalActive,
-                        };
-                        switch (st.Group)
-                        {
-                            case 0: deckVm.DrumsActive        = nextActive; break;
-                            case 1: deckVm.VocalsActive       = nextActive; break;
-                            case 2: deckVm.InstrumentalActive = nextActive; break;
-                        }
-                        deckVm.Player.SetStemGroup(st.Group, nextActive);
-                        break;
-                    }
-                    case ControllerEvent.BeatLoopToggle bl:
-                        vm.DeckFor(bl.Deck).Player.EnableBeatLoop(bl.Bars);
-                        break;
-                    case ControllerEvent.BeatLoopHalve bh:
-                        vm.DeckFor(bh.Deck).Player.HalveLoop();
-                        break;
-                    case ControllerEvent.BeatLoopDouble bd:
-                        vm.DeckFor(bd.Deck).Player.DoubleLoop();
-                        break;
-                    case ControllerEvent.DeckShift ds:
-                        _shiftHeld[ds.Deck] = ds.Pressed;
-                        break;
-                    case ControllerEvent.StemLevelMode sm:
-                        _stemLevelMode = sm.Pressed;
-                        break;
-                    case ControllerEvent.BeatSyncPressed:
-                        // Plain BEAT SYNC — beat-sync not yet implemented.
-                        break;
-                    case ControllerEvent.SetDownbeatHere sd:
-                        vm.DeckFor(sd.Deck).Player.SetDownbeatAtPlayhead();
-                        break;
-                    case ControllerEvent.CyclePitchRange cpr:
-                        // Shift + BEAT SYNC: ±6 → ±10 → ±16 → WIDE.
-                        vm.DeckFor(cpr.Deck).CyclePitchRange();
-                        break;
-                    case ControllerEvent.NudgeGrid n:
-                    {
-                        // Explicit deck wins.
-                        if (n.Deck >= 0) { vm.DeckFor(n.Deck).Player.NudgeGrid(n.Beats); break; }
+        _orchestrator = new Orchestrator(vm, () => _factory);
+        _controller.Action += evt => Dispatcher.UIThread.Post(() => _orchestrator.HandleControllerEvent(evt));
 
-                        // The FLX-4's Shift+Left/Right arrives without a deck,
-                        // but the deck's Shift was held while the button fired
-                        // — that tells us where to route. Prefer Shift state;
-                        // fall back to active-loop deck if no Shift is held
-                        // (the keyboard path also routes here).
-                        int target;
-                        if (_shiftHeld[0]) target = 0;
-                        else if (_shiftHeld[1]) target = 1;
-                        else if (vm.DeckFor(0).Player.ActiveLoop is not null) target = 0;
-                        else if (vm.DeckFor(1).Player.ActiveLoop is not null) target = 1;
-                        else target = 0;
-                        vm.DeckFor(target).Player.NudgeGrid(n.Beats);
-                        break;
-                    }
-                    case ControllerEvent.JogRotated j:
-                    {
-                        // Loop is locked: the jog wheel is ignored entirely while a
-                        // loop is active. Otherwise scrubbing could pull the playhead
-                        // outside the loop region and break the wrap.
-                        if (vm.DeckFor(j.Deck).Player.ActiveLoop is not null) break;
-
-                        // Accumulate the jog delta; the 60 Hz timer below flushes it
-                        // into a single Seek per frame. Each Seek causes SoundFlow to
-                        // flush its audio buffer; firing one per event (the wheel sends
-                        // ~100/sec) turns into audible glitching.
-                        // Side ring is the slow / fine seek; 0.00125 s = ¼× the previous
-                        // 0.005 s — finer control for nudging beat alignment.
-                        double secsPerTick = j.Source == JogSource.TopPlatter ? 0.05 : 0.00125;
-                        if (j.Deck == 0) _pendingJog1 += j.Delta * secsPerTick;
-                        else             _pendingJog2 += j.Delta * secsPerTick;
-                        vm.LastJoggedDeck = j.Deck == 0 ? 1 : 2;
-                        var nowUtc = DateTime.UtcNow;
-                        vm.LastJogAt = nowUtc;
-                        // Per-deck timestamps so MainViewModel can tell "both
-                        // decks being touched right now" apart from "just one".
-                        if (j.Deck == 0) vm.LastJogAt1 = nowUtc;
-                        else             vm.LastJogAt2 = nowUtc;
-                        break;
-                    }
-                }
-            });
-        };
-
-        // Known state on boot: every button LED off + cue audio cleared. Emitted
-        // after Action is subscribed so the cleared-cue events reach the App.
+        // Known state on boot: every button LED off + cue audio cleared, emitted
+        // after Action is wired so the cleared-cue events reach the Session.
         _controller.Reset();
-
-        // Position sync at 60 Hz so rotation + waveform scroll look smooth.
-        _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        _positionTimer.Tick += (_, _) =>
-        {
-            // Magnetic beat-snap: when both decks are playing and their nearest beats
-            // are close to in-phase, eat up to 90% of every jog tick so the user can
-            // "feel" the beat hold them in place.
-            double scale = 1 - vm.MagnetismFactor * 0.9;
-            if (_pendingJog1 != 0) { vm.Deck1.Player.SeekRelative(_pendingJog1 * scale); _pendingJog1 = 0; }
-            if (_pendingJog2 != 0) { vm.Deck2.Player.SeekRelative(_pendingJog2 * scale); _pendingJog2 = 0; }
-
-            // Mark the deck "scrubbing" while jog input was recent — the waveform uses
-            // this to switch from short top/bottom stripes to a full-height guide line.
-            var now = DateTime.UtcNow;
-            vm.Deck1.IsScrubbing = vm.LastJoggedDeck == 1 && (now - vm.LastJogAt) < TimeSpan.FromMilliseconds(250);
-            vm.Deck2.IsScrubbing = vm.LastJoggedDeck == 2 && (now - vm.LastJogAt) < TimeSpan.FromMilliseconds(250);
-
-            vm.UpdateMagnetism();
-
-            // Always sync, even when paused or stopped, so keyboard / FLX-4 scrubs
-            // are reflected immediately in the playhead.
-            if (vm.Deck1.Player.IsLoaded) vm.Deck1.SyncPlayPosition();
-            if (vm.Deck2.Player.IsLoaded) vm.Deck2.SyncPlayPosition();
-        };
-        _positionTimer.Start();
+        _orchestrator.Start();
 
         // SHOLTO_DEBUG_STATS=1 → top-right CPU/RAM readout, sampled once per second.
         if (ProcessStats.Enabled)
@@ -500,7 +269,7 @@ public partial class App : Application
 
         desktop.Exit += (_, _) =>
         {
-            _positionTimer?.Stop();
+            _orchestrator?.Dispose();
             _statsTimer?.Stop();
             _audioEngine?.Stop();
             _controller?.Dispose();
