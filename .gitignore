@@ -1,0 +1,8 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+
+# Published binaries from install.sh
+/dist/

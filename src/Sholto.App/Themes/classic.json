@@ -1,0 +1,22 @@
+{
+  "name": "Classic",
+  "bgDeep":        "#111111",
+  "surface":       "#1A1A1A",
+  "surfaceRaised": "#222222",
+  "border":        "#333333",
+  "primary":       "#00FFCC",
+  "accent":        "#FFC700",
+  "accentBg":      "#33FFC700",
+  "mint":          "#FFFFFF",
+  "textBright":    "#EEEEEE",
+  "textMuted":     "#888888",
+  "playedFadeColor": "#111111",
+  "waveformPalette": "Bands",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.78,
+    "majorLightness":   0.55,
+    "minorLightness":   0.42,
+    "onChipForeground": "#101820"
+  }
+}

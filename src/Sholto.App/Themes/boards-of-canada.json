@@ -1,0 +1,22 @@
+{
+  "name": "Boards of Canada",
+  "bgDeep":        "#0E1820",
+  "surface":       "#16242C",
+  "surfaceRaised": "#1D2D36",
+  "border":        "#32485A",
+  "primary":       "#7FB6C9",
+  "accent":        "#C4A2A2",
+  "accentBg":      "#337FB6C9",
+  "mint":          "#B5D5E3",
+  "textBright":    "#DDE5EA",
+  "textMuted":     "#6F8590",
+  "playedFadeColor": "#0E1820",
+  "waveformPalette": "BoardsOfCanada",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.42,
+    "majorLightness":   0.58,
+    "minorLightness":   0.46,
+    "onChipForeground": "#0E1820"
+  }
+}

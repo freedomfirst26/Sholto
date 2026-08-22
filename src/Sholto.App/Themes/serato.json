@@ -1,0 +1,22 @@
+{
+  "name": "Serato",
+  "bgDeep":        "#0F0F0F",
+  "surface":       "#161616",
+  "surfaceRaised": "#1E1E1E",
+  "border":        "#3D3D3D",
+  "primary":       "#FF3D3D",
+  "accent":        "#3D8BFF",
+  "accentBg":      "#333D8BFF",
+  "mint":          "#3DFF7A",
+  "textBright":    "#F2F2F2",
+  "textMuted":     "#909090",
+  "playedFadeColor": "#0F0F0F",
+  "waveformPalette": "Hot",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.82,
+    "majorLightness":   0.55,
+    "minorLightness":   0.42,
+    "onChipForeground": "#0F0F0F"
+  }
+}

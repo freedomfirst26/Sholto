@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sholto icon. The 'S' is rendered three times — green / red / blue — slightly
+  offset so it reads as a brand mark from a distance and as RGB-separated
+  stems up close. Mirrors what Sholto does to the audio: splits one signal
+  into vocals / drums / bass and lets you mix them independently.
+
+  Colors match the in-app stem chips (#34F06F vocals, #FF4E5E instrumental,
+  #3D8BFF drums) on the Tokyo Night theme's deep-navy surface.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- rounded-square plate, Tokyo Night surface -->
+  <rect x="0" y="0" width="256" height="256" rx="56" ry="56" fill="#0F172A"/>
+
+  <!-- subtle inner stroke so the icon has a defined edge at small sizes -->
+  <rect x="2" y="2" width="252" height="252" rx="54" ry="54"
+        fill="none" stroke="#1F2A44" stroke-width="2"/>
+
+  <!--
+    Three offset "S" glyphs. mix-blend-mode="screen" makes overlapping
+    regions sum back toward white on the dark plate, leaving only the
+    coloured edges where the layers don't overlap — classic RGB split.
+    A heavy sans-serif weight is requested; renderers fall back if the
+    exact face isn't present.
+  -->
+  <g font-family="Inter, 'Helvetica Neue', 'Arial Black', sans-serif"
+     font-weight="900" font-size="220"
+     text-anchor="middle" dominant-baseline="central"
+     style="user-select:none">
+
+    <!-- Drums (blue) — back layer, offset up-left -->
+    <text x="116" y="142" fill="#3D8BFF" style="mix-blend-mode:screen">S</text>
+    <!-- Vocals (green) — middle, dead-centre — the visual anchor -->
+    <text x="128" y="134" fill="#34F06F" style="mix-blend-mode:screen">S</text>
+    <!-- Instrumental (red) — front layer, offset down-right -->
+    <text x="140" y="126" fill="#FF4E5E" style="mix-blend-mode:screen">S</text>
+  </g>
+</svg>

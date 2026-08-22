@@ -1,0 +1,22 @@
+{
+  "name": "Jeremy Soule",
+  "bgDeep":        "#0D1310",
+  "surface":       "#161D19",
+  "surfaceRaised": "#1D2622",
+  "border":        "#2E3B33",
+  "primary":       "#4A7A52",
+  "accent":        "#8FAA88",
+  "accentBg":      "#338FAA88",
+  "mint":          "#C5D4BE",
+  "textBright":    "#E8EDE5",
+  "textMuted":     "#7A8479",
+  "playedFadeColor": "#0D1310",
+  "waveformPalette": "Soule",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.45,
+    "majorLightness":   0.58,
+    "minorLightness":   0.44,
+    "onChipForeground": "#0D1310"
+  }
+}

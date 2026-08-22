@@ -1,0 +1,14 @@
+# Bundled themes, in the order they appear in the theme picker.
+# Drop a file in this directory + add its name here to add a new built-in theme.
+# Lines starting with '#' are ignored.
+classic.json
+serato.json
+front-line-assembly.json
+silence-groove.json
+jeremy-soule.json
+drab-majesty.json
+sub-focus.json
+type-o-negative.json
+birthday-massacre.json
+boards-of-canada.json
+pantera.json

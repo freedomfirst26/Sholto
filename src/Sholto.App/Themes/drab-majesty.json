@@ -1,0 +1,22 @@
+{
+  "name": "Drab Majesty",
+  "bgDeep":        "#1E293B",
+  "surface":       "#243044",
+  "surfaceRaised": "#293548",
+  "border":        "#3B4860",
+  "primary":       "#88C0D0",
+  "accent":        "#B48EAD",
+  "accentBg":      "#33B48EAD",
+  "mint":          "#A3BE8C",
+  "textBright":    "#ECEFF4",
+  "textMuted":     "#7B8A9E",
+  "playedFadeColor": "#1E293B",
+  "waveformPalette": "Glacier",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.55,
+    "majorLightness":   0.58,
+    "minorLightness":   0.45,
+    "onChipForeground": "#1E293B"
+  }
+}

@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sholto.App.ViewModels"
+             x:Class="Sholto.App.Views.TagEditorView"
+             x:DataType="vm:TagEditorViewModel"
+             Focusable="False">
+
+    <Grid Background="#A0000000" PointerPressed="OnBackdropPressed">
+        <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                Width="720" MaxHeight="600"
+                Background="{DynamicResource SholtoSurfaceRaised}"
+                BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1"
+                CornerRadius="8" Padding="0"
+                PointerPressed="OnPanelPressed">
+
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0">
+
+                <!-- Title -->
+                <TextBlock Grid.Row="0" Text="{Binding Title}"
+                           Foreground="{DynamicResource SholtoTextBright}"
+                           FontSize="16" FontWeight="Bold"
+                           Padding="20,16,20,8"/>
+
+                <!-- Input box -->
+                <TextBox x:Name="InputBox" Grid.Row="1"
+                         Text="{Binding Input, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Watermark="Type a tag, press Tab to add…"
+                         MaxLength="100"
+                         FontSize="20" Padding="20,12"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         Foreground="{DynamicResource SholtoTextBright}"
+                         KeyDown="OnInputKeyDown"/>
+
+                <Border Grid.Row="2" Margin="20,0,20,0" Height="1"
+                        Background="{DynamicResource SholtoBorder}"/>
+
+                <!-- Autocomplete suggestions (only when typing) -->
+                <ListBox Grid.Row="3" x:Name="SuggestionsList"
+                         ItemsSource="{Binding Suggestions}"
+                         SelectedIndex="{Binding SuggestionIndex, Mode=TwoWay}"
+                         Background="Transparent" BorderThickness="0"
+                         Focusable="False" Padding="0,4"
+                         MaxHeight="160"
+                         IsVisible="{Binding Suggestions.Count}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{Binding}" Padding="20,4"
+                                       Foreground="{DynamicResource SholtoTextBright}"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Section header for current chips -->
+                <TextBlock Grid.Row="4" Text="TAGGED"
+                           Foreground="{DynamicResource SholtoTextMuted}"
+                           FontWeight="Bold" FontSize="11"
+                           Padding="20,12,20,4"
+                           IsVisible="{Binding Chips.Count}"/>
+
+                <!-- Chips wrap below input. Each chip is a real Border with the
+                     theme TagChip palette so they're visible as you add them. -->
+                <ScrollViewer Grid.Row="5" HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Chips}" Padding="14,4,14,8">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border Background="{DynamicResource TagChipBackground}"
+                                        CornerRadius="12" Padding="12,4,4,4"
+                                        Margin="6,4">
+                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding}"
+                                                   Foreground="{DynamicResource TagChipForeground}"
+                                                   FontSize="13" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
+                                        <Button Content="×"
+                                                Width="22" Height="22"
+                                                Padding="0"
+                                                CornerRadius="11"
+                                                Background="#33000000"
+                                                BorderThickness="0"
+                                                Foreground="{DynamicResource TagChipForeground}"
+                                                Click="OnRemoveChipClick"
+                                                Tag="{Binding}"
+                                                FontSize="14" FontWeight="Bold"
+                                                HorizontalContentAlignment="Center"
+                                                VerticalContentAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Status + key hint -->
+                <StackPanel Grid.Row="6" Orientation="Vertical" Margin="20,4,20,12">
+                    <TextBlock Text="{Binding StatusMessage}"
+                               Foreground="{DynamicResource SholtoAccent}"
+                               FontSize="12"
+                               IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Text="Tab add · Enter add &amp; close · Esc close · Backspace remove last"
+                               Foreground="{DynamicResource SholtoTextMuted}"
+                               FontSize="11" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
