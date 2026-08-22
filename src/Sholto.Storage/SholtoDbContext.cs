@@ -21,6 +21,13 @@ public sealed class SholtoDbContext : DbContext
 
     public SholtoDbContext(DbContextOptions<SholtoDbContext> options) : base(options) { }
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder cb)
+    {
+        // All Guid keys/FKs are stored as lowercase text; force EF to encode them
+        // the same way so equality and FK inserts match. See LowercaseGuidConverter.
+        cb.Properties<Guid>().HaveConversion<LowercaseGuidConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder mb)
     {
         mb.Entity<Track>(e =>

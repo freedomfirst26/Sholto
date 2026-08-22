@@ -20,8 +20,13 @@ public static class SholtoStorage
 
         await DatabaseBridge.RunIfNeededAsync(path, ct);
 
+        // No Cache=Shared: shared-cache serialises at table granularity and
+        // returns SQLITE_LOCKED immediately on contention (not retryable by a
+        // busy handler). WAL + busy_timeout (see SqlitePragmaInterceptor) is the
+        // correct config for concurrent short-lived pooled connections.
         var options = new DbContextOptionsBuilder<SholtoDbContext>()
-            .UseSqlite($"Data Source={path};Cache=Shared")
+            .UseSqlite($"Data Source={path}")
+            .AddInterceptors(new SqlitePragmaInterceptor())
             .Options;
 
         await using (var bootstrap = new SholtoDbContext(options))

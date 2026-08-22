@@ -68,7 +68,13 @@ public sealed class AnalysisProvider
         foreach (var c in misses)
         {
             try { await c.PutAsync(path, analysis); }
-            catch (Exception ex) { Console.WriteLine($"[AnalysisProvider] backfill to {c.Name} failed: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                var chain = ex.Message;
+                for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
+                    chain += $"  ->  {inner.GetType().Name}: {inner.Message}";
+                Console.WriteLine($"[AnalysisProvider] backfill to {c.Name} failed: {chain}");
+            }
         }
     }
 }
