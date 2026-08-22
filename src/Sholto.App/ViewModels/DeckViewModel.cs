@@ -42,6 +42,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         RebindAnalysisSubscription();
         _player.LoopChanged += OnLoopChanged;
         _player.GridNudgedChanged += OnGridNudgedChanged;
+        _player.CueChanged += OnCueChanged;
         // Channel gain starts UNMEASURED (null) — the FLX-4 only reports a fader's
         // position when moved, so we don't know it yet. Apply it so the deck is
         // silent (null → 0) until the fader is first touched, rather than blasting
@@ -62,6 +63,9 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         {
             Notify(nameof(IsGridNudged));
         });
+
+    private void OnCueChanged(bool _) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => Notify(nameof(CueActive)));
 
     /// <summary>True after the user has tapped at least one nudge on this
     /// deck's grid (cleared on BeginLoad / ResetControls). The waveform
@@ -849,14 +853,14 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(GainKnown));
     }
 
-    private bool _cueActive;
-    /// <summary>Headphone cue (PFL) membership. When on, this deck is summed into
-    /// the ch3-4 headphone mix at full level, pre-fader, so it can be pre-listened
-    /// even with the channel fader down. Toggled by the deck CUE button.</summary>
+    /// <summary>Headphone cue (PFL) membership — the deck is summed into the ch3-4
+    /// headphone mix at full level, pre-fader, so it can be pre-listened even with
+    /// the channel fader down. Observed from the Deck (the source of truth): the
+    /// setter flows to the Deck, which raises CueChanged, and we re-notify.</summary>
     public bool CueActive
     {
-        get => _cueActive;
-        set { if (_cueActive == value) return; _cueActive = value; _player.CueActive = value; Notify(); }
+        get => _player.CueActive;
+        set => _player.CueActive = value;
     }
 
     /// <summary>Combined channel × crossfade gain, 0..1 (0 when unmeasured). Used to

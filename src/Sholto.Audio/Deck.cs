@@ -654,8 +654,15 @@ public sealed class Deck
     // PFL cue selection — toggled by the deck CUE button. When true this deck is
     // summed into the headphone (ch3-4) mix at full level, pre-fader.
     private volatile bool _cueActive;
-    public bool CueActive { get => _cueActive; set => _cueActive = value; }
-    public void ToggleCue() => _cueActive = !_cueActive;
+    /// <summary>Fires when cue membership changes. The Deck is the source of truth
+    /// for cue state; the view model observes this rather than mirroring it.</summary>
+    public event Action<bool>? CueChanged;
+    public bool CueActive
+    {
+        get => _cueActive;
+        set { if (_cueActive == value) return; _cueActive = value; CueChanged?.Invoke(value); }
+    }
+    public void ToggleCue() => CueActive = !CueActive;
 
     // — Beat loops —
     //
