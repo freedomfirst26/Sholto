@@ -293,29 +293,35 @@ public sealed class WaveformControl : Control
 
         bool hasBands = peaks.Low.Length == width;
 
+        // Absolute, track-calibrated band heights: each band is scaled against its
+        // OWN energy range across the whole track (not the per-column total), so
+        // blue = real bass and the silhouette height = real intensity. A drop
+        // towers with a thick blue core; a breakdown thins out to mids/highs.
+        // See WaveformBandScaling. (The old code divided by the per-column sum,
+        // which painted a full blue stripe on any low-heavy-but-quiet section.)
+        var scaling = hasBands
+            ? WaveformBandScaling.Calibrate(peaks.Low, peaks.Mid, peaks.High)
+            : default;
+        float bandScale = hasBands ? midY / scaling.MaxTotal : 0f;
+
         for (int x = 0; x < width; x++)
         {
             if (ct.IsCancellationRequested) return null;
 
-            float amp = MathF.Max(MathF.Abs(peaks.Max[x]), MathF.Abs(peaks.Min[x]));
-            float barHeight = amp * midY;
-            if (barHeight < 1f) continue;
-
             if (!hasBands)
             {
-                canvas.DrawLine(x, midY - barHeight, x, midY + barHeight, lowPaint);
+                float amp = MathF.Max(MathF.Abs(peaks.Max[x]), MathF.Abs(peaks.Min[x]));
+                float barHeight = amp * midY;
+                if (barHeight >= 1f)
+                    canvas.DrawLine(x, midY - barHeight, x, midY + barHeight, lowPaint);
                 continue;
             }
 
-            float l = peaks.Low[x];
-            float m = peaks.Mid[x];
-            float h = peaks.High[x];
-            float sum = l + m + h;
-            if (sum <= 1e-5f) continue;
-
-            float hSeg = barHeight * (h / sum);
-            float mSeg = barHeight * (m / sum);
-            float lSeg = barHeight - hSeg - mSeg;
+            var (nl, nm, nh) = scaling.Normalize(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
+            float lSeg = nl * bandScale;
+            float mSeg = nm * bandScale;
+            float hSeg = nh * bandScale;
+            if (lSeg + mSeg + hSeg < 1f) continue;
 
             float lowEdge  = lSeg;
             float midEdge  = lowEdge + mSeg;
