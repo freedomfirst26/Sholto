@@ -58,4 +58,40 @@ public class ControllerModelTests
         var mapping = new DdjFlx4Mapping();
         Assert.Null(mapping.RenderLight(new ControllerLight(9, LightFunction.Cue), true));
     }
+
+    [Fact]
+    public void Fader_SoftTakeover_IgnoresMovesUntilItCrossesTheValue()
+    {
+        var f = new Fader("vol");          // starts value 0, disengaged
+        var vals = new List<float>();
+        f.ValueChanged += vals.Add;
+
+        f.Move(0.5f);                       // first sample; no crossing yet
+        f.Move(0.8f);                       // moving away from 0 — still no pickup
+        Assert.False(f.Engaged);
+        Assert.Empty(vals);                 // nothing sent while catching up
+
+        f.Move(0.0f);                       // crosses the software value (0) → engage
+        Assert.True(f.Engaged);
+
+        f.Move(0.3f);                       // now it tracks
+        Assert.Equal(0.3f, f.Value);
+        Assert.Equal([0.3f], vals);
+    }
+
+    [Fact]
+    public void Fader_Reset_DisengagesAndDropsToZero()
+    {
+        var f = new Fader("vol");
+        f.Move(0.5f); f.Move(0.0f); f.Move(0.7f);   // pick up and move to 0.7
+        Assert.True(f.Engaged);
+
+        float? last = null;
+        f.ValueChanged += v => last = v;
+        f.Reset();
+
+        Assert.False(f.Engaged);
+        Assert.Equal(0f, f.Value);
+        Assert.Equal(0f, last);              // app told the fader is down
+    }
 }

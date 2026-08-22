@@ -19,6 +19,8 @@ public sealed class Controller : IDisposable
     public Button MasterCue { get; }
     public Button Deck1Cue { get; }
     public Button Deck2Cue { get; }
+    public Fader Deck1Volume { get; } = new("Deck1Volume");
+    public Fader Deck2Volume { get; } = new("Deck2Volume");
     private readonly IReadOnlyList<Component> _components;
 
     /// <summary>High-level semantic events for the App. Carries CueChanged for the
@@ -30,12 +32,16 @@ public sealed class Controller : IDisposable
         MasterCue = MakeButton("MasterCue", new ControllerLight(0, LightFunction.MasterCue));
         Deck1Cue  = MakeButton("Deck1Cue",  new ControllerLight(0, LightFunction.Cue));
         Deck2Cue  = MakeButton("Deck2Cue",  new ControllerLight(1, LightFunction.Cue));
-        _components = [MasterCue, Deck1Cue, Deck2Cue];
+        _components = [MasterCue, Deck1Cue, Deck2Cue, Deck1Volume, Deck2Volume];
 
         Deck1Cue.Clicked += _ => OnCueClicked(0, Deck1Cue);
         Deck2Cue.Clicked += _ => OnCueClicked(1, Deck2Cue);
         // MASTER CUE audio is handled by the FLX-4 hardware; we only toggle the LED.
         MasterCue.Clicked += _ => MasterCue.SetLit(!MasterCue.IsLit);
+
+        // Faders emit a high-level value only after soft-takeover pickup.
+        Deck1Volume.ValueChanged += v => Action?.Invoke(new ControllerEvent.ChannelVolumeMoved(0, v));
+        Deck2Volume.ValueChanged += v => Action?.Invoke(new ControllerEvent.ChannelVolumeMoved(1, v));
     }
 
     private Button MakeButton(string name, ControllerLight light) =>
@@ -75,6 +81,11 @@ public sealed class Controller : IDisposable
                 break;
             case ControllerEvent.MasterCuePressed:
                 MasterCue.Press();
+                break;
+            // Channel faders: route through soft-takeover; the Fader re-emits a
+            // ChannelVolumeMoved (via Action) only once it has picked up.
+            case ControllerEvent.ChannelVolumeMoved v:
+                (v.Deck == 0 ? Deck1Volume : Deck2Volume).Move((float)v.Value);
                 break;
             // Everything else passes straight through to the App as-is.
             default:
