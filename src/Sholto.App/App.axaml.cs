@@ -19,9 +19,7 @@ namespace Sholto.App;
 public partial class App : Application
 {
     private AudioEngine? _audioEngine;
-    private MidiManager? _midi;
-    private Sholto.Controller.FeedbackBus? _feedback;
-    private Sholto.Controller.LightingController? _lighting;
+    private Sholto.Controller.Controller? _controller;
     private DispatcherTimer? _positionTimer;
     private DispatcherTimer? _statsTimer;
     private MainViewModel? _vm;
@@ -262,17 +260,11 @@ public partial class App : Application
         // Pick audio output device (prompt user on first run or if saved device is gone)
         _ = StartAudioAsync(vm, desktop);
 
-        _midi = new MidiManager { LogAllMessages = true };  // TODO: turn off after mapping
-        if (!_midi.Connect())
+        _controller = new Sholto.Controller.Controller();
+        if (!_controller.Connect())
             Console.WriteLine("DDJ-FLX4 not found — use UI controls.");
 
-        // Controller feedback (LEDs): deck state → bus → LightingController → MIDI.
-        _feedback = new Sholto.Controller.FeedbackBus();
-        _lighting = new Sholto.Controller.LightingController(_feedback, _midi);
-        vm.Deck1.AttachFeedback(_feedback, 0);
-        vm.Deck2.AttachFeedback(_feedback, 1);
-
-        _midi.EventReceived += evt =>
+        _controller.Action += evt =>
         {
             Dispatcher.UIThread.Post(() =>
             {
@@ -338,8 +330,8 @@ public partial class App : Application
                     case ControllerEvent.ChannelVolumeMoved v:
                         vm.DeckFor(v.Deck).ChannelGain = v.Value;
                         break;
-                    case ControllerEvent.CueToggle ct:
-                        vm.DeckFor(ct.Deck).ToggleCue();
+                    case ControllerEvent.CueChanged cc:
+                        vm.DeckFor(cc.Deck).CueActive = cc.On;
                         break;
                     case ControllerEvent.EqMoved e:
                     {
@@ -465,6 +457,10 @@ public partial class App : Application
             });
         };
 
+        // Known state on boot: every button LED off + cue audio cleared. Emitted
+        // after Action is subscribed so the cleared-cue events reach the App.
+        _controller.Reset();
+
         // Position sync at 60 Hz so rotation + waveform scroll look smooth.
         _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _positionTimer.Tick += (_, _) =>
@@ -507,8 +503,7 @@ public partial class App : Application
             _positionTimer?.Stop();
             _statsTimer?.Stop();
             _audioEngine?.Stop();
-            _lighting?.Dispose();
-            _midi?.Dispose();
+            _controller?.Dispose();
         };
     }
 

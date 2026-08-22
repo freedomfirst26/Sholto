@@ -1,0 +1,61 @@
+using Sholto.Controller;
+using Sholto.Controller.Mappings;
+using Xunit;
+
+namespace Sholto.Controller.Tests;
+
+public class ControllerModelTests
+{
+    [Fact]
+    public void Button_Press_BubblesClickUp()
+    {
+        var b = new Button("cue", _ => { });
+        int clicks = 0;
+        b.Clicked += _ => clicks++;
+        b.Press();
+        b.Press();
+        Assert.Equal(2, clicks);
+    }
+
+    [Fact]
+    public void Button_SetLit_AppliesOnChangeOnly()
+    {
+        var applied = new List<bool>();
+        var b = new Button("cue", applied.Add);
+
+        b.SetLit(true);   // change → apply
+        b.SetLit(true);   // same  → no apply
+        b.SetLit(false);  // change → apply
+
+        Assert.True(b.IsLit is false);
+        Assert.Equal([true, false], applied);
+    }
+
+    [Fact]
+    public void Button_Reset_TurnsLightOff()
+    {
+        bool? last = null;
+        var b = new Button("cue", on => last = on);
+        b.SetLit(true);
+        b.Reset();
+        Assert.False(b.IsLit);
+        Assert.False(last);   // hardware told to go dark
+    }
+
+    [Theory]
+    [InlineData(0, LightFunction.Cue,       true,  new byte[] { 0x90, 0x54, 0x7F })]
+    [InlineData(1, LightFunction.Cue,       false, new byte[] { 0x91, 0x54, 0x00 })]
+    [InlineData(0, LightFunction.MasterCue, true,  new byte[] { 0x96, 0x63, 0x7F })]
+    public void Flx4_RendersLight(int deck, LightFunction fn, bool on, byte[] expected)
+    {
+        var mapping = new DdjFlx4Mapping();
+        Assert.Equal(expected, mapping.RenderLight(new ControllerLight(deck, fn), on));
+    }
+
+    [Fact]
+    public void Flx4_UnknownDeckCue_RendersNothing()
+    {
+        var mapping = new DdjFlx4Mapping();
+        Assert.Null(mapping.RenderLight(new ControllerLight(9, LightFunction.Cue), true));
+    }
+}

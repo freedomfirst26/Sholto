@@ -42,6 +42,12 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         RebindAnalysisSubscription();
         _player.LoopChanged += OnLoopChanged;
         _player.GridNudgedChanged += OnGridNudgedChanged;
+        // Start with the channel fader DOWN. The FLX-4 is a software mixer — it
+        // only reports a fader's position when moved — so if we defaulted to full,
+        // a freshly loaded deck would play at full to master until the (physically
+        // down) fader is first touched, then jump to silent. Faders-down until
+        // picked up matches how a DJ starts a track: bring the fader up.
+        ApplyVolume();
     }
 
     private void OnLoopChanged(LoopRegion? _) =>
@@ -50,24 +56,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             Notify(nameof(IsLooping));
             Notify(nameof(LoopStartSec));
             Notify(nameof(LoopEndSec));
-            _feedback?.SetLight(_deckIndex, Sholto.Controller.LightFunction.Loop, IsLooping);
         });
-
-    // Controller feedback (LED) publishing — wired once via AttachFeedback.
-    private Sholto.Controller.IFeedbackBus? _feedback;
-    private int _deckIndex;
-
-    /// <summary>Wire this deck to the controller-feedback bus so its state drives
-    /// the matching LEDs. <paramref name="deckIndex"/> is 0 (Deck 1) / 1 (Deck 2).</summary>
-    public void AttachFeedback(Sholto.Controller.IFeedbackBus bus, int deckIndex)
-    {
-        _feedback = bus;
-        _deckIndex = deckIndex;
-        // Push current state so the LEDs match the app on connect.
-        bus.SetLight(deckIndex, Sholto.Controller.LightFunction.Cue, CueActive);
-        bus.SetLight(deckIndex, Sholto.Controller.LightFunction.Play, IsPlaying);
-        bus.SetLight(deckIndex, Sholto.Controller.LightFunction.Loop, IsLooping);
-    }
 
     private void OnGridNudgedChanged(bool _) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -198,7 +187,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public bool IsPlaying
     {
         get => _isPlaying;
-        private set { _isPlaying = value; Notify(); _feedback?.SetLight(_deckIndex, Sholto.Controller.LightFunction.Play, value); }
+        private set { _isPlaying = value; Notify(); }
     }
 
     // Cached so we don't allocate a fresh brush every 16 ms — that was Avalonia's
@@ -821,7 +810,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     }
 
     // Volume model: deck output = channel fader × crossfade gain.
-    private float _channelGain = 1.0f;
+    private float _channelGain = 0.0f; // fader down until the controller picks up — see ctor
     private float _crossfadeGain = 1.0f;
 
     /// <summary>Channel fader 0..1 (the per-deck slider). Bound from UI + FLX-4 channel faders.</summary>
@@ -859,9 +848,8 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public bool CueActive
     {
         get => _cueActive;
-        set { if (_cueActive == value) return; _cueActive = value; _player.CueActive = value; Notify(); _feedback?.SetLight(_deckIndex, Sholto.Controller.LightFunction.Cue, value); }
+        set { if (_cueActive == value) return; _cueActive = value; _player.CueActive = value; Notify(); }
     }
-    public void ToggleCue() => CueActive = !CueActive;
 
     /// <summary>Combined channel × crossfade gain, 0..1. Used to draw the gain line on the waveform.</summary>
     public double EffectiveGain => _channelGain * _crossfadeGain;

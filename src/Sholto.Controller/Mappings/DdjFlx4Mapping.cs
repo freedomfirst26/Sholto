@@ -51,6 +51,11 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             (1,  0x54) => new ControllerEvent.CueToggle(Deck: 0),
             (2,  0x54) => new ControllerEvent.CueToggle(Deck: 1),
 
+            // MASTER CUE (ch7 note 0x63) — headphone monitor of master. The FLX-4
+            // does the audio blend in hardware; we route the press to the model
+            // only to light its LED.
+            (7,  0x63) => new ControllerEvent.MasterCuePressed(),
+
             // Top scroll-wheel cluster — per-deck LOAD buttons.
             (7,  0x46) => new ControllerEvent.LoadToDeck(Deck: 0),
             (7,  0x47) => new ControllerEvent.LoadToDeck(Deck: 1),
@@ -172,21 +177,19 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
     // --- Output / LEDs ---------------------------------------------------------
     // The FLX-4 lights a button by echoing its note back with velocity 0x7F (on)
-    // / 0x00 (off) on the deck's channel — status 0x90 for Deck 1, 0x91 for
-    // Deck 2. The LED notes match the buttons' input notes (captured via MIDI
-    // dump): CUE 0x54, PLAY 0x0B, 4-BEAT loop 0x4D.
+    // / 0x00 (off): deck CUE on the deck's channel (status 0x90 Deck 1 / 0x91
+    // Deck 2, note 0x54); MASTER CUE on ch7 (status 0x96, note 0x63). Notes match
+    // the buttons' input notes captured via MIDI dump.
     public byte[]? RenderLight(ControllerLight light, bool on)
     {
-        if (light.Deck is < 0 or > 1) return null;
-        byte status = (byte)(0x90 + light.Deck);
-        byte note = light.Function switch
+        byte vel = on ? (byte)0x7F : (byte)0x00;
+        return light.Function switch
         {
-            LightFunction.Cue  => 0x54,
-            LightFunction.Play => 0x0B,
-            LightFunction.Loop => 0x4D,
-            _ => 0,
+            LightFunction.Cue when light.Deck is 0 or 1
+                => [(byte)(0x90 + light.Deck), 0x54, vel],
+            LightFunction.MasterCue
+                => [0x96, 0x63, vel],
+            _ => null,
         };
-        if (note == 0) return null;
-        return [status, note, on ? (byte)0x7F : (byte)0x00];
     }
 }

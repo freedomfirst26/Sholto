@@ -16,9 +16,15 @@ public abstract record ControllerEvent
     public record PlayPressed(int Deck) : ControllerEvent;
     /// <summary>The "LOAD" button for a specific deck (0=Deck 1, 1=Deck 2).</summary>
     public record LoadToDeck(int Deck) : ControllerEvent;
-    /// <summary>Headphone CUE button for a deck — toggles it into the pre-fader
-    /// (PFL) headphone cue mix on output channels 3-4.</summary>
+    /// <summary>Raw headphone-CUE press from the wire (before the Controller
+    /// decides the resulting state). Consumed by the Controller, not the App.</summary>
     public record CueToggle(int Deck) : ControllerEvent;
+    /// <summary>Raw MASTER-CUE press from the wire. Consumed by the Controller.</summary>
+    public record MasterCuePressed : ControllerEvent;
+    /// <summary>High-level: a deck's headphone cue is now on/off. Emitted by the
+    /// Controller (the authoritative state lives in its cue Button); the App sets
+    /// its cue audio routing to match. The App never sees the raw press.</summary>
+    public record CueChanged(int Deck, bool On) : ControllerEvent;
     /// <summary>Crossfader moved. Position is normalized 0..1 (0 = full Deck 1, 1 = full Deck 2).</summary>
     public record CrossfaderMoved(double Position) : ControllerEvent;
     /// <summary>A per-deck channel fader moved. Value 0..1.</summary>
