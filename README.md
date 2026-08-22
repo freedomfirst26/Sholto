@@ -2,130 +2,82 @@
 
 # Sholto
 
-New DJ controller software — a free alternative to Rekordbox / Serato.
+DJ software for mixing your own music — a free alternative to Rekordbox and Serato.
 
-**Status:** currently developed and tested on **Linux** (Ubuntu / PipeWire) with the **Pioneer DDJ-FLX4** controller. Cross-platform support (Windows / macOS) and other controllers are next on the roadmap.
+**Status:** runs on **Linux** with the **Pioneer DDJ-FLX4** controller today. Windows, macOS, and more controllers are on the way.
 
-![Sholto — Tokyo Night theme: library, RGB-split S watermark, two decks with live tempo display](pictures/sholto-ui.png)
+![Sholto — library on top, two decks below with live waveforms and spinning discs](pictures/sholto-ui.png)
 
-## Features
+## What it does
 
-### Library
-- Scans `~/Music` recursively (mp3, wav, flac, ogg, m4a, …) using ATL for tag metadata
-- **Track table** with Artist · Track · BPM · Key · Time columns
-- BPM column auto-uplifts as analyses come back from cache / madmom
-- **SQLite-backed analysis cache** at `~/.local/share/sholto/library.db` — every track is analysed once and the result survives restarts
-- 3-tier lookup pipeline: in-memory → SQLite → compute, with automatic write-through
+### Your library
+- Finds every track in your music folder — mp3, wav, flac, ogg, m4a, and more — and reads the artist, title, and other tags automatically.
+- Shows everything in a sortable list: **Artist · Track · BPM · Key · Time**.
+- Analyses each track once and remembers the result, so it's instant every time after.
 
-### Audio analysis
-- **Best-in-class beat tracking** via [madmom](https://github.com/CPJKU/madmom)'s RNN + dynamic-Bayesian-network detector (the `madmom-onnx` fork — ONNX runtime, no Theano)
-- **Real downbeats** drawn as taller / coloured ticks (not "every 4th")
-- **3-band frequency split** (low / mid / high) per waveform column via biquad filters with 5-tap smoothing
-- **Stem separation** via [Demucs](https://github.com/facebookresearch/demucs) (htdemucs — Hybrid Transformer). One-time pass per track produces *vocals / drums / bass / other* WAVs, cached at `~/.local/share/sholto/stems/<hash>/` so re-loads are instant
-- **Live analysis reporter** — track rows show an indeterminate progress bar while analysing and a themed ✓ once basic + stems are both done
+### Reading your tracks
+- **Automatic beat and tempo detection** — Sholto finds the BPM and marks the downbeats so your beatgrid lines up.
+- **Key detection** — every track gets its musical key (with the Camelot code) so you can mix in harmony.
+- **Stem separation** — splits a track into its parts (vocals, drums, bass, and the rest) so you can drop out the vocal or bring back the beat, live.
+- A small progress bar shows a track being analysed, and a check mark when it's ready.
 
-### Playback
-- **Two decks** with independent playback, scrubbing, and analysis
-- **SoundFlow + miniaudio** under the hood — routes through PulseAudio / PipeWire on Linux
-- **Per-track audio cache**: load into either deck instantly the second time
-- Audio output device selectable at runtime from the Settings menu; chosen sink persists
-- **Sub-pixel-accurate playhead** read straight from the data provider (no drift between 44.1 kHz source and 48 kHz engine)
-- **Stem-mix playback** — once stems are ready, the deck transparently switches to a four-SoundPlayer mix (drums / vocals / bass / other) all sample-locked to the engine clock. Per-stem volume becomes live-mutable
-- **3-band Linkwitz–Riley isolator EQ** per deck (24 dB/oct crossovers at 250 Hz / 4 kHz). Full-cut all three bands → true silence, like a DJM hardware isolator. Lock-free `BiquadEq3Band` SoundModifier, atomic gain updates from MIDI
-- **Magnetic beat-snap** — when both decks are playing and their nearest downbeats approach alignment, jog ticks get scaled down by a smoothstep curve and a green glow lights both decks; once you let go, the adjusted deck quantises onto the reference deck's grid
+### Playing and mixing
+- **Two decks** you can play, scrub, and mix independently.
+- **3-band EQ** on each deck (highs, mids, lows) — cut a band all the way to silence, like a hardware isolator.
+- **Filter knob** per deck — sweep from a low-pass to a high-pass for that classic build-up-and-drop feel.
+- **Headphone cue** — pre-listen a track in your headphones while the crowd still hears the other deck.
+- **Beat loops** — set a loop on the beat and halve or double its length on the fly.
+- **Magnetic beat-snap** — when both decks are playing and the beats drift close together, the jog wheel gently "holds" on the beat and both waveforms glow green; let go and the deck locks to the other one's grid. No button to arm — it just happens.
+- Pick which speakers or headphones Sholto plays to, and it remembers your choice.
 
-### Visuals
-- **GPU-baked waveform** rendered once at load to a Skia surface; per-frame cost is one textured blit (no per-pixel re-paint)
-- **Rekordbox-style 3-colour bands** that stack low → mid → high outward from the centre line
-- **Beat-grid markers** along the top edge — downbeats highlighted
-- **Spinning vinyl disc** that rotates one revolution per bar at the track's BPM, with a mint-coloured needle peeking out from behind the album-art label
-- **Outer ring colour** transitions green → yellow → orange → red across the track length; **flashes** when within the last 10 %
-- **Effective-gain line** — a thin mint horizontal line across each waveform showing the combined channel × crossfader volume
-- Big track title + artist next to each deck's disc
-- BPM rendered both prominently in the deck readout and softly inside the spinning disc label
-- **Stem activity chips** under each disc — coloured parallelogram tags
-  (DRMS / VOX / INST), filled when audible, hollow when muted
-- **Red mute tint** over the whole deck whenever its effective gain is 0
-  (channel fader down or crossfader fully on the other deck)
-- **Seven themes** selectable from Settings → Theme:
-  - **Tokyo Night** (default — navy + neon magenta/cyan)
-  - **Classic** (cyan / amber, Rekordbox-style)
-  - **Serato** (red / green / blue)
-  - **Smoke** (moody warm charcoal + whiskey amber)
-  - **Catppuccin Mocha** (soft pastel mauve/peach)
-  - **Glacier** (calm Nordic slate-blue)
-  - **Bloodmoon** (carbon + crimson + bone — high drama)
+### Seeing your tracks
+- **Waveforms coloured by frequency** — deep bass, mids, and highs each get their own colour, and the height shows how intense each moment is, so you can spot the intro, the build-up, the drop, and the breakdown at a glance.
+- **Beat-grid markers** along the top, with the downbeats highlighted.
+- **A spinning vinyl disc** per deck that turns in time with the track, its ring shading from green to red as the track plays out and flashing near the end.
+- **Stem chips** under each disc (drums / vocals / instrumental) — lit when you can hear that part, hollow when it's muted.
+- The deck dims red when its volume is all the way down.
+- **A range of colour themes** to switch between in Settings.
 
-### Controls
-Gestures that live across mouse, keyboard, and controller:
-- **Click the BPM chip** on a deck to halve / double the analyser's reading. The chip jumps + flips card-style and lands on the corrected number — fixes the common madmom "doubled it" mistake (e.g. a 87 BPM downtempo coming back as 174). Click again to flip back. Persisted to SQLite per track.
-- **Hold the controller song-select** (browse encoder press) for ~1 s on a highlighted track to force a fresh re-analysis. Bypasses every cache tier and overwrites the stored BPM / beats — rescue path for tracks whose cached analysis is wrong.
-- **Magnetic beat-snap between decks** — when both decks are playing and their nearest downbeats drift toward alignment, jog ticks get scaled down by a smoothstep curve and both waveforms light up with a green stripe at the matching beat. Let go and the adjusted deck quantises onto the reference deck's grid. Same feel as Rekordbox / Serato beat-lock without needing to explicitly arm anything.
+### Handy moves
+- **Tap the BPM** on a deck to halve or double it — fixes the common case where a slow track gets read as twice its real speed. Tap again to flip back; it's remembered per track.
+- **Hold the browse knob** on a highlighted track for about a second to re-analyse it from scratch — a rescue for the odd track whose beats came out wrong.
 
-### Controller (Pioneer DDJ-FLX4)
-- **Play / pause** on each deck
-- **Jog wheels** — top platter (fast scrub) and side ring (fine seek), with different scrub-rate scaling per surface
-- **Channel volume faders** per deck (14-bit MSB CC, channels 1 / 2)
-- **Crossfader** with equal-power gain curve (14-bit MSB CC, channel 7)
-- **Top scroll wheel** — rotate to step through the track list (signed delta encoder)
-- **LOAD 1 / LOAD 2** buttons load the highlighted track into the corresponding deck
-- **HI / MID / LOW EQ pots** drive the per-deck isolator (14-bit MSB CC `0x07` / `0x0B` / `0x0F` on channels 1 / 2)
-- **Hot-cue pads 1 / 2 / 3** temporarily repurposed as **stem mute toggles** — drums / vocals / instrumental on each deck (once Demucs analysis has landed)
-- Works on Linux via either RtMidi or a built-in `/dev/snd/midi*` raw-MIDI fallback (handles cases where RtMidi can't see the device under PipeWire)
-- **Pluggable mappings** — drop a new `IControllerMapping` into `src/Sholto.Controller/Mappings/`, register it in `MappingRegistry.All`, and any controller can be supported the same way
+## Your DDJ-FLX4
+- **Play / pause** and **jog wheels** (top platter to scrub fast, the side ring for fine nudges) on each deck.
+- **Channel faders** and the **crossfader** for volume and blending.
+- **EQ knobs** (high / mid / low) driving each deck's isolator.
+- **The browse knob** scrolls the track list; **LOAD 1 / LOAD 2** load the highlighted track onto a deck.
+- **Hot-cue pads** double as **stem mute toggles** — drums, vocals, instrumental — once a track's stems are ready.
+- **The CUE buttons** send each deck to your headphones for pre-listening.
+
+Adding support for another controller is straightforward — Sholto keeps each device's button layout in one place.
 
 ### Keyboard
-- **Space** play/pause Deck 1; hold **Shift** for Deck 2
-- **← / →** seek ±10 s on Deck 1; hold **Shift** for Deck 2
-- Arrow keys intercepted at the window level so the track-list ListBox doesn't eat them
+- **Space** plays/pauses Deck 1; hold **Shift** for Deck 2.
+- **← / →** jump ±10 seconds on Deck 1; hold **Shift** for Deck 2.
 
-## Architecture
-
-```
-Sholto.Library     Track, TrackScanner                       — domain primitives
-Sholto.Analysis    WaveformPeaks, BasicAnalysis, beat        — pure analysis math, no deps
-                   trackers, AnalysisProvider, MemoryCache
-Sholto.Storage     SholtoDatabase, AnalysisCodec,            — persistence boundary (SQLite)
-                   DatabaseAnalysisCache
-Sholto.Audio       AudioEngine, DeckPlayer, AudioFileDecoder — playback I/O via SoundFlow / miniaudio
-Sholto.Controller  MIDI input + Mappings/                    — pluggable per-device mappings
-Sholto.App         Avalonia UI                               — everything visible
-```
-
-Built on **.NET 10**, **Avalonia 11**, **SoundFlow** (miniaudio under the hood, talks to PulseAudio / PipeWire on Linux). Audio decoding via NAudio + NLayer.
-
-## Install + run
+## Install and run
 
 ```bash
-git clone https://github.com/sebastianpatten/Sholto.git
+git clone https://github.com/freedomfirst26/Sholto.git
 cd Sholto
-bash install.sh                                  # one-shot install — .NET 10, ffmpeg, madmom-onnx, demucs, libpulse symlink
+bash install.sh
 dotnet run -c Release --project src/Sholto.App
 ```
 
-`install.sh` is idempotent — safe to re-run. It uses `sudo apt` for system packages and `uv` for madmom, both standard tools on modern Ubuntu / Mint / Pop! / Debian.
+`install.sh` sets up everything Sholto needs and is safe to re-run. It works on modern Ubuntu, Mint, Pop!_OS, and Debian.
 
-Default to `-c Release` for everyday use — audio analysis (BPM detection, key detection, stem separation) is CPU-heavy and a Debug build is noticeably slower. Use a Debug build (`dotnet run --project src/Sholto.App`) only when you actually want the debugger or extra runtime checks.
-
-For iterative development, use `dotnet watch` so changes auto-rebuild:
-
-```bash
-dotnet watch --project src/Sholto.App run -c Release --no-hot-reload
-```
-
-The library scans `~/Music` on startup. Click a track in the list to load it into Deck 1; press LOAD 2 on a DDJ-FLX4 to load into Deck 2.
+On startup Sholto scans your music folder. Click a track to load it onto Deck 1, or press LOAD 2 on the controller to load it onto Deck 2.
 
 ## License
 
 Dual-licensed — see [LICENSE](LICENSE):
 
-- **Individuals & noncommercial users**: free under the
+- **Individuals and noncommercial users**: free under the
   [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
-  Fork it, modify it, gig with it, contribute back — all fine.
+  Fork it, modify it, gig with it, contribute back — all welcome.
 - **Commercial use** (products, hosted services, large-company internal
-  deployment): requires a paid commercial license. Open an
-  [issue](https://github.com/sebastianpatten/Sholto/issues) to arrange.
+  deployment): needs a paid commercial license. Open an
+  [issue](https://github.com/freedomfirst26/Sholto/issues) to arrange one.
 
-Small businesses under $1M annual revenue can deploy Sholto internally
-under the PolyForm terms. The goal is to keep Sholto free for individuals
-and small shops while asking large companies to contribute back.
+Small businesses under $1M a year can use Sholto internally under the free terms. The goal is to keep Sholto free for individuals and small shops while asking large companies to chip in.
