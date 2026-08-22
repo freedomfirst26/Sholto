@@ -1,6 +1,6 @@
 using ATL;
 
-namespace Sholto.Library;
+namespace Sholto.Music;
 
 public static class TrackScanner
 {

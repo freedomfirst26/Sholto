@@ -1,4 +1,4 @@
-namespace Sholto.Library;
+namespace Sholto.Music;
 
 /// <summary>
 /// Filter the music library against a free-text query. Designed to grow

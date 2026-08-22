@@ -10,7 +10,7 @@ public class DeckFaderInitTests
     [Fact]
     public void NewDeck_StartsFaderDown_SoNothingPlaysUntilPickedUp()
     {
-        var player = new DeckPlayer { Reporter = new AnalysisReporter() };
+        var player = new Deck { Reporter = new AnalysisReporter() };
         var deck = new DeckViewModel(player);
 
         // Master-path gain (channel × crossfade) starts at 0 — a freshly loaded
@@ -22,7 +22,7 @@ public class DeckFaderInitTests
     [Fact]
     public void BringingFaderUp_AppliesGain()
     {
-        var player = new DeckPlayer { Reporter = new AnalysisReporter() };
+        var player = new Deck { Reporter = new AnalysisReporter() };
         var deck = new DeckViewModel(player);
 
         deck.ChannelGain = 1.0;

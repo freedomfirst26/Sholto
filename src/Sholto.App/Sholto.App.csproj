@@ -39,7 +39,7 @@
     <ProjectReference Include="..\Sholto.Analysis\Sholto.Analysis.csproj" />
     <ProjectReference Include="..\Sholto.Audio\Sholto.Audio.csproj" />
     <ProjectReference Include="..\Sholto.Controller\Sholto.Controller.csproj" />
-    <ProjectReference Include="..\Sholto.Library\Sholto.Library.csproj" />
+    <ProjectReference Include="..\Sholto.Music\Sholto.Music.csproj" />
     <ProjectReference Include="..\Sholto.Storage\Sholto.Storage.csproj" />
   </ItemGroup>
 </Project>

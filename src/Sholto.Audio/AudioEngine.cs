@@ -10,7 +10,7 @@ namespace Sholto.Audio;
 
 /// <summary>
 /// Wraps a SoundFlow MiniAudioEngine + one playback device. Every attached
-/// <see cref="DeckPlayer"/>'s component is added to the device's MasterMixer
+/// <see cref="Deck"/>'s component is added to the device's MasterMixer
 /// so their audio is summed at the output.
 /// </summary>
 public sealed class AudioEngine : IAudioOutput
@@ -25,7 +25,7 @@ public sealed class AudioEngine : IAudioOutput
         Format = SampleFormat.F32
     };
 
-    private readonly IReadOnlyList<DeckPlayer> _decks;
+    private readonly IReadOnlyList<Deck> _decks;
     private readonly SfEngine _engine;
     private AudioPlaybackDevice? _playbackDevice;
     private CueOutputRouter? _router;
@@ -34,7 +34,7 @@ public sealed class AudioEngine : IAudioOutput
     public bool IsRunning => _running;
     public SfEngine Engine => _engine;
 
-    public AudioEngine(params DeckPlayer[] decks)
+    public AudioEngine(params Deck[] decks)
     {
         _decks = decks;
         var miniEngine = new MiniAudioEngine();

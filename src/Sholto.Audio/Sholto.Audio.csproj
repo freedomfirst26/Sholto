@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Sholto.Library\Sholto.Library.csproj" />
+    <ProjectReference Include="..\Sholto.Music\Sholto.Music.csproj" />
     <ProjectReference Include="..\Sholto.Analysis\Sholto.Analysis.csproj" />
   </ItemGroup>
 

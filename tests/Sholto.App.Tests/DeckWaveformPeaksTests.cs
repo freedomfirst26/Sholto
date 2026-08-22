@@ -31,7 +31,7 @@ public class DeckWaveformPeaksTests
     // dispatcher).
     private static DeckViewModel MakeLoadedDeck()
     {
-        var player = new DeckPlayer { Reporter = new AnalysisReporter() };
+        var player = new Deck { Reporter = new AnalysisReporter() };
         player.Analysis.Set(MakeBasic());
         player.Analysis.Set(MakeStems());
         return new DeckViewModel(player);

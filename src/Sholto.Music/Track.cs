@@ -1,4 +1,4 @@
-namespace Sholto.Library;
+namespace Sholto.Music;
 
 public sealed record Track(
     string FilePath,

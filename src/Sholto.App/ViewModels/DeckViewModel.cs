@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using Sholto.Audio;
 using Sholto.Analysis;
 using Sholto.App.Theming;
-using Sholto.Library;
+using Sholto.Music;
 
 namespace Sholto.App.ViewModels;
 
@@ -24,7 +24,7 @@ public enum DeckLoadState
 
 public sealed class DeckViewModel : INotifyPropertyChanged
 {
-    private readonly DeckPlayer _player;
+    private readonly Deck _player;
     private Track? _loadedTrack;
     private bool _isPlaying;
     private double _playPosition;
@@ -36,7 +36,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public DeckViewModel(DeckPlayer player)
+    public DeckViewModel(Deck player)
     {
         _player = player;
         RebindAnalysisSubscription();
@@ -175,7 +175,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     private void OnStemsReady(StemPaths _) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => Notify(nameof(HasStems)));
 
-    public DeckPlayer Player => _player;
+    public Deck Player => _player;
 
     public Track? LoadedTrack
     {
@@ -421,7 +421,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <summary>Adjust this deck's tempo fader so its <see cref="EffectiveBpm"/>
     /// matches <paramref name="targetBpm"/>. Used by magnet-snap: once two decks
     /// phase-align, locking their effective BPMs is what keeps them locked. If
-    /// the required shift falls outside <see cref="DeckPlayer.PitchRange"/>,
+    /// the required shift falls outside <see cref="Deck.PitchRange"/>,
     /// clamps to the edge of the fader range and gets as close as possible.
     /// Returns false on inputs that don't make sense (target ≤ 0, no source BPM,
     /// no pitch range configured).</summary>
@@ -611,7 +611,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Streaming load: hands the file path to the audio engine via
-    /// <see cref="DeckPlayer.LoadStreaming"/> so audio starts in ~100 ms, no
+    /// <see cref="Deck.LoadStreaming"/> so audio starts in ~100 ms, no
     /// upfront MP3 decode. Analysis (BPM/key) still happens in the background
     /// and unlocks features progressively as each event lands.</summary>
     public void LoadStreaming(Track track, string filePath, double bpmMultiplier = 1.0)

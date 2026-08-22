@@ -8,7 +8,7 @@ using Sholto.App.Controls;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.Audio;
-using Sholto.Library;
+using Sholto.Music;
 
 namespace Sholto.App.Views;
 

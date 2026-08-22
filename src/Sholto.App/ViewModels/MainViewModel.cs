@@ -6,7 +6,7 @@ using Sholto.Analysis;
 using Sholto.App.Controls;
 using Sholto.App.Theming;
 using Sholto.Audio;
-using Sholto.Library;
+using Sholto.Music;
 
 namespace Sholto.App.ViewModels;
 
@@ -209,8 +209,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _ = HydrateStemStateAsync();
         });
 
-        Deck1 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
-        Deck2 = new DeckViewModel(new DeckPlayer { Reporter = Reporter });
+        Deck1 = new DeckViewModel(new Deck { Reporter = Reporter });
+        Deck2 = new DeckViewModel(new Deck { Reporter = Reporter });
         Deck1.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
         Deck2.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
         WireDeck(Deck1);

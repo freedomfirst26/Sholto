@@ -14,7 +14,7 @@ namespace Sholto.Audio;
 /// One DJ deck. Holds a stable Mixer component that the AudioEngine attaches
 /// to the master mixer; the SoundPlayer inside is rebuilt on each track load.
 /// </summary>
-public sealed class DeckPlayer
+public sealed class Deck
 {
     private SfEngine? _engine;
     private AudioFormat _format;
@@ -268,7 +268,7 @@ public sealed class DeckPlayer
         Volatile.Write(ref _masterGain, _volume);
         _currentFilePath = filePath;
 
-        Console.WriteLine($"[DeckPlayer] streaming {Path.GetFileName(filePath)} @ {provider.SampleRate}Hz; engine={_format.SampleRate}Hz; length={provider.Length} samples");
+        Console.WriteLine($"[Deck] streaming {Path.GetFileName(filePath)} @ {provider.SampleRate}Hz; engine={_format.SampleRate}Hz; length={provider.Length} samples");
 
         KickOffAnalysisFor(filePath);
     }
@@ -286,7 +286,7 @@ public sealed class DeckPlayer
             {
                 if (AnalysisProvider is null)
                     throw new InvalidOperationException(
-                        "DeckPlayer.AnalysisProvider must be set before LoadStreaming — without it, " +
+                        "Deck.AnalysisProvider must be set before LoadStreaming — without it, " +
                         "analyses can't be persisted to disk.");
 
                 // Decode once for both basic and key analysis. After both finish
@@ -304,18 +304,18 @@ public sealed class DeckPlayer
                 var (basic, source) = await basicTask;
                 var key = await keyTask;
 
-                Console.WriteLine($"[DeckPlayer] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
+                Console.WriteLine($"[Deck] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
                 SetDetectedBasic(basic);
                 if (key is not null)
                 {
-                    Console.WriteLine($"[DeckPlayer] key: {key.KeyName} ({key.Camelot})");
+                    Console.WriteLine($"[Deck] key: {key.KeyName} ({key.Camelot})");
                     Analysis.Set(key);
                 }
                 AnalysisUpdated?.Invoke();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DeckPlayer] background analysis failed: {ex.Message}");
+                Console.WriteLine($"[Deck] background analysis failed: {ex.Message}");
             }
             finally
             {
@@ -333,20 +333,20 @@ public sealed class DeckPlayer
             if (KeyCacheGet is not null)
             {
                 try { var cached = await KeyCacheGet(filePath); if (cached is not null) return cached; }
-                catch (Exception ex) { Console.WriteLine($"[DeckPlayer] key cache lookup failed: {ex.Message}"); }
+                catch (Exception ex) { Console.WriteLine($"[Deck] key cache lookup failed: {ex.Message}"); }
             }
             var key = await KeyAnalyzer.AnalyzeAsync(filePath, samples, channels: 2,
                 sampleRate: sampleRate, reporter: Reporter);
             if (KeyCachePut is not null)
             {
                 try { await KeyCachePut(filePath, key); }
-                catch (Exception ex) { Console.WriteLine($"[DeckPlayer] key cache write failed: {ex.Message}"); }
+                catch (Exception ex) { Console.WriteLine($"[Deck] key cache write failed: {ex.Message}"); }
             }
             return key;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DeckPlayer] key analysis failed: {ex.Message}");
+            Console.WriteLine($"[Deck] key analysis failed: {ex.Message}");
             return null;
         }
     }
@@ -383,7 +383,7 @@ public sealed class DeckPlayer
         // float[] data, so tempo is a no-op until stems land and we switch to
         // StemMixDataProvider (which carries speed directly). Don't set
         // SoundPlayer.PlaybackSpeed — that engages WSOLA and chops the UI.
-        Console.WriteLine($"[DeckPlayer] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
+        Console.WriteLine($"[Deck] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
 
         // Analysis runs off-thread; deck plays immediately, beat grid appears when ready.
         _ = Task.Run(async () =>
@@ -392,16 +392,16 @@ public sealed class DeckPlayer
             {
                 if (AnalysisProvider is null)
                     throw new InvalidOperationException(
-                        "DeckPlayer.AnalysisProvider must be set before Load — without it, " +
+                        "Deck.AnalysisProvider must be set before Load — without it, " +
                         "analyses can't be persisted to disk.");
                 var (basic, source) = await AnalysisProvider.GetAsync(filePath, stereoSamples, sampleRate);
-                Console.WriteLine($"[DeckPlayer] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
+                Console.WriteLine($"[Deck] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
                 SetDetectedBasic(basic);
                 AnalysisUpdated?.Invoke();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DeckPlayer] analysis failed: {ex.Message}");
+                Console.WriteLine($"[Deck] analysis failed: {ex.Message}");
             }
         });
 
@@ -417,7 +417,7 @@ public sealed class DeckPlayer
                 if (KeyCacheGet is not null)
                 {
                     try { key = await KeyCacheGet(filePath); }
-                    catch (Exception ex) { Console.WriteLine($"[DeckPlayer] key cache lookup failed: {ex.Message}"); }
+                    catch (Exception ex) { Console.WriteLine($"[Deck] key cache lookup failed: {ex.Message}"); }
                 }
                 if (key is null)
                 {
@@ -426,16 +426,16 @@ public sealed class DeckPlayer
                     if (KeyCachePut is not null)
                     {
                         try { await KeyCachePut(filePath, key); }
-                        catch (Exception ex) { Console.WriteLine($"[DeckPlayer] key cache write failed: {ex.Message}"); }
+                        catch (Exception ex) { Console.WriteLine($"[Deck] key cache write failed: {ex.Message}"); }
                     }
                 }
-                Console.WriteLine($"[DeckPlayer] key: {key.KeyName} ({key.Camelot})");
+                Console.WriteLine($"[Deck] key: {key.KeyName} ({key.Camelot})");
                 Analysis.Set(key);
                 AnalysisUpdated?.Invoke();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DeckPlayer] key analysis failed: {ex.Message}");
+                Console.WriteLine($"[Deck] key analysis failed: {ex.Message}");
             }
         });
 
@@ -449,7 +449,7 @@ public sealed class DeckPlayer
             {
                 var stems = await DemucsStemAnalyzer.AnalyzeAsync(filePath, Reporter);
                 Analysis.Set(stems);
-                Console.WriteLine($"[DeckPlayer] stems ready: {Path.GetDirectoryName(stems.Vocals)}");
+                Console.WriteLine($"[Deck] stems ready: {Path.GetDirectoryName(stems.Vocals)}");
                 AnalysisUpdated?.Invoke();
 
                 // Auto-switch this deck to stem-mix playback so per-stem mute is live.
@@ -459,7 +459,7 @@ public sealed class DeckPlayer
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DeckPlayer] stem analysis failed: {ex.Message}");
+                Console.WriteLine($"[Deck] stem analysis failed: {ex.Message}");
             }
         });
     }
@@ -544,7 +544,7 @@ public sealed class DeckPlayer
         _player.Seek(TimeSpan.FromSeconds(Math.Max(0, posSeconds)));
 
         if (wasPlaying) _player.Play();
-        Console.WriteLine("[DeckPlayer] switched to stem-mix playback (single player)");
+        Console.WriteLine("[Deck] switched to stem-mix playback (single player)");
 
         // Compute per-stem waveform peaks in the background. Each
         // WaveformPeaks.Compute is ~100-200 ms for a 4-min track; fan all four
@@ -573,11 +573,11 @@ public sealed class DeckPlayer
                 var po = Task.Run(() => WaveformPeaks.Compute(otherSamples,  channels: 2, sampleRate: sr, normalizeBands: false));
                 Task.WaitAll(pd, pv, pb, po);
                 Analysis.Set(new StemPeaks(pd.Result, pv.Result, pb.Result, po.Result));
-                Console.WriteLine("[DeckPlayer] per-stem peaks computed");
+                Console.WriteLine("[Deck] per-stem peaks computed");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DeckPlayer] per-stem peaks failed: {ex.Message}");
+                Console.WriteLine($"[Deck] per-stem peaks failed: {ex.Message}");
             }
         });
     }
@@ -659,7 +659,7 @@ public sealed class DeckPlayer
 
     // — Beat loops —
     //
-    // The data provider does the actual sample-accurate wrap; DeckPlayer just
+    // The data provider does the actual sample-accurate wrap; Deck just
     // computes where the loop in/out points sit (snapped to the beatgrid) and
     // pushes the LoopRegion in. v1 only supports the stem path — the chunked
     // / raw provider paths log and no-op until we wire wrap support there too.
@@ -685,18 +685,18 @@ public sealed class DeckPlayer
     public void EnableBeatLoop(int bars)
     {
         if (_activeLoop is not null) { ExitLoop(); return; }
-        if (_stemProvider is null) { Console.WriteLine("[DeckPlayer] loop: stems not loaded — ignored"); return; }
+        if (_stemProvider is null) { Console.WriteLine("[Deck] loop: stems not loaded — ignored"); return; }
         var downbeats = Analysis.Basic?.DownbeatTimes;
         if (downbeats is null || downbeats.Length < 2)
         {
-            Console.WriteLine("[DeckPlayer] loop: downbeat grid not ready — ignored");
+            Console.WriteLine("[Deck] loop: downbeat grid not ready — ignored");
             return;
         }
 
         double bpm = Analysis.Basic?.Bpm ?? 0;
         if (bpm <= 0)
         {
-            Console.WriteLine("[DeckPlayer] loop: BPM unknown — ignored");
+            Console.WriteLine("[Deck] loop: BPM unknown — ignored");
             return;
         }
 
@@ -788,7 +788,7 @@ public sealed class DeckPlayer
         if (outSample > maxSample) outSample = maxSample;
         if (outSample - inSample < 64) // sanity floor
         {
-            Console.WriteLine("[DeckPlayer] loop: computed range too small — ignored");
+            Console.WriteLine("[Deck] loop: computed range too small — ignored");
             return;
         }
 
@@ -803,7 +803,7 @@ public sealed class DeckPlayer
         _stemProvider.SetLoop(region);
         double actualLen = (outSample - inSample) / 2.0 / AudioFileDecoder.TargetSampleRate;
         double expectedLen = bars * secondsPerBar;
-        Console.WriteLine($"[DeckPlayer] loop ON [{mode}]: {bars} bars @ {bpm:F1} BPM, {inSec:F3}s → {outSec:F3}s, length {actualLen:F3}s (expected {expectedLen:F3}s, source: {source})");
+        Console.WriteLine($"[Deck] loop ON [{mode}]: {bars} bars @ {bpm:F1} BPM, {inSec:F3}s → {outSec:F3}s, length {actualLen:F3}s (expected {expectedLen:F3}s, source: {source})");
         LoopChanged?.Invoke(region);
     }
 
@@ -814,14 +814,14 @@ public sealed class DeckPlayer
         if (_activeLoop is null || _stemProvider is null) return;
         var r = _activeLoop.Value;
         long newLen = r.LengthSamples / 2;
-        if (newLen < 64) { Console.WriteLine("[DeckPlayer] loop: at minimum length"); return; }
+        if (newLen < 64) { Console.WriteLine("[Deck] loop: at minimum length"); return; }
         // Keep loop-out frame-aligned (stereo, so even).
         newLen &= ~1L;
         var next = new LoopRegion(r.StartSample, r.StartSample + newLen);
         _activeLoop = next;
         _stemProvider.BuildLoopTail(next.EndSample);
         _stemProvider.SetLoop(next);
-        Console.WriteLine($"[DeckPlayer] loop ½×: now {next.LengthSamples} samples");
+        Console.WriteLine($"[Deck] loop ½×: now {next.LengthSamples} samples");
         LoopChanged?.Invoke(next);
     }
 
@@ -840,7 +840,7 @@ public sealed class DeckPlayer
         _activeLoop = next;
         _stemProvider.BuildLoopTail(next.EndSample);
         _stemProvider.SetLoop(next);
-        Console.WriteLine($"[DeckPlayer] loop 2×: now {next.LengthSamples} samples");
+        Console.WriteLine($"[Deck] loop 2×: now {next.LengthSamples} samples");
         LoopChanged?.Invoke(next);
     }
 
@@ -905,7 +905,7 @@ public sealed class DeckPlayer
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DeckPlayer] grid adjustment load failed: {ex.Message}");
+                Console.WriteLine($"[Deck] grid adjustment load failed: {ex.Message}");
             }
         }
     }
@@ -973,7 +973,7 @@ public sealed class DeckPlayer
         _bpmOverride = Math.Abs(next - detected.Bpm) < 1e-6 ? null : next;
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[DeckPlayer] BPM {(_bpmOverride is null ? "→ detected" : $"override → {_bpmOverride:F2}")} (Δ{deltaBpm:+0.00;-0.00})");
+        Console.WriteLine($"[Deck] BPM {(_bpmOverride is null ? "→ detected" : $"override → {_bpmOverride:F2}")} (Δ{deltaBpm:+0.00;-0.00})");
     }
 
     /// <summary>Coarse phase shift: move the whole grid by N beats. With the
@@ -990,7 +990,7 @@ public sealed class DeckPlayer
         _offsetSec += delta;
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[DeckPlayer] grid offset {beats:+#;-#;0} beat ({_offsetSec*1000:+0.0;-0.0} ms total)");
+        Console.WriteLine($"[Deck] grid offset {beats:+#;-#;0} beat ({_offsetSec*1000:+0.0;-0.0} ms total)");
     }
 
     /// <summary>Fine phase shift: move the whole grid by <paramref name="seconds"/>
@@ -1002,7 +1002,7 @@ public sealed class DeckPlayer
         _offsetSec += seconds;
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[DeckPlayer] grid offset fine ({_offsetSec*1000:+0.0;-0.0} ms total)");
+        Console.WriteLine($"[Deck] grid offset fine ({_offsetSec*1000:+0.0;-0.0} ms total)");
     }
 
     /// <summary>Place a downbeat (bar 1) exactly at the current playhead,
@@ -1016,7 +1016,7 @@ public sealed class DeckPlayer
         _offsetSec = nowSec - _detectedAnchorSec;
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[DeckPlayer] downbeat set at playhead {nowSec:F3}s");
+        Console.WriteLine($"[Deck] downbeat set at playhead {nowSec:F3}s");
     }
 
     /// <summary>Set the grid from two clicked downbeat points. Computes the
@@ -1033,7 +1033,7 @@ public sealed class DeckPlayer
         if (detected is null) return;
         if (tB < tA) (tA, tB) = (tB, tA);
         double span = tB - tA;
-        if (span < 0.5) { Console.WriteLine("[DeckPlayer] two-point: points too close — ignored"); return; }
+        if (span < 0.5) { Console.WriteLine("[Deck] two-point: points too close — ignored"); return; }
 
         double curBpm = _bpmOverride ?? detected.Bpm;
         if (curBpm <= 0) return;
@@ -1047,7 +1047,7 @@ public sealed class DeckPlayer
         _offsetSec = tA - _detectedAnchorSec;   // make tA a downbeat
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[DeckPlayer] two-point grid: {bars} bar(s) in {span:F3}s → {newBpm:F3} BPM, anchor {tA:F3}s");
+        Console.WriteLine($"[Deck] two-point grid: {bars} bar(s) in {span:F3}s → {newBpm:F3} BPM, anchor {tA:F3}s");
     }
 
     /// <summary>Reset the grid to madmom's detection — clears the override and
@@ -1060,7 +1060,7 @@ public sealed class DeckPlayer
         SetGridNudged(false);
         if (GridAdjustmentPut is not null && _currentFilePath is not null)
             _ = GridAdjustmentPut(_currentFilePath, null, 0.0);
-        Console.WriteLine("[DeckPlayer] grid reset to detected");
+        Console.WriteLine("[Deck] grid reset to detected");
     }
 
     /// <summary>Shift an active loop by <paramref name="seconds"/> so it tracks
@@ -1099,7 +1099,7 @@ public sealed class DeckPlayer
         if (_activeLoop is null) return;
         _activeLoop = null;
         _stemProvider?.SetLoop(null);
-        Console.WriteLine("[DeckPlayer] loop OFF");
+        Console.WriteLine("[Deck] loop OFF");
         LoopChanged?.Invoke(null);
     }
 
@@ -1155,22 +1155,22 @@ public sealed class DeckPlayer
     {
         if (_engine is null || _deckMixer is null)
         {
-            Console.WriteLine("[DeckPlayer] PlayTestTone: engine not attached");
+            Console.WriteLine("[Deck] PlayTestTone: engine not attached");
             return;
         }
         var osc = new Oscillator(_engine, _format) { Frequency = 440f, Volume = 0.3f };
         _deckMixer.AddComponent(osc);
-        Console.WriteLine("[DeckPlayer] PlayTestTone: oscillator added");
+        Console.WriteLine("[Deck] PlayTestTone: oscillator added");
         await Task.Delay(2000);
         _deckMixer.RemoveComponent(osc);
         osc.Dispose();
-        Console.WriteLine("[DeckPlayer] PlayTestTone: done");
+        Console.WriteLine("[Deck] PlayTestTone: done");
     }
     public void Pause() => _player?.Pause();
 
     public void TogglePlay()
     {
-        if (!IsLoaded) { Console.WriteLine("[DeckPlayer] TogglePlay but no track loaded"); return; }
+        if (!IsLoaded) { Console.WriteLine("[Deck] TogglePlay but no track loaded"); return; }
         if (IsPlaying) Pause(); else Play();
     }
 

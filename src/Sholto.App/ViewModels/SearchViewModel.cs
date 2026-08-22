@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Sholto.Library;
+using Sholto.Music;
 
 namespace Sholto.App.ViewModels;
 
@@ -9,7 +9,7 @@ namespace Sholto.App.ViewModels;
 /// Drives the spacebar search overlay. Holds the live query string, recomputes
 /// <see cref="Results"/> against the master <see cref="TrackRow"/> list as the
 /// user types, and tracks the keyboard-highlighted row inside the overlay.
-/// <para>The actual filter logic lives in <see cref="Sholto.Library.LibrarySearch"/>
+/// <para>The actual filter logic lives in <see cref="Sholto.Music.LibrarySearch"/>
 /// so it can be unit-tested without UI dependencies.</para>
 /// </summary>
 public sealed class SearchViewModel : INotifyPropertyChanged

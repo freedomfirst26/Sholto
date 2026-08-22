@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Sholto.Storage;
 using Sholto.Storage.Entities;
 using Sholto.Controller;
-using Sholto.Library;
+using Sholto.Music;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.App.Views;

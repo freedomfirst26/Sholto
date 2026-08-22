@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using Avalonia.Media;
 using Sholto.Analysis;
 using Sholto.App.Theming;
-using Sholto.Library;
+using Sholto.Music;
 
 namespace Sholto.App.ViewModels;
 

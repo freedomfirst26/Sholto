@@ -1,7 +1,7 @@
 using Xunit;
-using Sholto.Library;
+using Sholto.Music;
 
-namespace Sholto.Library.Tests;
+namespace Sholto.Music.Tests;
 
 public class TrackScannerTests
 {

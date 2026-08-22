@@ -24,10 +24,10 @@ namespace Sholto.Audio;
 /// </summary>
 internal sealed class CueOutputRouter : SoundComponent
 {
-    private readonly IReadOnlyList<DeckPlayer> _decks;
+    private readonly IReadOnlyList<Deck> _decks;
     private float[] _scratch = [];
 
-    public CueOutputRouter(SfEngine engine, AudioFormat format, IReadOnlyList<DeckPlayer> decks)
+    public CueOutputRouter(SfEngine engine, AudioFormat format, IReadOnlyList<Deck> decks)
         : base(engine, format)
     {
         _decks = decks;

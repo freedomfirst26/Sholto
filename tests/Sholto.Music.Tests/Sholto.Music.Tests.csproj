@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Sholto.Library\Sholto.Library.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Music\Sholto.Music.csproj" />
   </ItemGroup>
 
 </Project>

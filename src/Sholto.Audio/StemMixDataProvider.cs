@@ -31,7 +31,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider
     // arrays can be reclaimed by GC even if some other code briefly keeps a
     // reference to the provider itself (e.g. SoundPlayer hasn't finalised yet).
     // The audio thread won't read after Dispose because the SoundPlayer has
-    // been Disposed first — see DeckPlayer.TearDownPlayers.
+    // been Disposed first — see Deck.TearDownPlayers.
     private float[][]? _stems;
     private readonly int _length;            // total interleaved-sample length per stem (always even — stereo)
     private double _position;                // fractional source position in interleaved samples (sub-sample precision for vinyl-mode speed)
