@@ -17,6 +17,7 @@
                                       PlayPosition="{Binding PlayPosition}"
                                       PlaybackSpeed="{Binding PlaybackSpeed}"
                                       GainOverlay="{Binding EffectiveGain}"
+                                      GainKnown="{Binding GainKnown}"
                                       GainOverlayColor="{Binding $parent[Window].DataContext.Theme.MintColor}"
                                       MagneticGlowSec="{Binding MagneticGlowSec}"
                                       IsScrubbing="{Binding IsScrubbing}"

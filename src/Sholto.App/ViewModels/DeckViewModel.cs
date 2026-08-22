@@ -42,11 +42,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         RebindAnalysisSubscription();
         _player.LoopChanged += OnLoopChanged;
         _player.GridNudgedChanged += OnGridNudgedChanged;
-        // Start with the channel fader DOWN. The FLX-4 is a software mixer — it
-        // only reports a fader's position when moved — so if we defaulted to full,
-        // a freshly loaded deck would play at full to master until the (physically
-        // down) fader is first touched, then jump to silent. Faders-down until
-        // picked up matches how a DJ starts a track: bring the fader up.
+        // Channel gain starts UNMEASURED (null) — the FLX-4 only reports a fader's
+        // position when moved, so we don't know it yet. Apply it so the deck is
+        // silent (null → 0) until the fader is first touched, rather than blasting
+        // at a software default. The UI likewise shows no level until measured.
         ApplyVolume();
     }
 
@@ -810,22 +809,30 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     }
 
     // Volume model: deck output = channel fader × crossfade gain.
-    private float _channelGain = 0.0f; // fader down until the controller picks up — see ctor
+    private float? _channelGain; // null = UNMEASURED — the FLX-4 fader hasn't been touched yet
     private float _crossfadeGain = 1.0f;
 
-    /// <summary>Channel fader 0..1 (the per-deck slider). Bound from UI + FLX-4 channel faders.</summary>
-    public double ChannelGain
+    /// <summary>Channel fader 0..1, or null until the fader is measured. The FLX-4
+    /// only reports a fader's position on movement, so at startup we don't know it;
+    /// null is that unmeasured truth (distinct from 0). Unmeasured → the deck is
+    /// silent and the UI shows no level (see <see cref="GainKnown"/>).</summary>
+    public double? ChannelGain
     {
         get => _channelGain;
         set
         {
-            var v = (float)Math.Clamp(value, 0, 1);
-            if (Math.Abs(v - _channelGain) < 0.001f) return;
+            var v = value.HasValue ? (float)Math.Clamp(value.Value, 0, 1) : (float?)null;
+            if (Nullable.Equals(v, _channelGain)) return;
             _channelGain = v;
             ApplyVolume();
             Notify();
         }
     }
+
+    /// <summary>False until the channel fader has been measured. The waveform hides
+    /// the gain line and the mute tint until then — we don't render a value we
+    /// haven't measured.</summary>
+    public bool GainKnown => _channelGain.HasValue;
 
     /// <summary>Set by MainViewModel when the crossfader moves; not bound from UI.</summary>
     internal void SetCrossfadeGain(float gain)
@@ -836,9 +843,10 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     private void ApplyVolume()
     {
-        _player.Volume = _channelGain * _crossfadeGain;
+        _player.Volume = (_channelGain ?? 0f) * _crossfadeGain; // unmeasured → silent
         Notify(nameof(EffectiveGain));
         Notify(nameof(IsMuted));
+        Notify(nameof(GainKnown));
     }
 
     private bool _cueActive;
@@ -851,12 +859,14 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         set { if (_cueActive == value) return; _cueActive = value; _player.CueActive = value; Notify(); }
     }
 
-    /// <summary>Combined channel × crossfade gain, 0..1. Used to draw the gain line on the waveform.</summary>
-    public double EffectiveGain => _channelGain * _crossfadeGain;
+    /// <summary>Combined channel × crossfade gain, 0..1 (0 when unmeasured). Used to
+    /// draw the gain line on the waveform — but only when <see cref="GainKnown"/>.</summary>
+    public double EffectiveGain => (_channelGain ?? 0f) * _crossfadeGain;
 
-    /// <summary>True when the deck is effectively silent (channel fader at 0 or fully crossed away).
+    /// <summary>True when the deck is measured AND effectively silent. Only counts as
+    /// muted once the fader is known — an unmeasured deck is "unknown", not "muted".
     /// Drives the red mute tint over the deck area.</summary>
-    public bool IsMuted => EffectiveGain < 0.001;
+    public bool IsMuted => GainKnown && EffectiveGain < 0.001;
 
     public void SyncPlayPosition()
     {

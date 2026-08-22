@@ -60,38 +60,40 @@ public class ControllerModelTests
     }
 
     [Fact]
-    public void Fader_SoftTakeover_IgnoresMovesUntilItCrossesTheValue()
+    public void Fader_StartsUnmeasured()
     {
-        var f = new Fader("vol");          // starts value 0, disengaged
+        var f = new Fader("vol");
+        Assert.Null(f.Value);        // null = we haven't measured it
+        Assert.False(f.Measured);
+    }
+
+    [Fact]
+    public void Fader_FirstMove_AdoptsPosition_ThenTracks()
+    {
+        var f = new Fader("vol");
         var vals = new List<float>();
         f.ValueChanged += vals.Add;
 
-        f.Move(0.5f);                       // first sample; no crossing yet
-        f.Move(0.8f);                       // moving away from 0 — still no pickup
-        Assert.False(f.Engaged);
-        Assert.Empty(vals);                 // nothing sent while catching up
+        f.Move(0.5f);                // adopt — nothing to soft-takeover against
+        Assert.True(f.Measured);
+        Assert.Equal(0.5f, f.Value);
 
-        f.Move(0.0f);                       // crosses the software value (0) → engage
-        Assert.True(f.Engaged);
-
-        f.Move(0.3f);                       // now it tracks
-        Assert.Equal(0.3f, f.Value);
-        Assert.Equal([0.3f], vals);
+        f.Move(0.8f);                // tracks
+        Assert.Equal(0.8f, f.Value);
+        Assert.Equal([0.5f, 0.8f], vals);
     }
 
     [Fact]
     public void Fader_Reset_IsNoOp_PhysicalStateIsTruth()
     {
         var f = new Fader("vol");
-        f.Move(0.5f); f.Move(0.0f); f.Move(0.7f);   // pick up and move to 0.7
-        Assert.True(f.Engaged);
-
+        f.Move(0.7f);
         bool fired = false;
         f.ValueChanged += _ => fired = true;
+
         f.Reset();
 
-        Assert.True(f.Engaged);              // untouched — a slider isn't reset
-        Assert.Equal(0.7f, f.Value);
+        Assert.Equal(0.7f, f.Value);  // a slider isn't reset — its state is physical
         Assert.False(fired);
     }
 }

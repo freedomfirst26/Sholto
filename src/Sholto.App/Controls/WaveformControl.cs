@@ -61,6 +61,12 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<double> GainOverlayProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(GainOverlay), 1.0);
 
+    // Whether the channel gain has actually been measured. Until the FLX-4 fader is
+    // touched we don't know it, so the gain line is not drawn (we never render an
+    // unmeasured value). Default false.
+    public static readonly StyledProperty<bool> GainKnownProperty =
+        AvaloniaProperty.Register<WaveformControl, bool>(nameof(GainKnown), false);
+
     public static readonly StyledProperty<double> MagneticGlowSecProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(MagneticGlowSec), -1.0);
 
@@ -112,6 +118,7 @@ public sealed class WaveformControl : Control
         AffectsRender<WaveformControl>(PlayPositionProperty);
         AffectsRender<WaveformControl>(PlaybackSpeedProperty);
         AffectsRender<WaveformControl>(GainOverlayProperty);
+        AffectsRender<WaveformControl>(GainKnownProperty);
         AffectsRender<WaveformControl>(GainOverlayColorProperty);
         AffectsRender<WaveformControl>(MagneticGlowSecProperty);
         AffectsRender<WaveformControl>(IsScrubbingProperty);
@@ -167,6 +174,12 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(GainOverlayProperty);
         set => SetValue(GainOverlayProperty, value);
+    }
+
+    public bool GainKnown
+    {
+        get => GetValue(GainKnownProperty);
+        set => SetValue(GainKnownProperty, value);
     }
 
     public double MagneticGlowSec
@@ -363,7 +376,7 @@ public sealed class WaveformControl : Control
         // Volume/crossfader gain-line colour comes from the theme.
         var gainColor = new SKColor(GainOverlayColor.R, GainOverlayColor.G, GainOverlayColor.B, GainOverlayColor.A);
         var loopColor = new SKColor(LoopColor.R, LoopColor.G, LoopColor.B, LoopColor.A);
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor));
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor));
 
         // Grid-edit mode: red border tint so the user knows clicks set anchors.
         if (GridEditMode)
@@ -422,6 +435,7 @@ public sealed class WaveformControl : Control
         private readonly double _playPosition;
         private readonly double _playbackSpeed;
         private readonly double _gain;
+        private readonly bool _gainKnown;
         private readonly double _magneticGlowSec;
         private readonly bool _isScrubbing;
         private readonly double[]? _beats;
@@ -432,7 +446,7 @@ public sealed class WaveformControl : Control
         private readonly SKColor _gainColor;
         private readonly SKColor _loopColor;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor)
         {
             Bounds = bounds;
             _image = image;
@@ -442,6 +456,7 @@ public sealed class WaveformControl : Control
             // Guard: never let a runaway 0 collapse the window to zero width.
             _playbackSpeed = playbackSpeed > 0.01 ? playbackSpeed : 1.0;
             _gain = gain;
+            _gainKnown = gainKnown;
             _magneticGlowSec = magneticGlowSec;
             _isScrubbing = isScrubbing;
             _beats = beats;
@@ -546,11 +561,15 @@ public sealed class WaveformControl : Control
             canvas.DrawLine(halfX, 0, halfX, dstH, _headPaint);
 
             // Gain overlay: a thin horizontal line where Y = 0 means 100% (top) and
-            // Y = dstH means 0%. So gain=1 → top, gain=0 → bottom.
-            float gainY = (float)((1.0 - Math.Clamp(_gain, 0, 1)) * dstH);
-            _gainPaint ??= new SKPaint { StrokeWidth = 1, IsAntialias = false };
-            _gainPaint.Color = _gainColor;
-            canvas.DrawLine(0, gainY, dstW, gainY, _gainPaint);
+            // Y = dstH means 0%. So gain=1 → top, gain=0 → bottom. Drawn only once the
+            // channel fader has been measured — an unmeasured level is not rendered.
+            if (_gainKnown)
+            {
+                float gainY = (float)((1.0 - Math.Clamp(_gain, 0, 1)) * dstH);
+                _gainPaint ??= new SKPaint { StrokeWidth = 1, IsAntialias = false };
+                _gainPaint.Color = _gainColor;
+                canvas.DrawLine(0, gainY, dstW, gainY, _gainPaint);
+            }
 
             // Time-mapping reference for every live overlay below. Prefer GridPeaks
             // (the always-on basic peaks) so the beatgrid keeps scrolling when every
