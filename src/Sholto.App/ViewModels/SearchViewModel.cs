@@ -5,6 +5,9 @@ using Sholto.Music;
 
 namespace Sholto.App.ViewModels;
 
+/// <summary>A non-selectable section header in the unified search list.</summary>
+public sealed record SearchHeader(string Text);
+
 /// <summary>
 /// Drives the spacebar search overlay. Holds the live query string, recomputes
 /// <see cref="Results"/> against the master <see cref="TrackRow"/> list as the
@@ -66,6 +69,11 @@ public sealed class SearchViewModel : INotifyPropertyChanged
     /// list every time the query (or the master list) changes.</summary>
     public ObservableCollection<TrackRow> Results { get; } = new();
 
+    /// <summary>The unified, keyboard-navigable list shown in the overlay: a CRATES
+    /// header + crate rows, then a TRACKS header + track rows. Headers are skipped by
+    /// <see cref="Move"/> so the highlight only ever lands on a real item.</summary>
+    public ObservableCollection<object> Items { get; } = new();
+
     private int _selectedIndex;
     public int SelectedIndex
     {
@@ -75,14 +83,49 @@ public sealed class SearchViewModel : INotifyPropertyChanged
             if (_selectedIndex == value) return;
             _selectedIndex = value;
             Notify();
+            Notify(nameof(SelectedItem));
             Notify(nameof(SelectedRow));
         }
     }
 
-    /// <summary>The currently keyboard-highlighted row inside the overlay,
-    /// or null if there are no results.</summary>
-    public TrackRow? SelectedRow =>
-        SelectedIndex >= 0 && SelectedIndex < Results.Count ? Results[SelectedIndex] : null;
+    /// <summary>The highlighted item — a <see cref="TrackRow"/>, a
+    /// <see cref="Sholto.Storage.CrateSummary"/>, or null.</summary>
+    public object? SelectedItem =>
+        SelectedIndex >= 0 && SelectedIndex < Items.Count ? Items[SelectedIndex] : null;
+
+    /// <summary>The highlighted track, if the highlight is on a track row.</summary>
+    public TrackRow? SelectedRow => SelectedItem as TrackRow;
+
+    /// <summary>Move the highlight by <paramref name="delta"/>, skipping headers.</summary>
+    public void Move(int delta)
+    {
+        if (Items.Count == 0) return;
+        int i = SelectedIndex;
+        for (int step = 0; step < Items.Count; step++)
+        {
+            i = (i + delta + Items.Count) % Items.Count;
+            if (Items[i] is not SearchHeader) { SelectedIndex = i; return; }
+        }
+    }
+
+    private void BuildItems()
+    {
+        Items.Clear();
+        if (CrateHits.Count > 0)
+        {
+            Items.Add(new SearchHeader("📦  CRATES"));
+            foreach (var c in CrateHits) Items.Add(c);
+        }
+        if (Results.Count > 0)
+        {
+            Items.Add(new SearchHeader("🎵  TRACKS"));
+            foreach (var r in Results) Items.Add(r);
+        }
+        // Land the highlight on the first real (non-header) row.
+        _selectedIndex = -1;
+        Notify(nameof(Items));
+        Move(1);
+    }
 
     /// <summary>Clear the query (called when the overlay closes so the next
     /// open starts fresh).</summary>
@@ -106,10 +149,8 @@ public sealed class SearchViewModel : INotifyPropertyChanged
             if (matchedPaths.Contains(row.Track.FilePath))
                 Results.Add(row);
 
-        if (_selectedIndex >= Results.Count) _selectedIndex = Math.Max(0, Results.Count - 1);
         Notify(nameof(Results));
-        Notify(nameof(SelectedIndex));
-        Notify(nameof(SelectedRow));
+        BuildItems();
         _ = RefreshTagHitsAsync();
         _ = RefreshCrateHitsAsync();
     }
@@ -125,6 +166,7 @@ public sealed class SearchViewModel : INotifyPropertyChanged
                 CrateHits.Clear();
                 foreach (var h in hits) CrateHits.Add(h);
                 Notify(nameof(CrateHits));
+                BuildItems();
             });
         }
         catch (Exception ex) { Console.WriteLine($"[Search] crate search failed: {ex.Message}"); }

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Sholto.App.ViewModels"
+             xmlns:storage="using:Sholto.Storage"
              xmlns:converters="using:Avalonia.Data.Converters"
              x:Class="Sholto.App.Views.SearchOverlay"
              x:DataType="vm:MainViewModel"
@@ -19,7 +20,7 @@
                 CornerRadius="8" Padding="0"
                 PointerPressed="OnPanelPressed">
 
-            <Grid RowDefinitions="Auto,Auto,*" Margin="0">
+            <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="0">
                 <!-- Deck-target chooser above the input. Two circles labelled
                      1 and 2; ←/→ in the input toggles which is highlighted,
                      Enter loads into the highlighted deck. Default is picked
@@ -40,28 +41,28 @@
                         </Style>
                         <Style Selector="Border.deckChip.active">
                             <Setter Property="Background"
-                                    Value="{Binding $parent[Window].DataContext.Theme.Accent}"/>
+                                    Value="{DynamicResource SholtoAccent}"/>
                         </Style>
                         <Style Selector="Border.deckChip TextBlock">
                             <Setter Property="Foreground"
-                                    Value="{Binding $parent[Window].DataContext.Theme.Accent}"/>
+                                    Value="{DynamicResource SholtoAccent}"/>
                         </Style>
                         <Style Selector="Border.deckChip.active TextBlock">
                             <Setter Property="Foreground"
-                                    Value="{Binding $parent[Window].DataContext.Theme.SurfaceRaised}"/>
+                                    Value="{DynamicResource SholtoSurfaceRaised}"/>
                         </Style>
                     </StackPanel.Styles>
                     <Border Classes="deckChip" Classes.active="{Binding IsLoadTargetDeck1}"
                             Width="36" Height="36" CornerRadius="18"
                             BorderThickness="2"
-                            BorderBrush="{Binding $parent[Window].DataContext.Theme.Accent}">
+                            BorderBrush="{DynamicResource SholtoAccent}">
                         <TextBlock Text="1" FontWeight="Bold" FontSize="16"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <Border Classes="deckChip" Classes.active="{Binding IsLoadTargetDeck2}"
                             Width="36" Height="36" CornerRadius="18"
                             BorderThickness="2"
-                            BorderBrush="{Binding $parent[Window].DataContext.Theme.Accent}">
+                            BorderBrush="{DynamicResource SholtoAccent}">
                         <TextBlock Text="2" FontWeight="Bold" FontSize="16"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -88,48 +89,47 @@
                 <!-- Filtered results + tag bucket -->
                 <ScrollViewer Grid.Row="2">
                     <StackPanel>
-                        <!-- CRATES section — matches crate names; click to filter the
-                             library to that crate. Grouped above the tracks. -->
-                        <TextBlock Text="📦  CRATES"
-                                   Foreground="{DynamicResource SholtoTextMuted}"
-                                   FontWeight="Bold" FontSize="11" LetterSpacing="1"
-                                   Margin="20,10,20,4"
-                                   IsVisible="{Binding Search.CrateHits.Count}"/>
-                        <ItemsControl ItemsSource="{Binding Search.CrateHits}" Padding="0,0,0,6">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="Transparent" Cursor="Hand"
-                                            PointerPressed="OnCrateRowPressed" Tag="{Binding}">
-                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,5">
-                                            <TextBlock Grid.Column="0" Text="📦" FontSize="15"
-                                                       Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource SholtoTextBright}"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding TrackCount}"
-                                                       Foreground="{DynamicResource SholtoTextMuted}"
-                                                       VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <TextBlock Text="🎵  TRACKS"
-                                   Foreground="{DynamicResource SholtoTextMuted}"
-                                   FontWeight="Bold" FontSize="11" LetterSpacing="1"
-                                   Margin="20,6,20,4"
-                                   IsVisible="{Binding Search.Results.Count}"/>
+                        <!-- One navigable, grouped list: CRATES header + crate rows,
+                             then TRACKS header + track rows. Headers are skipped by the
+                             keyboard nav (SearchViewModel.Move); Enter/double-click
+                             picks a crate (→ filter the library) or loads a track. -->
                         <ListBox x:Name="ResultsList"
-                                 ItemsSource="{Binding Search.Results}"
+                                 ItemsSource="{Binding Search.Items}"
                                  SelectedIndex="{Binding Search.SelectedIndex, Mode=TwoWay}"
                                  Background="Transparent"
                                  BorderThickness="0"
                                  Focusable="False"
-                                 Padding="0,4">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:TrackRow">
+                                 Padding="0,4"
+                                 DoubleTapped="OnResultActivated">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="{DynamicResource SholtoAccentBg}"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.DataTemplates>
+                                <!-- Section header -->
+                                <DataTemplate DataType="vm:SearchHeader">
+                                    <TextBlock Text="{Binding Text}"
+                                               Foreground="{DynamicResource SholtoTextMuted}"
+                                               FontWeight="Bold" FontSize="11" LetterSpacing="1"
+                                               Margin="20,8,20,2"/>
+                                </DataTemplate>
+                                <!-- Crate row -->
+                                <DataTemplate DataType="storage:CrateSummary">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,5">
+                                        <TextBlock Grid.Column="0" Text="📦" FontSize="15"
+                                                   Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SholtoTextBright}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding TrackCount}"
+                                                   Foreground="{DynamicResource SholtoTextMuted}"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                                <!-- Track row -->
+                                <DataTemplate DataType="vm:TrackRow">
                                     <Grid ColumnDefinitions="*,Auto,60" Margin="12,4">
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
                                             <TextBlock Text="{Binding Artist}" FontWeight="Bold"
@@ -154,12 +154,12 @@
                                                 HorizontalAlignment="Right" VerticalAlignment="Center"
                                                 IsVisible="{Binding Key, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                             <TextBlock Text="{Binding Key}" FontSize="11" FontWeight="Bold"
-                                                       Foreground="White"
+                                                       Foreground="{DynamicResource SholtoChipForeground}"
                                                        HorizontalAlignment="Center"/>
                                         </Border>
                                     </Grid>
                                 </DataTemplate>
-                            </ListBox.ItemTemplate>
+                            </ListBox.DataTemplates>
                         </ListBox>
 
                         <TextBlock Text="TAGS"
@@ -191,6 +191,11 @@
                         </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
+
+                <!-- Keyboard hint footer -->
+                <TextBlock Grid.Row="3" Text="↑↓ move · ←→ deck · Enter load / open crate · Esc close"
+                           FontSize="11" Foreground="{DynamicResource SholtoTextMuted}"
+                           Margin="20,8,20,12"/>
             </Grid>
         </Border>
     </Grid>

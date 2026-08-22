@@ -38,25 +38,17 @@ public partial class SearchOverlay : UserControl
                 break;
 
             case Key.Down:
-                if (search.Results.Count > 0)
-                    search.SelectedIndex = Math.Min(search.Results.Count - 1, search.SelectedIndex + 1);
+                search.Move(+1);
                 e.Handled = true;
                 break;
 
             case Key.Up:
-                if (search.Results.Count > 0)
-                    search.SelectedIndex = Math.Max(0, search.SelectedIndex - 1);
+                search.Move(-1);
                 e.Handled = true;
                 break;
 
             case Key.Enter:
-                // Commit: select the row in the library, then load it into the
-                // currently-highlighted deck-target chip (LoadTargetDeck),
-                // then close. The default deck is picked when the overlay
-                // opens — see MainViewModel.PickDefaultLoadTarget.
-                CommitSelection(vm);
-                _ = vm.LoadSelectedToDeckAsync(vm.LoadTargetDeck);
-                vm.IsSearchOpen = false;
+                Activate(vm);
                 e.Handled = true;
                 break;
 
@@ -100,14 +92,27 @@ public partial class SearchOverlay : UserControl
         e.Handled = true;
     }
 
-    private void OnCrateRowPressed(object? sender, PointerPressedEventArgs e)
+    /// <summary>Act on the highlighted search item: a crate filters the library to
+    /// its contents; a track loads into the highlighted deck. Both then close.</summary>
+    private static void Activate(MainViewModel vm)
     {
-        if (DataContext is not MainViewModel vm) return;
-        if (sender is Control { Tag: Sholto.Storage.CrateSummary crate })
+        switch (vm.Search.SelectedItem)
         {
-            e.Handled = true;
-            vm.Search.PickCrate(crate);
+            case Sholto.Storage.CrateSummary crate:
+                vm.Search.PickCrate(crate); // handler filters the library + closes
+                break;
+            case TrackRow:
+                CommitSelection(vm);
+                _ = vm.LoadSelectedToDeckAsync(vm.LoadTargetDeck);
+                vm.IsSearchOpen = false;
+                break;
         }
+    }
+
+    private void OnResultActivated(object? sender, TappedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) Activate(vm);
+        e.Handled = true;
     }
 
     private void OnTagChipPressed(object? sender, PointerPressedEventArgs e)

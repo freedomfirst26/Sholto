@@ -193,32 +193,29 @@
                             </Border>
                             <!-- Played tracks render italic. Style class applied to both
                                  artist and title cells so they shift together as one signal. -->
+                            <!-- Artist is the secondary read — muted so Title anchors the row. -->
                             <TextBlock Grid.Column="2" Text="{Binding Artist}"
-                                       Foreground="{DynamicResource SholtoTextBright}"
+                                       Foreground="{DynamicResource SholtoTextMuted}"
                                        Margin="12,4" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Classes.played="{Binding IsPlayed}">
                                 <TextBlock.Styles>
+                                    <!-- Played = "spent": italic only, no added weight. -->
                                     <Style Selector="TextBlock.played">
                                         <Setter Property="FontStyle" Value="Italic"/>
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                        <!-- Mute the title/artist so unplayed rows visually pop;
-                                             keeps the row readable but flags "out of the running". -->
-                                        <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
                                     </Style>
                                 </TextBlock.Styles>
                             </TextBlock>
+                            <!-- Title is the primary scan anchor — semibold + bright. -->
                             <TextBlock Grid.Column="3" Text="{Binding Title}"
                                        Foreground="{DynamicResource SholtoTextBright}"
+                                       FontWeight="SemiBold"
                                        Margin="8,4" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Classes.played="{Binding IsPlayed}">
                                 <TextBlock.Styles>
                                     <Style Selector="TextBlock.played">
                                         <Setter Property="FontStyle" Value="Italic"/>
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                        <!-- Mute the title/artist so unplayed rows visually pop;
-                                             keeps the row readable but flags "out of the running". -->
                                         <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
                                     </Style>
                                 </TextBlock.Styles>
@@ -255,7 +252,7 @@
                                     </Style>
                                 </Border.Styles>
                                 <TextBlock Text="{Binding Key}"
-                                           Foreground="White"
+                                           Foreground="{DynamicResource SholtoChipForeground}"
                                            FontWeight="Bold" FontSize="12"/>
                             </Border>
                             <TextBlock Grid.Column="6" Text="{Binding DurationDisplay}"

@@ -1199,6 +1199,15 @@ public sealed class Deck
         _player.Seek(TimeSpan.FromSeconds(target));
     }
 
+    /// <summary>Seek to an absolute fraction of the track (0..1). Used by the minimap
+    /// click-to-jump. Same time domain as <see cref="SeekRelative"/>.</summary>
+    public void SeekToFraction(double fraction)
+    {
+        if (_player is null) return;
+        double target = Math.Clamp(fraction, 0.0, 1.0) * _player.Duration;
+        _player.Seek(TimeSpan.FromSeconds(target));
+    }
+
     /// <summary>
     /// Set one of the 3 EQ bands (0=Low, 1=Mid, 2=High). <paramref name="value"/> is 0..1,
     /// 0.5 = unity. Below 0.5 cuts down to −26 dB (full kill); above 0.5 boosts up to +6 dB.

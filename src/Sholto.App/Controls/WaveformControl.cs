@@ -751,18 +751,24 @@ public sealed class WaveformControl : Control
             {
                 _markerPaint ??= new SKPaint { IsAntialias = false };
                 var mk = _markerPaint;
-                var amber = new SKColor(0xFF, 0xB3, 0x00, 0xE6);
+                // Hot pink — deliberately unlike the yellow downbeats and green vocal
+                // lane so a saved cue jumps out. Dark contrast edge + a chunky top flag.
+                var pink = new SKColor(0xFF, 0x2D, 0x95, 0xFF);
+                var edge = new SKColor(0x00, 0x00, 0x00, 0x99);
                 foreach (var t in _markerSecs)
                 {
                     float beatCol = (float)(t / mkSpp);
                     float x = (float)((beatCol - refCenterPeak) / _playbackSpeed) + dstW / 2f;
-                    if (x < -4 || x >= dstW + 4) continue;
-                    mk.Color = amber;
-                    mk.Style = SKPaintStyle.Stroke;
-                    mk.StrokeWidth = 2;
+                    if (x < -8 || x >= dstW + 8) continue;
+                    // 1px dark outline for contrast against bright waveforms.
+                    mk.Style = SKPaintStyle.Stroke; mk.StrokeWidth = 5; mk.Color = edge;
                     canvas.DrawLine(x, 0, x, dstH, mk);
+                    mk.StrokeWidth = 3; mk.Color = pink;
+                    canvas.DrawLine(x, 0, x, dstH, mk);
+                    // Chunky top flag so it's spottable at a glance.
                     mk.Style = SKPaintStyle.Fill;
-                    canvas.DrawRect(x, 0, 7, 7, mk); // top flag tab
+                    mk.Color = edge; canvas.DrawRect(x - 7, 0, 15, 13, mk);
+                    mk.Color = pink; canvas.DrawRect(x - 6, 0, 13, 11, mk);
                 }
             }
 

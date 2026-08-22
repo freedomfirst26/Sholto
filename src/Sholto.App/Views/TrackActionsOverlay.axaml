@@ -29,6 +29,11 @@
                          SelectedIndex="{Binding TrackActions.SelectedIndex, Mode=TwoWay}"
                          Background="Transparent" BorderThickness="0"
                          DoubleTapped="OnActionActivated">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource SholtoAccentBg}"/>
+                        </Style>
+                    </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:TrackActionItem">
                             <Grid ColumnDefinitions="34,*" Margin="6,4">

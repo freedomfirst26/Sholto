@@ -28,6 +28,14 @@ public partial class DeckView : UserControl
             {
                 if (DataContext is DeckViewModel vm) vm.OnGridClick(secs);
             };
+
+        // Minimap click/drag → jump to that fraction of the track.
+        var minimap = this.FindControl<Controls.MinimapControl>("Minimap");
+        if (minimap is not null)
+            minimap.Seeked += fraction =>
+            {
+                if (DataContext is DeckViewModel vm) vm.SeekToFraction(fraction);
+            };
     }
 
     private void OnFlashTick(object? sender, EventArgs e)
