@@ -20,6 +20,8 @@ public partial class App : Application
 {
     private AudioEngine? _audioEngine;
     private MidiManager? _midi;
+    private Sholto.Controller.FeedbackBus? _feedback;
+    private Sholto.Controller.LightingController? _lighting;
     private DispatcherTimer? _positionTimer;
     private DispatcherTimer? _statsTimer;
     private MainViewModel? _vm;
@@ -264,6 +266,12 @@ public partial class App : Application
         if (!_midi.Connect())
             Console.WriteLine("DDJ-FLX4 not found — use UI controls.");
 
+        // Controller feedback (LEDs): deck state → bus → LightingController → MIDI.
+        _feedback = new Sholto.Controller.FeedbackBus();
+        _lighting = new Sholto.Controller.LightingController(_feedback, _midi);
+        vm.Deck1.AttachFeedback(_feedback, 0);
+        vm.Deck2.AttachFeedback(_feedback, 1);
+
         _midi.EventReceived += evt =>
         {
             Dispatcher.UIThread.Post(() =>
@@ -499,6 +507,7 @@ public partial class App : Application
             _positionTimer?.Stop();
             _statsTimer?.Stop();
             _audioEngine?.Stop();
+            _lighting?.Dispose();
             _midi?.Dispose();
         };
     }

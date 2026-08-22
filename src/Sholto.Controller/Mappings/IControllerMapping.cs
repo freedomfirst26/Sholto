@@ -24,4 +24,9 @@ public interface IControllerMapping
 
     ControllerEvent? Translate(NoteEvent msg);
     ControllerEvent? Translate(CcEvent msg);
+
+    /// <summary>Render a logical light to the raw MIDI bytes that set it on this
+    /// device, or <c>null</c> if the device has no such light. Default: no lights.
+    /// This is the output counterpart of <see cref="Translate(NoteEvent)"/>.</summary>
+    byte[]? RenderLight(ControllerLight light, bool on) => null;
 }

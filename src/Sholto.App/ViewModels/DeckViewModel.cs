@@ -50,7 +50,24 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             Notify(nameof(IsLooping));
             Notify(nameof(LoopStartSec));
             Notify(nameof(LoopEndSec));
+            _feedback?.SetLight(_deckIndex, Sholto.Controller.LightFunction.Loop, IsLooping);
         });
+
+    // Controller feedback (LED) publishing — wired once via AttachFeedback.
+    private Sholto.Controller.IFeedbackBus? _feedback;
+    private int _deckIndex;
+
+    /// <summary>Wire this deck to the controller-feedback bus so its state drives
+    /// the matching LEDs. <paramref name="deckIndex"/> is 0 (Deck 1) / 1 (Deck 2).</summary>
+    public void AttachFeedback(Sholto.Controller.IFeedbackBus bus, int deckIndex)
+    {
+        _feedback = bus;
+        _deckIndex = deckIndex;
+        // Push current state so the LEDs match the app on connect.
+        bus.SetLight(deckIndex, Sholto.Controller.LightFunction.Cue, CueActive);
+        bus.SetLight(deckIndex, Sholto.Controller.LightFunction.Play, IsPlaying);
+        bus.SetLight(deckIndex, Sholto.Controller.LightFunction.Loop, IsLooping);
+    }
 
     private void OnGridNudgedChanged(bool _) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -181,7 +198,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public bool IsPlaying
     {
         get => _isPlaying;
-        private set { _isPlaying = value; Notify(); }
+        private set { _isPlaying = value; Notify(); _feedback?.SetLight(_deckIndex, Sholto.Controller.LightFunction.Play, value); }
     }
 
     // Cached so we don't allocate a fresh brush every 16 ms — that was Avalonia's
@@ -842,7 +859,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public bool CueActive
     {
         get => _cueActive;
-        set { if (_cueActive == value) return; _cueActive = value; _player.CueActive = value; Notify(); }
+        set { if (_cueActive == value) return; _cueActive = value; _player.CueActive = value; Notify(); _feedback?.SetLight(_deckIndex, Sholto.Controller.LightFunction.Cue, value); }
     }
     public void ToggleCue() => CueActive = !CueActive;
 

@@ -169,4 +169,24 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
         return null;
     }
+
+    // --- Output / LEDs ---------------------------------------------------------
+    // The FLX-4 lights a button by echoing its note back with velocity 0x7F (on)
+    // / 0x00 (off) on the deck's channel — status 0x90 for Deck 1, 0x91 for
+    // Deck 2. The LED notes match the buttons' input notes (captured via MIDI
+    // dump): CUE 0x54, PLAY 0x0B, 4-BEAT loop 0x4D.
+    public byte[]? RenderLight(ControllerLight light, bool on)
+    {
+        if (light.Deck is < 0 or > 1) return null;
+        byte status = (byte)(0x90 + light.Deck);
+        byte note = light.Function switch
+        {
+            LightFunction.Cue  => 0x54,
+            LightFunction.Play => 0x0B,
+            LightFunction.Loop => 0x4D,
+            _ => 0,
+        };
+        if (note == 0) return null;
+        return [status, note, on ? (byte)0x7F : (byte)0x00];
+    }
 }

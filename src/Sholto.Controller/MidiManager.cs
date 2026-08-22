@@ -20,6 +20,13 @@ public sealed class MidiManager : IDisposable
     /// <summary>When true, log every incoming MIDI message to console — for mapping new controls.</summary>
     public bool LogAllMessages { get; set; }
 
+    /// <summary>The active device mapping, or null until <see cref="Connect"/>
+    /// succeeds. Used by the lighting side to render logical lights to bytes.</summary>
+    public IControllerMapping? Mapping => _mapping;
+
+    /// <summary>Write raw MIDI bytes out to the controller (e.g. LED updates).</summary>
+    public void Send(byte[] bytes) => _rawMidi?.SendRaw(bytes);
+
     public bool Connect()
     {
         foreach (var mapping in MappingRegistry.All)

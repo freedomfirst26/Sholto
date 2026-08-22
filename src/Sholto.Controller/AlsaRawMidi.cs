@@ -62,6 +62,20 @@ internal sealed class AlsaRawMidi : IDisposable
     ///   Deck 1 displayed ch 1 → wire 0 → NoteOn status byte 0x90
     ///   Deck 2 displayed ch 2 → wire 1 → NoteOn status byte 0x91
     /// </summary>
+    /// <summary>Write raw MIDI bytes to the controller (LED updates etc.).</summary>
+    public void SendRaw(byte[] bytes)
+    {
+        try
+        {
+            _stream.Write(bytes, 0, bytes.Length);
+            _stream.Flush();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MIDI] send failed: {ex.Message}");
+        }
+    }
+
     private void SendStartupInit()
     {
         try
