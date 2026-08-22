@@ -138,52 +138,34 @@ public static class Beatgrid
     /// <summary>Find the phase in [0, period) that best fits the raw downbeats.
     /// Robust to outliers: projects each downbeat to its phase, finds the
     /// densest half-period window on the circle, averages the phases inside.</summary>
+    /// <summary>Number of opening downbeats used to anchor the grid phase.</summary>
+    private const int AnchorWindowBars = 16;
+
     private static double ComputeAnchor(double[] downbeats, double period)
     {
         if (downbeats.Length == 0) return 0;
 
-        // Phase = downbeat mod period, normalized to [0, period).
-        var phases = new double[downbeats.Length];
-        for (int i = 0; i < phases.Length; i++)
+        // Anchor the grid's phase to the OPENING downbeats only. madmom's beat
+        // positions random-walk across a track — its DBN tracks tempo as a latent
+        // state that wanders, so absolute beat times drift ±hundreds of ms over a
+        // few minutes even when the true tempo is constant. Averaging the phase
+        // over ALL downbeats therefore smears it and lands the grid up to ~a beat
+        // off even at the very start. The opening bars are the freshest and are
+        // where the DJ cues, so we estimate phase from them and leave any later
+        // drift to the nudge / set-downbeat controls.
+        int k = Math.Min(downbeats.Length, AnchorWindowBars);
+        var phases = new double[k];
+        for (int i = 0; i < k; i++)
         {
             double p = downbeats[i] % period;
             phases[i] = p < 0 ? p + period : p;
         }
 
-        if (phases.Length == 1) return phases[0];
-
+        // Median of the opening phases: robust to a single mis-detected first
+        // downbeat. Opening bars of a steady track share almost the same phase, so
+        // there is no wrap-around seam to handle here.
         Array.Sort(phases);
-        double halfPeriod = period / 2;
-
-        // For each candidate starting phase, count phases inside a half-period
-        // window. Best window = densest cluster of "correct" downbeats; outliers
-        // outside the window get ignored.
-        int bestStart = 0, bestCount = 0;
-        for (int i = 0; i < phases.Length; i++)
-        {
-            int count = 0;
-            double start = phases[i];
-            for (int j = 0; j < phases.Length; j++)
-            {
-                double d = phases[j] - start;
-                if (d < 0) d += period;
-                if (d < halfPeriod) count++;
-            }
-            if (count > bestCount) { bestCount = count; bestStart = i; }
-        }
-
-        // Mean of phases inside the best window. Unroll wrap-around by adding
-        // `period` to phases that landed below the window's start.
-        double startVal = phases[bestStart];
-        double sum = 0;
-        int n2 = 0;
-        for (int j = 0; j < phases.Length; j++)
-        {
-            double d = phases[j] - startVal;
-            if (d < 0) d += period;
-            if (d < halfPeriod) { sum += startVal + d; n2++; }
-        }
-        double anchor = sum / n2;
+        double anchor = phases[k / 2];
         anchor %= period;
         if (anchor < 0) anchor += period;
         return anchor;

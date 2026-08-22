@@ -16,11 +16,13 @@ namespace Sholto.Storage;
 /// </summary>
 public static class AnalysisCodec
 {
-    // v2: BPM is now the mean (not median) of madmom's inter-beat gaps — the
-    // median biased quantized beat times high (174 DnB read 176.5). Bumping the
-    // version invalidates cached basic analyses so tracks re-derive the fixed BPM
-    // (and re-bake the calibrated waveform) on next load.
-    public const uint Version = 2;
+    // v2: BPM from the mean (not median) of madmom's inter-beat gaps — the median
+    //     biased quantized beat times high (174 DnB read 176.5).
+    // v3: beatgrid phase anchored to the OPENING downbeats, not a whole-track
+    //     average that madmom's wandering beats dragged ~a beat off at the start.
+    // Bumping invalidates cached basic analyses so tracks re-derive the fixed BPM
+    // + grid (and re-bake the calibrated waveform) on next load.
+    public const uint Version = 3;
 
     public static byte[] Encode(BasicAnalysis a)
     {
