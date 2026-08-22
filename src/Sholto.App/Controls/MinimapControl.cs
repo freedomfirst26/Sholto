@@ -81,7 +81,11 @@ public sealed class MinimapControl : Control
             var img = Bake(snapshot, segs);
             Dispatcher.UIThread.Post(() =>
             {
-                _baked?.Dispose();
+                // NB: do NOT dispose the previous _baked here. The render thread may
+                // still be blitting it inside a BlitOp captured on an earlier frame;
+                // disposing its native SKImage out from under it is a use-after-free
+                // (SIGSEGV). Let the finalizer reclaim the old image instead — same as
+                // WaveformControl. Rapid track-switching is what triggered the crash.
                 _baked = img;
                 _bakedFor = snapshot;
                 InvalidateVisual();
