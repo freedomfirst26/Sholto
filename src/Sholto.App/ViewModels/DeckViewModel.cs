@@ -29,6 +29,9 @@ public enum DeckPlayState
     Stopped,
     /// <summary>Audio is playing.</summary>
     Playing,
+    /// <summary>Playing, but past the near-end threshold — the deck is running out.
+    /// Drives the synchronised end-of-track flash (red disc ring + controller LED).</summary>
+    Ending,
 }
 
 public sealed class DeckViewModel : INotifyPropertyChanged
@@ -237,19 +240,86 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             if (_isPlaying == value) return;
             _isPlaying = value;
             Notify();
-            Notify(nameof(PlayState));
-            // Broadcast the transport change up to the orchestration layer, which
-            // drives controller output (e.g. the BEAT SYNC LED).
-            PlayStateChanged?.Invoke(PlayState);
+            RefreshPlayState();
         }
     }
 
-    /// <summary>Transport state as an enum mirror of <see cref="IsPlaying"/>.</summary>
-    public DeckPlayState PlayState => _isPlaying ? DeckPlayState.Playing : DeckPlayState.Stopped;
+    /// <summary>Transport state: Stopped when not playing, Ending in the last stretch
+    /// (past <see cref="IsNearEnd"/>), else Playing.</summary>
+    public DeckPlayState PlayState =>
+        !_isPlaying ? DeckPlayState.Stopped :
+        IsNearEnd   ? DeckPlayState.Ending :
+                      DeckPlayState.Playing;
 
-    /// <summary>Raised when this deck starts or stops playing. The orchestrator
-    /// listens and tells the controller to light/clear the deck's BEAT SYNC LED.</summary>
+    /// <summary>Raised when this deck's transport state changes. The orchestrator
+    /// listens for the enum; the LED itself follows <see cref="DeckLightChanged"/>.</summary>
     public event Action<DeckPlayState>? PlayStateChanged;
+
+    /// <summary>Resolved BEAT SYNC LED state (already accounts for the end flash):
+    /// solid on while Playing, blinking while Ending, off while Stopped. Raised on
+    /// every state change AND on every flash tick so the LED and the disc ring stay
+    /// in lockstep (one clock drives both — see <see cref="_endFlash"/>).</summary>
+    public event Action<bool>? DeckLightChanged;
+
+    private DeckPlayState _lastPlayState = DeckPlayState.Stopped;
+    private bool _flashOn;
+    private Avalonia.Threading.DispatcherTimer? _endFlash;
+
+    /// <summary>The single end-of-track flash clock. 400 ms toggles (800 ms period)
+    /// matches the old disc-ring rhythm. Drives both the ring opacity and the LED.</summary>
+    private void EnsureFlashTimer()
+    {
+        if (_endFlash is not null) return;
+        _endFlash = new Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(400),
+        };
+        _endFlash.Tick += (_, _) =>
+        {
+            _flashOn = !_flashOn;
+            Notify(nameof(DiscRingOpacity));
+            DeckLightChanged?.Invoke(ResolveLight());
+        };
+    }
+
+    /// <summary>Recompute PlayState after a trigger (play/pause OR position crossing
+    /// the near-end threshold); if it changed, notify, start/stop the flash clock,
+    /// and refresh the LED + ring.</summary>
+    private void RefreshPlayState()
+    {
+        var state = PlayState;
+        if (state == _lastPlayState) return;
+        _lastPlayState = state;
+
+        if (state == DeckPlayState.Ending)
+        {
+            _flashOn = true;
+            EnsureFlashTimer();
+            _endFlash!.Start();
+        }
+        else
+        {
+            _endFlash?.Stop();
+            _flashOn = false;
+        }
+
+        Notify(nameof(PlayState));
+        Notify(nameof(DiscRingOpacity));
+        PlayStateChanged?.Invoke(state);
+        DeckLightChanged?.Invoke(ResolveLight());
+    }
+
+    private bool ResolveLight() => PlayState switch
+    {
+        DeckPlayState.Playing => true,
+        DeckPlayState.Ending  => _flashOn,
+        _                     => false,
+    };
+
+    /// <summary>Disc-ring opacity: solid (1.0) normally; flashes 1.0↔0.35 in sync
+    /// with the LED while the track is Ending. Bound by the DiscRing in the view.</summary>
+    public double DiscRingOpacity =>
+        PlayState == DeckPlayState.Ending ? (_flashOn ? 1.0 : 0.35) : 1.0;
 
     // Cached so we don't allocate a fresh brush every 16 ms — that was Avalonia's
     // binding system seeing a "new" IBrush per frame and invalidating the whole disc.
@@ -266,6 +336,9 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             Notify();
             Notify(nameof(DiscAngle));
             Notify(nameof(IsNearEnd));
+            // Position can cross the near-end threshold without any play/pause event,
+            // so re-derive the transport state here too (Playing → Ending).
+            RefreshPlayState();
 
             // Recolour the ring in-place and notify only when the visible colour
             // actually changes (every ~1 % of track length = ~2 s of music). Avoids
@@ -460,6 +533,50 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public void HalveBpm()           => SetMultiplierAndPersist(BpmMultiplier * 0.5);
     public void DoubleBpm()          => SetMultiplierAndPersist(BpmMultiplier * 2.0);
     public void ResetBpmMultiplier() => SetMultiplierAndPersist(1.0);
+
+    // ---- Tune editor (swing-out from the BPM) ---------------------------------
+    // Click the BPM → one combined editor slides out over the disc. While it's
+    // open ("edit mode"): ↑/↓ adjust BPM, ←/→ nudge the grid — both on the
+    // keyboard and via the on-screen buttons. It also arms those keyboard keys
+    // (see MainWindow key handler) and brightens the waveform grid.
+    private bool _editOpen;
+    public bool EditOpen
+    {
+        get => _editOpen;
+        private set
+        {
+            if (_editOpen == value) return;
+            _editOpen = value;
+            Notify(nameof(EditOpen));
+            Notify(nameof(GridTuneActive));
+        }
+    }
+
+    /// <summary>True while the tune editor is open: the only state in which the
+    /// keyboard tempo/grid keys work and the waveform grid is emphasised.</summary>
+    public bool GridTuneActive => _editOpen;
+
+    public void ToggleEdit() => EditOpen = !EditOpen;
+    public void OpenEdit()   => EditOpen = true;
+    public void CloseEdit()  => EditOpen = false;
+
+    // Tempo — ↑/↓. Value stays decimal (never rounded). Coarse = whole BPM.
+    public void BpmUp()         => _player.AdjustBpm(+0.1);
+    public void BpmDown()       => _player.AdjustBpm(-0.1);
+    public void BpmUpCoarse()   => _player.AdjustBpm(+1.0);
+    public void BpmDownCoarse() => _player.AdjustBpm(-1.0);
+
+    // Grid — ←/→ phase nudge.
+    public void PhaseNudgeLeft()  => _player.NudgeGridFine(-0.010);
+    public void PhaseNudgeRight() => _player.NudgeGridFine(+0.010);
+
+    /// <summary>Reset both tempo and grid back to the analysed detection:
+    /// clears the BPM override + ½/×2 multiplier and the phase offset.</summary>
+    public void ResetToAnalysis()
+    {
+        _player.ResetGrid();          // clears BPM override + phase offset (deletes row)
+        ResetBpmMultiplier();          // ½/×2 back to unity
+    }
 
     /// <summary>Source BPM × user multiplier × current playback speed — what the user actually hears.</summary>
     public double EffectiveBpm => SourceBpm * _bpmMultiplier * _player.PlaybackSpeed;

@@ -9,17 +9,9 @@ namespace Sholto.App.Views;
 
 public partial class DeckView : UserControl
 {
-    private readonly DispatcherTimer _flashTimer = new()
-    {
-        Interval = TimeSpan.FromMilliseconds(400),
-    };
-    private double _flashPhase;
-
     public DeckView()
     {
         InitializeComponent();
-        _flashTimer.Tick += OnFlashTick;
-        _flashTimer.Start();
 
         // Forward grid-edit waveform clicks to the deck VM (two-point grid).
         var wave = this.FindControl<Controls.WaveformControl>("Waveform");
@@ -38,54 +30,35 @@ public partial class DeckView : UserControl
             };
     }
 
-    private void OnFlashTick(object? sender, EventArgs e)
-    {
-        if (DataContext is not DeckViewModel vm) return;
-        var ring = this.FindControl<Border>("DiscRing");
-        if (ring is null) return;
-
-        if (vm.IsNearEnd)
-        {
-            _flashPhase = _flashPhase < 0.5 ? 1.0 : 0.35;
-            ring.Opacity = _flashPhase;
-        }
-        else if (ring.Opacity != 1.0)
-        {
-            ring.Opacity = 1.0;
-        }
-    }
-
-    /// <summary>Click the BPM to flip-flop between the analyser's value and the
-    /// corrected half/double. One click toggles, another returns to original.
-    /// The chip jumps up + flips card-style; the BPM swaps at the apex (when the
-    /// chip is squished to a thin line) so the new number is revealed as it lands.</summary>
-    private async void OnBpmPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    /// <summary>Click the BPM to open the combined tune editor that slides out over
+    /// the disc (↑↓ BPM, ←→ grid; ½ and reset inline).</summary>
+    private void OnBpmPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {
         e.Handled = true;
-        if (DataContext is not DeckViewModel vm) return;
-
-        if (sender is not Border chip)
-        {
-            vm.ToggleBpmOverride();
-            return;
-        }
-
-        await FlipBpmChipAsync(chip, vm.ToggleBpmOverride);
+        if (DataContext is DeckViewModel vm) vm.ToggleEdit();
     }
 
-    private static async Task FlipBpmChipAsync(Border chip, Action swapAtApex)
+    /// <summary>All tune-editor buttons route here; the button's Tag names the action.
+    /// One handler keeps the XAML declarative and the wiring in one place.</summary>
+    private void OnTuneAction(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        // The chip already has a TransformOperationsTransition on RenderTransform
-        // (see bpm-chip-main style), so setting the transform directly drives the
-        // existing smoothed motion — no separate keyframe Animation needed.
-        // Phase 1: rise + squish to a sliver (digits invisible).
-        // Phase 2 (after swap): drop + expand, revealing the new number.
-        var lift = TransformOperations.Parse("translateY(-22px) scaleY(0.05)");
-        var land = TransformOperations.Parse("translateY(0px) scaleY(1)");
+        if (DataContext is not DeckViewModel vm) return;
+        if (sender is not Control c || c.Tag is not string action) return;
+        switch (action)
+        {
+            case "half":   vm.ToggleBpmOverride();   break;
+            case "bpm+":   vm.BpmUp();               break;
+            case "bpm-":   vm.BpmDown();             break;
+            case "phase-": vm.PhaseNudgeLeft();      break;
+            case "phase+": vm.PhaseNudgeRight();     break;
+            case "reset":  vm.ResetToAnalysis();     break;
+            case "close":  vm.CloseEdit();           break;
+        }
+    }
 
-        chip.RenderTransform = lift;
-        await Task.Delay(160);
-        swapAtApex();
-        chip.RenderTransform = land;
+    /// <summary>Click anywhere outside the editor (the transparent backdrop) closes it.</summary>
+    private void OnEditBackdropPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (DataContext is DeckViewModel vm) vm.CloseEdit();
     }
 }

@@ -40,11 +40,13 @@ public sealed class Orchestrator : IDisposable
         // long-press. The VM only raises the request; we hold the provider + factory.
         _vm.ReanalyzeSelectedRequested += OnReanalyzeSelectedRequested;
 
-        // Deck transport → controller output: when a deck starts/stops playing it
-        // broadcasts here, and we ask the controller to light/clear that deck's
-        // BEAT SYNC LED (App wires BeatSyncLightRequested to Controller.SetBeatSync).
-        _vm.Deck1.PlayStateChanged += s => BeatSyncLightRequested?.Invoke(0, s == DeckPlayState.Playing);
-        _vm.Deck2.PlayStateChanged += s => BeatSyncLightRequested?.Invoke(1, s == DeckPlayState.Playing);
+        // Deck transport → controller output: each deck raises the resolved LED state
+        // (solid while Playing, blinking while Ending, off while Stopped — the deck
+        // owns the flash clock so the LED stays in lockstep with its disc ring). We
+        // forward it to that deck's BEAT SYNC LED (App wires BeatSyncLightRequested to
+        // Controller.SetBeatSync).
+        _vm.Deck1.DeckLightChanged += on => BeatSyncLightRequested?.Invoke(0, on);
+        _vm.Deck2.DeckLightChanged += on => BeatSyncLightRequested?.Invoke(1, on);
     }
 
     /// <summary>Raised to request a deck's BEAT SYNC LED be set (deck index, on/off).

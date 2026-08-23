@@ -144,18 +144,18 @@ public partial class MainWindow : Window
             case Key.D2: case Key.NumPad2:
                 LoadSelectedInto(vm, 1); e.Handled = true; return;
 
-            // G — toggle two-point grid edit on the target deck. Then click an
-            // early kick + a later kick; the exact BPM is computed from the
-            // span (drift-free). Esc / G again cancels.
+            // G — accelerator: open the Grid tool on the target deck (same as
+            // clicking the BPM then the grid icon). That's the edit mode in which
+            // the ← / → phase and click-two-kicks keys become active.
             case Key.G:
-                GridTarget(vm)?.ToggleGridEdit();
+                GridTarget(vm)?.OpenEdit();
                 e.Handled = true;
                 return;
             case Key.Escape:
-                if (vm.Deck1.GridEditActive || vm.Deck2.GridEditActive)
+                if (vm.Deck1.EditOpen || vm.Deck2.EditOpen)
                 {
-                    if (vm.Deck1.GridEditActive) vm.Deck1.ToggleGridEdit();
-                    if (vm.Deck2.GridEditActive) vm.Deck2.ToggleGridEdit();
+                    vm.Deck1.CloseEdit();
+                    vm.Deck2.CloseEdit();
                     e.Handled = true;
                     return;
                 }
@@ -187,26 +187,30 @@ public partial class MainWindow : Window
             case Key.Left:
             case Key.Right:
             {
-                int sign = e.Key == Key.Left ? -1 : +1;
-                var p = GridTarget(vm)?.Player;
-                if (p is not null)
+                // Phase nudge — ONLY while the Grid tool is open on the target deck.
+                // Outside edit mode these keys do nothing (grid stays locked).
+                var target = GridTarget(vm);
+                if (target is { GridTuneActive: true })
                 {
-                    if (shift) p.NudgeGrid(sign);       // ±1 beat
-                    else       p.NudgeGridFine(sign * 0.010);
+                    int sign = e.Key == Key.Left ? -1 : +1;
+                    if (shift) target.Player.NudgeGrid(sign);   // ±1 beat
+                    else       target.Player.NudgeGridFine(sign * 0.010);
+                    e.Handled = true;
                 }
-                e.Handled = true;
                 break;
             }
             case Key.Up:
             case Key.Down:
             {
-                // In grid-edit mode ↑/↓ tune the BPM; otherwise they move the
-                // track-list selection (up = previous row, down = next).
-                if (vm.Deck1.GridEditActive || vm.Deck2.GridEditActive)
+                // Tempo — ONLY while the tune editor is open on the target deck;
+                // otherwise ↑/↓ move the track-list selection (up = previous row).
+                // Shift = whole-BPM steps, plain = fine (0.1).
+                var target = GridTarget(vm);
+                if (target is { GridTuneActive: true })
                 {
                     int sign = e.Key == Key.Up ? +1 : -1;   // up = faster BPM
-                    double delta = shift ? 0.01 : 0.1;
-                    GridTarget(vm)?.Player.AdjustBpm(sign * delta);
+                    double delta = shift ? 1.0 : 0.1;
+                    target.Player.AdjustBpm(sign * delta);
                 }
                 else
                 {
