@@ -335,6 +335,48 @@ public sealed class WaveformControl : Control
         _                           => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
     };
 
+    /// <summary>Per-column kick strength [0..1] from the low-band envelope: the
+    /// half-wave-rectified positive derivative (spectral-flux style onset), minus a
+    /// local mean to drop slow bass swells, normalised against the track. Spikes at
+    /// kick attacks; ~0 on sustained bass. Same idea as the tempo onset detector.</summary>
+    private static float[] ComputeKickTransient(float[] low)
+    {
+        int n = low.Length;
+        var onset = new float[n];
+        if (n == 0) return onset;
+
+        // Half-wave-rectified difference (rise in low energy = an attack).
+        for (int i = 1; i < n; i++)
+        {
+            float d = low[i] - low[i - 1];
+            onset[i] = d > 0f ? d : 0f;
+        }
+
+        // Subtract a local mean so only sharp rises above the local floor survive
+        // (a slow bassline swell has a small but persistent derivative — this kills
+        // it while leaving the kick spikes).
+        const int radius = 6;
+        var outv = new float[n];
+        float max = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            int lo = Math.Max(0, i - radius), hi = Math.Min(n - 1, i + radius);
+            float sum = 0f; int cnt = 0;
+            for (int j = lo; j <= hi; j++) { sum += onset[j]; cnt++; }
+            float v = onset[i] - sum / cnt;
+            if (v < 0f) v = 0f;
+            outv[i] = v;
+            if (v > max) max = v;
+        }
+
+        if (max > 0f)
+        {
+            float inv = 1f / max;
+            for (int i = 0; i < n; i++) outv[i] = MathF.Min(1f, outv[i] * inv);
+        }
+        return outv;
+    }
+
     private static SKImage? BakeWaveform(WaveformPeaks peaks, WaveformPalette palette, CancellationToken ct)
     {
         int width = peaks.Min.Length;
@@ -387,6 +429,13 @@ public sealed class WaveformControl : Control
             : default;
         float bandScale = hasBands ? midY / scaling.MaxTotal : 0f;
 
+        // Kick focus: the low band's raw peak envelope is SUSTAINED bass energy —
+        // a "sea of peaks" where the actual kick is impossible to pick out. The kick
+        // is a TRANSIENT: a sharp positive rise in low energy (spectral-flux / onset).
+        // Emphasise that so each kick reads as a discrete spike and the sustained
+        // bassline collapses to a low floor. Derived from peaks.Low (no extra data).
+        var kick = hasBands ? ComputeKickTransient(peaks.Low) : System.Array.Empty<float>();
+
         for (int x = 0; x < width; x++)
         {
             if (ct.IsCancellationRequested) return null;
@@ -401,6 +450,9 @@ public sealed class WaveformControl : Control
             }
 
             var (nl, nm, nh) = scaling.Normalize(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
+            // Blend: keep a small sustained floor so bass presence still reads, but
+            // let the kick transient dominate the low band's height.
+            nl = MathF.Min(1f, 0.18f * nl + 0.95f * kick[x]);
             float lSeg = nl * bandScale;
             float mSeg = nm * bandScale;
             float hSeg = nh * bandScale;
