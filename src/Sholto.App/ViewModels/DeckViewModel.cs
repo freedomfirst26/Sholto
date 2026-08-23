@@ -170,6 +170,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             Console.WriteLine($"[Deck] AI song segments: {g.Segments.Count} (allin1)");
             Notify(nameof(Segments));
             Notify(nameof(HasSegments));
+            Notify(nameof(SectionMapVisible));
         });
 
     // Each per-type handler only re-notifies the bindings that DEPEND on that
@@ -189,6 +190,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
                     $"(peaks={basic.Peaks.Min.Length}, downbeats={basic.DownbeatTimes.Length})");
                 Notify(nameof(Segments));
                 Notify(nameof(HasSegments));
+                Notify(nameof(SectionMapVisible));
             }
             Notify(nameof(Analysis));
             Notify(nameof(HasAnalysis));
@@ -365,6 +367,14 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <summary>True once song-section analysis has produced sections — the songmap
     /// (minimap) is only shown when this is true.</summary>
     public bool HasSegments => Segments is { Segments.Count: > 0 };
+
+    /// <summary>Feature-flag gate for the section map (from <c>FeatureOptions</c>).
+    /// Set once at construction by <c>MainViewModel</c>.</summary>
+    public bool SectionMapEnabled { get; init; }
+
+    /// <summary>The section-map strip is shown only when the feature flag is on AND
+    /// sections have been analysed. Bound by the minimap's <c>IsVisible</c>.</summary>
+    public bool SectionMapVisible => SectionMapEnabled && HasSegments;
 
     // ---- Live EQ meter (shown in the disc when there's no album art) ----------
     // Coarse frequency content at the playhead, straight from the band peaks — no
@@ -715,7 +725,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(BpmMultiplier));
         Notify(nameof(Analysis));
         SetMarkers([]);                 // clear the old track's markers
-        Segments = null; Notify(nameof(Segments)); Notify(nameof(HasSegments));
+        Segments = null; Notify(nameof(Segments)); Notify(nameof(HasSegments)); Notify(nameof(SectionMapVisible));
         Notify(nameof(Peaks));
         Notify(nameof(VocalRegions));   // clear the old track's vocal overlay
         Notify(nameof(BeatTimes));

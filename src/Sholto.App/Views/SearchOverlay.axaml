@@ -21,52 +21,9 @@
                 PointerPressed="OnPanelPressed">
 
             <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="0">
-                <!-- Deck-target chooser above the input. Two circles labelled
-                     1 and 2; ←/→ in the input toggles which is highlighted,
-                     Enter loads into the highlighted deck. Default is picked
-                     when the overlay opens — see MainViewModel.PickDefaultLoadTarget.
-                     Colours come from the live theme via Window.DataContext
-                     so the chip retones along with the rest of the UI. -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Spacing="12" Margin="0,14,0,10">
-                    <!-- Label so the two circles read as "which deck to load into",
-                         not page numbers. -->
-                    <TextBlock Text="LOAD TO" FontSize="11" FontWeight="Bold"
-                               LetterSpacing="1.5" VerticalAlignment="Center"
-                               Foreground="{DynamicResource SholtoTextMuted}"/>
-                    <StackPanel.Styles>
-                        <Style Selector="Border.deckChip">
-                            <Setter Property="Background" Value="Transparent"/>
-                        </Style>
-                        <Style Selector="Border.deckChip.active">
-                            <Setter Property="Background"
-                                    Value="{DynamicResource SholtoAccent}"/>
-                        </Style>
-                        <Style Selector="Border.deckChip TextBlock">
-                            <Setter Property="Foreground"
-                                    Value="{DynamicResource SholtoAccent}"/>
-                        </Style>
-                        <Style Selector="Border.deckChip.active TextBlock">
-                            <Setter Property="Foreground"
-                                    Value="{DynamicResource SholtoSurfaceRaised}"/>
-                        </Style>
-                    </StackPanel.Styles>
-                    <Border Classes="deckChip" Classes.active="{Binding IsLoadTargetDeck1}"
-                            Width="36" Height="36" CornerRadius="18"
-                            BorderThickness="2"
-                            BorderBrush="{DynamicResource SholtoAccent}">
-                        <TextBlock Text="1" FontWeight="Bold" FontSize="16"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <Border Classes="deckChip" Classes.active="{Binding IsLoadTargetDeck2}"
-                            Width="36" Height="36" CornerRadius="18"
-                            BorderThickness="2"
-                            BorderBrush="{DynamicResource SholtoAccent}">
-                        <TextBlock Text="2" FontWeight="Bold" FontSize="16"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                </StackPanel>
+                <!-- (Row 0 reserved.) The deck-target chooser that used to sit here
+                     was removed; the load target is still chosen implicitly by
+                     MainViewModel.PickDefaultLoadTarget and toggled with ←/→. -->
 
                 <!-- Search identity: magnifier icon left of the big input. -->
                 <TextBlock Grid.Row="1" Text="🔍" FontSize="20"

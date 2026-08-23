@@ -329,10 +329,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool LibraryUnreachableVisible => Library.IsUnreachable;
 
     private readonly MagnetismOptions _magnetism;
+    private readonly FeatureOptions _features;
 
-    public MainViewModel(IOptions<MagnetismOptions> magnetism)
+    public MainViewModel(IOptions<MagnetismOptions> magnetism, IOptions<FeatureOptions> features)
     {
         _magnetism = magnetism.Value;
+        _features = features.Value;
 
         // Make the initial theme visible to anything that reads ThemeContext
         // before the user picks a different theme.
@@ -361,8 +363,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _ = HydrateStemStateAsync();
         });
 
-        Deck1 = new DeckViewModel(new Deck { Reporter = Reporter });
-        Deck2 = new DeckViewModel(new Deck { Reporter = Reporter });
+        Deck1 = new DeckViewModel(new Deck { Reporter = Reporter }) { SectionMapEnabled = _features.ShowSectionMap };
+        Deck2 = new DeckViewModel(new Deck { Reporter = Reporter }) { SectionMapEnabled = _features.ShowSectionMap };
         Deck1.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
         Deck2.PersistBpmMultiplier = RaiseBpmMultiplierChanged;
         WireDeck(Deck1);

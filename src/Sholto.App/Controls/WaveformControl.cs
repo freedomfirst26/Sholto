@@ -318,6 +318,23 @@ public sealed class WaveformControl : Control
         });
     }
 
+    /// <summary>The (low, mid, high) band colours for a palette. Shared by the
+    /// waveform bake and the minimap so the section map follows the same theme.</summary>
+    public static (SKColor Low, SKColor Mid, SKColor High) BandColors(WaveformPalette palette) => palette switch
+    {
+        WaveformPalette.Hot         => (new SKColor(0xFF, 0x3D, 0x3D), new SKColor(0x3D, 0xFF, 0x7A), new SKColor(0x3D, 0x8B, 0xFF)),
+        WaveformPalette.Plasma      => (new SKColor(0x7C, 0x5C, 0xFF), new SKColor(0xFF, 0x4E, 0x9A), new SKColor(0x34, 0xF0, 0xC6)),
+        WaveformPalette.Smoke       => (new SKColor(0x5A, 0x46, 0x36), new SKColor(0xE0, 0xA8, 0x60), new SKColor(0xF2, 0xE9, 0xD0)),
+        WaveformPalette.Glacier     => (new SKColor(0x4C, 0x6B, 0x8A), new SKColor(0xEC, 0xF0, 0xF6), new SKColor(0xB4, 0x8E, 0xAD)),
+        WaveformPalette.SubFocus    => (new SKColor(0x80, 0x14, 0x2E), new SKColor(0xFF, 0x1F, 0x3D), new SKColor(0xFF, 0xE5, 0xEA)),
+        WaveformPalette.OctoberRust => (new SKColor(0x2D, 0x55, 0x12), new SKColor(0x69, 0xBE, 0x28), new SKColor(0xDC, 0xE6, 0xCF)),
+        WaveformPalette.Massacre    => (new SKColor(0x5B, 0x4A, 0xE0), new SKColor(0xD4, 0x5C, 0xE0), new SKColor(0xF2, 0xDE, 0xFF)),
+        WaveformPalette.Soule       => (new SKColor(0x2E, 0x47, 0x34), new SKColor(0x6A, 0x8F, 0x62), new SKColor(0xE8, 0xED, 0xE5)),
+        WaveformPalette.BoardsOfCanada => (new SKColor(0x2A, 0x44, 0x52), new SKColor(0x7F, 0xB6, 0xC9), new SKColor(0xDD, 0xF0, 0xF2)),
+        WaveformPalette.Pantera     => (new SKColor(0x7A, 0x3D, 0x22), new SKColor(0xFF, 0x6B, 0x2C), new SKColor(0xE0, 0xD8, 0xCC)),
+        _                           => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
+    };
+
     private static SKImage? BakeWaveform(WaveformPeaks peaks, WaveformPalette palette, CancellationToken ct)
     {
         int width = peaks.Min.Length;
@@ -352,20 +369,7 @@ public sealed class WaveformControl : Control
         // BoardsOfCanada: dreamy 80s VHS — deep ocean teal / faded blue / pale cassette cream
         // Pantera:     Cowboys From Hell — dark rust / flame orange / bone
         //              (bass lifted from near-black charcoal so it reads on the deck)
-        var (lowColor, midColor, highColor) = palette switch
-        {
-            WaveformPalette.Hot         => (new SKColor(0xFF, 0x3D, 0x3D), new SKColor(0x3D, 0xFF, 0x7A), new SKColor(0x3D, 0x8B, 0xFF)),
-            WaveformPalette.Plasma      => (new SKColor(0x7C, 0x5C, 0xFF), new SKColor(0xFF, 0x4E, 0x9A), new SKColor(0x34, 0xF0, 0xC6)),
-            WaveformPalette.Smoke       => (new SKColor(0x5A, 0x46, 0x36), new SKColor(0xE0, 0xA8, 0x60), new SKColor(0xF2, 0xE9, 0xD0)),
-            WaveformPalette.Glacier     => (new SKColor(0x4C, 0x6B, 0x8A), new SKColor(0xEC, 0xF0, 0xF6), new SKColor(0xB4, 0x8E, 0xAD)),
-            WaveformPalette.SubFocus    => (new SKColor(0x80, 0x14, 0x2E), new SKColor(0xFF, 0x1F, 0x3D), new SKColor(0xFF, 0xE5, 0xEA)),
-            WaveformPalette.OctoberRust => (new SKColor(0x2D, 0x55, 0x12), new SKColor(0x69, 0xBE, 0x28), new SKColor(0xDC, 0xE6, 0xCF)),
-            WaveformPalette.Massacre    => (new SKColor(0x5B, 0x4A, 0xE0), new SKColor(0xD4, 0x5C, 0xE0), new SKColor(0xF2, 0xDE, 0xFF)),
-            WaveformPalette.Soule       => (new SKColor(0x2E, 0x47, 0x34), new SKColor(0x6A, 0x8F, 0x62), new SKColor(0xE8, 0xED, 0xE5)),
-            WaveformPalette.BoardsOfCanada => (new SKColor(0x2A, 0x44, 0x52), new SKColor(0x7F, 0xB6, 0xC9), new SKColor(0xDD, 0xF0, 0xF2)),
-            WaveformPalette.Pantera     => (new SKColor(0x7A, 0x3D, 0x22), new SKColor(0xFF, 0x6B, 0x2C), new SKColor(0xE0, 0xD8, 0xCC)),
-            _                           => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
-        };
+        var (lowColor, midColor, highColor) = BandColors(palette);
         using var lowPaint  = new SKPaint { Color = lowColor, StrokeWidth = 1, IsAntialias = false };
         using var midPaint  = new SKPaint { Color = midColor, StrokeWidth = 1, IsAntialias = false };
         using var highPaint = new SKPaint { Color = highColor, StrokeWidth = 1, IsAntialias = false };

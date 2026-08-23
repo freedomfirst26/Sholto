@@ -1,29 +1,28 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Platform;
-using Avalonia.Rendering.SceneGraph;
-using Avalonia.Skia;
-using Avalonia.Threading;
 using Sholto.Analysis;
-using SkiaSharp;
 
 namespace Sholto.App.Controls;
 
 /// <summary>
-/// A compressed full-song overview strip above the scrolling waveform. Shows the
-/// whole track at once, coloured by per-column energy so the arrangement (quiet
-/// intro, build, drop, breakdown, outro) is readable at a glance, with a playhead
-/// and click/drag-to-seek so you can jump straight to a section.
+/// Stationary whole-song section map: one rectangle per section, coloured by section
+/// type, with opacity = the section's power (a calm intro is see-through; the drop is
+/// full colour). Click/drag to jump to any section.
 ///
-/// The energy strip is baked to an SKImage once per track (like WaveformControl);
-/// per frame we just blit it and draw the playhead — cheap even at 60 Hz.
+/// Drawn with plain Avalonia primitives (DrawingContext) rather than a SkiaSharp
+/// custom draw operation — the custom op refused to composite in this layout even
+/// when it rendered with a valid image, so we draw rectangles directly, which is both
+/// reliable and exactly the intended look.
 /// </summary>
 public sealed class MinimapControl : Control
 {
-    private const int BakedHeight = 64;
-    private static readonly SKColor Bg = new(0x11, 0x11, 0x11);
+    private const double StripHeight = 42;
+
+    public static readonly StyledProperty<SongSegments?> SegmentsProperty =
+        AvaloniaProperty.Register<MinimapControl, SongSegments?>(nameof(Segments));
 
     public static readonly StyledProperty<WaveformPeaks?> PeaksProperty =
         AvaloniaProperty.Register<MinimapControl, WaveformPeaks?>(nameof(Peaks));
@@ -31,154 +30,106 @@ public sealed class MinimapControl : Control
     public static readonly StyledProperty<double> PlayPositionProperty =
         AvaloniaProperty.Register<MinimapControl, double>(nameof(PlayPosition));
 
-    /// <summary>Structural sections; when present they colour the strip (intro/build/
-    /// drop/…). Falls back to energy-tier colours when null.</summary>
-    public static readonly StyledProperty<SongSegments?> SegmentsProperty =
-        AvaloniaProperty.Register<MinimapControl, SongSegments?>(nameof(Segments));
-
     /// <summary>Raised with a 0..1 fraction when the user clicks/drags to seek.</summary>
     public event Action<double>? Seeked;
 
-    private SKImage? _baked;
-    private WaveformPeaks? _bakedFor;
+    // Precomputed section blocks (fractions of the track) — rebuilt when the
+    // segments/peaks change; Render just paints them + the playhead.
+    private readonly List<Block> _blocks = new();
+    private static readonly Typeface LabelTypeface = new("Inter, sans-serif");
 
     static MinimapControl()
     {
         AffectsRender<MinimapControl>(PlayPositionProperty);
-        PeaksProperty.Changed.AddClassHandler<MinimapControl>((c, _) => c.Rebake());
-        SegmentsProperty.Changed.AddClassHandler<MinimapControl>((c, _) => c.Rebake());
+        SegmentsProperty.Changed.AddClassHandler<MinimapControl>((c, _) => c.Rebuild());
+        PeaksProperty.Changed.AddClassHandler<MinimapControl>((c, _) => c.Rebuild());
     }
 
-    public WaveformPeaks? Peaks
-    {
-        get => GetValue(PeaksProperty);
-        set => SetValue(PeaksProperty, value);
-    }
+    public SongSegments? Segments { get => GetValue(SegmentsProperty); set => SetValue(SegmentsProperty, value); }
+    public WaveformPeaks? Peaks { get => GetValue(PeaksProperty); set => SetValue(PeaksProperty, value); }
+    public double PlayPosition { get => GetValue(PlayPositionProperty); set => SetValue(PlayPositionProperty, value); }
 
-    public SongSegments? Segments
-    {
-        get => GetValue(SegmentsProperty);
-        set => SetValue(SegmentsProperty, value);
-    }
+    private readonly record struct Block(double Start, double End, Color Color, double Opacity, string Label);
 
-    public double PlayPosition
+    private void Rebuild()
     {
-        get => GetValue(PlayPositionProperty);
-        set => SetValue(PlayPositionProperty, value);
-    }
+        _blocks.Clear();
+        var segs = Segments?.Segments;
+        var pk = Peaks;
+        if (segs is not { Count: > 0 } || pk is not { Min.Length: > 0 }) { InvalidateVisual(); return; }
 
-    private void Rebake()
-    {
-        var peaks = Peaks;
-        if (peaks is null || peaks.Min.Length == 0)
+        double spp = pk.SamplesPerPeak / (double)Sholto.Audio.AudioFileDecoder.TargetSampleRate;
+        double trackSecs = pk.Min.Length * spp;
+        if (trackSecs <= 0) { InvalidateVisual(); return; }
+
+        bool hasBands = pk.Low.Length == pk.Min.Length;
+        var scaling = hasBands ? WaveformBandScaling.Calibrate(pk.Low, pk.Mid, pk.High) : default;
+
+        foreach (var s in segs)
         {
-            _baked = null; _bakedFor = null; InvalidateVisual(); return;
-        }
-        var snapshot = peaks;
-        var segs = Segments;
-        Task.Run(() =>
-        {
-            SKImage? img = null;
-            try { img = Bake(snapshot, segs); }
-            catch (Exception ex) { Console.WriteLine($"[Minimap] bake failed: {ex.Message}"); }
-            Dispatcher.UIThread.Post(() =>
-            {
-                // NB: do NOT dispose the previous _baked here. The render thread may
-                // still be blitting it inside a BlitOp captured on an earlier frame;
-                // disposing its native SKImage out from under it is a use-after-free
-                // (SIGSEGV). Let the finalizer reclaim the old image instead — same as
-                // WaveformControl. Rapid track-switching is what triggered the crash.
-                _baked = img;
-                _bakedFor = snapshot;
-                InvalidateVisual();
-            });
-        });
-    }
-
-    private static SKImage? Bake(WaveformPeaks p, SongSegments? segs)
-    {
-        int w = p.Min.Length;
-        if (w == 0) return null;
-        int h = BakedHeight;
-        var info = new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Premul);
-        using var surface = SKSurface.Create(info);
-        var canvas = surface.Canvas;
-        canvas.Clear(Bg);
-
-        bool hasBands = p.Low.Length == w;
-        var scaling = hasBands ? WaveformBandScaling.Calibrate(p.Low, p.Mid, p.High) : default;
-        using var paint = new SKPaint { IsAntialias = false, StrokeWidth = 1 };
-
-        // Column x ↔ track seconds (same time domain as the segments' downbeats).
-        double spp = p.SamplesPerPeak / (double)Sholto.Audio.AudioFileDecoder.TargetSampleRate;
-        var segList = segs?.Segments;
-        int segCursor = 0;
-
-        for (int x = 0; x < w; x++)
-        {
-            float energy;
+            // Power = mean band energy across the section's columns (0..1).
+            double power = 0;
             if (hasBands)
             {
-                var (nl, nm, nh) = scaling.Normalize(p.Low[x], p.Mid[x], p.High[x]);
-                energy = Math.Clamp((nl + nm + nh) / (scaling.MaxTotal <= 0 ? 1 : scaling.MaxTotal), 0f, 1f);
+                int c0 = Math.Clamp((int)(s.StartSec / spp), 0, pk.Min.Length);
+                int c1 = Math.Clamp((int)(s.EndSec / spp), c0 + 1, pk.Min.Length);
+                double sum = 0;
+                for (int c = c0; c < c1; c++)
+                {
+                    var (nl, nm, nh) = scaling.Normalize(pk.Low[c], pk.Mid[c], pk.High[c]);
+                    sum += (nl + nm + nh) / (scaling.MaxTotal <= 0 ? 1 : scaling.MaxTotal);
+                }
+                power = c1 > c0 ? Math.Clamp(sum / (c1 - c0), 0, 1) : 0;
             }
-            else
-            {
-                energy = MathF.Max(MathF.Abs(p.Max[x]), MathF.Abs(p.Min[x]));
-            }
-
-            SKColor color;
-            if (segList is { Count: > 0 })
-            {
-                double sec = x * spp;
-                while (segCursor < segList.Count - 1 && sec >= segList[segCursor].EndSec) segCursor++;
-                color = SegmentColor(segList[segCursor].Kind);
-            }
-            else
-            {
-                // No sections yet — fall back to energy tiers.
-                color = energy < 0.33f ? new SKColor(0x5A, 0x66, 0x7C)
-                      : energy < 0.66f ? new SKColor(0x3A, 0x86, 0xFF)
-                      :                  new SKColor(0x3A, 0xEC, 0xFF);
-            }
-
-            // Baseline of at least 25% so even quiet sections show as a coloured lane.
-            float barH = MathF.Max(h * 0.25f, energy * h);
-            paint.Color = color;
-            canvas.DrawLine(x, h - barH, x, h, paint);
+            // Calm = see-through, intense = full colour.
+            double opacity = 0.45 + 0.55 * power;
+            _blocks.Add(new Block(s.StartSec / trackSecs, s.EndSec / trackSecs,
+                ColorFor(s.Kind), opacity, LabelFor(s.Kind)));
         }
-
-        // Thin dividers at section boundaries.
-        if (segList is { Count: > 1 })
-        {
-            paint.Color = new SKColor(0x00, 0x00, 0x00, 0xB0);
-            paint.StrokeWidth = 1;
-            for (int i = 1; i < segList.Count; i++)
-            {
-                int x = (int)(segList[i].StartSec / spp);
-                if (x > 0 && x < w) canvas.DrawLine(x, 0, x, h, paint);
-            }
-        }
-        return surface.Snapshot();
+        InvalidateVisual();
     }
 
-    // Section palette — distinct hues so the arrangement reads at a glance.
-    private static SKColor SegmentColor(SegmentKind kind) => kind switch
+    protected override Size MeasureOverride(Size availableSize)
     {
-        SegmentKind.Intro     => new SKColor(0x5A, 0x66, 0x7C), // slate
-        SegmentKind.BuildUp   => new SKColor(0xF0, 0xA0, 0x30), // amber (rising)
-        SegmentKind.Drop      => new SKColor(0xFF, 0x5A, 0x2C), // hot orange (peak)
-        SegmentKind.Breakdown => new SKColor(0x8A, 0x5C, 0xE0), // purple (atmospheric)
-        SegmentKind.Verse     => new SKColor(0x3A, 0x86, 0xFF), // blue
-        SegmentKind.Chorus    => new SKColor(0x3A, 0xEC, 0xFF), // cyan
-        SegmentKind.Bridge    => new SKColor(0x2F, 0xB6, 0xA8), // teal
-        SegmentKind.Outro     => new SKColor(0x4A, 0x54, 0x68), // dim slate
-        _                     => new SKColor(0x5A, 0x66, 0x7C),
-    };
+        double w = double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width;
+        return new Size(w, StripHeight);
+    }
 
     public override void Render(DrawingContext context)
     {
-        context.Custom(new BlitOp(new Rect(Bounds.Size), _baked, PlayPosition));
+        double w = Bounds.Width, h = Bounds.Height;
+        if (w <= 0 || h <= 0) return;
+
+        // Backdrop so the strip reads as its own lane.
+        context.FillRectangle(new SolidColorBrush(Color.FromRgb(0x11, 0x12, 0x16)), new Rect(0, 0, w, h));
+
+        foreach (var b in _blocks)
+        {
+            double x = b.Start * w;
+            double bw = Math.Max(1, (b.End - b.Start) * w);
+            var brush = new SolidColorBrush(b.Color, b.Opacity);
+            context.FillRectangle(brush, new Rect(x, 0, bw, h));
+
+            if (b.Label.Length > 0 && bw >= 30)
+            {
+                var ft = new FormattedText(b.Label, CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight, LabelTypeface, 9,
+                    new SolidColorBrush(Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF)));
+                context.DrawText(ft, new Point(x + 4, 3));
+            }
+        }
+
+        // Section dividers.
+        var divider = new Pen(new SolidColorBrush(Color.FromArgb(0xB0, 0, 0, 0)), 1);
+        foreach (var b in _blocks)
+        {
+            double x = b.Start * w;
+            if (x > 0.5) context.DrawLine(divider, new Point(x, 0), new Point(x, h));
+        }
+
+        // Playhead.
+        double px = Math.Clamp(PlayPosition, 0, 1) * w;
+        context.DrawLine(new Pen(Brushes.White, 2), new Point(px, 0), new Point(px, h));
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -192,52 +143,35 @@ public sealed class MinimapControl : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (ReferenceEquals(e.Pointer.Captured, this))
-            SeekAt(e.GetPosition(this).X);
+        if (ReferenceEquals(e.Pointer.Captured, this)) SeekAt(e.GetPosition(this).X);
     }
 
     private void SeekAt(double x)
     {
-        double w = Bounds.Width;
-        if (w <= 0) return;
-        Seeked?.Invoke(Math.Clamp(x / w, 0.0, 1.0));
+        if (Bounds.Width <= 0) return;
+        Seeked?.Invoke(Math.Clamp(x / Bounds.Width, 0.0, 1.0));
     }
 
-    private sealed class BlitOp : ICustomDrawOperation
+    // Distinct hue per section type so the arrangement reads at a glance.
+    private static Color ColorFor(SegmentKind k) => k switch
     {
-        [ThreadStatic] private static SKPaint? _blit;
-        [ThreadStatic] private static SKPaint? _head;
-        private readonly SKImage? _image;
-        private readonly double _pos;
+        SegmentKind.Intro     => Color.FromRgb(0x5A, 0x66, 0x7C),
+        SegmentKind.BuildUp   => Color.FromRgb(0xF0, 0xA0, 0x30),
+        SegmentKind.Drop      => Color.FromRgb(0xFF, 0x5A, 0x2C),
+        SegmentKind.Breakdown => Color.FromRgb(0x8A, 0x5C, 0xE0),
+        SegmentKind.Verse     => Color.FromRgb(0x3A, 0x86, 0xFF),
+        SegmentKind.Chorus    => Color.FromRgb(0x3A, 0xEC, 0xFF),
+        SegmentKind.Bridge    => Color.FromRgb(0x2F, 0xB6, 0xA8),
+        SegmentKind.Outro     => Color.FromRgb(0x4A, 0x54, 0x68),
+        _                     => Color.FromRgb(0x5A, 0x66, 0x7C),
+    };
 
-        public BlitOp(Rect bounds, SKImage? image, double pos) { Bounds = bounds; _image = image; _pos = pos; }
-        public Rect Bounds { get; }
-        public bool HitTest(Point p) => Bounds.Contains(p);
-        public bool Equals(ICustomDrawOperation? other) => false;
-        public void Dispose() { }
-
-        public void Render(ImmediateDrawingContext context)
-        {
-            var lease = ((ISkiaSharpApiLeaseFeature?)context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)))?.Lease();
-            if (lease is null) return;
-            using (lease)
-            {
-                var canvas = lease.SkCanvas;
-                int w = (int)Bounds.Width, h = (int)Bounds.Height;
-                canvas.Clear(Bg);
-                if (_image is not null)
-                {
-                    _blit ??= new SKPaint { FilterQuality = SKFilterQuality.Low };
-                    canvas.DrawImage(_image, new SKRect(0, 0, _image.Width, _image.Height), new SKRect(0, 0, w, h), _blit);
-                }
-                _head ??= new SKPaint { Color = SKColors.White, StrokeWidth = 2, IsAntialias = false };
-                // Bottom divider so the strip reads as its own lane above the waveform.
-                _head.Color = new SKColor(0x00, 0x00, 0x00, 0xC0); _head.StrokeWidth = 2;
-                canvas.DrawLine(0, h - 1, w, h - 1, _head);
-                _head.Color = SKColors.White;
-                float x = (float)(_pos * w);
-                canvas.DrawLine(x, 0, x, h, _head);
-            }
-        }
-    }
+    private static string LabelFor(SegmentKind k) => k switch
+    {
+        SegmentKind.Intro => "INTRO",   SegmentKind.BuildUp => "BUILD",
+        SegmentKind.Drop => "DROP",     SegmentKind.Breakdown => "BREAK",
+        SegmentKind.Verse => "VERSE",   SegmentKind.Chorus => "CHORUS",
+        SegmentKind.Bridge => "BRIDGE", SegmentKind.Outro => "OUTRO",
+        _ => "",
+    };
 }
