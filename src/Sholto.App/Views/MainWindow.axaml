@@ -156,7 +156,7 @@
                                 <TextBlock Text="✓"
                                            Foreground="{DynamicResource SholtoAccent}"
                                            FontSize="13" FontWeight="Bold"
-                                           IsVisible="{Binding Analyzed}"/>
+                                           IsVisible="{Binding ShowAnalyzedCheck}"/>
                                 <!-- Running state: indeterminate progress bar. Avalonia's
                                      built-in animation, no fragile custom animators.
                                      MinWidth=0 stops the default 100-px minimum from
@@ -168,12 +168,12 @@
                                      is actually analysing. -->
                                 <ProgressBar Width="28" Height="4"
                                              MinWidth="0"
-                                             IsIndeterminate="{Binding IsAnalyzing}"
+                                             IsIndeterminate="{Binding ShowAnalyzingSpinner}"
                                              ShowProgressText="False"
                                              HorizontalAlignment="Center"
                                              Background="Transparent"
                                              Foreground="{DynamicResource SholtoAccent}"
-                                             IsVisible="{Binding IsAnalyzing}"/>
+                                             IsVisible="{Binding ShowAnalyzingSpinner}"/>
                             </Grid>
                             <Border Grid.Column="1"
                                     IsVisible="{Binding HasTags}"

@@ -7,6 +7,18 @@ using Sholto.Music;
 
 namespace Sholto.App.ViewModels;
 
+/// <summary>The single, mutually-exclusive analysis state of a track row — one
+/// decoration in the ANALYZED column, never two.</summary>
+public enum TrackAnalysisState
+{
+    /// <summary>Nothing computed yet.</summary>
+    Unanalyzed,
+    /// <summary>An analysis step is currently running for this track.</summary>
+    Analyzing,
+    /// <summary>BPM/beats + stems are done.</summary>
+    Analyzed,
+}
+
 /// <summary>
 /// One row in the track list. Wraps a Track plus the slow-to-compute fields
 /// (BPM, key, etc.) so the row can "uplift" as analyses arrive.
@@ -28,7 +40,7 @@ public sealed class TrackRow : INotifyPropertyChanged
     public double? Bpm
     {
         get => _bpm;
-        set { if (Math.Abs((_bpm ?? -1) - (value ?? -1)) < 0.05) return; _bpm = value; Notify(); Notify(nameof(BpmDisplay)); Notify(nameof(Analyzed)); }
+        set { if (Math.Abs((_bpm ?? -1) - (value ?? -1)) < 0.05) return; _bpm = value; Notify(); Notify(nameof(BpmDisplay)); NotifyAnalysisState(); }
     }
 
     private double _bpmMultiplier = 1.0;
@@ -49,7 +61,7 @@ public sealed class TrackRow : INotifyPropertyChanged
     public bool StemsReady
     {
         get => _stemsReady;
-        set { if (_stemsReady == value) return; _stemsReady = value; Notify(); Notify(nameof(Analyzed)); }
+        set { if (_stemsReady == value) return; _stemsReady = value; Notify(); NotifyAnalysisState(); }
     }
 
     private bool _isAnalyzing;
@@ -58,12 +70,33 @@ public sealed class TrackRow : INotifyPropertyChanged
     public bool IsAnalyzing
     {
         get => _isAnalyzing;
-        set { if (_isAnalyzing == value) return; _isAnalyzing = value; Notify(); }
+        set { if (_isAnalyzing == value) return; _isAnalyzing = value; Notify(); NotifyAnalysisState(); }
     }
 
-    /// <summary>Fully analyzed: basic (BPM + beats) AND stems on disk.
-    /// Drives the gray checkmark in the ANALYZED column.</summary>
+    private void NotifyAnalysisState()
+    {
+        Notify(nameof(Analyzed));
+        Notify(nameof(AnalysisState));
+        Notify(nameof(ShowAnalyzingSpinner));
+        Notify(nameof(ShowAnalyzedCheck));
+    }
+
+    /// <summary>Fully analyzed: basic (BPM + beats) AND stems on disk.</summary>
     public bool Analyzed => _bpm is not null && _stemsReady;
+
+    /// <summary>The single source of truth for the ANALYZED column. Actively running
+    /// wins over "done" so we never render a spinner and a checkmark together — that
+    /// overlap (reporter still busy on a later step while BPM+stems already landed)
+    /// was the double-decoration bug.</summary>
+    public TrackAnalysisState AnalysisState =>
+        _isAnalyzing ? TrackAnalysisState.Analyzing
+      : Analyzed     ? TrackAnalysisState.Analyzed
+      :                TrackAnalysisState.Unanalyzed;
+
+    // View helpers — exactly one is ever true (compiled bindings are off, so the
+    // XAML binds these bools rather than comparing the enum).
+    public bool ShowAnalyzingSpinner => AnalysisState == TrackAnalysisState.Analyzing;
+    public bool ShowAnalyzedCheck    => AnalysisState == TrackAnalysisState.Analyzed;
 
     private string? _key;
     public string? Key
