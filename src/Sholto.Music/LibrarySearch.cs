@@ -29,6 +29,17 @@ public static class LibrarySearch
     /// caller awareness. Future fields (Genre, Tags) get appended here.</summary>
     private static string Haystack(Track t) => $"{t.Artist} {t.Title}";
 
+    /// <summary>Match a pre-built haystack against the query with the same
+    /// AND'd-token, case-insensitive-substring rule as <see cref="Filter"/>.
+    /// Lets callers include fields not on <see cref="Track"/> (e.g. tags) in the
+    /// haystack. Empty query matches everything.</summary>
+    public static bool Matches(string query, string haystack)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return true;
+        var tokens = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Length == 0 || MatchesAll(haystack, tokens);
+    }
+
     private static bool MatchesAll(string haystack, string[] tokens)
     {
         foreach (var tok in tokens)

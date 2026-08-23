@@ -366,6 +366,23 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// (minimap) is only shown when this is true.</summary>
     public bool HasSegments => Segments is { Segments.Count: > 0 };
 
+    // ---- Live EQ meter (shown in the disc when there's no album art) ----------
+    // Coarse frequency content at the playhead, straight from the band peaks — no
+    // FFT, no extra buffers. The control does the attack/decay + peak-hold trace.
+    public float EqLow  => BandAt(p => p.Low);
+    public float EqMid  => BandAt(p => p.Mid);
+    public float EqHigh => BandAt(p => p.High);
+
+    private float BandAt(Func<WaveformPeaks, float[]> pick)
+    {
+        var pk = Analysis.Basic?.Peaks;
+        if (pk is null || pk.Min.Length == 0) return 0f;
+        var arr = pick(pk);
+        if (arr.Length != pk.Min.Length) return 0f;
+        int col = Math.Clamp((int)(_playPosition * pk.Min.Length), 0, pk.Min.Length - 1);
+        return arr[col];
+    }
+
     /// <summary>Jump to an absolute fraction of the track (0..1) — minimap click/drag.</summary>
     public void SeekToFraction(double fraction)
     {

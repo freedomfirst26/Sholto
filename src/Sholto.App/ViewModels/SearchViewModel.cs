@@ -138,16 +138,18 @@ public sealed class SearchViewModel : INotifyPropertyChanged
     private void Recompute()
     {
         var q = _query;
-        // Filter operates on raw Track records; we project back to TrackRow by
-        // looking each match up in the master list. Linear; library size is
-        // O(thousands), filtering is fast enough on the UI thread.
-        var matchedPaths = new HashSet<string>(
-            LibrarySearch.Filter(q, _all.Select(r => r.Track)).Select(t => t.FilePath));
-
+        // Match each row against artist + title + its TAGS, so a query like "techno"
+        // surfaces tracks tagged techno even if the word isn't in the title/artist.
+        // Linear over the library (O(thousands)); cheap enough on the UI thread.
         Results.Clear();
         foreach (var row in _all)
-            if (matchedPaths.Contains(row.Track.FilePath))
+        {
+            var haystack = row.Tags.Count == 0
+                ? $"{row.Artist} {row.Title}"
+                : $"{row.Artist} {row.Title} {string.Join(' ', row.Tags)}";
+            if (LibrarySearch.Matches(q, haystack))
                 Results.Add(row);
+        }
 
         Notify(nameof(Results));
         BuildItems();

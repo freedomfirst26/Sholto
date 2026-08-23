@@ -5,17 +5,9 @@
              x:Class="Sholto.App.Views.DeckView"
              x:Name="Root">
 
-    <Grid Background="{DynamicResource SholtoSurfaceRaised}" RowDefinitions="Auto,*">
+    <Grid Background="{DynamicResource SholtoSurfaceRaised}">
 
-        <!-- Compressed full-song overview: energy-coloured strip + playhead,
-             click/drag to jump to any section. -->
-        <controls:MinimapControl x:Name="Minimap" Grid.Row="0" Height="42"
-                                 IsVisible="{Binding HasSegments}"
-                                 Peaks="{Binding GridPeaks}"
-                                 Segments="{Binding Segments}"
-                                 PlayPosition="{Binding PlayPosition}"/>
-
-        <Panel Grid.Row="1">
+        <Panel>
             <controls:WaveformControl x:Name="Waveform"
                                       GridEditMode="{Binding GridEditActive}"
                                       Peaks="{Binding Peaks}"
@@ -286,6 +278,15 @@
                     </Border>
                 </StackPanel>
             </StackPanel>
+            <!-- Stationary section overview across the top of the waveform: whole
+                 song, energy/section-coloured, click/drag to jump. Overlaid on the
+                 Panel (renders reliably) rather than a separate grid row. -->
+            <controls:MinimapControl x:Name="Minimap"
+                                     VerticalAlignment="Top" Height="42"
+                                     IsVisible="{Binding HasSegments}"
+                                     Peaks="{Binding GridPeaks}"
+                                     Segments="{Binding Segments}"
+                                     PlayPosition="{Binding PlayPosition}"/>
         </Panel>
     </Grid>
 </UserControl>

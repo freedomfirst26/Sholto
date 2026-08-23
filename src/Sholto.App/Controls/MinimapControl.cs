@@ -78,7 +78,9 @@ public sealed class MinimapControl : Control
         var segs = Segments;
         Task.Run(() =>
         {
-            var img = Bake(snapshot, segs);
+            SKImage? img = null;
+            try { img = Bake(snapshot, segs); }
+            catch (Exception ex) { Console.WriteLine($"[Minimap] bake failed: {ex.Message}"); }
             Dispatcher.UIThread.Post(() =>
             {
                 // NB: do NOT dispose the previous _baked here. The render thread may
