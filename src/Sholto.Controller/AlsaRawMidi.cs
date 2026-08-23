@@ -15,6 +15,12 @@ internal sealed class AlsaRawMidi : IDisposable
 
     public event Action<byte, byte, byte>? MessageReceived; // status, data1, data2
 
+    /// <summary>Fired once when the device goes away mid-session (USB unplug,
+    /// or resume-from-autosuspend that invalidates the fd). NOT fired on a
+    /// clean Dispose. The supervisor in <see cref="MidiManager"/> listens for
+    /// this to start reconnecting.</summary>
+    public event Action? Disconnected;
+
     private AlsaRawMidi(FileStream stream)
     {
         _stream = stream;
@@ -104,12 +110,14 @@ internal sealed class AlsaRawMidi : IDisposable
         int dataIdx = 0;
         int needed = 0;
 
+        bool lost = false;
         while (!_cts.IsCancellationRequested)
         {
             int n;
             try { n = await _stream.ReadAsync(buf.AsMemory(0, buf.Length), _cts.Token); }
-            catch (OperationCanceledException) { break; }
-            catch (IOException) { break; }
+            catch (OperationCanceledException) { break; }        // clean shutdown
+            catch (Exception) { lost = true; break; }            // IOException etc: device gone
+            if (n == 0) { lost = true; break; }                  // EOF: char device closed under us
 
             for (int i = 0; i < n; i++)
             {
@@ -137,6 +145,9 @@ internal sealed class AlsaRawMidi : IDisposable
                 }
             }
         }
+
+        // Only announce a real disconnect — a Dispose()-driven cancel is not one.
+        if (lost && !_cts.IsCancellationRequested) Disconnected?.Invoke();
     }
 
     private static int StatusDataLength(byte status) => (status & 0xF0) switch

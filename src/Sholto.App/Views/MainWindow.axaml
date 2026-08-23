@@ -39,6 +39,42 @@
                        Foreground="{DynamicResource SholtoTextMuted}"
                        VerticalAlignment="Center"
                        Margin="0,0,12,0"/>
+        <!-- Controller connection indicator: green "Controller" when the DDJ-FLX4
+             is connected, red "Reconnect USB" when it drops off the bus. The
+             reconnect supervisor keeps retrying; if it stays red, the device is
+             fully gone and needs an unplug/replug. -->
+        <Border DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,12,0"
+                CornerRadius="10" Padding="8,3"
+                Classes.disconnected="{Binding !ControllerConnected}">
+            <Border.Styles>
+                <Style Selector="Border">
+                    <Setter Property="Background" Value="#1F3DDC84"/>
+                </Style>
+                <Style Selector="Border.disconnected">
+                    <Setter Property="Background" Value="#33FF5252"/>
+                </Style>
+                <Style Selector="Ellipse.dot">
+                    <Setter Property="Fill" Value="#3DDC84"/>
+                </Style>
+                <Style Selector="Border.disconnected Ellipse.dot">
+                    <Setter Property="Fill" Value="#FF5252"/>
+                </Style>
+                <Style Selector="TextBlock.label">
+                    <Setter Property="Foreground" Value="#3DDC84"/>
+                </Style>
+                <Style Selector="Border.disconnected TextBlock.label">
+                    <Setter Property="Foreground" Value="#FF5252"/>
+                </Style>
+            </Border.Styles>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Ellipse Classes="dot" Width="8" Height="8" VerticalAlignment="Center"/>
+                <!-- Connected = just the green dot; the label only appears to prompt
+                     a reconnect when the controller has dropped. -->
+                <TextBlock Classes="label" Text="{Binding ControllerStatusText}"
+                           IsVisible="{Binding !ControllerConnected}"
+                           FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
         <Menu Background="Transparent"
               Foreground="{DynamicResource SholtoTextBright}">
             <MenuItem Header="Settings">

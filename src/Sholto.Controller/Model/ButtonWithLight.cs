@@ -20,6 +20,12 @@ public sealed class ButtonWithLight : Button
         _applyLight(on);
     }
 
+    /// <summary>Re-send the current LED state to the hardware unconditionally.
+    /// Used after a reconnect: the device comes up dark but our model still holds
+    /// the intended state, and <see cref="SetLit"/>'s idempotency guard would send
+    /// nothing.</summary>
+    public void Reassert() => _applyLight(IsLit);
+
     /// <summary>Assert the LED off on the hardware, unconditionally. Unlike
     /// <see cref="SetLit"/> this bypasses the idempotency guard: on boot our model
     /// starts <c>IsLit=false</c>, but the physical LED may still be lit from a prior

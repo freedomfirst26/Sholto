@@ -29,6 +29,14 @@ public sealed class Controller : IDisposable
     /// modeled cue buttons, and passes every other control through unchanged.</summary>
     public event Action<ControllerEvent>? Action;
 
+    /// <summary>Raised (true) when the controller (re)connects, (false) when it
+    /// drops out. Lets the App show a connection indicator. Fires on a background
+    /// thread — marshal before touching UI.</summary>
+    public event Action<bool>? ConnectionChanged;
+
+    /// <summary>True while a controller is currently connected.</summary>
+    public bool IsConnected => _midi.IsConnected;
+
     public Controller()
     {
         MasterCue     = MakeButton("MasterCue",     new ControllerLight(0, LightFunction.MasterCue));
@@ -64,9 +72,20 @@ public sealed class Controller : IDisposable
     /// (the App can still run from the UI).</summary>
     public bool Connect()
     {
-        bool ok = _midi.Connect();
         _midi.EventReceived += OnMidi;
-        return ok;
+        _midi.Connected += OnControllerConnected;   // subscribe before the first attempt
+        _midi.ConnectionLost += () => ConnectionChanged?.Invoke(false);
+        return _midi.Connect();
+    }
+
+    /// <summary>The device (re)connected and came up dark. Repaint the LEDs we
+    /// model so a controller that dropped and came back reflects real state again.
+    /// Pad mode (Hot Cue) is re-sent by the connection itself.</summary>
+    private void OnControllerConnected()
+    {
+        foreach (var c in _components)
+            if (c is ButtonWithLight b) b.Reassert();
+        ConnectionChanged?.Invoke(true);
     }
 
     /// <summary>Return the whole controller to a known state: every component

@@ -14,8 +14,20 @@ public sealed class MidiManager : IDisposable
 {
     private AlsaRawMidi? _rawMidi;
     private IControllerMapping? _mapping;
+    private CancellationTokenSource? _superCts;
 
     public event Action<ControllerEvent>? EventReceived;
+
+    /// <summary>Raised each time the controller (re)connects — after a cold start
+    /// or after a mid-session drop is recovered. Lets the App re-assert LED state.</summary>
+    public event Action? Connected;
+
+    /// <summary>Raised when a live controller drops out. Reconnection is already
+    /// in progress when this fires; it's purely informational (logging/UI).</summary>
+    public event Action? ConnectionLost;
+
+    /// <summary>True while a device is currently open.</summary>
+    public bool IsConnected => _rawMidi is not null;
 
     /// <summary>When true, log every incoming MIDI message to console — for mapping new controls.</summary>
     public bool LogAllMessages { get; set; }
@@ -27,7 +39,22 @@ public sealed class MidiManager : IDisposable
     /// <summary>Write raw MIDI bytes out to the controller (e.g. LED updates).</summary>
     public void Send(byte[] bytes) => _rawMidi?.SendRaw(bytes);
 
+    /// <summary>Start keeping a controller connected. Makes one immediate attempt
+    /// (so a controller present at launch is live at once) and then supervises in
+    /// the background: if none is found, or a live one drops, it retries every
+    /// couple of seconds until the app exits. Cheap — a poll is a directory read
+    /// of /proc/asound/cards when nothing is plugged. Returns whether the first
+    /// attempt connected.</summary>
     public bool Connect()
+    {
+        if (_superCts is not null) return IsConnected;   // already supervising
+        _superCts = new CancellationTokenSource();
+        bool first = TryConnectOnce();
+        _ = SuperviseAsync(_superCts.Token);
+        return first;
+    }
+
+    private bool TryConnectOnce()
     {
         foreach (var mapping in MappingRegistry.All)
         {
@@ -35,12 +62,35 @@ public sealed class MidiManager : IDisposable
             if (raw is null) continue;
 
             _mapping = mapping;
+            raw.MessageReceived += OnRawMidi;
+            raw.Disconnected += OnDeviceLost;
             _rawMidi = raw;
-            _rawMidi.MessageReceived += OnRawMidi;
             Console.WriteLine($"[MIDI] connected to {mapping.DeviceNameMatch} via /dev/snd raw MIDI (mapping: {mapping.GetType().Name})");
+            Connected?.Invoke();
             return true;
         }
         return false;
+    }
+
+    private void OnDeviceLost()
+    {
+        // Runs on the dying read-loop thread — never block it. Detach and dispose
+        // off-thread; the supervisor will reconnect on its next tick.
+        var old = _rawMidi;
+        _rawMidi = null;
+        Console.WriteLine("[MIDI] controller disconnected — retrying until it comes back");
+        ConnectionLost?.Invoke();
+        if (old is not null) _ = Task.Run(old.Dispose);
+    }
+
+    private async Task SuperviseAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(2000, ct); }
+            catch (OperationCanceledException) { break; }
+            if (!IsConnected) TryConnectOnce();
+        }
     }
 
     private void OnRawMidi(byte status, byte data1, byte data2)
@@ -77,5 +127,10 @@ public sealed class MidiManager : IDisposable
         if (evt is not null) EventReceived?.Invoke(evt);
     }
 
-    public void Dispose() => _rawMidi?.Dispose();
+    public void Dispose()
+    {
+        _superCts?.Cancel();
+        _superCts?.Dispose();
+        _rawMidi?.Dispose();
+    }
 }

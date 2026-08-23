@@ -328,6 +328,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
     public bool LibraryUnreachableVisible => Library.IsUnreachable;
 
+    /// <summary>Controller USB connection state, surfaced as a top-bar indicator.
+    /// The App feeds this from Controller.ConnectionChanged; the reconnect
+    /// supervisor keeps trying, so "Reconnect USB" is a prompt to unplug/replug
+    /// when auto-recovery can't (device fully gone from the bus).</summary>
+    private bool _controllerConnected;
+    public bool ControllerConnected
+    {
+        get => _controllerConnected;
+        set
+        {
+            if (_controllerConnected == value) return;
+            _controllerConnected = value;
+            Notify(nameof(ControllerConnected));
+            Notify(nameof(ControllerStatusText));
+        }
+    }
+    public string ControllerStatusText => _controllerConnected ? "Controller" : "Reconnect USB";
+
     private readonly MagnetismOptions _magnetism;
     private readonly FeatureOptions _features;
 

@@ -226,11 +226,26 @@ public partial class App : Application
             }
             var musicDir = Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR") ?? saved;
 
-            if (string.IsNullOrEmpty(musicDir))
+            // Re-prompt when there's no saved path (first run) OR the saved path no
+            // longer resolves — drive unmounted, or remounted under a different name
+            // (/media/s/Data vs /media/s/Data1). Silently skipping left a blank
+            // library with no way back short of a restart.
+            bool unreachable = !string.IsNullOrEmpty(musicDir) && !Directory.Exists(musicDir);
+            if (string.IsNullOrEmpty(musicDir) || unreachable)
             {
-                musicDir = await Dispatcher.UIThread.InvokeAsync(async () =>
-                    await PickMusicDirAsync(desktop.MainWindow!, "Choose your music library"));
-                if (!string.IsNullOrEmpty(musicDir) && factory is not null)
+                if (unreachable)
+                {
+                    Console.WriteLine($"[Library] saved music dir not reachable: {musicDir} — re-prompting");
+                    await Dispatcher.UIThread.InvokeAsync(() => vm.Library.UnreachablePath = musicDir);
+                }
+                var title = unreachable
+                    ? "Music drive not found — reconnect it, then choose your library"
+                    : "Choose your music library";
+                var picked = await Dispatcher.UIThread.InvokeAsync(async () =>
+                    await PickMusicDirAsync(desktop.MainWindow!, title));
+                if (string.IsNullOrEmpty(picked)) return;  // cancelled — keep saved path for next launch
+                musicDir = picked;
+                if (factory is not null)
                 {
                     await using var db = factory.CreateDbContext();
                     var row = await db.Settings.FindAsync(SettingsKeys.MusicDir);
@@ -239,14 +254,7 @@ public partial class App : Application
                     await db.SaveChangesAsync();
                 }
             }
-            else if (!Directory.Exists(musicDir))
-            {
-                Console.WriteLine($"[Library] saved music dir not reachable: {musicDir} — skipping scan");
-                await Dispatcher.UIThread.InvokeAsync(() => vm.Library.UnreachablePath = musicDir);
-                return;
-            }
 
-            if (string.IsNullOrEmpty(musicDir)) return;
             await vm.Library.ScanAsync(musicDir, _factory);
         });
 
@@ -259,6 +267,11 @@ public partial class App : Application
 
         _orchestrator = new Orchestrator(vm, () => _factory);
         _controller.Action += evt => Dispatcher.UIThread.Post(() => _orchestrator.HandleControllerEvent(evt));
+        // Surface controller connection state in the top-bar indicator. Seed with
+        // the result of the first attempt above, then follow the supervisor's events.
+        vm.ControllerConnected = _controller.IsConnected;
+        _controller.ConnectionChanged += connected =>
+            Dispatcher.UIThread.Post(() => vm.ControllerConnected = connected);
         // App→controller output: orchestrator asks, controller lights the LED.
         _orchestrator.BeatSyncLightRequested += (deck, on) => _controller.SetBeatSync(deck, on);
 
