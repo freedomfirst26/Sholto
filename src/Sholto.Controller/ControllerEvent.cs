@@ -86,12 +86,6 @@ public abstract record ControllerEvent
     /// is not yet implemented, so this is currently a no-op.</summary>
     public record BeatSyncPressed(int Deck) : ControllerEvent;
 
-    /// <summary>CUE button (ch=1/2 0x0C). Repurposed here as "set bar 1 of
-    /// the beatgrid at the current playhead" — pause, jog to a kick, press
-    /// CUE, and that kick becomes a downbeat. One-button grid phase
-    /// alignment, saved per-track.</summary>
-    public record SetDownbeatHere(int Deck) : ControllerEvent;
-
     /// <summary>Shift + BEAT SYNC. The FLX-4 firmware remaps this chord to
     /// its own note (ch=1/2 0x60) with Shift held, so we map it directly —
     /// no need to track Shift state. Cycles the tempo / pitch-fader range

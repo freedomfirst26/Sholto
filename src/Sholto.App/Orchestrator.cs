@@ -203,9 +203,6 @@ public sealed class Orchestrator : IDisposable
             case ControllerEvent.BeatSyncPressed:
                 // Plain BEAT SYNC — beat-sync not yet implemented.
                 break;
-            case ControllerEvent.SetDownbeatHere sd:
-                vm.DeckFor(sd.Deck).Player.SetDownbeatAtPlayhead();
-                break;
             case ControllerEvent.CyclePitchRange cpr:
                 vm.DeckFor(cpr.Deck).CyclePitchRange();
                 break;

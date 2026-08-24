@@ -1031,20 +1031,6 @@ public sealed class Deck
         Console.WriteLine($"[Deck] grid offset fine ({_offsetSec*1000:+0.0;-0.0} ms total)");
     }
 
-    /// <summary>Place a downbeat (bar 1) exactly at the current playhead,
-    /// keeping the current spacing. The grid is periodic, so this just sets
-    /// the phase — every bar shifts so one downbeat lands on the playhead.
-    /// Use it cued/paused on a kick for precise one-button alignment.</summary>
-    public void SetDownbeatAtPlayhead()
-    {
-        if (_detectedBasic is null) return;
-        double nowSec = PositionFrames / (double)AudioFileDecoder.TargetSampleRate;
-        _offsetSec = nowSec - _detectedAnchorSec;
-        RegenerateGrid();
-        AfterAdjustment();
-        Console.WriteLine($"[Deck] downbeat set at playhead {nowSec:F3}s");
-    }
-
     /// <summary>Set the grid from two clicked downbeat points. Computes the
     /// EXACT BPM from (whole bars between the points) ÷ (time between them),
     /// then anchors the grid so the earlier point lands on a downbeat. This
