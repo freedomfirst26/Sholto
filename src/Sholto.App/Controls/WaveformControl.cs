@@ -320,7 +320,52 @@ public sealed class WaveformControl : Control
 
     /// <summary>The (low, mid, high) band colours for a palette. Shared by the
     /// waveform bake and the minimap so the section map follows the same theme.</summary>
-    public static (SKColor Low, SKColor Mid, SKColor High) BandColors(WaveformPalette palette) => palette switch
+    /// <summary>Attack/release envelope follower over a bin-height array: the value
+    /// jumps up instantly when the signal rises (a sharp leading face at each kick)
+    /// then decays geometrically by <paramref name="release"/> per bin (the bell's
+    /// tail). This is what gives the Rekordbox "sideways bell where the flat face is
+    /// the beat" — a symmetric blur would round the attack away instead.</summary>
+    private static void AttackRelease(float[] h, float release)
+    {
+        float env = 0f;
+        for (int i = 0; i < h.Length; i++)
+        {
+            float s = h[i];
+            env = s > env ? s : env * release;   // instant attack, slow release
+            h[i] = env;
+        }
+    }
+
+    /// <summary>Fill one band's envelope as a single closed path, mirrored above and
+    /// below the centerline. The heights are sampled at bin centers so the fill is a
+    /// smooth silhouette rather than a stack of rectangles.</summary>
+    private static void FillEnvelope(SKCanvas canvas, float[] h, int binPx, int width, float midY, SKPaint paint)
+    {
+        int n = h.Length;
+        if (n == 0) return;
+        float X(int b) => MathF.Min(width, b * binPx + binPx * 0.5f);
+
+        using var path = new SKPath();
+        path.MoveTo(0, midY - h[0]);
+        for (int b = 0; b < n; b++) path.LineTo(X(b), midY - h[b]);
+        path.LineTo(width, midY - h[n - 1]);
+        path.LineTo(width, midY + h[n - 1]);
+        for (int b = n - 1; b >= 0; b--) path.LineTo(X(b), midY + h[b]);
+        path.LineTo(0, midY + h[0]);
+        path.Close();
+        canvas.DrawPath(path, paint);
+    }
+
+    /// <summary>When true, every theme draws the waveform in the Denon/Rekordbox
+    /// 3-band scheme (low blue, mid orange, high white) regardless of palette — it
+    /// reads far better for spotting the kick/beat than the per-theme hues. Flip to
+    /// false to restore the per-theme colours below.</summary>
+    private const bool ForceThreeBand = true;
+    private static readonly (SKColor Low, SKColor Mid, SKColor High) ThreeBand =
+        (new SKColor(0x2A, 0x7F, 0xFF), new SKColor(0xFF, 0x8C, 0x1A), new SKColor(0xF5, 0xF5, 0xFF));
+
+    public static (SKColor Low, SKColor Mid, SKColor High) BandColors(WaveformPalette palette) =>
+        ForceThreeBand ? ThreeBand : palette switch
     {
         WaveformPalette.Hot         => (new SKColor(0xFF, 0x3D, 0x3D), new SKColor(0x3D, 0xFF, 0x7A), new SKColor(0x3D, 0x8B, 0xFF)),
         WaveformPalette.Plasma      => (new SKColor(0x7C, 0x5C, 0xFF), new SKColor(0xFF, 0x4E, 0x9A), new SKColor(0x34, 0xF0, 0xC6)),
@@ -332,50 +377,9 @@ public sealed class WaveformControl : Control
         WaveformPalette.Soule       => (new SKColor(0x2E, 0x47, 0x34), new SKColor(0x6A, 0x8F, 0x62), new SKColor(0xE8, 0xED, 0xE5)),
         WaveformPalette.BoardsOfCanada => (new SKColor(0x2A, 0x44, 0x52), new SKColor(0x7F, 0xB6, 0xC9), new SKColor(0xDD, 0xF0, 0xF2)),
         WaveformPalette.Pantera     => (new SKColor(0x7A, 0x3D, 0x22), new SKColor(0xFF, 0x6B, 0x2C), new SKColor(0xE0, 0xD8, 0xCC)),
-        _                           => (new SKColor(0x1E, 0x59, 0xFF), new SKColor(0xFF, 0xFF, 0xFF), new SKColor(0xFF, 0xC7, 0x00)),
+        // Default = Denon/Rekordbox 3-band: low blue, mid orange, high white.
+        _                           => (new SKColor(0x2A, 0x7F, 0xFF), new SKColor(0xFF, 0x8C, 0x1A), new SKColor(0xF5, 0xF5, 0xFF)),
     };
-
-    /// <summary>Per-column kick strength [0..1] from the low-band envelope: the
-    /// half-wave-rectified positive derivative (spectral-flux style onset), minus a
-    /// local mean to drop slow bass swells, normalised against the track. Spikes at
-    /// kick attacks; ~0 on sustained bass. Same idea as the tempo onset detector.</summary>
-    private static float[] ComputeKickTransient(float[] low)
-    {
-        int n = low.Length;
-        var onset = new float[n];
-        if (n == 0) return onset;
-
-        // Half-wave-rectified difference (rise in low energy = an attack).
-        for (int i = 1; i < n; i++)
-        {
-            float d = low[i] - low[i - 1];
-            onset[i] = d > 0f ? d : 0f;
-        }
-
-        // Subtract a local mean so only sharp rises above the local floor survive
-        // (a slow bassline swell has a small but persistent derivative — this kills
-        // it while leaving the kick spikes).
-        const int radius = 6;
-        var outv = new float[n];
-        float max = 0f;
-        for (int i = 0; i < n; i++)
-        {
-            int lo = Math.Max(0, i - radius), hi = Math.Min(n - 1, i + radius);
-            float sum = 0f; int cnt = 0;
-            for (int j = lo; j <= hi; j++) { sum += onset[j]; cnt++; }
-            float v = onset[i] - sum / cnt;
-            if (v < 0f) v = 0f;
-            outv[i] = v;
-            if (v > max) max = v;
-        }
-
-        if (max > 0f)
-        {
-            float inv = 1f / max;
-            for (int i = 0; i < n; i++) outv[i] = MathF.Min(1f, outv[i] * inv);
-        }
-        return outv;
-    }
 
     private static SKImage? BakeWaveform(WaveformPeaks peaks, WaveformPalette palette, CancellationToken ct)
     {
@@ -412,64 +416,90 @@ public sealed class WaveformControl : Control
         // Pantera:     Cowboys From Hell — dark rust / flame orange / bone
         //              (bass lifted from near-black charcoal so it reads on the deck)
         var (lowColor, midColor, highColor) = BandColors(palette);
-        using var lowPaint  = new SKPaint { Color = lowColor, StrokeWidth = 1, IsAntialias = false };
-        using var midPaint  = new SKPaint { Color = midColor, StrokeWidth = 1, IsAntialias = false };
-        using var highPaint = new SKPaint { Color = highColor, StrokeWidth = 1, IsAntialias = false };
+        using var lowPaint  = new SKPaint { Color = lowColor,  Style = SKPaintStyle.Fill, IsAntialias = true };
+        using var midPaint  = new SKPaint { Color = midColor,  Style = SKPaintStyle.Fill, IsAntialias = true };
+        using var highPaint = new SKPaint { Color = highColor, Style = SKPaintStyle.Fill, IsAntialias = true };
 
         bool hasBands = peaks.Low.Length == width;
 
-        // Absolute, track-calibrated band heights: each band is scaled against its
-        // OWN energy range across the whole track (not the per-column total), so
-        // blue = real bass and the silhouette height = real intensity. A drop
-        // towers with a thick blue core; a breakdown thins out to mids/highs.
-        // See WaveformBandScaling. (The old code divided by the per-column sum,
-        // which painted a full blue stripe on any low-heavy-but-quiet section.)
+        // Per-band, track-calibrated references (each band vs its own 97th-percentile
+        // across the track) so blue = real bass, not a proportion of the column.
         var scaling = hasBands
             ? WaveformBandScaling.Calibrate(peaks.Low, peaks.Mid, peaks.High)
             : default;
-        float bandScale = hasBands ? midY / scaling.MaxTotal : 0f;
+        // Nested stack (Rekordbox 3-band): the bands are drawn CUMULATIVELY — white
+        // innermost, orange around it, blue outermost — so blue always CONTAINS
+        // orange contains white; a loud mid/high can never paint over the bass.
+        // Scale the summed height (low+mid+high) so the track's fullest column nearly
+        // fills the half-height.
+        float scale = hasBands ? midY * 0.95f / MathF.Max(scaling.MaxTotal, 1e-3f) : midY * 0.95f;
 
-        // Kick focus: the low band's raw peak envelope is SUSTAINED bass energy —
-        // a "sea of peaks" where the actual kick is impossible to pick out. The kick
-        // is a TRANSIENT: a sharp positive rise in low energy (spectral-flux / onset).
-        // Emphasise that so each kick reads as a discrete spike and the sustained
-        // bassline collapses to a low floor. Derived from peaks.Low (no extra data).
-        var kick = hasBands ? ComputeKickTransient(peaks.Low) : System.Array.Empty<float>();
+        // Coarse, smooth "sideways bell" envelope: peak-hold the columns into bins,
+        // run an attack/release follower (sharp face on the beat, graceful decay),
+        // then fill each band's cumulative envelope as a single anti-aliased path.
+        // Bigger binPx = coarser / less detail.
+        const int binPx = 3;             // bar width
+        const float releaseCoef = 0.74f; // snappy release → each kick decays to a valley = distinct bells
+        const float gate = 0.06f;        // drop bins quieter than this (kills between-kick fuzz)
+        int bins = (width + binPx - 1) / binPx;
 
-        for (int x = 0; x < width; x++)
+        if (!hasBands)
+        {
+            var amp = new float[bins];
+            for (int b = 0; b < bins; b++)
+            {
+                if (ct.IsCancellationRequested) return null;
+                int x0 = b * binPx, x1 = Math.Min(width, x0 + binPx);
+                float a = 0f;
+                for (int x = x0; x < x1; x++)
+                    a = MathF.Max(a, MathF.Max(MathF.Abs(peaks.Max[x]), MathF.Abs(peaks.Min[x])));
+                amp[b] = a * midY;
+            }
+            AttackRelease(amp, releaseCoef);
+            FillEnvelope(canvas, amp, binPx, width, midY, lowPaint);
+            return surface.Snapshot();
+        }
+
+        var lowH = new float[bins];
+        var midH = new float[bins];
+        var highH = new float[bins];
+        for (int b = 0; b < bins; b++)
         {
             if (ct.IsCancellationRequested) return null;
-
-            if (!hasBands)
+            int x0 = b * binPx, x1 = Math.Min(width, x0 + binPx);
+            float ml = 0f, mm = 0f, mh = 0f;
+            for (int x = x0; x < x1; x++)
             {
-                float amp = MathF.Max(MathF.Abs(peaks.Max[x]), MathF.Abs(peaks.Min[x]));
-                float barHeight = amp * midY;
-                if (barHeight >= 1f)
-                    canvas.DrawLine(x, midY - barHeight, x, midY + barHeight, lowPaint);
-                continue;
+                var (nl, nm, nh) = scaling.Normalize(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
+                if (nl > ml) ml = nl;
+                if (nm > mm) mm = nm;
+                if (nh > mh) mh = nh;
             }
-
-            var (nl, nm, nh) = scaling.Normalize(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
-            // Blend: keep a small sustained floor so bass presence still reads, but
-            // let the kick transient dominate the low band's height.
-            nl = MathF.Min(1f, 0.18f * nl + 0.95f * kick[x]);
-            float lSeg = nl * bandScale;
-            float mSeg = nm * bandScale;
-            float hSeg = nh * bandScale;
-            if (lSeg + mSeg + hSeg < 1f) continue;
-
-            float lowEdge  = lSeg;
-            float midEdge  = lowEdge + mSeg;
-            float highEdge = midEdge + hSeg;
-
-            canvas.DrawLine(x, midY,           x, midY + lowEdge,  lowPaint);
-            canvas.DrawLine(x, midY + lowEdge, x, midY + midEdge,  midPaint);
-            canvas.DrawLine(x, midY + midEdge, x, midY + highEdge, highPaint);
-
-            canvas.DrawLine(x, midY,           x, midY - lowEdge,  lowPaint);
-            canvas.DrawLine(x, midY - lowEdge, x, midY - midEdge,  midPaint);
-            canvas.DrawLine(x, midY - midEdge, x, midY - highEdge, highPaint);
+            // Gate the quiet stuff so only real transients survive (less clutter,
+            // sharper kicks) — then scale.
+            lowH[b]  = ml < gate ? 0f : ml * scale;
+            midH[b]  = mm < gate ? 0f : mm * scale;
+            highH[b] = mh < gate ? 0f : mh * scale;
         }
+
+        AttackRelease(lowH,  releaseCoef);
+        AttackRelease(midH,  releaseCoef);
+        AttackRelease(highH, releaseCoef);
+
+        // Cumulative edges: white core [0..high], orange out to [+mid], blue out to
+        // [+low]. Draw outermost (blue) first so each inner band paints over the
+        // centre and the outer bands survive as rings — blue ⊃ orange ⊃ white.
+        var midE = new float[bins];
+        var lowE = new float[bins];
+        for (int b = 0; b < bins; b++)
+        {
+            midE[b] = MathF.Min(midY, highH[b] + midH[b]);
+            lowE[b] = MathF.Min(midY, highH[b] + midH[b] + lowH[b]);
+        }
+
+        FillEnvelope(canvas, lowE,  binPx, width, midY, lowPaint);   // blue  — outer ring
+        FillEnvelope(canvas, midE,  binPx, width, midY, midPaint);   // orange — middle ring
+        FillEnvelope(canvas, highH, binPx, width, midY, highPaint);  // white — core
 
         // Beat ticks + downbeat grid are drawn live in BlitOperation so they
         // keep scrolling even when this baked body is empty (all stems muted).
