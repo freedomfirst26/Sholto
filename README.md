@@ -11,9 +11,14 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 ## What it does
 
 ### Your library
-- Finds every track in your music folder — mp3, wav, flac, ogg, m4a, and more — and reads the artist, title, and other tags automatically.
+- Finds every track in your music folder — **mp3, FLAC, WAV, and AIFF** — and reads the artist, title, and other tags automatically.
 - Shows everything in a sortable list: **Artist · Track · BPM · Key · Time**.
 - Analyses each track once and remembers the result, so it's instant every time after.
+
+### Finding and organising
+- **Search** — press the spacebar and type. Sholto searches your **tracks, crates, and tags** all at once and shows the top few matches of each, so you can see everything you can jump to.
+- **Tags** — label any track with words that matter to you ("peak time", "vocal", "drum & bass"), then filter the whole library down to a tag in one click.
+- **Crates** — group tracks into crates (like playlists or record boxes) and jump to a crate's contents instantly. An **All Tracks** crate always holds everything; press **Esc** to get back to it.
 
 ### Reading your tracks
 - **Automatic beat and tempo detection** — Sholto finds the BPM and marks the downbeats so your beatgrid lines up.
@@ -39,8 +44,9 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 - **A range of colour themes** to switch between in Settings.
 
 ### Handy moves
-- **Tap the BPM** on a deck to halve or double it — fixes the common case where a slow track gets read as twice its real speed. Tap again to flip back; it's remembered per track.
-- **Hold the browse knob** on a highlighted track for about a second to re-analyse it from scratch — a rescue for the odd track whose beats came out wrong.
+- **Fine-tune the beatgrid** — click the BPM on a deck to open a little tuner: nudge the tempo up or down and slide the grid left or right until it lines up with the kicks. There's a one-tap **½ / ×2** for the common case where a slow track is read at twice its real speed, and a reset back to the detected values. Every adjustment is remembered per track.
+- **Drop markers** — press **M** to mark the spot you're at on the playing deck so you can find it again.
+- **Re-analyse a track** — double-click it (or hold the browse knob on it for about a second) to analyse from scratch — a rescue for the odd track whose beats came out wrong.
 
 ## Your DDJ-FLX4
 - **Play / pause** and **jog wheels** (top platter to scrub fast, the side ring for fine nudges) on each deck.
@@ -53,8 +59,14 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 Adding support for another controller is straightforward — Sholto keeps each device's button layout in one place.
 
 ### Keyboard
-- **Space** plays/pauses Deck 1; hold **Shift** for Deck 2.
-- **← / →** jump ±10 seconds on Deck 1; hold **Shift** for Deck 2.
+- **Space** — open search (type to find tracks, crates, and tags).
+- **↑ / ↓** — move up and down the track list.
+- **1 / 2** — load the highlighted track onto Deck 1 or Deck 2.
+- **Enter** — open the actions menu for the highlighted track (tag it, add it to a crate, or load it).
+- **P** — play / pause Deck 1; hold **Shift** for Deck 2.
+- **G** — open the beatgrid / tempo tuner on the playing deck; then **↑ / ↓** change the tempo and **← / →** nudge the grid.
+- **M** — drop a marker on the playing deck.
+- **Esc** — close a menu, or clear a tag/crate filter to go back to **All Tracks**.
 
 ## Install and run
 
@@ -69,15 +81,33 @@ dotnet run -c Release --project src/Sholto.App
 
 On startup Sholto scans your music folder. Click a track to load it onto Deck 1, or press LOAD 2 on the controller to load it onto Deck 2.
 
+### What it needs
+
+`install.sh` installs all of this for you on Ubuntu / Mint / Pop!_OS / Debian. On another distro, install the equivalents:
+
+**Required**
+- **.NET 10** — to build and run Sholto.
+- **ffmpeg** — decodes your audio for the beat detector.
+- **madmom** (the `madmom-onnx` build) — finds the beats and tempo. Sholto can't play a track until it has a beatgrid, so this one isn't optional.
+- A normal **Linux desktop** (X11 or Wayland) and a working **sound system** (PipeWire, PulseAudio, or ALSA).
+
+**Optional** — Sholto runs fine without these, you just lose that one feature:
+- **demucs** — stem separation (drums / vocals / bass / other). Without it, the stem chips and the hot-cue stem mutes are unavailable.
+- **allin1** — AI song-section detection (intro / build / drop / …). Without it, Sholto falls back to a simpler built-in guess.
+
+**Your controller** — a **Pioneer DDJ-FLX4** is picked up automatically when you plug it in; a green dot in the top bar means it's connected (red means reconnect the USB), and it reconnects on its own if it drops. You don't need one — everything works from the mouse and keyboard.
+
 ## License
 
 Dual-licensed — see [LICENSE](LICENSE):
 
-- **Individuals and noncommercial users**: free under the
-  [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
-  Fork it, modify it, gig with it, contribute back — all welcome.
-- **Commercial use** (products, hosted services, large-company internal
-  deployment): needs a paid commercial license. Open an
-  [issue](https://github.com/freedomfirst26/Sholto/issues) to arrange one.
+- **Individuals — free.** Use, modify, fork, and gig with Sholto for any
+  purpose, including paid DJ sets, under the
+  [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
+  plus a free individual-use grant from the author.
+- **Businesses & commercial use — paid.** Any use by an organization, or
+  bundling Sholto into a product or hosted service, needs a paid commercial
+  license — any size. Open an [issue](https://github.com/freedomfirst26/Sholto/issues)
+  to arrange one.
 
-Small businesses under $1M a year can use Sholto internally under the free terms. The goal is to keep Sholto free for individuals and small shops while asking large companies to chip in.
+The goal is to keep Sholto free for individuals while asking businesses to chip in. Contributions are welcome under the same dual terms (see LICENSE) so they can ship in both editions.

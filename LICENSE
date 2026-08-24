@@ -2,27 +2,32 @@
 
 Copyright (c) 2026 Sebastian Patten
 
-Sholto is dual-licensed:
+Sholto is dual-licensed. Pick the track that fits you:
 
-1. **Noncommercial use** — Free, under the PolyForm Noncommercial License 1.0.0
-   (text below). Individuals are welcome to use, modify, fork, and contribute.
-2. **Commercial use** — Requires a paid commercial license. Open an issue at
-   <https://github.com/sebastianpatten/Sholto/issues> to arrange.
+1. **Individuals — free.** Sholto is offered to natural persons under the
+   PolyForm Noncommercial License 1.0.0 (full text below); in addition, the
+   copyright holder grants every individual a free licence to use Sholto for
+   **any** purpose, including performing paid DJ gigs with it. Hobbyists,
+   students, researchers, and freelance or working DJs are all covered. You may
+   use, modify, and fork Sholto under these terms.
 
-"Commercial use" here means any use whose primary purpose is to generate
-revenue or other commercial advantage for an organization. Use by an
-individual person — including freelance DJs performing paid gigs with
-Sholto, hobbyists, students, and researchers — is **not** considered
-commercial use and remains free under the PolyForm terms below.
+2. **Organizations / commercial use — paid.** Any use by or on behalf of a
+   company or other organization, and any distribution of Sholto as part of a
+   commercial product or hosted service, requires a paid commercial licence —
+   **regardless of the organization's size**. To arrange one, open an issue at
+   <https://github.com/freedomfirst26/Sholto/issues>.
 
-A small business (under $1M USD annual revenue) deploying Sholto internally
-also remains free under the PolyForm terms, but distribution of Sholto as
-part of a commercial product or hosted service requires the commercial
-license.
+If you're unsure which track applies, reach out before using Sholto in a
+business setting — the goal is to keep it free for individuals while asking
+businesses to contribute back.
 
-If unsure whether your use is permitted under the noncommercial license,
-please reach out — the goal is to keep Sholto free for individuals while
-asking large companies to contribute back.
+## Contributing
+
+Because Sholto is dual-licensed, contributions must be usable in both the free
+and the commercial licence. By submitting a pull request you agree that your
+contribution is provided under these same dual terms and may be included by the
+copyright holder in commercially-licensed distributions of Sholto. (A short
+Contributor Licence Agreement may be requested for substantial contributions.)
 
 ---
 

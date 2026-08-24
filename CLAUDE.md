@@ -136,6 +136,23 @@ Demucs (stems), allin1 (structure). Absence degrades gracefully.
 - **Do NOT `git push`** unless explicitly told to in the current turn. Commit only when
   asked.
 
+## Keep the README in sync
+
+`README.md` is the user-facing feature list and dependency list, written for a
+**non-technical Linux user**. Treat it as part of the change, not an afterthought:
+
+- **Added or changed a user-facing feature?** Add/adjust its bullet in the right
+  "What it does" subsection (and the **Keyboard** / **Your DDJ-FLX4** lists if it
+  has a shortcut or control), in plain language a layman understands.
+- **Added a new external dependency** — a system package, a CLI tool the app shells
+  out to, or a runtime the user must install? Add it to the README's
+  **What it needs** list, marked **required** or **optional** (state what's lost
+  without it), *and* to `install.sh`.
+
+Do it in the same commit that adds the feature/dependency. Don't overclaim —
+only list formats/features that actually work (e.g. the decoder strategies in
+`Sholto.Audio` define which audio formats are really supported).
+
 ## Working docs
 
 Living plan/spec for this app: `~/Projects/sholto.md` (single file — append, don't
