@@ -116,6 +116,19 @@ public sealed class TagService
         TagsChanged?.Invoke(this, new TagsChangedEventArgs(trackId, newCount));
     }
 
+    /// <summary>The most-used tags, for the empty-query "here's what you can search
+    /// for" preview. Ordered by track count desc, then name.</summary>
+    public async Task<IReadOnlyList<TagSearchHit>> TopTagsAsync(int limit, CancellationToken ct)
+    {
+        await using var db = _factory.CreateDbContext();
+        return await db.Tags.AsNoTracking()
+            .OrderByDescending(t => t.TrackTags.Count)
+            .ThenBy(t => t.Name)
+            .Select(t => new TagSearchHit(t.Name, t.TrackTags.Count))
+            .Take(limit)
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<string>> AutocompleteAsync(string prefix, int limit, CancellationToken ct)
     {
         await using var db = _factory.CreateDbContext();

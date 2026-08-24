@@ -211,21 +211,14 @@ public sealed class SearchViewModel : INotifyPropertyChanged
 
     private async Task RefreshTagHitsAsync(int gen)
     {
+        if (_tagService is null) return;
         var q = _query;
-        if (_tagService is null || string.IsNullOrWhiteSpace(q))
-        {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (gen != _searchGen) return;
-                TagHits.Clear();
-                Notify(nameof(TagHits));
-                BuildItems();
-            });
-            return;
-        }
         try
         {
-            var hits = await _tagService.SearchTagsAsync(q, 10, default);
+            // Empty query = "what can I search for" browse → the most-used tags.
+            var hits = string.IsNullOrWhiteSpace(q)
+                ? await _tagService.TopTagsAsync(10, default)
+                : await _tagService.SearchTagsAsync(q, 10, default);
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (gen != _searchGen) return;
