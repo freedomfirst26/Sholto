@@ -1,25 +1,53 @@
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
-using NLayer.NAudioSupport;
+using SfEngine = SoundFlow.Abstracts.AudioEngine;
 
 namespace Sholto.Audio;
 
+/// <summary>
+/// Decodes an audio file into interleaved float PCM at <see cref="TargetSampleRate"/> /
+/// <see cref="TargetChannels"/> — the format both analysis and playback consume.
+///
+/// Decoding is delegated to a per-format <see cref="IAudioDecodeStrategy"/> because the
+/// formats need genuinely different decoders on Linux: MP3 via NLayer (NAudio's own MP3
+/// path uses MediaFoundation, which is absent), WAV/AIFF via NAudio's managed readers,
+/// and FLAC via SoundFlow/miniaudio (NAudio would route FLAC through the missing
+/// MediaFoundation too). Each strategy normalises to the same 48 kHz stereo float array.
+/// </summary>
 public static class AudioFileDecoder
 {
     // Match AudioEngine output rate so SoundFlow doesn't have to resample on
-     // playback — a rate mismatch here makes the audio play at engineRate/sourceRate
-     // speed (e.g. 48000/44100 = 8.8% too fast).
+    // playback — a rate mismatch here makes the audio play at engineRate/sourceRate
+    // speed (e.g. 48000/44100 = 8.8% too fast).
     public const int TargetSampleRate = 48000;
     public const int TargetChannels = 2;
 
+    /// <summary>The shared SoundFlow engine, needed by <see cref="FlacDecodeStrategy"/>
+    /// to decode via miniaudio. Set once when <see cref="AudioEngine"/> starts; FLAC
+    /// decoding before that throws with a clear message.</summary>
+    public static SfEngine? SoundFlowEngine;
+
+    private static readonly IAudioDecodeStrategy[] Strategies =
+    [
+        new Mp3DecodeStrategy(),
+        new FlacDecodeStrategy(),
+        new WavDecodeStrategy(),
+    ];
+
     public static float[] Decode(string filePath)
     {
-        // NAudio.AudioFileReader uses MediaFoundation on Linux which fails (no mfplat.dll).
-        // Use NLayer for MP3 explicitly, NAudio for WAV/AIFF.
-        WaveStream waveStream = filePath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
-            ? new Mp3FileReaderBase(filePath, fmt => new Mp3FrameDecompressor(fmt))
-            : new AudioFileReader(filePath);
+        string ext = Path.GetExtension(filePath).ToLowerInvariant();
+        var strategy = Array.Find(Strategies, s => s.CanDecode(ext))
+            ?? throw new NotSupportedException($"No decode strategy for '{ext}' ({filePath}).");
+        return strategy.Decode(filePath);
+    }
 
+    /// <summary>Shared tail for the NAudio-based strategies (MP3, WAV/AIFF): downmix
+    /// mono→stereo, resample to <see cref="TargetSampleRate"/>, and read the whole
+    /// stream into one float array. TotalTime is only an estimate on VBR sources, so
+    /// the buffer is padded and grown if the decoder overruns, then trimmed.</summary>
+    internal static float[] ReadNAudioToFloats(WaveStream waveStream)
+    {
         using (waveStream)
         {
             ISampleProvider provider = waveStream is ISampleProvider sp
@@ -32,10 +60,6 @@ public static class AudioFileDecoder
             if (provider.WaveFormat.SampleRate != TargetSampleRate)
                 provider = new WdlResamplingSampleProvider(provider, TargetSampleRate);
 
-            // Allocate the final array directly — no List<float> + spread copy. On a
-            // 4-minute stereo track this avoids a ~90 MB realloc + memcpy at the end.
-            // TotalTime is an estimate (sometimes off by a frame or two on VBR MP3),
-            // so we add a small safety pad and trim if Read stops short.
             long estimatedSamples = (long)(waveStream.TotalTime.TotalSeconds * TargetSampleRate * TargetChannels)
                                     + TargetSampleRate * TargetChannels; // +1 sec pad
             var samples = new float[estimatedSamples];
@@ -45,10 +69,7 @@ public static class AudioFileDecoder
             {
                 filled += read;
                 if (filled == samples.Length)
-                {
-                    // Decoder produced more than TotalTime advertised — grow geometrically.
                     Array.Resize(ref samples, samples.Length + samples.Length / 2);
-                }
             }
 
             if (filled != samples.Length) Array.Resize(ref samples, filled);

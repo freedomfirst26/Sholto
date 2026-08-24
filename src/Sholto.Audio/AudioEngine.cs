@@ -39,6 +39,7 @@ public sealed class AudioEngine : IAudioOutput
         _decks = decks;
         var miniEngine = new MiniAudioEngine();
         _engine = miniEngine;
+        AudioFileDecoder.SoundFlowEngine = miniEngine;   // FLAC decode uses miniaudio via this engine
         Console.WriteLine($"[AudioEngine] active backend: {miniEngine.ActiveBackend}; decks={decks.Length}");
         foreach (var deck in _decks) deck.AttachEngine(_engine, DeckFormat);
     }
