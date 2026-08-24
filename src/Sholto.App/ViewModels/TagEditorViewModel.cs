@@ -136,9 +136,11 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
 
     private async Task RefreshSuggestionsAsync()
     {
+        const int maxSuggestions = 5;
         var prefix = _input.Trim();
         var hits = await _service.AutocompleteAsync(prefix, 10, default);
-        var picked = hits.Where(h => !Chips.Contains(h, StringComparer.OrdinalIgnoreCase)).ToList();
+        var picked = hits.Where(h => !Chips.Contains(h, StringComparer.OrdinalIgnoreCase))
+                         .Take(maxSuggestions).ToList();
         Suggestions.Clear();
         foreach (var h in picked) Suggestions.Add(h);
         SuggestionIndex = picked.Count > 0 ? 0 : -1;

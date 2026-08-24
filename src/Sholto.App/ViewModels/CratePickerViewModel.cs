@@ -64,7 +64,7 @@ public sealed class CratePickerViewModel : INotifyPropertyChanged
         {
             Options.Clear();
             if (canCreate) Options.Add(new CratePickerOption(true, $"➕  Create “{q}”", 0, 0));
-            foreach (var h in hits) Options.Add(new CratePickerOption(false, h.Name, h.Id, h.TrackCount));
+            foreach (var h in hits.Take(5)) Options.Add(new CratePickerOption(false, h.Name, h.Id, h.TrackCount));
             SelectedIndex = 0;
             Notify(nameof(Options));
         });

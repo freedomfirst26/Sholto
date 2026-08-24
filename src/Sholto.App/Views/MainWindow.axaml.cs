@@ -116,7 +116,24 @@ public partial class MainWindow : Window
         // focus isn't actually on the InputBox yet.
         if (vm.IsTagEditorOpen)
         {
-            if (e.Key == Key.Escape) { vm.TagEditor?.Close(); e.Handled = true; }
+            // Own navigation/commit here so it works regardless of focus — the tag
+            // editor is shown by toggling a parent Panel's IsVisible, so the InputBox
+            // doesn't reliably receive focus and can't be relied on to catch keys.
+            // Letters fall through to the focused InputBox for typing.
+            var te = vm.TagEditor;
+            if (te is not null)
+            {
+                switch (e.Key)
+                {
+                    case Key.Escape: te.Close();                    e.Handled = true; break;
+                    case Key.Enter:  _ = te.CommitAndCloseAsync();  e.Handled = true; break;
+                    case Key.Tab:    _ = te.CommitAsync();          e.Handled = true; break;
+                    case Key.Down:   te.MoveSuggestion(+1);         e.Handled = true; break;
+                    case Key.Up:     te.MoveSuggestion(-1);         e.Handled = true; break;
+                    case Key.Back when string.IsNullOrEmpty(te.Input):
+                                     _ = te.RemoveLastChipAsync();  e.Handled = true; break;
+                }
+            }
             return;
         }
 
@@ -203,6 +220,14 @@ public partial class MainWindow : Window
                 {
                     vm.Deck1.CloseEdit();
                     vm.Deck2.CloseEdit();
+                    e.Handled = true;
+                    return;
+                }
+                // Otherwise Escape clears an active crate/tag filter, returning the
+                // library to the full "All Songs" view.
+                if (vm.Library.ActiveTagFilter is not null)
+                {
+                    vm.Library.ClearTagFilter();
                     e.Handled = true;
                     return;
                 }
