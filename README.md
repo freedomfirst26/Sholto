@@ -70,6 +70,21 @@ Adding support for another controller is straightforward — Sholto keeps each d
 
 ## Install and run
 
+Two ways to get Sholto — grab a ready-made binary, or build it yourself.
+
+### Option 1 — download a prebuilt binary (easiest)
+
+Download the latest `sholto-*-linux-x64.tar.gz` from the [**Releases**](https://github.com/freedomfirst26/Sholto/releases) page, then:
+
+```bash
+tar -xzf sholto-*-linux-x64.tar.gz
+./Sholto.App
+```
+
+The binary is **self-contained — you don't need .NET installed.** You do still need **ffmpeg** and **madmom** for beat analysis (see *What it needs* below); the quickest way to get just those is `sudo apt install ffmpeg` and `uv tool install madmom-onnx`.
+
+### Option 2 — build from source
+
 ```bash
 git clone https://github.com/freedomfirst26/Sholto.git
 cd Sholto
@@ -77,7 +92,7 @@ bash install.sh
 dotnet run -c Release --project src/Sholto.App
 ```
 
-`install.sh` sets up everything Sholto needs and is safe to re-run. It works on modern Ubuntu, Mint, Pop!_OS, and Debian.
+`install.sh` sets up everything Sholto needs — including .NET and all the tools below — and is safe to re-run. It works on modern Ubuntu, Mint, Pop!_OS, and Debian.
 
 On startup Sholto scans your music folder. Click a track to load it onto Deck 1, or press LOAD 2 on the controller to load it onto Deck 2.
 
