@@ -1,6 +1,9 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Media.Imaging;
+using SkiaSharp;
 using Avalonia.Controls.Selection;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -17,6 +20,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Icon = BuildAppIcon();   // tri-colour RGB "S" on a rounded plate — matches the library watermark
         // Intercept keys before child controls (ListBox would otherwise eat arrows).
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
 
@@ -26,6 +30,49 @@ public partial class MainWindow : Window
         {
             if (DataContext is MainViewModel vm) ApplyThemeToResources(vm.Theme);
         };
+    }
+
+    /// <summary>Rasterise the Sholto brand mark for the window / taskbar / alt-tab
+    /// icon: a rounded-square plate with three offset "S" glyphs (blue/green/red,
+    /// screen-blended) — the same RGB-split S as the Media Library watermark.</summary>
+    private static WindowIcon BuildAppIcon()
+    {
+        const int size = 256;
+        using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul));
+        var canvas = surface.Canvas;
+        canvas.Clear(SKColors.Transparent);
+
+        // Rounded-square plate (Tokyo Night surface).
+        using (var plate = new SKPaint { Color = new SKColor(0x0F, 0x17, 0x2A), IsAntialias = true })
+            canvas.DrawRoundRect(new SKRect(0, 0, size, size), 56, 56, plate);
+
+        using var tf = SKTypeface.FromFamilyName("Inter",
+                           SKFontStyleWeight.ExtraBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
+                       ?? SKTypeface.FromFamilyName("Arial",
+                           SKFontStyleWeight.ExtraBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
+                       ?? SKTypeface.Default;
+        using var font = new SKFont(tf, 220);
+        using var blob = SKTextBlob.Create("S", font);
+        var b = blob!.Bounds;
+        float baseX = size / 2f - (b.Left + b.Width / 2f);   // centre the glyph in the plate
+        float baseY = size / 2f - (b.Top + b.Height / 2f);
+
+        void DrawS(float dx, float dy, SKColor c)
+        {
+            using var p = new SKPaint { Color = c, IsAntialias = true, BlendMode = SKBlendMode.Screen };
+            canvas.DrawText(blob, baseX + dx, baseY + dy, p);
+        }
+        // Offsets mirror sholto-icon.svg: blue back (up-left), green anchor, red front (down-right).
+        DrawS(-12, 8, new SKColor(0x3D, 0x8B, 0xFF));   // drums – blue
+        DrawS(0, 0, new SKColor(0x34, 0xF0, 0x6F));     // vocals – green
+        DrawS(12, -8, new SKColor(0xFF, 0x4E, 0x5E));   // instrumental – red
+
+        using var img = surface.Snapshot();
+        using var data = img.Encode(SKEncodedImageFormat.Png, 100);
+        var ms = new MemoryStream();
+        data.SaveTo(ms);
+        ms.Position = 0;
+        return new WindowIcon(new Bitmap(ms));
     }
 
     /// <summary>
