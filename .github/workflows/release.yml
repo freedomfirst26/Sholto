@@ -1,0 +1,57 @@
+name: Release
+
+# Build a self-contained binary and attach it to a GitHub Release whenever a
+# version tag is pushed:
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write        # needed to create the Release and upload assets
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Self-contained builds cross-publish fine from Linux, so more RIDs can
+        # be added here later without extra runners:
+        #   win-x64, linux-arm64, osx-arm64  (each becomes its own release asset).
+        rid: [linux-x64]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Optional: reuse NuGet packages across runs to speed the build up.
+      - uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Publish self-contained single file
+        run: |
+          dotnet publish src/Sholto.App/Sholto.App.csproj \
+            -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o dist
+
+      - name: Package
+        run: |
+          cp README.md LICENSE dist/
+          rm -f dist/*.pdb
+          tar -C dist -czf sholto-${{ github.ref_name }}-${{ matrix.rid }}.tar.gz .
+
+      - name: Attach to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sholto-${{ github.ref_name }}-${{ matrix.rid }}.tar.gz
+          generate_release_notes: true
