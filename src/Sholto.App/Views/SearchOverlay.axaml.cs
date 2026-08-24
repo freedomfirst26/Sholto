@@ -106,6 +106,9 @@ public partial class SearchOverlay : UserControl
                 _ = vm.LoadSelectedToDeckAsync(vm.LoadTargetDeck);
                 vm.IsSearchOpen = false;
                 break;
+            case Sholto.Storage.TagSearchHit tag:
+                vm.Search.PickTag(tag.Name); // handler filters the library + closes
+                break;
         }
     }
 
@@ -113,16 +116,6 @@ public partial class SearchOverlay : UserControl
     {
         if (DataContext is MainViewModel vm) Activate(vm);
         e.Handled = true;
-    }
-
-    private void OnTagChipPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (DataContext is not ViewModels.MainViewModel vm) return;
-        if (sender is Avalonia.Controls.Control { Tag: string name })
-        {
-            e.Handled = true;
-            vm.Search.PickTag(name);
-        }
     }
 
     private static void CommitSelection(MainViewModel vm)

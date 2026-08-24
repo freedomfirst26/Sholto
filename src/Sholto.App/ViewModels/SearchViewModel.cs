@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Sholto.Music;
 
@@ -24,13 +25,13 @@ public sealed class SearchViewModel : INotifyPropertyChanged
     public void SetTagService(Sholto.Storage.TagService service)
     {
         _tagService = service;
-        _ = RefreshTagHitsAsync();
+        _ = RefreshTagHitsAsync(_searchGen);
     }
 
     public void SetCrateService(Sholto.Storage.CrateService service)
     {
         _crateService = service;
-        _ = RefreshCrateHitsAsync();
+        _ = RefreshCrateHitsAsync(_searchGen);
     }
 
     public ObservableCollection<Sholto.Storage.TagSearchHit> TagHits { get; } = new();
@@ -108,18 +109,27 @@ public sealed class SearchViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Max rows shown per section (crates / tracks / tags) so the overlay
+    /// stays a quick picker, not a full listing.</summary>
+    private const int PerSectionLimit = 3;
+
     private void BuildItems()
     {
         Items.Clear();
         if (CrateHits.Count > 0)
         {
             Items.Add(new SearchHeader("📦  CRATES"));
-            foreach (var c in CrateHits) Items.Add(c);
+            foreach (var c in CrateHits.Take(PerSectionLimit)) Items.Add(c);
         }
         if (Results.Count > 0)
         {
             Items.Add(new SearchHeader("🎵  TRACKS"));
-            foreach (var r in Results) Items.Add(r);
+            foreach (var r in Results.Take(PerSectionLimit)) Items.Add(r);
+        }
+        if (TagHits.Count > 0)
+        {
+            Items.Add(new SearchHeader("🏷  TAGS"));
+            foreach (var t in TagHits.Take(PerSectionLimit)) Items.Add(t);
         }
         // Land the highlight on the first real (non-header) row.
         _selectedIndex = -1;
@@ -135,36 +145,61 @@ public sealed class SearchViewModel : INotifyPropertyChanged
         SelectedIndex = 0;
     }
 
+    /// <summary>Bumped on every query change; each of the three searches captures it
+    /// and only applies its results if still current — so fast typing can't paint
+    /// stale hits out of order.</summary>
+    private int _searchGen;
+
     private void Recompute()
     {
-        var q = _query;
-        // Match each row against artist + title + its TAGS, so a query like "techno"
-        // surfaces tracks tagged techno even if the word isn't in the title/artist.
-        // Linear over the library (O(thousands)); cheap enough on the UI thread.
-        Results.Clear();
-        foreach (var row in _all)
-        {
-            var haystack = row.Tags.Count == 0
-                ? $"{row.Artist} {row.Title}"
-                : $"{row.Artist} {row.Title} {string.Join(' ', row.Tags)}";
-            if (LibrarySearch.Matches(q, haystack))
-                Results.Add(row);
-        }
-
-        Notify(nameof(Results));
-        BuildItems();
-        _ = RefreshTagHitsAsync();
-        _ = RefreshCrateHitsAsync();
+        // Fan the three collections out concurrently: tracks (in-memory, on a
+        // background thread so a big library doesn't stutter the UI), tags and
+        // crates (async DB queries). Each applies on the UI thread, guarded by the
+        // generation token.
+        int gen = ++_searchGen;
+        var snapshot = _all.ToArray();   // snapshot on the UI thread for safe off-thread iteration
+        _ = SearchTracksAsync(_query, gen, snapshot);
+        _ = RefreshTagHitsAsync(gen);
+        _ = RefreshCrateHitsAsync(gen);
     }
 
-    private async Task RefreshCrateHitsAsync()
+    private async Task SearchTracksAsync(string q, int gen, TrackRow[] snapshot)
+    {
+        // Match each row against artist + title + its TAGS, so "techno" surfaces
+        // tracks tagged techno even when the word isn't in the title/artist.
+        var matched = await Task.Run(() =>
+        {
+            var list = new List<TrackRow>();
+            foreach (var row in snapshot)
+            {
+                var haystack = row.Tags.Count == 0
+                    ? $"{row.Artist} {row.Title}"
+                    : $"{row.Artist} {row.Title} {string.Join(' ', row.Tags)}";
+                if (LibrarySearch.Matches(q, haystack)) list.Add(row);
+            }
+            return list;
+        });
+
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (gen != _searchGen) return;   // a newer query superseded this one
+            Results.Clear();
+            foreach (var r in matched) Results.Add(r);
+            Notify(nameof(Results));
+            BuildItems();
+        });
+    }
+
+    private async Task RefreshCrateHitsAsync(int gen)
     {
         if (_crateService is null) return;
+        var q = _query;
         try
         {
-            var hits = await _crateService.SearchAsync(_query);
+            var hits = await _crateService.SearchAsync(q);
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
+                if (gen != _searchGen) return;
                 CrateHits.Clear();
                 foreach (var h in hits) CrateHits.Add(h);
                 Notify(nameof(CrateHits));
@@ -174,25 +209,36 @@ public sealed class SearchViewModel : INotifyPropertyChanged
         catch (Exception ex) { Console.WriteLine($"[Search] crate search failed: {ex.Message}"); }
     }
 
-    private async Task RefreshTagHitsAsync()
+    private async Task RefreshTagHitsAsync(int gen)
     {
-        TagHits.Clear();
         var q = _query;
         if (_tagService is null || string.IsNullOrWhiteSpace(q))
         {
-            Notify(nameof(TagHits));
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (gen != _searchGen) return;
+                TagHits.Clear();
+                Notify(nameof(TagHits));
+                BuildItems();
+            });
             return;
         }
         try
         {
             var hits = await _tagService.SearchTagsAsync(q, 10, default);
-            foreach (var h in hits) TagHits.Add(h);
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (gen != _searchGen) return;
+                TagHits.Clear();
+                foreach (var h in hits) TagHits.Add(h);
+                Notify(nameof(TagHits));
+                BuildItems();   // fold the TAGS section into the visible list
+            });
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Search] tag search failed: {ex.Message}");
         }
-        Notify(nameof(TagHits));
     }
 
     private void Notify([CallerMemberName] string? name = null) =>

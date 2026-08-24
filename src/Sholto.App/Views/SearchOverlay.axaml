@@ -116,41 +116,27 @@
                                         </Border>
                                     </Grid>
                                 </DataTemplate>
+                                <!-- Tag row -->
+                                <DataTemplate DataType="storage:TagSearchHit">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,5">
+                                        <TextBlock Grid.Column="0" Text="🏷" FontSize="15"
+                                                   Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SholtoTextBright}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding TrackCount}"
+                                                   Foreground="{DynamicResource SholtoTextMuted}"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
                             </ListBox.DataTemplates>
                         </ListBox>
-
-                        <TextBlock Text="TAGS"
-                                   Foreground="{DynamicResource SholtoTextMuted}"
-                                   FontWeight="Bold" FontSize="11"
-                                   Margin="20,12,20,4"
-                                   IsVisible="{Binding Search.TagHits.Count}"/>
-
-                        <ItemsControl ItemsSource="{Binding Search.TagHits}" Padding="12,0,12,8">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{DynamicResource TagChipBackground}"
-                                            CornerRadius="3" Padding="8,3"
-                                            Margin="6,2"
-                                            Cursor="Hand"
-                                            PointerPressed="OnTagChipPressed"
-                                            Tag="{Binding Name}">
-                                        <TextBlock Foreground="{DynamicResource TagChipForeground}"
-                                                   FontSize="12">
-                                            <Run Text="{Binding Name}"/>
-                                            <Run Text=" ("/><Run Text="{Binding TrackCount}"/><Run Text=")"/>
-                                        </TextBlock>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
 
                 <!-- Keyboard hint footer -->
-                <TextBlock Grid.Row="3" Text="↑↓ move · ←→ deck · Enter load / open crate · Esc close"
+                <TextBlock Grid.Row="3" Text="↑↓ move · ←→ deck · Enter load track / open crate / filter tag · Esc close"
                            FontSize="11" Foreground="{DynamicResource SholtoTextMuted}"
                            Margin="20,8,20,12"/>
             </Grid>
