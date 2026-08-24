@@ -81,7 +81,13 @@ tar -xzf sholto-*-linux-x64.tar.gz
 ./Sholto.App
 ```
 
-The binary is **self-contained — you don't need .NET installed.** You do still need **ffmpeg** and **madmom** for beat analysis (see *What it needs* below); the quickest way to get just those is `sudo apt install ffmpeg` and `uv tool install madmom-onnx`.
+The binary is **self-contained — you don't need .NET installed.** You do still need a few runtime tools (ffmpeg, madmom, and a couple of system libraries — see *What it needs* below). Install just those, no .NET SDK and no build, with the bundled dependency script:
+
+```bash
+bash install-deps.sh
+```
+
+(It's included in the download, and also in the repo. It installs ffmpeg, the `libpulse.so` symlink the audio engine needs, uv, and madmom — plus optional demucs/allin1.)
 
 ### Option 2 — build from source
 
