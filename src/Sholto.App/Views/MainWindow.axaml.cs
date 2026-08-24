@@ -51,16 +51,25 @@ public partial class MainWindow : Window
                        ?? SKTypeface.FromFamilyName("Arial",
                            SKFontStyleWeight.ExtraBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
                        ?? SKTypeface.Default;
-        using var font = new SKFont(tf, 220);
-        using var blob = SKTextBlob.Create("S", font);
-        var b = blob!.Bounds;
-        float baseX = size / 2f - (b.Left + b.Width / 2f);   // centre the glyph in the plate
-        float baseY = size / 2f - (b.Top + b.Height / 2f);
+        // Measure the glyph's TIGHT bounds (SKTextBlob.Bounds is a loose, inflated
+        // box that threw the centring way off), then draw with TextAlign.Center so
+        // the horizontal centre is just cx and only the vertical offset needs the
+        // bounds.
+        const float textSize = 220;
+        var bounds = new SKRect();
+        using (var probe = new SKPaint { Typeface = tf, TextSize = textSize, IsAntialias = true })
+            probe.MeasureText("S", ref bounds);
+        float cx = size / 2f;
+        float baseY = size / 2f - bounds.MidY;   // bounds are baseline-relative → centre vertically
 
         void DrawS(float dx, float dy, SKColor c)
         {
-            using var p = new SKPaint { Color = c, IsAntialias = true, BlendMode = SKBlendMode.Screen };
-            canvas.DrawText(blob, baseX + dx, baseY + dy, p);
+            using var p = new SKPaint
+            {
+                Typeface = tf, TextSize = textSize, IsAntialias = true,
+                TextAlign = SKTextAlign.Center, Color = c, BlendMode = SKBlendMode.Screen,
+            };
+            canvas.DrawText("S", cx + dx, baseY + dy, p);
         }
         // Offsets mirror sholto-icon.svg: blue back (up-left), green anchor, red front (down-right).
         DrawS(-12, 8, new SKColor(0x3D, 0x8B, 0xFF));   // drums – blue
