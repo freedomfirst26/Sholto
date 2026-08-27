@@ -196,6 +196,7 @@ public sealed class Deck
         // new track's saved adjustment (if any) is re-applied by the load path
         // via ApplyGridAdjustment once its detection lands.
         _detectedBasic = null;
+        _detectedFitBpm = null;
         _bpmOverride = null;
         _offsetSec = 0.0;
         SetGridNudged(false);
@@ -876,8 +877,12 @@ public sealed class Deck
     // provider) is treated as IMMUTABLE — we keep it in _detectedBasic and
     // never overwrite it. The grid the user actually sees is REGENERATED
     // from (effective BPM, effective anchor) where:
-    //     effective BPM    = _bpmOverride ?? detected BPM
-    //     effective anchor = detected first downbeat + _offsetSec
+    //     effective BPM    = _bpmOverride ?? fitted BPM ?? detected BPM
+    //     effective anchor = detected grid anchor + _offsetSec
+    // "detected BPM" / "detected grid anchor" are themselves a least-squares
+    // fit through ALL of madmom's raw beats (Beatgrid.FitGrid), not just the
+    // reported Bpm + DownbeatTimes[0] — see SetDetectedBasic. That fit falls
+    // back to (reported Bpm, first downbeat) when the fit can't be trusted.
     // The pair (_bpmOverride, _offsetSec) is the entire manual correction —
     // tiny, nullable, persisted per-track via GridAdjustmentPut, and
     // reloaded on the next load. Null override + zero offset = pristine
@@ -886,10 +891,11 @@ public sealed class Deck
     // drift out of sync the way piecemeal array edits could.
 
     private BasicAnalysis? _detectedBasic;  // immutable madmom detection
-    private double? _bpmOverride;            // null = use detected BPM
+    private double? _bpmOverride;            // null = use detected (fitted) BPM
     private double _offsetSec;               // phase shift applied to the whole grid
     private int _detectedBeatsPerBar = 4;
-    private double _detectedAnchorSec;       // detected first-downbeat phase reference
+    private double _detectedAnchorSec;       // detected grid phase reference (fitted, or first downbeat on fallback)
+    private double? _detectedFitBpm;         // least-squares fitted BPM; null = fell back to detected.Bpm
 
     /// <summary>Persist the manual grid correction (bpmOverride, offsetSec)
     /// for the current track. Wired in App.axaml.cs to
@@ -911,7 +917,36 @@ public sealed class Deck
     {
         _detectedBasic = basic;
         _detectedBeatsPerBar = InferBeatsPerBar(basic);
-        _detectedAnchorSec = basic.DownbeatTimes.Length > 0 ? basic.DownbeatTimes[0] : 0.0;
+
+        // Fit a constant-spacing grid through ALL of madmom's raw beats rather
+        // than trusting just the reported BPM + first downbeat — a reported
+        // BPM off by a few hundredths drifts a rigid grid visibly off the
+        // kicks by the end of a track. Falls back to (reported BPM, first
+        // downbeat) when there's too little data or the track isn't constant
+        // tempo. This fit result — not detected.Bpm — becomes the default;
+        // detected.Bpm in _detectedBasic is never touched.
+        double firstDownbeat = basic.DownbeatTimes.Length > 0 ? basic.DownbeatTimes[0] : 0.0;
+        if (basic.DownbeatTimes.Length > 0)
+        {
+            var fit = Beatgrid.FitGrid(basic.BeatTimes, basic.Bpm, firstDownbeat);
+            Console.WriteLine($"[Deck] grid fit: {(fit.UsedFit ? "used" : "fell back")} — {fit.Reason}");
+            if (fit.UsedFit)
+            {
+                _detectedFitBpm = fit.Bpm;
+                _detectedAnchorSec = fit.AnchorSec;
+            }
+            else
+            {
+                _detectedFitBpm = null;
+                _detectedAnchorSec = firstDownbeat;
+            }
+        }
+        else
+        {
+            Console.WriteLine("[Deck] grid fit: fell back — no detected downbeats");
+            _detectedFitBpm = null;
+            _detectedAnchorSec = firstDownbeat;
+        }
 
         // Publish the pristine detection immediately so the grid appears with
         // no perceptible delay, then apply any saved correction once the
@@ -968,7 +1003,7 @@ public sealed class Deck
         var detected = _detectedBasic;
         if (detected is null || detected.Bpm <= 0) return;
 
-        double bpm = _bpmOverride ?? detected.Bpm;
+        double bpm = _bpmOverride ?? _detectedFitBpm ?? detected.Bpm;
         double anchor = _detectedAnchorSec + _offsetSec;
         double durationSec = _sampleCount / (double)AudioFileDecoder.TargetSampleRate;
         if (durationSec <= 0) durationSec = detected.BeatTimes.Length > 0 ? detected.BeatTimes[^1] + 1 : 1;
@@ -993,10 +1028,11 @@ public sealed class Deck
     {
         var detected = _detectedBasic;
         if (detected is null || detected.Bpm <= 0) return;
-        double current = _bpmOverride ?? detected.Bpm;
+        double detectedBpm = _detectedFitBpm ?? detected.Bpm;
+        double current = _bpmOverride ?? detectedBpm;
         double next = Math.Clamp(current + deltaBpm, 20.0, 400.0);
-        // Snapping back to exactly the detected BPM clears the override (null).
-        _bpmOverride = Math.Abs(next - detected.Bpm) < 1e-6 ? null : next;
+        // Snapping back to exactly the detected (fitted) BPM clears the override (null).
+        _bpmOverride = Math.Abs(next - detectedBpm) < 1e-6 ? null : next;
         RegenerateGrid();
         AfterAdjustment();
         Console.WriteLine($"[Deck] BPM {(_bpmOverride is null ? "→ detected" : $"override → {_bpmOverride:F2}")} (Δ{deltaBpm:+0.00;-0.00})");
@@ -1009,7 +1045,7 @@ public sealed class Deck
     {
         var detected = _detectedBasic;
         if (detected is null) return;
-        double bpm = _bpmOverride ?? detected.Bpm;
+        double bpm = _bpmOverride ?? _detectedFitBpm ?? detected.Bpm;
         if (bpm <= 0) return;
         double delta = beats * 60.0 / bpm;
         ShiftLoop(delta);
@@ -1047,7 +1083,8 @@ public sealed class Deck
         double span = tB - tA;
         if (span < 0.5) { Console.WriteLine("[Deck] two-point: points too close — ignored"); return; }
 
-        double curBpm = _bpmOverride ?? detected.Bpm;
+        double detectedBpm = _detectedFitBpm ?? detected.Bpm;
+        double curBpm = _bpmOverride ?? detectedBpm;
         if (curBpm <= 0) return;
         double barPeriodCur = (60.0 / curBpm) * _detectedBeatsPerBar;
         int bars = Math.Max(1, (int)Math.Round(span / barPeriodCur));
@@ -1055,7 +1092,7 @@ public sealed class Deck
         double newBeatPeriod = (span / bars) / _detectedBeatsPerBar;
         double newBpm = Math.Clamp(60.0 / newBeatPeriod, 20.0, 400.0);
 
-        _bpmOverride = Math.Abs(newBpm - detected.Bpm) < 1e-6 ? null : newBpm;
+        _bpmOverride = Math.Abs(newBpm - detectedBpm) < 1e-6 ? null : newBpm;
         _offsetSec = tA - _detectedAnchorSec;   // make tA a downbeat
         RegenerateGrid();
         AfterAdjustment();

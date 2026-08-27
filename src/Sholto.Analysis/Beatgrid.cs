@@ -141,6 +141,93 @@ public static class Beatgrid
     /// <summary>Number of opening downbeats used to anchor the grid phase.</summary>
     private const int AnchorWindowBars = 16;
 
+    /// <summary>Result of <see cref="FitGrid"/>. When <see cref="UsedFit"/> is
+    /// false, the caller should ignore Bpm/AnchorSec/ResidualRmsMs and fall
+    /// back to (reported BPM, first detected downbeat) as before.</summary>
+    public readonly record struct GridFitResult(
+        bool UsedFit, double Bpm, double AnchorSec, double ResidualRmsMs, string Reason);
+
+    /// <summary>Minimum beat count required to trust a least-squares fit over
+    /// the reported BPM.</summary>
+    private const int MinFitBeats = 8;
+
+    /// <summary>Fitted period may not differ from the reported 60/Bpm period
+    /// by more than this fraction, else the fit is treated as bogus (wrong
+    /// beat/half-beat lock, octave error, etc).</summary>
+    private const double MaxPeriodRelError = 0.05;
+
+    /// <summary>Residual RMS above this means the track isn't constant-tempo
+    /// (or beats are too noisy) — a rigid grid would be wrong, so fall back.</summary>
+    private const double MaxResidualRmsSec = 0.025;
+
+    /// <summary>Least-squares fit a constant-spacing grid t(n) = anchor + n*period
+    /// through every raw beat detection, rather than trusting just the reported
+    /// BPM + first downbeat. A single reported BPM that's off by a few hundredths
+    /// (175.0 vs a true 175.04) makes a rigid synthesized grid drift visibly off
+    /// the kicks by the end of a track; regressing through all of madmom's beats
+    /// finds the period that actually matches what was detected. The fitted
+    /// anchor's phase is then snapped to the nearest fitted-grid line to the
+    /// first detected downbeat, so bar 1 still lands on a real downbeat.
+    /// Falls back (UsedFit = false) when there isn't enough data, the fit
+    /// disagrees too much with the reported BPM, or beats are too irregular
+    /// for a single constant tempo to make sense (variable-tempo track).</summary>
+    public static GridFitResult FitGrid(double[] beatTimes, double reportedBpm, double firstDownbeatSec)
+    {
+        int n = beatTimes.Length;
+        if (n < MinFitBeats)
+            return new GridFitResult(false, 0, 0, 0, $"too few beats ({n} < {MinFitBeats})");
+
+        // Simple linear regression of t[i] against index i.
+        double sumI = 0, sumT = 0, sumIT = 0, sumII = 0;
+        for (int i = 0; i < n; i++)
+        {
+            sumI += i;
+            sumT += beatTimes[i];
+            sumIT += i * beatTimes[i];
+            sumII += (double)i * i;
+        }
+        double denom = n * sumII - sumI * sumI;
+        if (denom <= 0)
+            return new GridFitResult(false, 0, 0, 0, "degenerate regression");
+
+        double period = (n * sumIT - sumI * sumT) / denom;
+        double anchor0 = (sumT - period * sumI) / n;
+        if (period <= 0)
+            return new GridFitResult(false, 0, 0, 0, $"non-positive fitted period ({period:F4}s)");
+
+        double sqErr = 0;
+        for (int i = 0; i < n; i++)
+        {
+            double resid = beatTimes[i] - (anchor0 + i * period);
+            sqErr += resid * resid;
+        }
+        double residualRmsSec = Math.Sqrt(sqErr / n);
+
+        double fittedBpm = 60.0 / period;
+
+        if (reportedBpm > 0)
+        {
+            double reportedPeriod = 60.0 / reportedBpm;
+            double relError = Math.Abs(period - reportedPeriod) / reportedPeriod;
+            if (relError > MaxPeriodRelError)
+                return new GridFitResult(false, fittedBpm, anchor0, residualRmsSec * 1000,
+                    $"fitted BPM {fittedBpm:F2} disagrees with reported {reportedBpm:F2} by {relError:P1}");
+        }
+
+        if (residualRmsSec > MaxResidualRmsSec)
+            return new GridFitResult(false, fittedBpm, anchor0, residualRmsSec * 1000,
+                $"residual RMS {residualRmsSec * 1000:F1}ms too irregular (variable tempo?)");
+
+        // Snap the fitted anchor's phase so bar 1 lands on the real first
+        // detected downbeat: shift by the whole number of beats that brings
+        // anchor0 nearest firstDownbeatSec, without touching the fitted period.
+        double k = Math.Round((firstDownbeatSec - anchor0) / period);
+        double anchor = anchor0 + k * period;
+
+        return new GridFitResult(true, fittedBpm, anchor, residualRmsSec * 1000,
+            $"fit ok, {fittedBpm:F2} BPM (reported {reportedBpm:F2}), RMS {residualRmsSec * 1000:F1}ms");
+    }
+
     private static double ComputeAnchor(double[] downbeats, double period)
     {
         if (downbeats.Length == 0) return 0;
