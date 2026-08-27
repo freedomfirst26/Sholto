@@ -21,6 +21,14 @@ public readonly record struct WaveformBandScaling(float RefLow, float RefMid, fl
     public (float Low, float Mid, float High) Normalize(float low, float mid, float high) =>
         (Clamp01(low / RefLow), Clamp01(mid / RefMid), Clamp01(high / RefHigh));
 
+    /// <summary>Absolute band heights against the shared broadband reference, with
+    /// NO per-band clamp — so a quiet section stays short and a loud transient can
+    /// exceed unity (the caller clamps the final silhouette to the deck). This is
+    /// what preserves dynamics: unlike <see cref="Normalize"/> it never lifts a band
+    /// to its own ceiling, so intros read short and drops read tall.</summary>
+    public (float Low, float Mid, float High) NormalizeAbsolute(float low, float mid, float high) =>
+        (low / RefLow, mid / RefMid, high / RefHigh);
+
     private static float Clamp01(float v) => v < 0f ? 0f : v > 1f ? 1f : v;
 
     /// <summary>Calibrate against a whole track's band envelopes.
@@ -43,6 +51,31 @@ public readonly record struct WaveformBandScaling(float RefLow, float RefMid, fl
             if (t > maxTotal) maxTotal = t;
         }
         return new WaveformBandScaling(rL, rM, rH, maxTotal);
+    }
+
+    /// <summary>Shared-reference calibration for a dynamics-preserving waveform:
+    /// every band divides by the SAME broadband reference (a high percentile of
+    /// low+mid+high across the track), so the silhouette height tracks absolute
+    /// loudness — quiet sections stay short, drops stay tall — while the band split
+    /// still colours the shape. Physically the bass dominates the height and the
+    /// highs sit as a thin crest, which is how Rekordbox/Serato read. Pair with
+    /// <see cref="NormalizeAbsolute"/>.</summary>
+    public static WaveformBandScaling CalibrateShared(
+        ReadOnlySpan<float> low, ReadOnlySpan<float> mid, ReadOnlySpan<float> high,
+        float percentile = 0.97f)
+    {
+        int n = low.Length;
+        var sum = new float[n];
+        for (int i = 0; i < n; i++) sum[i] = low[i] + mid[i] + high[i];
+        float refT = MathF.Max(Percentile(sum, percentile), 1e-4f);
+
+        float maxTotal = 1e-4f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = sum[i] / refT;
+            if (t > maxTotal) maxTotal = t;
+        }
+        return new WaveformBandScaling(refT, refT, refT, maxTotal);
     }
 
     private static float Percentile(ReadOnlySpan<float> data, float p)

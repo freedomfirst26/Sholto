@@ -445,10 +445,12 @@ public sealed class WaveformControl : Control
 
         bool hasBands = peaks.Low.Length == width;
 
-        // Per-band, track-calibrated references (each band vs its own 97th-percentile
-        // across the track) so blue = real bass, not a proportion of the column.
+        // Shared-reference calibration: all bands divide by ONE broadband reference,
+        // so the silhouette height tracks absolute loudness (quiet intro reads short,
+        // drop reads tall) instead of every busy section maxing out. The band split
+        // still colours the shape; bass dominates the height, highs a thin crest.
         var scaling = hasBands
-            ? WaveformBandScaling.Calibrate(peaks.Low, peaks.Mid, peaks.High)
+            ? WaveformBandScaling.CalibrateShared(peaks.Low, peaks.Mid, peaks.High)
             : default;
         // Nested stack (Rekordbox 3-band): the bands are drawn CUMULATIVELY — white
         // innermost, orange around it, blue outermost — so blue always CONTAINS
@@ -493,16 +495,17 @@ public sealed class WaveformControl : Control
             float ml = 0f, mm = 0f, mh = 0f;
             for (int x = x0; x < x1; x++)
             {
-                var (nl, nm, nh) = scaling.Normalize(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
+                var (nl, nm, nh) = scaling.NormalizeAbsolute(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
                 if (nl > ml) ml = nl;
                 if (nm > mm) mm = nm;
                 if (nh > mh) mh = nh;
             }
             // Gate the quiet stuff so only real transients survive (less clutter,
-            // sharper kicks) — then scale.
+            // sharper kicks) — then scale. Clamp the white core to the deck since
+            // absolute normalization lets a loud transient exceed unity.
             lowH[b]  = ml < gate ? 0f : ml * scale;
             midH[b]  = mm < gate ? 0f : mm * scale;
-            highH[b] = mh < gate ? 0f : mh * scale;
+            highH[b] = mh < gate ? 0f : MathF.Min(midY, mh * scale);
         }
 
         AttackRelease(lowH,  releaseCoef);
