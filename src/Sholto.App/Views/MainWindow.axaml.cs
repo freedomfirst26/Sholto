@@ -303,11 +303,13 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Which deck a grid edit applies to: the one with an active
-    /// loop (you're tuning what you're hearing), else the first loaded deck,
-    /// else null.</summary>
+    /// <summary>Which deck a grid edit applies to: the deck whose grid editor is
+    /// actually open (that's the one you're tuning, so ←/→ and ↑/↓ must go there),
+    /// else the one with an active loop, else the first loaded deck, else null.</summary>
     private static DeckViewModel? GridTarget(MainViewModel vm)
     {
+        if (vm.Deck1.EditOpen) return vm.Deck1;
+        if (vm.Deck2.EditOpen) return vm.Deck2;
         if (vm.Deck1.Player.ActiveLoop is not null) return vm.Deck1;
         if (vm.Deck2.Player.ActiveLoop is not null) return vm.Deck2;
         if (vm.Deck1.Player.IsLoaded) return vm.Deck1;

@@ -337,21 +337,44 @@ public sealed class WaveformControl : Control
     }
 
     /// <summary>Fill one band's envelope as a single closed path, mirrored above and
-    /// below the centerline. The heights are sampled at bin centers so the fill is a
-    /// smooth silhouette rather than a stack of rectangles.</summary>
+    /// below the centerline. Rises are drawn as a VERTICAL leading face (a flat-faced
+    /// bell whose flat front sits on the beat), while falls ramp smoothly to the bin
+    /// centre so the tail stays a graceful bell rather than a staircase.</summary>
     private static void FillEnvelope(SKCanvas canvas, float[] h, int binPx, int width, float midY, SKPaint paint)
     {
         int n = h.Length;
         if (n == 0) return;
         float X(int b) => MathF.Min(width, b * binPx + binPx * 0.5f);
 
+        // Build the top silhouette once, then mirror it exactly for the bottom so the
+        // two faces are guaranteed symmetric.
+        var xs = new List<float>(n + 4);
+        var hs = new List<float>(n + 4);
+        void P(float x, float ht) { xs.Add(x); hs.Add(ht); }
+
+        P(0, h[0]);
+        for (int b = 1; b < n; b++)
+        {
+            if (h[b] > h[b - 1])
+            {
+                // Rising into a beat: hold the old height to this bin's left edge,
+                // then jump straight up — a flat vertical front on the kick.
+                float xl = MathF.Min(width, b * binPx);
+                P(xl, h[b - 1]);
+                P(xl, h[b]);
+            }
+            else
+            {
+                // Decaying: ramp to the bin centre for the smooth bell tail.
+                P(X(b), h[b]);
+            }
+        }
+        P(width, h[n - 1]);
+
         using var path = new SKPath();
-        path.MoveTo(0, midY - h[0]);
-        for (int b = 0; b < n; b++) path.LineTo(X(b), midY - h[b]);
-        path.LineTo(width, midY - h[n - 1]);
-        path.LineTo(width, midY + h[n - 1]);
-        for (int b = n - 1; b >= 0; b--) path.LineTo(X(b), midY + h[b]);
-        path.LineTo(0, midY + h[0]);
+        path.MoveTo(xs[0], midY - hs[0]);
+        for (int i = 1; i < xs.Count; i++) path.LineTo(xs[i], midY - hs[i]);
+        for (int i = xs.Count - 1; i >= 0; i--) path.LineTo(xs[i], midY + hs[i]);
         path.Close();
         canvas.DrawPath(path, paint);
     }
@@ -439,7 +462,7 @@ public sealed class WaveformControl : Control
         // then fill each band's cumulative envelope as a single anti-aliased path.
         // Bigger binPx = coarser / less detail.
         const int binPx = 3;             // bar width
-        const float releaseCoef = 0.74f; // snappy release → each kick decays to a valley = distinct bells
+        const float releaseCoef = 0.88f; // slow release → the tail decays over many bins = a long, curved bell fall-off
         const float gate = 0.06f;        // drop bins quieter than this (kills between-kick fuzz)
         int bins = (width + binPx - 1) / binPx;
 
