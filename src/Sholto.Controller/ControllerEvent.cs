@@ -25,6 +25,10 @@ public abstract record ControllerEvent
     /// Controller (the authoritative state lives in its cue Button); the App sets
     /// its cue audio routing to match. The App never sees the raw press.</summary>
     public record CueChanged(int Deck, bool On) : ControllerEvent;
+    /// <summary>High-level: MASTER CUE is now on/off. Emitted by the Controller
+    /// (state lives in its MasterCue Button); the App folds the master mix into
+    /// the headphone cue to match. The App never sees the raw press.</summary>
+    public record MasterCueChanged(bool On) : ControllerEvent;
     /// <summary>Crossfader moved. Position is normalized 0..1 (0 = full Deck 1, 1 = full Deck 2).</summary>
     public record CrossfaderMoved(double Position) : ControllerEvent;
     /// <summary>A per-deck channel fader moved. Value 0..1.</summary>

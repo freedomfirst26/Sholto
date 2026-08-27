@@ -30,6 +30,13 @@ public sealed class AudioEngine : IAudioOutput
     private AudioPlaybackDevice? _playbackDevice;
     private CueOutputRouter? _router;
     private bool _running;
+    // MASTER CUE state, kept here so it survives a device switch (which builds a
+    // fresh router) — re-applied to the new router in Start.
+    private bool _masterCueActive;
+    // Set while the FLX4 is open AND its master bus has been PipeWire-routed
+    // to a separate speaker sink (see Start/ApplyPipeWireMasterRoute). Used by
+    // Stop() to relink master back onto the FLX4 before the device closes.
+    private string? _routedFlx4Node;
 
     public bool IsRunning => _running;
     public SfEngine Engine => _engine;
@@ -56,11 +63,32 @@ public sealed class AudioEngine : IAudioOutput
         return max >= 4 ? 4 : 2;
     }
 
-    public void Start() => Start(deviceName: null);
+    public void Start() => Start(masterSpeakerName: null);
 
-    public void Start(string? deviceName)
+    /// <summary>
+    /// Opens the playback device and starts the graph.
+    /// <paramref name="masterSpeakerName"/> is the user's chosen MASTER
+    /// SPEAKER (the "Choose Audio Output" picker in the UI excludes the
+    /// FLX4 — see App.axaml.cs) — not necessarily the device that gets
+    /// opened:
+    /// <list type="bullet">
+    /// <item>If the DDJ-FLX4 is connected, it is ALWAYS the device miniaudio
+    /// opens (4ch: master 1-2 + headphone cue 3-4 — it's also the shared
+    /// clock for cue). <paramref name="masterSpeakerName"/> is then applied
+    /// as a PipeWire re-route of just the master FL/FR ports onto that
+    /// speaker sink, via <see cref="PipeWireRouter"/>; RL/RR (cue) stay on
+    /// the FLX4. If routing isn't possible (tool missing, sink not found,
+    /// not on Linux/PipeWire) this degrades to master+cue both on the FLX4 —
+    /// today's behaviour.</item>
+    /// <item>If the FLX4 is NOT connected, <paramref name="masterSpeakerName"/>
+    /// is opened directly (2ch, no cue bus) — no PipeWire routing involved.</item>
+    /// </list>
+    /// </summary>
+    public void Start(string? masterSpeakerName)
     {
-        var target = Resolve(deviceName);
+        var flx4 = ResolveFlx4();
+        bool haveFlx4 = flx4.Name is not null;
+        var target = haveFlx4 ? flx4 : Resolve(masterSpeakerName);
         int channels = DeviceOutputChannels(target);
         var deviceFormat = new AudioFormat
         {
@@ -84,20 +112,81 @@ public sealed class AudioEngine : IAudioOutput
         // One router is the device's source: it pulls each deck's post-EQ stereo
         // and composes master (ch1-2) + PFL cue (ch3-4). Decks are NOT added to
         // the mixer directly (that would sum them to stereo and double-process).
-        _router = new CueOutputRouter(_engine, deviceFormat, _decks);
+        _router = new CueOutputRouter(_engine, deviceFormat, _decks) { MasterCueActive = _masterCueActive };
         _playbackDevice.MasterMixer.AddComponent(_router);
         _playbackDevice.Start();
         _running = true;
         string mode = channels >= 4 ? "master 1-2 + headphone cue 3-4" : "stereo master (no cue bus)";
         Console.WriteLine($"[AudioEngine] device={target.Name} started; {channels}ch — {mode}; buffer={cfg.PeriodSizeInMilliseconds}ms × {cfg.Periods}");
+
+        // FLX4 open + a distinct master speaker chosen → re-link master FL/FR
+        // onto that speaker via PipeWire (best-effort; see PipeWireRouter).
+        if (haveFlx4 && masterSpeakerName is not null && !PipeWireRouter.IsFlx4(masterSpeakerName))
+            ApplyPipeWireMasterRoute(masterSpeakerName);
     }
 
-    public void SwitchDevice(string deviceName)
+    /// <summary>Best-effort: finds the FLX4's and the chosen speaker's PipeWire
+    /// sink node names and asks PipeWireRouter to relink master FL/FR between
+    /// them. Any failure just logs and leaves master on the FLX4 — never
+    /// throws, never blocks longer than PipeWireRouter's own ~3s port poll.</summary>
+    private void ApplyPipeWireMasterRoute(string masterSpeakerName)
+    {
+        if (!PipeWireRouter.IsAvailable())
+        {
+            Console.WriteLine("[AudioEngine] pw-link not available — master stays on FLX4 (not on PipeWire?)");
+            return;
+        }
+        var flx4Node = PipeWireRouter.FindFlx4Sink();
+        if (flx4Node is null)
+        {
+            Console.WriteLine("[AudioEngine] FLX4 not found via pactl — master stays on FLX4");
+            return;
+        }
+        var speaker = PipeWireRouter.EnumerateSpeakerSinks().FirstOrDefault(s => s.Desc == masterSpeakerName);
+        if (speaker.Node is null)
+        {
+            Console.WriteLine($"[AudioEngine] master speaker '{masterSpeakerName}' not found among PipeWire sinks — master stays on FLX4");
+            return;
+        }
+        if (PipeWireRouter.ApplyMasterRoute(flx4Node, speaker.Node, out var log))
+        {
+            _routedFlx4Node = flx4Node;
+            Console.WriteLine($"[AudioEngine] master routed to '{masterSpeakerName}': {log}");
+        }
+        else
+        {
+            Console.WriteLine($"[AudioEngine] master route to '{masterSpeakerName}' failed: {log}");
+        }
+    }
+
+    public void SwitchDevice(string masterSpeakerName)
     {
         // Rebuild the graph so the new device's channel count (and therefore cue
-        // availability) takes effect — a 2ch device has no ch3-4.
+        // availability) takes effect — a 2ch device has no ch3-4. Start() below
+        // re-applies (or skips) the PipeWire master route as appropriate.
         Stop();
-        Start(deviceName);
+        Start(masterSpeakerName);
+    }
+
+    /// <summary>MASTER CUE toggle — fold the master mix into the headphone cue
+    /// (ch3-4) so you can monitor the speakers' output in your phones. Remembered
+    /// across a device switch (re-applied to the fresh router in Start).</summary>
+    public void SetMasterCue(bool on)
+    {
+        _masterCueActive = on;
+        if (_router is not null) _router.MasterCueActive = on;
+        Console.WriteLine($"[AudioEngine] master cue {(on ? "ON" : "off")}");
+    }
+
+    /// <summary>Finds the FLX4 among playback devices (matched by name — see
+    /// <see cref="PipeWireRouter.IsFlx4"/> — not a fixed device name, since the
+    /// node name embeds the unit's serial number). Returned DeviceInfo has a
+    /// null Name if no FLX4 is connected, matching the FirstOrDefault-on-struct
+    /// pattern used by <see cref="Resolve"/> below.</summary>
+    private DeviceInfo ResolveFlx4()
+    {
+        _engine.UpdateAudioDevicesInfo();
+        return _engine.PlaybackDevices.FirstOrDefault(d => PipeWireRouter.IsFlx4(d.Name));
     }
 
     private DeviceInfo Resolve(string? deviceName)
@@ -117,6 +206,13 @@ public sealed class AudioEngine : IAudioOutput
 
     public void Stop()
     {
+        // Undo any PipeWire master re-route before the device (and its ports)
+        // go away, so a stale link isn't left dangling on the speaker sink.
+        if (_routedFlx4Node is not null)
+        {
+            PipeWireRouter.ResetMasterRoute(_routedFlx4Node);
+            _routedFlx4Node = null;
+        }
         if (_playbackDevice is not null)
         {
             if (_router is not null) _playbackDevice.MasterMixer.RemoveComponent(_router);

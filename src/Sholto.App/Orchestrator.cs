@@ -53,6 +53,10 @@ public sealed class Orchestrator : IDisposable
     /// The App forwards this to the controller.</summary>
     public event Action<int, bool>? BeatSyncLightRequested;
 
+    /// <summary>Raised when MASTER CUE is toggled — App forwards it to the audio
+    /// engine's master-cue monitor. Bool is the new on/off state.</summary>
+    public event Action<bool>? MasterCueRequested;
+
     private void OnReanalyzeSelectedRequested() => ReanalyzeHighlighted("double-click");
 
     /// <summary>Force-reanalyze the highlighted library track (BPM/beats/peaks + key)
@@ -140,6 +144,10 @@ public sealed class Orchestrator : IDisposable
                 break;
             case ControllerEvent.CueChanged cc:
                 vm.DeckFor(cc.Deck).CueActive = cc.On;
+                break;
+            case ControllerEvent.MasterCueChanged mc:
+                // MASTER CUE monitor on/off (state owned by the controller button).
+                MasterCueRequested?.Invoke(mc.On);
                 break;
             case ControllerEvent.EqMoved e:
             {

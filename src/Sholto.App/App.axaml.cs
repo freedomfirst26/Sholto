@@ -274,6 +274,7 @@ public partial class App : Application
             Dispatcher.UIThread.Post(() => vm.ControllerConnected = connected);
         // App→controller output: orchestrator asks, controller lights the LED.
         _orchestrator.BeatSyncLightRequested += (deck, on) => _controller.SetBeatSync(deck, on);
+        _orchestrator.MasterCueRequested += on => _audioEngine?.SetMasterCue(on);
 
         // Known state on boot: every button LED off + cue audio cleared, emitted
         // after Action is wired so the cleared-cue events reach the Session.
@@ -302,12 +303,19 @@ public partial class App : Application
 
     private async Task StartAudioAsync(MainViewModel vm, IClassicDesktopStyleApplicationLifetime desktop)
     {
-        var devices = await Task.Run(() => AudioDevices.EnumerateOutputs());
-        if (devices.Count == 0)
+        var allDevices = await Task.Run(() => AudioDevices.EnumerateOutputs());
+        if (allDevices.Count == 0)
         {
             Console.WriteLine("No audio output devices found.");
             return;
         }
+
+        // The DDJ-FLX4 is never a pickable "master speaker" — AudioEngine
+        // auto-selects it as the device to open (4ch: master 1-2 + headphone
+        // cue 3-4) whenever it's connected, and the picker only offers where
+        // to re-route master to. See AudioEngine.Start for the full story.
+        bool flx4Present = allDevices.Any(d => PipeWireRouter.IsFlx4(d.Name));
+        var devices = allDevices.Where(d => !PipeWireRouter.IsFlx4(d.Name)).ToList();
 
         var factory = await _dbReady.Task;
         string? savedName = null;
@@ -318,12 +326,15 @@ public partial class App : Application
         }
         var chosen = devices.FirstOrDefault(d => d.Name == savedName);
 
-        if (chosen is null)
+        if (chosen is null && devices.Count > 0)
             chosen = await PromptForDeviceAsync(devices, savedName, desktop.MainWindow!);
 
-        if (chosen is null) return;
+        // No speaker chosen (cancelled/none): fine if the FLX4 is here to fall
+        // back on (master+cue both play from it, like before this feature).
+        // Otherwise there's genuinely nothing to play through.
+        if (chosen is null && !flx4Present) return;
 
-        if (factory is not null)
+        if (chosen is not null && factory is not null)
         {
             await using var db = factory.CreateDbContext();
             var row = await db.Settings.FindAsync(SettingsKeys.OutputDevice);
@@ -337,9 +348,9 @@ public partial class App : Application
             try
             {
                 var engine = new AudioEngine(vm.Deck1.Player, vm.Deck2.Player);
-                engine.Start(chosen.Name);
+                engine.Start(chosen?.Name);
                 _audioEngine = engine;
-                Console.WriteLine($"Audio engine started on: {chosen.Name}");
+                Console.WriteLine($"Audio engine started; master speaker={(chosen?.Name ?? "(FLX4, no separate speaker chosen)")}");
             }
             catch (Exception ex)
             {
@@ -401,7 +412,10 @@ public partial class App : Application
     {
         if (_vm is null) return;
 
-        var devices = await Task.Run(() => AudioDevices.EnumerateOutputs());
+        // Excludes the FLX4 — see StartAudioAsync's comment. If it's the only
+        // device connected there's nothing to offer; leave master on it.
+        var allDevices = await Task.Run(() => AudioDevices.EnumerateOutputs());
+        var devices = allDevices.Where(d => !PipeWireRouter.IsFlx4(d.Name)).ToList();
         if (devices.Count == 0) return;
 
         var factory = await _dbReady.Task;

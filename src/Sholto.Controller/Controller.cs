@@ -14,7 +14,12 @@ namespace Sholto.Controller;
 /// to the App. The App is entirely ignorant of the lighting.</summary>
 public sealed class Controller : IDisposable
 {
-    private readonly MidiManager _midi = new() { LogAllMessages = false };
+    // Set SHOLTO_MIDI_LOG=1 to print every incoming MIDI message ([MIDI raw] …) —
+    // handy for discovering which channel/note a button sends when mapping it.
+    private readonly MidiManager _midi = new()
+    {
+        LogAllMessages = Environment.GetEnvironmentVariable("SHOLTO_MIDI_LOG") == "1",
+    };
 
     public ButtonWithLight MasterCue { get; }
     public ButtonWithLight Deck1Cue { get; }
@@ -48,8 +53,7 @@ public sealed class Controller : IDisposable
 
         Deck1Cue.Clicked += _ => OnCueClicked(0, Deck1Cue);
         Deck2Cue.Clicked += _ => OnCueClicked(1, Deck2Cue);
-        // MASTER CUE audio is handled by the FLX-4 hardware; we only toggle the LED.
-        MasterCue.Clicked += _ => MasterCue.SetLit(!MasterCue.IsLit);
+        MasterCue.Clicked += _ => OnMasterCueClicked();
 
         // Faders emit a high-level value only after soft-takeover pickup.
         Deck1Volume.ValueChanged += v => Action?.Invoke(new ControllerEvent.ChannelVolumeMoved(0, v));
@@ -126,6 +130,12 @@ public sealed class Controller : IDisposable
     {
         button.SetLit(!button.IsLit);                                   // orchestrate the light
         Action?.Invoke(new ControllerEvent.CueChanged(deck, button.IsLit)); // tell the App
+    }
+
+    private void OnMasterCueClicked()
+    {
+        MasterCue.SetLit(!MasterCue.IsLit);                             // orchestrate the light
+        Action?.Invoke(new ControllerEvent.MasterCueChanged(MasterCue.IsLit)); // tell the App
     }
 
     public void Dispose()

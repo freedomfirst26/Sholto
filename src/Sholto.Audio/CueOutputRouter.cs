@@ -27,6 +27,13 @@ internal sealed class CueOutputRouter : SoundComponent
     private readonly IReadOnlyList<Deck> _decks;
     private float[] _scratch = [];
 
+    /// <summary>MASTER CUE: when true the post-fader master mix is also summed
+    /// into the headphone cue (ch3-4), so you can monitor what's going to the
+    /// speakers in your phones. Written from the UI thread, read once per buffer
+    /// on the audio thread — a torn bool isn't possible and a one-buffer delay
+    /// is inaudible, so plain volatile suffices (same contract as Deck.CueActive).</summary>
+    public volatile bool MasterCueActive;
+
     public CueOutputRouter(SfEngine engine, AudioFormat format, IReadOnlyList<Deck> decks)
         : base(engine, format)
     {
@@ -45,6 +52,7 @@ internal sealed class CueOutputRouter : SoundComponent
         if (_scratch.Length < need) _scratch = new float[need];
         var stereo = _scratch.AsSpan(0, need);
         bool hasCue = channels >= 4;
+        bool masterCue = MasterCueActive;   // read once per buffer
 
         foreach (var deck in _decks)
         {
@@ -55,6 +63,10 @@ internal sealed class CueOutputRouter : SoundComponent
 
             float mg = deck.MasterGain;           // channel × crossfade
             float cg = deck.CueActive ? 1f : 0f;  // PFL: full level, pre-fader
+            // MASTER CUE: also fold this deck's post-fader master contribution
+            // into the phones, so the headphone bus carries the master mix. A
+            // faded-down, un-cued deck (mg==0) still adds nothing — correct.
+            if (masterCue) cg += mg;
             if (mg == 0f && cg == 0f) continue;
 
             MixDeckInto(buffer, stereo, frames, channels, mg, cg);
