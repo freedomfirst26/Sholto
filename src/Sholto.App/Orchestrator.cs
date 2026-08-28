@@ -53,6 +53,11 @@ public sealed class Orchestrator : IDisposable
     /// The App forwards this to the controller.</summary>
     public event Action<int, bool>? BeatSyncLightRequested;
 
+    /// <summary>Raised when a stem-mute pad's active state changes — App forwards
+    /// this to the controller's pad LED. Args: deck, stem group (0=Drums,
+    /// 1=Vocals, 2=Instrumental), new on/off state.</summary>
+    public event Action<int, int, bool>? PadLightRequested;
+
     /// <summary>Raised when MASTER CUE is toggled — App forwards it to the audio
     /// engine's master-cue monitor. Bool is the new on/off state.</summary>
     public event Action<bool>? MasterCueRequested;
@@ -191,6 +196,7 @@ public sealed class Orchestrator : IDisposable
                     case 2: deckVm.InstrumentalActive = nextActive; break;
                 }
                 deckVm.Player.SetStemGroup(st.Group, nextActive);
+                PadLightRequested?.Invoke(st.Deck, st.Group, nextActive);
                 break;
             }
             case ControllerEvent.BeatLoopToggle bl:

@@ -16,16 +16,18 @@ public sealed class Controller : IDisposable
 {
     // Set SHOLTO_MIDI_LOG=1 to print every incoming MIDI message ([MIDI raw] …) —
     // handy for discovering which channel/note a button sends when mapping it.
-    private readonly MidiManager _midi = new()
-    {
-        LogAllMessages = Environment.GetEnvironmentVariable("SHOLTO_MIDI_LOG") == "1",
-    };
+    private readonly MidiManager _midi;
 
     public ButtonWithLight MasterCue { get; }
     public ButtonWithLight Deck1Cue { get; }
     public ButtonWithLight Deck2Cue { get; }
     public ButtonWithLight Deck1BeatSync { get; }
     public ButtonWithLight Deck2BeatSync { get; }
+    /// <summary>The deck's 8 hot-cue pads (index 0-7), lightable. Pads 0/1/2 are
+    /// driven from real stem-mute state (see <see cref="SetPadLight"/>); pads
+    /// 3-7 are modeled but currently unused.</summary>
+    public IReadOnlyList<ButtonWithLight> Deck1Pads { get; }
+    public IReadOnlyList<ButtonWithLight> Deck2Pads { get; }
     public Fader Deck1Volume { get; } = new("Deck1Volume");
     public Fader Deck2Volume { get; } = new("Deck2Volume");
     private readonly IReadOnlyList<Component> _components;
@@ -42,14 +44,28 @@ public sealed class Controller : IDisposable
     /// <summary>True while a controller is currently connected.</summary>
     public bool IsConnected => _midi.IsConnected;
 
-    public Controller()
+    /// <param name="flx4Options">Wire numbers for the DDJ-FLX4 mapping. Defaults
+    /// to <c>new DdjFlx4Options()</c> (the device's built-in wire numbers) if
+    /// not supplied — existing call sites keep working unchanged.</param>
+    public Controller(Mappings.DdjFlx4Options? flx4Options = null)
     {
+        _midi = new MidiManager(flx4Options)
+        {
+            LogAllMessages = Environment.GetEnvironmentVariable("SHOLTO_MIDI_LOG") == "1",
+        };
+
         MasterCue     = MakeButton("MasterCue",     new ControllerLight(0, LightFunction.MasterCue));
         Deck1Cue      = MakeButton("Deck1Cue",      new ControllerLight(0, LightFunction.Cue));
         Deck2Cue      = MakeButton("Deck2Cue",      new ControllerLight(1, LightFunction.Cue));
         Deck1BeatSync = MakeButton("Deck1BeatSync", new ControllerLight(0, LightFunction.BeatSync));
         Deck2BeatSync = MakeButton("Deck2BeatSync", new ControllerLight(1, LightFunction.BeatSync));
-        _components = [MasterCue, Deck1Cue, Deck2Cue, Deck1BeatSync, Deck2BeatSync, Deck1Volume, Deck2Volume];
+        Deck1Pads     = MakePadButtons(deck: 0);
+        Deck2Pads     = MakePadButtons(deck: 1);
+        _components =
+        [
+            MasterCue, Deck1Cue, Deck2Cue, Deck1BeatSync, Deck2BeatSync, Deck1Volume, Deck2Volume,
+            ..Deck1Pads, ..Deck2Pads,
+        ];
 
         Deck1Cue.Clicked += _ => OnCueClicked(0, Deck1Cue);
         Deck2Cue.Clicked += _ => OnCueClicked(1, Deck2Cue);
@@ -67,10 +83,25 @@ public sealed class Controller : IDisposable
             if (bytes is not null) _midi.Send(bytes);
         });
 
+    private ButtonWithLight[] MakePadButtons(int deck)
+    {
+        var pads = new ButtonWithLight[8];
+        for (int i = 0; i < pads.Length; i++)
+            pads[i] = MakeButton($"Deck{deck + 1}Pad{i}", new ControllerLight(deck, LightFunction.Pad, Pad: i));
+        return pads;
+    }
+
     /// <summary>Output command from the App (via the orchestrator): drive a deck's
     /// BEAT SYNC LED. Called when the deck starts/stops playing.</summary>
     public void SetBeatSync(int deck, bool on) =>
         (deck == 0 ? Deck1BeatSync : Deck2BeatSync).SetLit(on);
+
+    /// <summary>Output command from the App (via the orchestrator): drive a deck's
+    /// stem-mute pad LED. <paramref name="group"/> is 0=Drums, 1=Vocals,
+    /// 2=Instrumental — the same pads Translate(NoteEvent) reads StemToggle from.
+    /// Pad LED bytes are UNVERIFIED on hardware (see DdjFlx4Mapping.RenderLight).</summary>
+    public void SetPadLight(int deck, int group, bool on) =>
+        (deck == 0 ? Deck1Pads : Deck2Pads)[group].SetLit(on);
 
     /// <summary>Connect to the hardware. Returns false if no controller is found
     /// (the App can still run from the UI).</summary>
