@@ -414,7 +414,7 @@ public sealed class Orchestrator : IDisposable
     // exponential glide (CoastTailTauSec) — the drawn-out dying tail at the end
     // of a backspin, instead of stopping on a dime.
     private const double CoastKnee = 2.0;
-    private const double CoastTailTauSec = 0.35;
+    private const double CoastTailTauSec = 0.175;
     // Fling projection: the FLX4's platter has no flywheel — it stops almost the
     // instant the hand leaves — so a physical quarter-second rip reads as a weak
     // spin. When the platter is released ABOVE FlingThreshold (i.e. it was
@@ -490,13 +490,19 @@ public sealed class Orchestrator : IDisposable
                 st.PeakVelocity = 0;
             }
             double target = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0.0;
-            double gap = Math.Abs(st.Velocity - target);
+            // A backspin on a playing deck glides to REST (0) — the drawn-out
+            // reverse tail — and then EndScratch below resumes forward playback
+            // INSTANTLY. Gliding all the way to +PlaybackSpeed would crawl
+            // audibly through slow-motion on the way back up; real decks resume
+            // crisply the moment the reverse motion dies.
+            double glideTarget = target > 0 && st.Velocity < -0.02 ? 0.0 : target;
+            double gap = Math.Abs(st.Velocity - glideTarget);
             if (gap > CoastKnee)
             {
                 // Fast phase: constant friction, real momentum.
                 double step = st.Decel * dt;
-                if (st.Velocity < target) st.Velocity = Math.Min(target, st.Velocity + step);
-                else                      st.Velocity = Math.Max(target, st.Velocity - step);
+                if (st.Velocity < glideTarget) st.Velocity = Math.Min(glideTarget, st.Velocity + step);
+                else                           st.Velocity = Math.Max(glideTarget, st.Velocity - step);
             }
             else
             {
@@ -504,10 +510,10 @@ public sealed class Orchestrator : IDisposable
                 // stretch of a backspin draws out and dies away instead of
                 // stopping on a dime.
                 double a = 1 - Math.Exp(-dt / CoastTailTauSec);
-                st.Velocity += (target - st.Velocity) * a;
+                st.Velocity += (glideTarget - st.Velocity) * a;
             }
 
-            if (Math.Abs(st.Velocity - target) < 0.02)
+            if (Math.Abs(st.Velocity - glideTarget) < 0.02)
             {
                 deckVm.Player.EndScratch();
                 if (st.PauseAtEnd)
