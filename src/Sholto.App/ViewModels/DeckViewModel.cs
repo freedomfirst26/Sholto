@@ -1043,6 +1043,18 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         set { if (_isScrubbing == value) return; _isScrubbing = value; Notify(); }
     }
 
+    private bool _isScratching;
+    /// <summary>True while a platter scratch is in flight on this deck
+    /// (including the ~100 ms release decay back to rest) — set by
+    /// Orchestrator alongside <see cref="IsScrubbing"/>. Gates
+    /// MainViewModel's magnetism/quantize so a beat-snap seek can't fire
+    /// mid-scratch (see MainViewModel.IsBpmEligibleForMagnetism).</summary>
+    public bool IsScratching
+    {
+        get => _isScratching;
+        set { if (_isScratching == value) return; _isScratching = value; Notify(); }
+    }
+
     private double _magneticGlowSec = -1;
     /// <summary>Time of the beat that should glow green (magnetism active), or -1 = off.
     /// Driven from <see cref="MainViewModel"/> since magnetism crosses both decks.</summary>

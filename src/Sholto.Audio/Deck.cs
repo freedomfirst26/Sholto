@@ -76,6 +76,21 @@ public sealed class Deck
     private StemMixDataProvider? _stemProvider;
     private bool InStemMode => _stemProvider is not null;
 
+    // In-memory scratch-capable provider for load path (2) — set in Load(),
+    // replaced by _stemProvider once stems land (SwitchToStemMode tears it
+    // down like any other previous-track provider). See ScratchDataProvider
+    // for why this exists instead of SoundFlow's own RawDataProvider.
+    private ScratchDataProvider? _scratchProvider;
+
+    /// <summary>Whichever varispeed-capable provider currently backs the
+    /// SoundPlayer, or null on the streaming (ChunkedDataProvider) path where
+    /// neither exists yet. Used by both the tempo-fader pipeline
+    /// (<see cref="ApplyPlaybackSpeed"/>) and the platter-scratch API below —
+    /// they're mutually exclusive in time (scratch overrides the fader's rate
+    /// while active, see <see cref="ScratchRate"/>), so one field of the
+    /// currently-active provider is enough.</summary>
+    private IVarispeedProvider? VarispeedProvider => (IVarispeedProvider?)_stemProvider ?? _scratchProvider;
+
     // Pitch (tempo) state. PitchRange is the ±range the fader spans (0.06 = ±6%).
     // TempoPosition is the fader position 0..1 (0.5 = no shift). Effective playback
     // speed = 1 + (TempoPosition - 0.5) * 2 * PitchRange.
@@ -124,9 +139,11 @@ public sealed class Deck
         // Push the speed into our own provider — NOT into SoundFlow.SoundPlayer.PlaybackSpeed.
         // SoundFlow's PlaybackSpeed engages WSOLA time-stretching, which allocates
         // per audio block and triggers frequent GC pauses that freeze the UI.
-        // StemMixDataProvider does plain linear-interp resampling instead: vinyl
+        // Our own providers do plain linear-interp resampling instead: vinyl
         // mode, pitch shifts with speed, no allocations on the hot path.
-        _stemProvider?.SetSpeed(PlaybackSpeed);
+        // Skip while a scratch is in flight — ScratchRate owns the provider's
+        // speed until EndScratch() hands it back (see both below).
+        if (!_scratching) VarispeedProvider?.SetSpeed(PlaybackSpeed);
     }
 
     private float _volume = 1.0f;
@@ -143,6 +160,76 @@ public sealed class Deck
 
     public bool IsLoaded => _player is not null;
     public bool IsPlaying => _player?.State == PlaybackState.Playing;
+
+    // — Platter scratch —
+    //
+    // While active, the deck's effective playback rate is driven directly by
+    // Orchestrator (platter velocity, signed, any magnitude) instead of by
+    // PlaybackSpeed. See ScratchRate / EndScratch below.
+    private bool _scratching;
+    // Whether the deck was actually Playing (per the user, before we may have
+    // force-started it below) at the moment the platter was first grabbed.
+    // EndScratch restores this rather than assuming "playing".
+    private bool _wasPlayingBeforeScratch;
+
+    /// <summary>True once the deck is on a provider that supports signed
+    /// vinyl-style speed (in-memory raw buffer or stem mix) — i.e. everywhere
+    /// except the very first moment of a streamed load, before <see cref="Load"/>
+    /// has swapped in a real provider. Orchestrator checks this before routing
+    /// a top-platter tick into <see cref="ScratchRate"/>; when false it falls
+    /// back to the old silent-seek jog behaviour.</summary>
+    public bool CanScratch => VarispeedProvider is not null;
+
+    /// <summary>Drive the deck's playback rate directly from platter velocity:
+    /// <paramref name="rate"/> is a signed multiple of unity (1.0 = normal
+    /// forward speed, 0 = held, negative = reverse), REPLACING — not
+    /// composing with — the tempo-fader-derived <see cref="PlaybackSpeed"/>
+    /// while a scratch is in flight. No-op if the deck isn't on a scratchable
+    /// provider (see <see cref="CanScratch"/>).
+    /// <para>SoundFlow's SoundPlayer only pulls samples from the data provider
+    /// while its internal state is <c>Playing</c> (a paused player renders
+    /// silence without even calling ReadBytes) — so a deck that was paused
+    /// when the platter was grabbed is force-started here. That matches CDJ
+    /// vinyl mode: the platter drives sound even parked, and at rate 0
+    /// ReadBytes just re-emits the frame under the needle (near-silent hold,
+    /// not literal silence). <see cref="EndScratch"/> restores whatever
+    /// play/pause state the deck was actually in.</para></summary>
+    public void ScratchRate(double rate)
+    {
+        var vp = VarispeedProvider;
+        if (vp is null || _player is null) return;
+        if (!_scratching)
+        {
+            _scratching = true;
+            _wasPlayingBeforeScratch = IsPlaying;
+            if (!_wasPlayingBeforeScratch) _player.Play();
+        }
+        vp.SetSpeed((float)rate);
+    }
+
+    /// <summary>Release the platter: hand the provider's speed back to the
+    /// deck's own <see cref="PlaybackSpeed"/> (tempo fader × BPM multiplier),
+    /// and restore whichever play/pause state the deck was in before the
+    /// scratch began. No-op if no scratch is in flight.</summary>
+    public void EndScratch()
+    {
+        if (!_scratching) return;
+        _scratching = false;
+        VarispeedProvider?.SetSpeed(PlaybackSpeed);
+        // Resync the SoundPlayer's INTERNAL clock to where the scratch actually
+        // left the provider. The player's _rawSamplePosition only advances by
+        // frames rendered in real time — a scratch moves the provider's cursor
+        // far beyond/behind that, so player.Time goes stale at roughly the
+        // pre-scratch position. SeekRelative/SeekToFraction compute their targets
+        // from player.Time, so the FIRST post-scratch seek (side-ring nudge,
+        // quantize, minimap click) would yank playback back to where the scratch
+        // began. A same-place Seek here re-bases both clocks onto the provider's
+        // true position (the providers' 256-frame declick fade makes it silent).
+        if (_player is not null)
+            _player.Seek(TimeSpan.FromSeconds(
+                PositionFrames / (double)AudioFileDecoder.TargetSampleRate));
+        if (!_wasPlayingBeforeScratch) _player?.Pause();
+    }
 
     // Read provider.Position (raw samples consumed) directly. Source rate now
     // matches the engine rate (see AudioFileDecoder.TargetSampleRate) so this is
@@ -368,7 +455,11 @@ public sealed class Deck
 
         TearDownPlayers();
 
-        var provider = new RawDataProvider(stereoSamples, sampleRate);
+        // ScratchDataProvider, not SoundFlow's own RawDataProvider — its
+        // varispeed support (signed speed, so the top platter can scratch a
+        // track before stems land) is why it exists; see its class doc.
+        var provider = new ScratchDataProvider(stereoSamples, sampleRate);
+        _scratchProvider = provider;
         _currentDataProvider = provider;
         _player = new SoundPlayer(_engine, _format, provider);
         // Carry the channel fader's current attenuation forward — otherwise
@@ -380,10 +471,9 @@ public sealed class Deck
 
         // EQ lives on _deckMixer (post-mix) — see AttachEngine. Don't attach here.
         _deckMixer.AddComponent(_player);
-        // Pre-stems: SoundFlow has no provider with built-in vinyl speed for raw
-        // float[] data, so tempo is a no-op until stems land and we switch to
-        // StemMixDataProvider (which carries speed directly). Don't set
-        // SoundPlayer.PlaybackSpeed — that engages WSOLA and chops the UI.
+        // Speed is owned by the provider (see ApplyPlaybackSpeed / ScratchRate),
+        // never by SoundFlow.SoundPlayer.PlaybackSpeed (WSOLA, chops the UI).
+        provider.SetSpeed(PlaybackSpeed);
         Console.WriteLine($"[Deck] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
 
         // Analysis runs off-thread; deck plays immediately, beat grid appears when ready.
@@ -501,9 +591,14 @@ public sealed class Deck
             _currentDataProvider = null;
         }
         _stemProvider = null;
+        _scratchProvider = null;
         // Per-stem mute state lives inside StemMixDataProvider; reset by virtue
         // of dropping the reference. A fresh load builds a fresh provider with
         // all gains at 1.0.
+        // A scratch mid-flight on the outgoing track has nothing left to drive —
+        // drop the flag so a stale ScratchRate/EndScratch pair from the old
+        // track can't act on the new one's provider.
+        _scratching = false;
     }
 
     /// <summary>Swap the SoundPlayer's data provider for a <see cref="StemMixDataProvider"/>
@@ -545,6 +640,10 @@ public sealed class Deck
             try { _currentDataProvider.Dispose(); } catch { /* best-effort */ }
             _currentDataProvider = null;
         }
+        // The outgoing provider was _scratchProvider (Load's ScratchDataProvider) —
+        // drop the reference alongside it so VarispeedProvider picks up the new
+        // StemMixDataProvider below instead of a disposed one.
+        _scratchProvider = null;
 
         var provider = new StemMixDataProvider(drums, vocals, bass, other, sampleRate: AudioFileDecoder.TargetSampleRate);
         _stemProvider = provider;

@@ -22,7 +22,7 @@ namespace Sholto.Audio;
 /// four arrays are required to be the same length; the
 /// constructor truncates to <c>min(lengths)</c> if they differ.
 /// </summary>
-public sealed class StemMixDataProvider : ISoundDataProvider
+public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
 {
     public const int StemCount = 4;
     public const int Drums = 0, Vocals = 1, Bass = 2, Other = 3;
@@ -41,10 +41,13 @@ public sealed class StemMixDataProvider : ISoundDataProvider
     // without locks.
     private float _g0 = 1f, _g1 = 1f, _g2 = 1f, _g3 = 1f;
 
-    // Vinyl-style speed (1.0 = unity, <1 slower & lower pitch, >1 faster & higher).
+    // Vinyl-style speed (1.0 = unity, <1 slower & lower pitch, >1 faster & higher,
+    // 0 = held/frozen, negative = reverse). Negative speed is how a platter
+    // scratch drives this provider (see Deck.ScratchRate) — the tempo fader
+    // never goes negative, so sign alone tells ReadChunk which regime it's in.
     // Set lock-free; the audio thread reads it once per buffer.
     private float _speed = 1f;
-    public void SetSpeed(float speed) => Volatile.Write(ref _speed, MathF.Max(0.01f, speed));
+    public void SetSpeed(float speed) => Volatile.Write(ref _speed, speed);
 
     // Active loop region in interleaved-sample units. Read lock-free per buffer
     // by the audio thread (one volatile pair, no allocation). null on the
@@ -334,43 +337,97 @@ public sealed class StemMixDataProvider : ISoundDataProvider
         // source crosses loop-out (or track-end), so the caller's wrap logic
         // runs at the right moment.
         double srcFrame = pos / 2.0;
+
+        if (speed < 0f)
+        {
+            // Reverse (platter scratch backspin — the tempo fader never goes
+            // negative, so this branch is scratch-only). Loop bounds don't
+            // apply: a loop can't be active while a top-platter scratch is in
+            // progress (Orchestrator's jog handler ignores the wheel on a
+            // loop-locked deck), so the only boundary here is the start of
+            // the track.
+            int of = 0;
+            for (; of < maxFrames; of++)
+            {
+                if (srcFrame <= 0.0) break;
+                int iFrame = (int)Math.Floor(srcFrame);
+                if (iFrame >= maxSrcFrame) iFrame = maxSrcFrame - 1; // guard a stray overshoot
+                float frac = (float)(srcFrame - iFrame);
+                WriteInterpolatedFrame(outBuf, of, iFrame, frac, s0, s1, s2, s3, g0, g1, g2, g3);
+                srcFrame += speed;
+            }
+            if (of < maxFrames)
+            {
+                // Ran off the start of the track mid-chunk. A real record just
+                // runs out of groove and goes quiet — silence the remainder and
+                // pin position at 0, rather than returning a short/zero chunk
+                // (SoundFlow's SoundPlayer treats that as end-of-stream and
+                // stops the deck, which is wrong mid-scratch: the user is
+                // still holding the platter).
+                outBuf.Slice(of * 2, (maxFrames - of) * 2).Clear();
+                srcFrame = 0.0;
+                of = maxFrames;
+            }
+            Volatile.Write(ref _position, srcFrame * 2.0);
+            return of;
+        }
+
+        // Forward (speed >= 0): tempo-fader playback, or a forward scratch
+        // fling. speed == 0 is a parked platter — the loop below just keeps
+        // re-emitting the same frame (frac stays 0), which is the correct
+        // "needle motionless" sound and, crucially, still returns a full
+        // chunk so the caller never sees a false end-of-stream.
         double boundaryFrame = looping && srcFrame * 2.0 >= loopStart && srcFrame * 2.0 < loopEnd
             ? loopEnd / 2.0
             : maxSrcFrame;
         int writtenFrames = 0;
-        for (int of = 0; of < maxFrames; of++)
+        for (int of2 = 0; of2 < maxFrames; of2++)
         {
             if (srcFrame >= boundaryFrame) break;
-            int iFrame = (int)srcFrame;
+            int iFrame = (int)Math.Floor(srcFrame);
             if (iFrame >= maxSrcFrame) break;
             float frac = (float)(srcFrame - iFrame);
-
-            int idx = iFrame * 2;
-            float l0a = s0[idx],   l0b = s0[idx + 2];
-            float l1a = s1[idx],   l1b = s1[idx + 2];
-            float l2a = s2[idx],   l2b = s2[idx + 2];
-            float l3a = s3[idx],   l3b = s3[idx + 2];
-            float r0a = s0[idx+1], r0b = s0[idx + 3];
-            float r1a = s1[idx+1], r1b = s1[idx + 3];
-            float r2a = s2[idx+1], r2b = s2[idx + 3];
-            float r3a = s3[idx+1], r3b = s3[idx + 3];
-
-            float left  = (l0a + frac * (l0b - l0a)) * g0
-                        + (l1a + frac * (l1b - l1a)) * g1
-                        + (l2a + frac * (l2b - l2a)) * g2
-                        + (l3a + frac * (l3b - l3a)) * g3;
-            float right = (r0a + frac * (r0b - r0a)) * g0
-                        + (r1a + frac * (r1b - r1a)) * g1
-                        + (r2a + frac * (r2b - r2a)) * g2
-                        + (r3a + frac * (r3b - r3a)) * g3;
-
-            outBuf[of * 2]     = left;
-            outBuf[of * 2 + 1] = right;
+            WriteInterpolatedFrame(outBuf, of2, iFrame, frac, s0, s1, s2, s3, g0, g1, g2, g3);
             srcFrame += speed;
             writtenFrames++;
         }
         Volatile.Write(ref _position, srcFrame * 2.0);
         return writtenFrames;
+    }
+
+    /// <summary>Linear-interpolate one output frame (both channels, all 4
+    /// stems summed) from source frame <paramref name="iFrame"/> /
+    /// <paramref name="iFrame"/>+1 at fractional position
+    /// <paramref name="frac"/>, and write it to <paramref name="outBuf"/> at
+    /// <paramref name="frameIndex"/>. Shared by the forward and reverse
+    /// vinyl-speed paths — the interpolation math doesn't care which
+    /// direction <c>srcFrame</c> is moving, only where it currently sits.</summary>
+    private static void WriteInterpolatedFrame(Span<float> outBuf, int frameIndex, int iFrame, float frac,
+        float[] s0, float[] s1, float[] s2, float[] s3,
+        float g0, float g1, float g2, float g3)
+    {
+        int idx = iFrame * 2;
+        float l0a = s0[idx],   l0b = s0[idx + 2];
+        float l1a = s1[idx],   l1b = s1[idx + 2];
+        float l2a = s2[idx],   l2b = s2[idx + 2];
+        float l3a = s3[idx],   l3b = s3[idx + 2];
+        float r0a = s0[idx+1], r0b = s0[idx + 3];
+        float r1a = s1[idx+1], r1b = s1[idx + 3];
+        float r2a = s2[idx+1], r2b = s2[idx + 3];
+        float r3a = s3[idx+1], r3b = s3[idx + 3];
+
+        float left  = (l0a + frac * (l0b - l0a)) * g0
+                    + (l1a + frac * (l1b - l1a)) * g1
+                    + (l2a + frac * (l2b - l2a)) * g2
+                    + (l3a + frac * (l3b - l3a)) * g3;
+        float right = (r0a + frac * (r0b - r0a)) * g0
+                    + (r1a + frac * (r1b - r1a)) * g1
+                    + (r2a + frac * (r2b - r2a)) * g2
+                    + (r3a + frac * (r3b - r3a)) * g3;
+
+        int o = frameIndex * 2;
+        outBuf[o]     = left;
+        outBuf[o + 1] = right;
     }
 
     /// <summary>Crossfade the loop-tail samples into the start of

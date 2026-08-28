@@ -604,7 +604,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public void OnPlayPressed(int deck) => DeckFor(deck).TogglePlay();
+    /// <summary>Raised instead of an instant pause when a playing, scratch-capable
+    /// deck is paused — the Orchestrator runs a vinyl-style brake (speed ramps to
+    /// zero, pitch falling) and pauses when the platter "stops".</summary>
+    public event Action<int>? BrakePauseRequested;
+
+    public void OnPlayPressed(int deck)
+    {
+        var d = DeckFor(deck);
+        if (d.Player.IsPlaying && d.Player.CanScratch)
+        {
+            BrakePauseRequested?.Invoke(deck);
+            return;
+        }
+        d.Player.TogglePlay();
+    }
 
     public void SetKnownBpms(IReadOnlyDictionary<string, double> bpms)
     {
@@ -695,6 +709,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (!Deck1.HasAnalysis || !Deck2.HasAnalysis) return false;
             if (!Deck1.Player.IsPlaying || !Deck2.Player.IsPlaying) return false;
+            // A scratching deck isn't a candidate for a magnetic beat-snap —
+            // Quantize()'s SeekRelative would yank the platter out from under
+            // the user's hand mid-gesture. (Also covers the force-Play() a
+            // paused deck gets while scratched: without this gate that alone
+            // could newly satisfy "both decks playing" and fire a surprise snap.)
+            if (Deck1.IsScratching || Deck2.IsScratching) return false;
 
             double eff1 = Deck1.EffectiveBpm;
             double eff2 = Deck2.EffectiveBpm;

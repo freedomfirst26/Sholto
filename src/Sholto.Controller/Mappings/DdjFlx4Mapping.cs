@@ -158,8 +158,12 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Channel == 11 && msg.Control == 0x40)
             return new ControllerEvent.BrowseRotated(msg.Value > 64 ? 1 : -1);
 
-        // Jog wheel rotation. 0x22 = top platter, 0x21 = side ring. Centered at 0x40.
-        if (msg.Control == 0x22 || msg.Control == 0x21)
+        // Jog wheel rotation. 0x22 = top platter, 0x21 = side ring. Centered at
+        // 0x40. While the deck's Shift is held the firmware retransmits the top
+        // platter on 0x29 (captured via MIDI dump) — same delta encoding; we
+        // surface it as TopPlatter and let the App's shift state pick the
+        // behaviour (4× fast search).
+        if (msg.Control == 0x22 || msg.Control == 0x21 || msg.Control == 0x29)
         {
             int deck = msg.Channel == 1 ? 0 : msg.Channel == 2 ? 1 : -1;
             if (deck >= 0)
@@ -167,7 +171,7 @@ public sealed class DdjFlx4Mapping : IControllerMapping
                 int delta = msg.Value - 64;
                 if (delta != 0)
                 {
-                    var source = msg.Control == 0x22 ? JogSource.TopPlatter : JogSource.SideRing;
+                    var source = msg.Control == 0x21 ? JogSource.SideRing : JogSource.TopPlatter;
                     return new ControllerEvent.JogRotated(deck, delta, source);
                 }
             }
