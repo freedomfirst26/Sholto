@@ -58,6 +58,17 @@ public sealed class DdjFlx4Options
     public int StemVocalsPad { get; set; } = 1;
     public int StemInstrumentalPad { get; set; } = 2;
 
+    // --- Notes: pad pages ----------------------------------------------------------
+    // The FLX-4's HOT CUE / PAD FX1 buttons live on each deck's own channel
+    // (Deck0Channel/Deck1Channel) and switch the controller's own pad mode —
+    // captured via MIDI dump. Pressing one changes which note range the pads
+    // below emit (still on PadDeck0Channel/PadDeck1Channel).
+    public int PadModeHotCueNote { get; set; } = 0x1B;
+    public int PadModePadFx1Note { get; set; } = 0x1E;
+    /// <summary>Note of pad 0 in PAD FX1 mode; pad N = PadFx1NoteBase + N (captured:
+    /// pads 1-3 → 0x10/0x11/0x12). Only pad 0 (the echo toggle) is mapped for now.</summary>
+    public int PadFx1NoteBase { get; set; } = 0x10;
+
     // --- Notes: beat loop ----------------------------------------------------------
     public int BeatLoopToggleNote { get; set; } = 0x4D;
     public int BeatLoopHalveNote { get; set; } = 0x51;

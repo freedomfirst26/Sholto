@@ -67,6 +67,7 @@ public sealed class Deck
 
     private BiquadEq3Band? _eq;
     private DjFilter? _filter;
+    private EchoEffect? _echo;
 
     // Stem playback: when stems are available we swap the SoundPlayer's data provider
     // to a StemMixDataProvider that owns the 4 decoded stem buffers and mixes them
@@ -268,6 +269,13 @@ public sealed class Deck
         // dead-zone; see DjFilter.
         _filter = new DjFilter(engine, format);
         _deckMixer.AddModifier(_filter);
+
+        // Echo sits POST-FILTER — toggled from the PAD FX1 page's pad 1 (see
+        // Controller/Orchestrator EchoToggle). Starts disabled: SetEcho(false)
+        // lets an in-flight tail ring out, but the line starts silent so
+        // there's nothing to ring until the first SetEcho(true).
+        _echo = new EchoEffect(engine, format);
+        _deckMixer.AddModifier(_echo);
     }
 
     /// <summary>Announce "a new track is about to load" — resets the in-memory
@@ -1367,4 +1375,28 @@ public sealed class Deck
     /// bypass, 1 = full HP. Safe to call from any thread.</summary>
     public void SetFilter(double position)
         => _filter?.SetPosition((float)Math.Clamp(position, 0.0, 1.0));
+
+    /// <summary>True while the beat-synced echo is feeding new input into its
+    /// delay line (see <see cref="SetEcho"/>). Note this does NOT mean the
+    /// echo is silent when false — a tail can still be ringing out.</summary>
+    public bool EchoActive { get; private set; }
+
+    /// <summary>Toggle the beat-synced echo. Turning ON recomputes the delay
+    /// time from the CURRENT effective BPM (source analysis BPM × live
+    /// playback speed — 128 BPM if analysis hasn't landed yet) and starts
+    /// feeding input into the line. Turning OFF stops feeding NEW input but
+    /// leaves the existing tail ringing (feedback keeps decaying) — the
+    /// classic echo-out. Doesn't chase live tempo-fader changes mid-echo;
+    /// re-toggling picks up the current tempo again (v1 — see EchoEffect).</summary>
+    public void SetEcho(bool on)
+    {
+        if (_echo is null) return;
+        if (on)
+        {
+            double bpm = Analysis.Basic?.Bpm ?? 128.0;
+            _echo.SetTempo(bpm * PlaybackSpeed);
+        }
+        _echo.SetEnabled(on);
+        EchoActive = on;
+    }
 }

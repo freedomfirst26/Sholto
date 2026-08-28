@@ -28,9 +28,22 @@ public sealed class Controller : IDisposable
     /// 3-7 are modeled but currently unused.</summary>
     public IReadOnlyList<ButtonWithLight> Deck1Pads { get; }
     public IReadOnlyList<ButtonWithLight> Deck2Pads { get; }
+    /// <summary>The deck's 8 PAD FX1-page pads (index 0-7), lightable. Only pad 0
+    /// (echo toggle) is driven today — see <see cref="SetEchoLight"/>.</summary>
+    public IReadOnlyList<ButtonWithLight> Deck1PadsFx1 { get; }
+    public IReadOnlyList<ButtonWithLight> Deck2PadsFx1 { get; }
+    /// <summary>HOT CUE / PAD FX1 pad-mode buttons, per deck.</summary>
+    public ButtonWithLight Deck1PadModeHotCue { get; }
+    public ButtonWithLight Deck2PadModeHotCue { get; }
+    public ButtonWithLight Deck1PadModePadFx1 { get; }
+    public ButtonWithLight Deck2PadModePadFx1 { get; }
     public Fader Deck1Volume { get; } = new("Deck1Volume");
     public Fader Deck2Volume { get; } = new("Deck2Volume");
     private readonly IReadOnlyList<Component> _components;
+    /// <summary>Which pad page each deck's pads are currently on. Defaults to
+    /// HotCue — matches the mode the app forces the hardware into at startup
+    /// (see AlsaRawMidi.SendStartupInit).</summary>
+    private readonly PadPage[] _padPage = { PadPage.HotCue, PadPage.HotCue };
 
     /// <summary>High-level semantic events for the App. Carries CueChanged for the
     /// modeled cue buttons, and passes every other control through unchanged.</summary>
@@ -59,12 +72,19 @@ public sealed class Controller : IDisposable
         Deck2Cue      = MakeButton("Deck2Cue",      new ControllerLight(1, LightFunction.Cue));
         Deck1BeatSync = MakeButton("Deck1BeatSync", new ControllerLight(0, LightFunction.BeatSync));
         Deck2BeatSync = MakeButton("Deck2BeatSync", new ControllerLight(1, LightFunction.BeatSync));
-        Deck1Pads     = MakePadButtons(deck: 0);
-        Deck2Pads     = MakePadButtons(deck: 1);
+        Deck1Pads     = MakePadButtons(deck: 0, LightFunction.Pad, "Pad");
+        Deck2Pads     = MakePadButtons(deck: 1, LightFunction.Pad, "Pad");
+        Deck1PadsFx1  = MakePadButtons(deck: 0, LightFunction.PadFx1, "PadFx1Pad");
+        Deck2PadsFx1  = MakePadButtons(deck: 1, LightFunction.PadFx1, "PadFx1Pad");
+        Deck1PadModeHotCue = MakeButton("Deck1PadModeHotCue", new ControllerLight(0, LightFunction.PadModeHotCue));
+        Deck2PadModeHotCue = MakeButton("Deck2PadModeHotCue", new ControllerLight(1, LightFunction.PadModeHotCue));
+        Deck1PadModePadFx1 = MakeButton("Deck1PadModePadFx1", new ControllerLight(0, LightFunction.PadModePadFx1));
+        Deck2PadModePadFx1 = MakeButton("Deck2PadModePadFx1", new ControllerLight(1, LightFunction.PadModePadFx1));
         _components =
         [
             MasterCue, Deck1Cue, Deck2Cue, Deck1BeatSync, Deck2BeatSync, Deck1Volume, Deck2Volume,
-            ..Deck1Pads, ..Deck2Pads,
+            ..Deck1Pads, ..Deck2Pads, ..Deck1PadsFx1, ..Deck2PadsFx1,
+            Deck1PadModeHotCue, Deck2PadModeHotCue, Deck1PadModePadFx1, Deck2PadModePadFx1,
         ];
 
         Deck1Cue.Clicked += _ => OnCueClicked(0, Deck1Cue);
@@ -83,11 +103,11 @@ public sealed class Controller : IDisposable
             if (bytes is not null) _midi.Send(bytes);
         });
 
-    private ButtonWithLight[] MakePadButtons(int deck)
+    private ButtonWithLight[] MakePadButtons(int deck, LightFunction function, string namePrefix)
     {
         var pads = new ButtonWithLight[8];
         for (int i = 0; i < pads.Length; i++)
-            pads[i] = MakeButton($"Deck{deck + 1}Pad{i}", new ControllerLight(deck, LightFunction.Pad, Pad: i));
+            pads[i] = MakeButton($"Deck{deck + 1}{namePrefix}{i}", new ControllerLight(deck, function, Pad: i));
         return pads;
     }
 
@@ -102,6 +122,27 @@ public sealed class Controller : IDisposable
     /// Pad LED bytes are UNVERIFIED on hardware (see DdjFlx4Mapping.RenderLight).</summary>
     public void SetPadLight(int deck, int group, bool on) =>
         (deck == 0 ? Deck1Pads : Deck2Pads)[group].SetLit(on);
+
+    /// <summary>Output command from the App (via the orchestrator): drive a deck's
+    /// PAD FX1 pad-1 LED (the echo toggle). Pad LED bytes are UNVERIFIED on
+    /// hardware (see DdjFlx4Mapping.RenderLight).</summary>
+    public void SetEchoLight(int deck, bool on) =>
+        (deck == 0 ? Deck1PadsFx1 : Deck2PadsFx1)[0].SetLit(on);
+
+    /// <summary>Switch a deck's active pad page: lights the matching mode
+    /// button (dark the other), and repaints BOTH pad sets unconditionally.
+    /// The hardware only renders pad LEDs for whichever mode it's currently
+    /// in and silently ignores note-on for the inactive one, so re-sending
+    /// both sets is simpler than tracking which set is "live" — the set that
+    /// doesn't match the new page is a no-op on the wire.</summary>
+    private void SetPadPage(int deck, PadPage page)
+    {
+        _padPage[deck] = page;
+        (deck == 0 ? Deck1PadModeHotCue : Deck2PadModeHotCue).SetLit(page == PadPage.HotCue);
+        (deck == 0 ? Deck1PadModePadFx1 : Deck2PadModePadFx1).SetLit(page == PadPage.PadFx1);
+        foreach (var b in deck == 0 ? Deck1Pads : Deck2Pads) b.Reassert();
+        foreach (var b in deck == 0 ? Deck1PadsFx1 : Deck2PadsFx1) b.Reassert();
+    }
 
     /// <summary>Connect to the hardware. Returns false if no controller is found
     /// (the App can still run from the UI).</summary>
@@ -144,6 +185,10 @@ public sealed class Controller : IDisposable
                 break;
             case ControllerEvent.MasterCuePressed:
                 MasterCue.Press();
+                break;
+            case ControllerEvent.PadPageSelected pp:
+                SetPadPage(pp.Deck, pp.Page);
+                Action?.Invoke(evt);   // forward too — see PadPageSelected's doc comment
                 break;
             // Channel faders: route through soft-takeover; the Fader re-emits a
             // ChannelVolumeMoved (via Action) only once it has picked up.

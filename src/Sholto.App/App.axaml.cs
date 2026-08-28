@@ -281,6 +281,7 @@ public partial class App : Application
         // App→controller output: orchestrator asks, controller lights the LED.
         _orchestrator.BeatSyncLightRequested += (deck, on) => _controller.SetBeatSync(deck, on);
         _orchestrator.PadLightRequested += (deck, group, on) => _controller.SetPadLight(deck, group, on);
+        _orchestrator.EchoLightRequested += (deck, on) => _controller.SetEchoLight(deck, on);
         _orchestrator.MasterCueRequested += on => _audioEngine?.SetMasterCue(on);
 
         // Known state on boot: every button LED off + cue audio cleared, emitted

@@ -1130,6 +1130,15 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// draw the gain line on the waveform — but only when <see cref="GainKnown"/>.</summary>
     public double EffectiveGain => (_channelGain ?? 0f) * _crossfadeGain;
 
+    /// <summary>Mirrors the deck's beat-synced echo on/off state (see
+    /// Deck.EchoActive) — no XAML binding yet, reserved for future UI. The
+    /// controller's PAD FX1 pad-1 LED is driven separately by Orchestrator.</summary>
+    public bool EchoActive
+    {
+        get => _player.EchoActive;
+        set { _player.SetEcho(value); Notify(); }
+    }
+
     /// <summary>True when the deck is measured AND effectively silent. Only counts as
     /// muted once the fader is known — an unmeasured deck is "unknown", not "muted".
     /// Drives the red mute tint over the deck area.</summary>

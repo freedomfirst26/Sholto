@@ -6,6 +6,15 @@ public enum JogSource
     SideRing,   // outer ridged ring — slow / fine seek
 }
 
+/// <summary>Which pad layout the controller's pads are currently emitting.
+/// HotCue = pads 0x00-0x07 (stem mutes on pads 1-3); PadFx1 = pads 0x10-0x17
+/// (echo toggle on pad 1). Switched by the HOT CUE / PAD FX1 mode buttons.</summary>
+public enum PadPage
+{
+    HotCue,
+    PadFx1,
+}
+
 public abstract record ControllerEvent
 {
     public record BrowseRotated(int Delta) : ControllerEvent;
@@ -95,6 +104,18 @@ public abstract record ControllerEvent
     /// no need to track Shift state. Cycles the tempo / pitch-fader range
     /// (±6 → ±10 → ±16 → WIDE → ±6) like Rekordbox's TEMPO RANGE.</summary>
     public record CyclePitchRange(int Deck) : ControllerEvent;
+
+    /// <summary>HOT CUE / PAD FX1 mode-button press on a deck (press edge
+    /// only). Consumed by the Controller, which tracks the per-deck page,
+    /// lights the matching mode button, and repaints the pad LEDs for the
+    /// newly active page — then forwards this event unchanged so the App
+    /// can react too if it ever wants to.</summary>
+    public record PadPageSelected(int Deck, PadPage Page) : ControllerEvent;
+
+    /// <summary>PAD FX1 page, pad 1 — toggles the deck's beat-synced echo.
+    /// Pads 2-8 on this page are unmapped for now. Passes straight through
+    /// the Controller to the Orchestrator (same as StemToggle).</summary>
+    public record EchoToggle(int Deck) : ControllerEvent;
 }
 
 public enum EqBand { Low, Mid, High }

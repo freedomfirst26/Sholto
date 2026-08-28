@@ -134,6 +134,10 @@ public sealed class Orchestrator : IDisposable
     /// engine's master-cue monitor. Bool is the new on/off state.</summary>
     public event Action<bool>? MasterCueRequested;
 
+    /// <summary>Raised when a deck's echo effect is toggled — App forwards this
+    /// to the controller's PAD FX1 pad-1 LED. Args: deck, new on/off state.</summary>
+    public event Action<int, bool>? EchoLightRequested;
+
     private void OnReanalyzeSelectedRequested() => ReanalyzeHighlighted("double-click");
 
     /// <summary>Force-reanalyze the highlighted library track (BPM/beats/peaks + key)
@@ -288,6 +292,19 @@ public sealed class Orchestrator : IDisposable
                 break;
             case ControllerEvent.BeatSyncPressed:
                 // Plain BEAT SYNC — beat-sync not yet implemented.
+                break;
+            case ControllerEvent.EchoToggle et:
+            {
+                var deckVm = vm.DeckFor(et.Deck);
+                deckVm.EchoActive = !deckVm.EchoActive;
+                EchoLightRequested?.Invoke(et.Deck, deckVm.EchoActive);
+                break;
+            }
+            case ControllerEvent.PadPageSelected:
+                // No VM binding yet — the Controller model already tracks
+                // per-deck pad-page state and repaints the mode-button + pad
+                // LEDs itself (see Controller.SetPadPage). Reserved for a
+                // future "which pad page is active" UI indicator.
                 break;
             case ControllerEvent.CyclePitchRange cpr:
                 vm.DeckFor(cpr.Deck).CyclePitchRange();
