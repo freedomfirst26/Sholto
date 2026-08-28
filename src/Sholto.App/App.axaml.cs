@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Sholto.Storage;
 using Sholto.Storage.Entities;
 using Sholto.Controller;
+using Sholto.Controller.Mappings;
 using Sholto.Music;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;
@@ -261,7 +262,12 @@ public partial class App : Application
         // Pick audio output device (prompt user on first run or if saved device is gone)
         _ = StartAudioAsync(vm, desktop);
 
-        _controller = new Sholto.Controller.Controller();
+        // DdjFlx4Options is a plain POCO owned by Sholto.Controller (that project
+        // doesn't take a Microsoft.Extensions.Options dependency); App builds it
+        // through IOptions like the other *Options types, then hands the .Value
+        // straight to the Controller, which threads it down to the mapping.
+        var flx4Options = Microsoft.Extensions.Options.Options.Create(new DdjFlx4Options());
+        _controller = new Sholto.Controller.Controller(flx4Options.Value);
         if (!_controller.Connect())
             Console.WriteLine("DDJ-FLX4 not found — use UI controls.");
 
@@ -274,6 +280,7 @@ public partial class App : Application
             Dispatcher.UIThread.Post(() => vm.ControllerConnected = connected);
         // App→controller output: orchestrator asks, controller lights the LED.
         _orchestrator.BeatSyncLightRequested += (deck, on) => _controller.SetBeatSync(deck, on);
+        _orchestrator.PadLightRequested += (deck, group, on) => _controller.SetPadLight(deck, group, on);
         _orchestrator.MasterCueRequested += on => _audioEngine?.SetMasterCue(on);
 
         // Known state on boot: every button LED off + cue audio cleared, emitted
