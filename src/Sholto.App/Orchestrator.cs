@@ -313,11 +313,11 @@ public sealed class Orchestrator : IDisposable
                 var deckVm = vm.DeckFor(j.Deck);
                 if (deckVm.Player.ActiveLoop is not null) break;
 
-                // Shift + top platter = fast search: silent 4× seek through the
+                // Shift + top platter = fast search: silent 2× seek through the
                 // track (CDJ Shift+jog), bypassing the audible scratch entirely.
                 if (j.Source == JogSource.TopPlatter && _shiftHeld[j.Deck])
                 {
-                    double fastSecs = j.Delta * TopPlatterSecsPerTick * 4;
+                    double fastSecs = j.Delta * TopPlatterSecsPerTick * 2;
                     if (j.Deck == 0) _pendingJog1 += fastSecs;
                     else             _pendingJog2 += fastSecs;
                     vm.LastJoggedDeck = j.Deck == 0 ? 1 : 2;
@@ -410,6 +410,11 @@ public sealed class Orchestrator : IDisposable
     private static readonly double ScratchDecelPerSec =
         double.TryParse(Environment.GetEnvironmentVariable("SHOLTO_SCRATCH_DECEL"), out var i) && i > 0
             ? i : 12.0;
+    // Below this speed-gap the coast switches from constant friction to an
+    // exponential glide (CoastTailTauSec) — the drawn-out dying tail at the end
+    // of a backspin, instead of stopping on a dime.
+    private const double CoastKnee = 2.0;
+    private const double CoastTailTauSec = 0.35;
     // Fling projection: the FLX4's platter has no flywheel — it stops almost the
     // instant the hand leaves — so a physical quarter-second rip reads as a weak
     // spin. When the platter is released ABOVE FlingThreshold (i.e. it was
@@ -485,9 +490,22 @@ public sealed class Orchestrator : IDisposable
                 st.PeakVelocity = 0;
             }
             double target = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0.0;
-            double step = st.Decel * dt;
-            if (st.Velocity < target) st.Velocity = Math.Min(target, st.Velocity + step);
-            else                      st.Velocity = Math.Max(target, st.Velocity - step);
+            double gap = Math.Abs(st.Velocity - target);
+            if (gap > CoastKnee)
+            {
+                // Fast phase: constant friction, real momentum.
+                double step = st.Decel * dt;
+                if (st.Velocity < target) st.Velocity = Math.Min(target, st.Velocity + step);
+                else                      st.Velocity = Math.Max(target, st.Velocity - step);
+            }
+            else
+            {
+                // Tail: below the knee, ease exponentially into rest — the last
+                // stretch of a backspin draws out and dies away instead of
+                // stopping on a dime.
+                double a = 1 - Math.Exp(-dt / CoastTailTauSec);
+                st.Velocity += (target - st.Velocity) * a;
+            }
 
             if (Math.Abs(st.Velocity - target) < 0.02)
             {
