@@ -46,7 +46,7 @@ jobs:
 
       - name: Package
         run: |
-          cp README.md LICENSE install-deps.sh dist/
+          cp README.md LICENSE install-deps.sh get-sholto.sh dist/
           rm -f dist/*.pdb
           tar -C dist -czf sholto-${{ github.ref_name }}-${{ matrix.rid }}.tar.gz .
 

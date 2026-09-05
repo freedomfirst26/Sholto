@@ -7,6 +7,9 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+### New
+- **One-command install.** `curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash` downloads the latest release, installs its tools, and launches it. Re-run to update.
+
 ## v0.2.0
 
 ### New

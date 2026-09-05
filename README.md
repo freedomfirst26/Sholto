@@ -6,7 +6,7 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 
 **Status:** runs on **Linux** with the **Pioneer DDJ-FLX4** controller today. Windows, macOS, and more controllers are on the way.
 
-![Sholto — library on top, two decks below with live waveforms and spinning discs](pictures/sholto-ui.png)
+![Sholto — library on top, two decks below with section maps, live waveforms, and spinning discs](pictures/sholto-ui.png)
 
 ## What it does
 
@@ -72,22 +72,21 @@ Adding support for another controller is straightforward — Sholto keeps each d
 
 Two ways to get Sholto — grab a ready-made binary, or build it yourself.
 
-### Option 1 — download a prebuilt binary (easiest)
-
-Download the latest `sholto-*-linux-x64.tar.gz` from the [**Releases**](https://github.com/freedomfirst26/Sholto/releases) page, then:
+### Option 1 — one command (easiest)
 
 ```bash
-tar -xzf sholto-*-linux-x64.tar.gz
-./Sholto.App
+curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash
 ```
 
-The binary is **self-contained — you don't need .NET installed.** You do still need a few runtime tools (ffmpeg, madmom, and a couple of system libraries — see *What it needs* below). Install just those, no .NET SDK and no build, with the bundled dependency script:
+That downloads the latest release into `~/sholto`, installs the runtime tools it needs (ffmpeg, madmom, and a couple of system libraries — it will ask for your password once), and launches Sholto. Run the same command again later to update. Set `SHOLTO_DIR=/somewhere` to install elsewhere, or add `--no-run` to install without launching:
 
 ```bash
-bash install-deps.sh
+curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash -s -- --no-run
 ```
 
-(It's included in the download, and also in the repo. It installs ffmpeg, the `libpulse.so` symlink the audio engine needs, uv, and madmom — plus optional demucs/allin1.)
+Prefer to see what you're running first? Download the script, read it, then `bash get-sholto.sh`.
+
+The binary is **self-contained — you don't need .NET installed.** If you'd rather do it by hand, grab `sholto-*-linux-x64.tar.gz` from the [**Releases**](https://github.com/freedomfirst26/Sholto/releases) page, `tar -xzf` it, run `bash install-deps.sh` once, then `./Sholto.App`.
 
 ### Option 2 — build from source
 
