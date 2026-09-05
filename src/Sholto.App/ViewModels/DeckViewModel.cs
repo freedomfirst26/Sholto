@@ -466,14 +466,6 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         return arr[col];
     }
 
-    /// <summary>Jump to an absolute fraction of the track (0..1) — minimap click/drag.</summary>
-    public void SeekToFraction(double fraction)
-    {
-        if (!_player.IsLoaded) return;
-        _player.SeekToFraction(fraction);
-        SyncPlayPosition();
-    }
-
     public double[] BeatTimes => Analysis.Basic?.BeatTimes ?? [];
     public double[] DownbeatTimes => Analysis.Basic?.DownbeatTimes ?? [];
 

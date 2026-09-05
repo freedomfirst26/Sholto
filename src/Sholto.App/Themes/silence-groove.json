@@ -18,5 +18,10 @@
     "majorLightness":   0.58,
     "minorLightness":   0.44,
     "onChipForeground": "#0F172A"
+  },
+  "waveform": {
+    "low": "#7C5CFF",
+    "mid": "#FF4E9A",
+    "downbeat": "#C8FFAA2A"
   }
 }

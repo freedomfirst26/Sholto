@@ -1,0 +1,32 @@
+{
+  "name": "Aphex Twin",
+  "bgDeep":        "#0B0F0E",
+  "surface":       "#131A18",
+  "surfaceRaised": "#1B2523",
+  "border":        "#2E3D39",
+  "primary":       "#C8792A",
+  "accent":        "#E0532A",
+  "accentBg":      "#33E0532A",
+  "mint":          "#B7F04A",
+  "textBright":    "#F2EBDD",
+  "textMuted":     "#8A9A8E",
+  "playedFadeColor": "#0B0F0E",
+  "waveformPalette": "Bands",
+  "camelotPalette": {
+    "hueOffset":        30,
+    "saturation":       0.70,
+    "majorLightness":   0.52,
+    "minorLightness":   0.40,
+    "onChipForeground": "#0B0F0E"
+  },
+  "waveform": {
+    "low":         "#2F6B5E",
+    "mid":         "#C8792A",
+    "downbeat":    "#D8B7F04A"
+  },
+  "minimap": {
+    "drop":    "#E0532A",
+    "buildUp": "#C8792A",
+    "bridge":  "#B7F04A"
+  }
+}

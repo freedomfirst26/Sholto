@@ -461,7 +461,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
             // (e.g. value converters) can see the change too.
             ThemeContext.Current = value;
             Notify();
-            Notify(nameof(WaveformPalette));
             // Re-emit theme-derived bindings on each track and deck so KeyBrush
             // re-evaluates against the new palette. Cheaper than a static event
             // subscription (which would pin every TrackRow until app exit).
@@ -477,8 +476,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// <summary>Fires when <see cref="Theme"/> changes. App.axaml.cs subscribes
     /// to persist the choice into the settings table so it survives restarts.</summary>
     public event Action<SholtoTheme>? ThemeChanged;
-
-    public WaveformPalette WaveformPalette => _theme.WaveformPalette;
 
     public int SelectedTrackIndex
     {

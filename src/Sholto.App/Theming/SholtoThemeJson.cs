@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Avalonia.Media;
 using Avalonia.Platform;
-using Sholto.App.Controls;
 
 namespace Sholto.App.Theming;
 
@@ -36,9 +35,42 @@ namespace Sholto.App.Theming;
 ///     "majorLightness":  0..1,
 ///     "minorLightness":  0..1,
 ///     "onChipForeground":"#RRGGBB"
+///   },
+///   "minimap": {                     // OPTIONAL — see below
+///     "backdrop":  "#RRGGBB",
+///     "playhead":  "#RRGGBB",
+///     "label":     "#RRGGBB",
+///     "divider":   "#AARRGGBB",
+///     "intro":     "#RRGGBB",
+///     "buildUp":   "#RRGGBB",
+///     "drop":      "#RRGGBB",
+///     "breakdown": "#RRGGBB",
+///     "verse":     "#RRGGBB",
+///     "chorus":    "#RRGGBB",
+///     "bridge":    "#RRGGBB",
+///     "outro":     "#RRGGBB"
+///   },
+///   "waveform": {                    // OPTIONAL — every key optional too
+///     "background":  "#RRGGBB",      // baked waveform background
+///     "low":         "#RRGGBB",      // bass band   (default: Rekordbox 3-band blue)
+///     "mid":         "#RRGGBB",      //             (default: orange)
+///     "downbeat":    "#AARRGGBB",    // bar guide   (default: from "waveformPalette" preset)
+///     "beatTick":    "#AARRGGBB",    // (default: textBright @C0)
+///     "playhead":    "#RRGGBB",      // (default: mint)
+///     "marker":      "#RRGGBB",      // (default: accent)
+///     "gain":        "#AARRGGBB",    // gain line (default: mint @FF)
+///     "loop":        "#AARRGGBB"     // loop band (default: accent @80)
 ///   }
 /// }
 /// </code>
+/// "high" is not a key — the inner band is always white.
+/// The vocal lane, VOX chip, and beat-snap glow are fixed green/grey on every theme and are not themeable.
+/// The whole "minimap" section is optional, and so is every key within it — any
+/// key that's missing (including the whole section) falls back to a colour
+/// derived from the theme's core palette via <see cref="MinimapPalette.DeriveFrom"/>,
+/// so every existing theme file keeps working unedited.
+/// "waveformPalette" now only seeds the downbeat colour; the three bands default
+/// to the Rekordbox scheme for every theme unless "waveform" sets low/mid/high.
 /// </summary>
 public static class SholtoThemeJson
 {
@@ -59,6 +91,20 @@ public static class SholtoThemeJson
             MinorLightness:   cam.GetProperty("minorLightness").GetDouble(),
             OnChipForeground: Brush(cam, "onChipForeground"));
 
+        var bgDeepColor     = ParseColor(root.GetProperty("bgDeep").GetString()!);
+        var primaryColor    = ParseColor(root.GetProperty("primary").GetString()!);
+        var accentColor     = ParseColor(root.GetProperty("accent").GetString()!);
+        var mintColor       = ParseColor(root.GetProperty("mint").GetString()!);
+        var textBrightColor = ParseColor(root.GetProperty("textBright").GetString()!);
+        var borderColor     = ParseColor(root.GetProperty("border").GetString()!);
+        var minimap = ParseMinimapPalette(root, bgDeepColor, primaryColor, accentColor, mintColor,
+            textBrightColor, borderColor);
+
+        var textMutedColor = ParseColor(root.GetProperty("textMuted").GetString()!);
+        var preset   = ParsePreset(root.GetProperty("waveformPalette").GetString()!);
+        var waveform = ParseWaveformPalette(root, preset, bgDeepColor, accentColor, mintColor,
+                                            textBrightColor, textMutedColor);
+
         return new SholtoTheme(
             Name:            root.GetProperty("name").GetString() ?? "Unnamed",
             BgDeep:          Brush(root, "bgDeep"),
@@ -72,8 +118,37 @@ public static class SholtoThemeJson
             TextBright:      Brush(root, "textBright"),
             TextMuted:       Brush(root, "textMuted"),
             PlayedFadeColor: ParseColor(root.GetProperty("playedFadeColor").GetString()!),
-            WaveformPalette: ParsePalette(root.GetProperty("waveformPalette").GetString()!),
-            CamelotPalette:  camPalette);
+            WaveformPreset:  preset,
+            Waveform:        waveform,
+            CamelotPalette:  camPalette,
+            Minimap:         minimap);
+    }
+
+    /// <summary>Parse the optional "minimap" section. The section itself, and every
+    /// key within it, is optional — anything missing is derived from the theme's
+    /// core colours so themes never need editing to add minimap support.</summary>
+    private static MinimapPalette ParseMinimapPalette(JsonElement root, Color bgDeep, Color primary,
+        Color accent, Color mint, Color textBright, Color border)
+    {
+        var derived = MinimapPalette.DeriveFrom(bgDeep, primary, accent, mint, textBright, border);
+        if (!root.TryGetProperty("minimap", out var mm)) return derived;
+
+        Color Get(string key, Color fallback) =>
+            mm.TryGetProperty(key, out var el) && el.GetString() is string s ? ParseColor(s) : fallback;
+
+        return new MinimapPalette(
+            Backdrop:  Get("backdrop",  derived.Backdrop),
+            Playhead:  Get("playhead",  derived.Playhead),
+            Label:     Get("label",     derived.Label),
+            Divider:   Get("divider",   derived.Divider),
+            Intro:     Get("intro",     derived.Intro),
+            BuildUp:   Get("buildUp",   derived.BuildUp),
+            Drop:      Get("drop",      derived.Drop),
+            Breakdown: Get("breakdown", derived.Breakdown),
+            Verse:     Get("verse",     derived.Verse),
+            Chorus:    Get("chorus",    derived.Chorus),
+            Bridge:    Get("bridge",    derived.Bridge),
+            Outro:     Get("outro",     derived.Outro));
     }
 
     /// <summary>Read all bundled themes (avares://Sholto.App/Themes/*.json) plus
@@ -183,8 +258,29 @@ public static class SholtoThemeJson
 
     private static Color ParseColor(string hex) => Color.Parse(hex);
 
-    private static WaveformPalette ParsePalette(string name) =>
-        Enum.TryParse<WaveformPalette>(name, ignoreCase: true, out var p)
-            ? p
-            : WaveformPalette.Bands;
+    private static WaveformPreset ParsePreset(string name) =>
+        Enum.TryParse<WaveformPreset>(name, ignoreCase: true, out var p) ? p : WaveformPreset.Bands;
+
+    /// <summary>Parse the optional "waveform" section. The section and every key in
+    /// it are optional; anything missing comes from <see cref="WaveformPalette.DeriveFrom"/>.</summary>
+    private static WaveformPalette ParseWaveformPalette(JsonElement root, WaveformPreset preset,
+        Color bgDeep, Color accent, Color mint, Color textBright, Color textMuted)
+    {
+        var d = WaveformPalette.DeriveFrom(preset, bgDeep, accent, mint, textBright, textMuted);
+        if (!root.TryGetProperty("waveform", out var wf)) return d;
+
+        Color Get(string key, Color fallback) =>
+            wf.TryGetProperty(key, out var el) && el.GetString() is string s ? ParseColor(s) : fallback;
+
+        return new WaveformPalette(
+            Background:  Get("background",  d.Background),
+            Low:         Get("low",         d.Low),
+            Mid:         Get("mid",         d.Mid),
+            Downbeat:    Get("downbeat",    d.Downbeat),
+            BeatTick:    Get("beatTick",    d.BeatTick),
+            Playhead:    Get("playhead",    d.Playhead),
+            Marker:      Get("marker",      d.Marker),
+            Gain:        Get("gain",        d.Gain),
+            Loop:        Get("loop",        d.Loop));
+    }
 }

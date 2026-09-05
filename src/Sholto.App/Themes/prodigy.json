@@ -1,0 +1,34 @@
+{
+  "name": "The Prodigy",
+  "bgDeep":        "#050505",
+  "surface":       "#101010",
+  "surfaceRaised": "#1A1A1A",
+  "border":        "#333333",
+  "primary":       "#FF5A1F",
+  "accent":        "#39FF14",
+  "accentBg":      "#3339FF14",
+  "mint":          "#39FF14",
+  "textBright":    "#F5F5F5",
+  "textMuted":     "#8C8C8C",
+  "playedFadeColor": "#050505",
+  "waveformPalette": "Bands",
+  "camelotPalette": {
+    "hueOffset":        100,
+    "saturation":       0.90,
+    "majorLightness":   0.50,
+    "minorLightness":   0.38,
+    "onChipForeground": "#050505"
+  },
+  "waveform": {
+    "low":         "#1F6B2A",
+    "mid":         "#FF5A1F",
+    "downbeat":    "#D839FF14",
+    "marker":      "#FF5A1F",
+    "loop":        "#8039FF14"
+  },
+  "minimap": {
+    "drop":      "#FF5A1F",
+    "buildUp":   "#39FF14",
+    "breakdown": "#2A2A2A"
+  }
+}

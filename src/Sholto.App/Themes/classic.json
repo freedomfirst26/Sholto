@@ -18,5 +18,24 @@
     "majorLightness":   0.55,
     "minorLightness":   0.42,
     "onChipForeground": "#101820"
+  },
+  "minimap": {
+    "backdrop":  "#0D0D0D",
+    "playhead":  "#FFFFFF",
+    "label":     "#EEEEEE",
+    "divider":   "#B0000000",
+    "intro":     "#3A3A3A",
+    "buildUp":   "#00FFCC",
+    "drop":      "#FFC700",
+    "breakdown": "#B084FF",
+    "verse":     "#3AA0FF",
+    "chorus":    "#FFE066",
+    "bridge":    "#FFFFFF",
+    "outro":     "#222222"
+  },
+  "waveform": {
+    "low": "#2A7FFF",
+    "mid": "#FF8C1A",
+    "downbeat": "#D8E6F0FF"
   }
 }

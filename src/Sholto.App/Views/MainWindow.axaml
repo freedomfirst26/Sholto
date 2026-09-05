@@ -78,19 +78,7 @@
         <Menu Background="Transparent"
               Foreground="{DynamicResource SholtoTextBright}">
             <MenuItem Header="Settings">
-                <MenuItem Header="Theme">
-                    <MenuItem Header="Classic" Click="OnThemeClassic"/>
-                    <MenuItem Header="Serato" Click="OnThemeSerato"/>
-                    <MenuItem Header="Front Line Assembly" Click="OnThemeFrontLineAssembly"/>
-                    <MenuItem Header="Silence Groove" Click="OnThemeSilenceGroove"/>
-                    <MenuItem Header="Jeremy Soule" Click="OnThemeJeremySoule"/>
-                    <MenuItem Header="Drab Majesty" Click="OnThemeDrabMajesty"/>
-                    <MenuItem Header="Sub Focus" Click="OnThemeSubFocus"/>
-                    <MenuItem Header="Type O Negative" Click="OnThemeTypeONegative"/>
-                    <MenuItem Header="Birthday Massacre" Click="OnThemeBirthdayMassacre"/>
-                    <MenuItem Header="Boards of Canada" Click="OnThemeBoardsOfCanada"/>
-                    <MenuItem Header="Pantera" Click="OnThemePantera"/>
-                </MenuItem>
+                <MenuItem Header="Theme" x:Name="ThemesMenu"/>
                 <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
             </MenuItem>

@@ -1,7 +1,10 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using SkiaSharp;
 using Avalonia.Controls.Selection;
@@ -21,8 +24,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Icon = BuildAppIcon();   // tri-colour RGB "S" on a rounded plate — matches the library watermark
+        BuildThemesMenu();
         // Intercept keys before child controls (ListBox would otherwise eat arrows).
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+
+        // Default minimap palette so DeckView's DynamicResource binding resolves
+        // even before the first ApplyThemeToResources call (e.g. designer preview).
+        Resources["SholtoMinimapPalette"] = Themes.Classic.Minimap;
+        Resources["SholtoWaveformPalette"] = Themes.Classic.Waveform;
 
         // Push the initial theme into the Window's dynamic-resource brushes so the
         // first paint already has the right colors.
@@ -105,6 +114,8 @@ public partial class MainWindow : Window
         // Foreground drawn on top of Camelot key chips. Themes pick this once so
         // dark/light text stays legible against their tuned chip palette.
         Resources["SholtoChipForeground"] = theme.CamelotPalette.OnChipForeground;
+        Resources["SholtoMinimapPalette"] = theme.Minimap;
+        Resources["SholtoWaveformPalette"] = theme.Waveform;
         // Tag editor + indicator brushes. Fixed for now; if themes ever want to
         // override these, add fields to SholtoTheme and forward them here.
         Resources["TagChipBackground"]     = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#4C5C8A"));
@@ -359,17 +370,30 @@ public partial class MainWindow : Window
     }
 
 
-    private void OnThemeClassic          (object? sender, RoutedEventArgs e) => SetTheme(Themes.Classic);
-    private void OnThemeSerato           (object? sender, RoutedEventArgs e) => SetTheme(Themes.Serato);
-    private void OnThemeFrontLineAssembly(object? sender, RoutedEventArgs e) => SetTheme(Themes.FrontLineAssembly);
-    private void OnThemeSilenceGroove    (object? sender, RoutedEventArgs e) => SetTheme(Themes.SilenceGroove);
-    private void OnThemeJeremySoule      (object? sender, RoutedEventArgs e) => SetTheme(Themes.JeremySoule);
-    private void OnThemeDrabMajesty      (object? sender, RoutedEventArgs e) => SetTheme(Themes.DrabMajesty);
-    private void OnThemeSubFocus         (object? sender, RoutedEventArgs e) => SetTheme(Themes.SubFocus);
-    private void OnThemeTypeONegative    (object? sender, RoutedEventArgs e) => SetTheme(Themes.TypeONegative);
-    private void OnThemeBirthdayMassacre (object? sender, RoutedEventArgs e) => SetTheme(Themes.BirthdayMassacre);
-    private void OnThemeBoardsOfCanada   (object? sender, RoutedEventArgs e) => SetTheme(Themes.BoardsOfCanada);
-    private void OnThemePantera          (object? sender, RoutedEventArgs e) => SetTheme(Themes.Pantera);
+    /// <summary>Builds the Theme submenu from <see cref="Themes.All"/> (order =
+    /// themes.manifest) so adding/removing a theme JSON never needs a XAML or
+    /// code-behind edit.</summary>
+    private void BuildThemesMenu()
+    {
+        ThemesMenu.Items.Clear();
+        foreach (var theme in Themes.All)
+        {
+            var item = new MenuItem { Header = theme.Name, Icon = ThemeSwatch(theme) };
+            var captured = theme;
+            item.Click += (_, _) => SetTheme(captured);
+            ThemesMenu.Items.Add(item);
+        }
+    }
+
+    /// <summary>Four 6×14 chips — background, primary, accent, mint — with a 1 px
+    /// border so a dark theme's chips still read against the menu.</summary>
+    private static Control ThemeSwatch(SholtoTheme t)
+    {
+        var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 1 };
+        foreach (var brush in new[] { t.BgDeep, t.Primary, t.Accent, t.Mint })
+            strip.Children.Add(new Border { Width = 6, Height = 14, Background = brush, BorderBrush = Brushes.Black, BorderThickness = new Thickness(0.5) });
+        return strip;
+    }
 
     private void SetTheme(SholtoTheme theme)
     {

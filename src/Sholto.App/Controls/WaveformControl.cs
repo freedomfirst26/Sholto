@@ -4,13 +4,12 @@ using Avalonia.Media;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Avalonia.Threading;
+using Sholto.App.Theming;
 using Sholto.Audio;
 using Sholto.Analysis;
 using SkiaSharp;
 
 namespace Sholto.App.Controls;
-
-public enum WaveformPalette { Bands, Hot, Plasma, Smoke, Glacier, SubFocus, OctoberRust, Massacre, Soule, BoardsOfCanada, Pantera }
 
 /// <summary>
 /// Pre-renders the entire waveform to an offscreen SKImage at track load,
@@ -20,12 +19,16 @@ public enum WaveformPalette { Bands, Hot, Plasma, Smoke, Glacier, SubFocus, Octo
 public sealed class WaveformControl : Control
 {
     private const int BakedHeight = 256;
-    private static readonly SKColor BgColor = new(0x11, 0x11, 0x11);
 
-    // Vocal-presence rectangle colours — painted only where the vocals are. Green
-    // when the vocal stem is audible, this flat grey when it's muted.
-    public static readonly SKColor VocalActiveColor = new(0x34, 0xF0, 0x6F, 0xD0);   // VOX green
-    public static readonly SKColor VocalInactiveColor = new(0x60, 0x64, 0x6B, 0xB0); // muted grey
+    // Fixed on every theme (owner decision): the vocal lane and the beat-snap
+    // glow are the app's "stem green", the VOX chip matches them.
+    private static readonly SKColor VocalActiveColor = new(0x34, 0xF0, 0x6F, 0xD0);
+    private static readonly SKColor VocalInactiveColor = new(0x60, 0x64, 0x6B, 0xB0);
+    private static readonly SKColor GlowColor = new(0x34, 0xF0, 0x6F, 0xF0);
+
+    // Innermost (High) waveform band: fixed white on every theme so the vocal-
+    // presence overlay (drawn on top of it) stays readable (owner decision).
+    private static readonly SKColor HighBandColor = new(0xF5, 0xF5, 0xFF);
 
     public static readonly StyledProperty<WaveformPeaks?> PeaksProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(Peaks));
@@ -69,18 +72,6 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<double> PlaybackSpeedProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(PlaybackSpeed), 1.0);
 
-    /// <summary>Theme-driven colour for the effective-gain (volume × crossfader)
-    /// horizontal line drawn on the waveform. Falls back to mint if unbound.</summary>
-    public static readonly StyledProperty<Avalonia.Media.Color> GainOverlayColorProperty =
-        AvaloniaProperty.Register<WaveformControl, Avalonia.Media.Color>(
-            nameof(GainOverlayColor), Avalonia.Media.Color.FromArgb(0xC0, 0x34, 0xF0, 0xC6));
-
-    public Avalonia.Media.Color GainOverlayColor
-    {
-        get => GetValue(GainOverlayColorProperty);
-        set => SetValue(GainOverlayColorProperty, value);
-    }
-
     public static readonly StyledProperty<double> GainOverlayProperty =
         AvaloniaProperty.Register<WaveformControl, double>(nameof(GainOverlay), 1.0);
 
@@ -96,8 +87,27 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<bool> IsScrubbingProperty =
         AvaloniaProperty.Register<WaveformControl, bool>(nameof(IsScrubbing), false);
 
-    public static readonly StyledProperty<WaveformPalette> PaletteProperty =
-        AvaloniaProperty.Register<WaveformControl, WaveformPalette>(nameof(Palette), WaveformPalette.Bands);
+    /// <summary>Every colour this control draws, from the active theme
+    /// (bound via DynamicResource SholtoWaveformPalette). Null only in the
+    /// designer/preview — falls back to a Bands-derived default.</summary>
+    public static readonly StyledProperty<WaveformPalette?> PaletteProperty =
+        AvaloniaProperty.Register<WaveformControl, WaveformPalette?>(nameof(Palette));
+    public WaveformPalette? Palette { get => GetValue(PaletteProperty); set => SetValue(PaletteProperty, value); }
+
+    /// <summary>True once the user has nudged this deck's beatgrid; the loop band
+    /// turns red so the grid edit is visible. Replaces LoopColorConverter.</summary>
+    public static readonly StyledProperty<bool> IsGridNudgedProperty =
+        AvaloniaProperty.Register<WaveformControl, bool>(nameof(IsGridNudged));
+    public bool IsGridNudged { get => GetValue(IsGridNudgedProperty); set => SetValue(IsGridNudgedProperty, value); }
+
+    private static readonly WaveformPalette FallbackPalette = WaveformPalette.DeriveFrom(
+        WaveformPreset.Bands,
+        Avalonia.Media.Color.Parse("#0B0918"), Avalonia.Media.Color.Parse("#FF4E9A"),
+        Avalonia.Media.Color.Parse("#34F0C6"), Avalonia.Media.Color.Parse("#EEEAFF"),
+        Avalonia.Media.Color.Parse("#8B7FB8"));
+    private WaveformPalette Pal => Palette ?? FallbackPalette;
+
+    private static SKColor Sk(Avalonia.Media.Color c) => new(c.R, c.G, c.B, c.A);
 
     /// <summary>Loop-in point in seconds, or null = no loop. The control paints
     /// a translucent band between this and <see cref="LoopEndSec"/>.</summary>
@@ -107,12 +117,6 @@ public sealed class WaveformControl : Control
     /// <summary>Loop-out point in seconds, or null = no loop.</summary>
     public static readonly StyledProperty<double?> LoopEndSecProperty =
         AvaloniaProperty.Register<WaveformControl, double?>(nameof(LoopEndSec));
-
-    /// <summary>Theme-driven colour for the active-loop band. Alpha here drives
-    /// the band's transparency over the beatgrid.</summary>
-    public static readonly StyledProperty<Avalonia.Media.Color> LoopColorProperty =
-        AvaloniaProperty.Register<WaveformControl, Avalonia.Media.Color>(
-            nameof(LoopColor), Avalonia.Media.Color.FromArgb(0x55, 0xFF, 0xC7, 0x00));
 
     /// <summary>When true, clicking the waveform raises <see cref="GridAnchorClicked"/>
     /// with the clicked track-time instead of doing nothing — the two-point
@@ -132,7 +136,6 @@ public sealed class WaveformControl : Control
 
     private SKImage? _baked;
     private WaveformPeaks? _bakedFor;
-    private WaveformPalette _bakedPalette;
     private CancellationTokenSource? _bakeCts;
 
     // Contiguous vocal-present spans in track SECONDS (start, end), derived from
@@ -150,11 +153,11 @@ public sealed class WaveformControl : Control
         AffectsRender<WaveformControl>(PlaybackSpeedProperty);
         AffectsRender<WaveformControl>(GainOverlayProperty);
         AffectsRender<WaveformControl>(GainKnownProperty);
-        AffectsRender<WaveformControl>(GainOverlayColorProperty);
         AffectsRender<WaveformControl>(MagneticGlowSecProperty);
         AffectsRender<WaveformControl>(IsScrubbingProperty);
         PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
-        PaletteProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
+        PaletteProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.OnPaletteChanged());
+        AffectsRender<WaveformControl>(IsGridNudgedProperty);
         // Vocal overlay is drawn live (not baked); cache the incoming spans then
         // invalidate so the next frame paints the green rectangles.
         VocalRegionsProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.OnVocalRegionsChanged());
@@ -167,7 +170,18 @@ public sealed class WaveformControl : Control
         AffectsRender<WaveformControl>(DownbeatTimesProperty);
         AffectsRender<WaveformControl>(LoopStartSecProperty);
         AffectsRender<WaveformControl>(LoopEndSecProperty);
-        AffectsRender<WaveformControl>(LoopColorProperty);
+    }
+
+    // Only the baked image depends on Background/Low/Mid (High is fixed white,
+    // not themeable); everything else is drawn live. Rebake only when one of
+    // those three actually changed so a theme switch that keeps the 3-band
+    // scheme doesn't redo the whole bake.
+    private (Avalonia.Media.Color Bg, Avalonia.Media.Color Lo, Avalonia.Media.Color Mid) _bakedColours;
+    private void OnPaletteChanged()
+    {
+        var p = Pal;
+        if ((p.Background, p.Low, p.Mid) != _bakedColours) Rebake();
+        else InvalidateVisual();
     }
 
     public WaveformPeaks? Peaks
@@ -251,12 +265,6 @@ public sealed class WaveformControl : Control
         set => SetValue(IsScrubbingProperty, value);
     }
 
-    public WaveformPalette Palette
-    {
-        get => GetValue(PaletteProperty);
-        set => SetValue(PaletteProperty, value);
-    }
-
     public double? LoopStartSec
     {
         get => GetValue(LoopStartSecProperty);
@@ -267,12 +275,6 @@ public sealed class WaveformControl : Control
     {
         get => GetValue(LoopEndSecProperty);
         set => SetValue(LoopEndSecProperty, value);
-    }
-
-    public Avalonia.Media.Color LoopColor
-    {
-        get => GetValue(LoopColorProperty);
-        set => SetValue(LoopColorProperty, value);
     }
 
     /// <summary>Cache the analyzer's spans in render-friendly form. The presence
@@ -302,24 +304,23 @@ public sealed class WaveformControl : Control
         var cts = new CancellationTokenSource();
         _bakeCts = cts;
         var snapshot = peaks;
-        var palette = Palette;
+        var p = Pal;
+        var (bg, lo, mid) = (p.Background, p.Low, p.Mid);
         Task.Run(() =>
         {
-            var img = BakeWaveform(snapshot, palette, cts.Token);
+            var img = BakeWaveform(snapshot, Sk(bg), Sk(lo), Sk(mid), HighBandColor, cts.Token);
             if (cts.IsCancellationRequested || img is null) { img?.Dispose(); return; }
             Dispatcher.UIThread.Post(() =>
             {
                 if (cts.IsCancellationRequested) { img.Dispose(); return; }
                 _baked = img;
                 _bakedFor = snapshot;
-                _bakedPalette = palette;
+                _bakedColours = (bg, lo, mid);
                 InvalidateVisual();
             });
         });
     }
 
-    /// <summary>The (low, mid, high) band colours for a palette. Shared by the
-    /// waveform bake and the minimap so the section map follows the same theme.</summary>
     /// <summary>Attack/release envelope follower over a bin-height array: the value
     /// jumps up instantly when the signal rises (a sharp leading face at each kick)
     /// then decays geometrically by <paramref name="release"/> per bin (the bell's
@@ -379,32 +380,7 @@ public sealed class WaveformControl : Control
         canvas.DrawPath(path, paint);
     }
 
-    /// <summary>When true, every theme draws the waveform in the Denon/Rekordbox
-    /// 3-band scheme (low blue, mid orange, high white) regardless of palette — it
-    /// reads far better for spotting the kick/beat than the per-theme hues. Flip to
-    /// false to restore the per-theme colours below.</summary>
-    private const bool ForceThreeBand = true;
-    private static readonly (SKColor Low, SKColor Mid, SKColor High) ThreeBand =
-        (new SKColor(0x2A, 0x7F, 0xFF), new SKColor(0xFF, 0x8C, 0x1A), new SKColor(0xF5, 0xF5, 0xFF));
-
-    public static (SKColor Low, SKColor Mid, SKColor High) BandColors(WaveformPalette palette) =>
-        ForceThreeBand ? ThreeBand : palette switch
-    {
-        WaveformPalette.Hot         => (new SKColor(0xFF, 0x3D, 0x3D), new SKColor(0x3D, 0xFF, 0x7A), new SKColor(0x3D, 0x8B, 0xFF)),
-        WaveformPalette.Plasma      => (new SKColor(0x7C, 0x5C, 0xFF), new SKColor(0xFF, 0x4E, 0x9A), new SKColor(0x34, 0xF0, 0xC6)),
-        WaveformPalette.Smoke       => (new SKColor(0x5A, 0x46, 0x36), new SKColor(0xE0, 0xA8, 0x60), new SKColor(0xF2, 0xE9, 0xD0)),
-        WaveformPalette.Glacier     => (new SKColor(0x4C, 0x6B, 0x8A), new SKColor(0xEC, 0xF0, 0xF6), new SKColor(0xB4, 0x8E, 0xAD)),
-        WaveformPalette.SubFocus    => (new SKColor(0x80, 0x14, 0x2E), new SKColor(0xFF, 0x1F, 0x3D), new SKColor(0xFF, 0xE5, 0xEA)),
-        WaveformPalette.OctoberRust => (new SKColor(0x2D, 0x55, 0x12), new SKColor(0x69, 0xBE, 0x28), new SKColor(0xDC, 0xE6, 0xCF)),
-        WaveformPalette.Massacre    => (new SKColor(0x5B, 0x4A, 0xE0), new SKColor(0xD4, 0x5C, 0xE0), new SKColor(0xF2, 0xDE, 0xFF)),
-        WaveformPalette.Soule       => (new SKColor(0x2E, 0x47, 0x34), new SKColor(0x6A, 0x8F, 0x62), new SKColor(0xE8, 0xED, 0xE5)),
-        WaveformPalette.BoardsOfCanada => (new SKColor(0x2A, 0x44, 0x52), new SKColor(0x7F, 0xB6, 0xC9), new SKColor(0xDD, 0xF0, 0xF2)),
-        WaveformPalette.Pantera     => (new SKColor(0x7A, 0x3D, 0x22), new SKColor(0xFF, 0x6B, 0x2C), new SKColor(0xE0, 0xD8, 0xCC)),
-        // Default = Denon/Rekordbox 3-band: low blue, mid orange, high white.
-        _                           => (new SKColor(0x2A, 0x7F, 0xFF), new SKColor(0xFF, 0x8C, 0x1A), new SKColor(0xF5, 0xF5, 0xFF)),
-    };
-
-    private static SKImage? BakeWaveform(WaveformPeaks peaks, WaveformPalette palette, CancellationToken ct)
+    private static SKImage? BakeWaveform(WaveformPeaks peaks, SKColor bg, SKColor low, SKColor mid, SKColor high, CancellationToken ct)
     {
         int width = peaks.Min.Length;
         if (width == 0) return null;
@@ -414,7 +390,7 @@ public sealed class WaveformControl : Control
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var surface = SKSurface.Create(info);
         var canvas = surface.Canvas;
-        canvas.Clear(BgColor);
+        canvas.Clear(bg);
 
         // The three colours map to the three frequency band fields in
         // WaveformPeaks: Low (bass, innermost) / Mid / High (transients,
@@ -422,26 +398,11 @@ public sealed class WaveformControl : Control
         // vanishes against the near-black background (the bass especially), and
         // adjacent bands must be separable by hue or luminance — otherwise the
         // waveform reads as one flat blob and you can't eyeball the arrangement.
-        //
-        // Bands: authentic Rekordbox — blue / white / yellow
-        // Hot:    Serato — red / green / blue
-        // Plasma: Sholto 2026 — violet / hot-pink / mint
-        // Smoke:  warm whiskey — dark coal / saturated amber / pale cream
-        // Glacier: nordic — slate-blue / frost-white / aurora-violet
-        // SubFocus:    Nick Douwma's brand — deep crimson / signature bright red / pale rose
-        // OctoberRust: Type O Negative album palette — deep forest / Pantone 369 C / bone
-        // Massacre:    Birthday Massacre — indigo-violet bass / magenta-orchid mid /
-        //              pale lilac highs. Keeps BM's purple identity but the bass is
-        //              lifted off black so it reads instead of vanishing (the old
-        //              deep-royal-purple bass disappeared against the background).
-        // Soule:       Jeremy Soule / Skyrim — pine green / forest moss / snow white
-        // BoardsOfCanada: dreamy 80s VHS — deep ocean teal / faded blue / pale cassette cream
-        // Pantera:     Cowboys From Hell — dark rust / flame orange / bone
-        //              (bass lifted from near-black charcoal so it reads on the deck)
-        var (lowColor, midColor, highColor) = BandColors(palette);
-        using var lowPaint  = new SKPaint { Color = lowColor,  Style = SKPaintStyle.Fill, IsAntialias = true };
-        using var midPaint  = new SKPaint { Color = midColor,  Style = SKPaintStyle.Fill, IsAntialias = true };
-        using var highPaint = new SKPaint { Color = highColor, Style = SKPaintStyle.Fill, IsAntialias = true };
+        // Low/Mid come from the active theme's WaveformPalette rather than a
+        // hard-coded per-preset table; High is fixed white on every theme.
+        using var lowPaint  = new SKPaint { Color = low,  Style = SKPaintStyle.Fill, IsAntialias = true };
+        using var midPaint  = new SKPaint { Color = mid,  Style = SKPaintStyle.Fill, IsAntialias = true };
+        using var highPaint = new SKPaint { Color = high, Style = SKPaintStyle.Fill, IsAntialias = true };
 
         bool hasBands = peaks.Low.Length == width;
 
@@ -535,26 +496,13 @@ public sealed class WaveformControl : Control
 
     public override void Render(DrawingContext context)
     {
-        // Pick a downbeat-guide colour that contrasts the palette's high band so
-        // the grid stays visible even where the waveform itself is yellow.
-        SKColor downbeatColor = Palette switch
-        {
-            WaveformPalette.Hot       => new SKColor(0xFF, 0xD6, 0x3D, 0xC8), // yellow on red/green/blue
-            WaveformPalette.Plasma    => new SKColor(0xFF, 0xAA, 0x2A, 0xC8), // amber on violet/pink/mint
-            WaveformPalette.Smoke     => new SKColor(0xF2, 0xC8, 0x79, 0xD0), // candle gold on coal/cream/amber
-            WaveformPalette.Glacier   => new SKColor(0xA3, 0xBE, 0x8C, 0xD0), // sage on slate/frost/violet
-            WaveformPalette.SubFocus  => new SKColor(0xFF, 0xFF, 0xFF, 0xE0), // pure white on crimson/red/rose — Sub Focus's typography accent
-            WaveformPalette.OctoberRust => new SKColor(0xD8, 0xA2, 0x4F, 0xD8), // rust amber on forest/lime/bone — picks up the album title's orange
-            WaveformPalette.Massacre    => new SKColor(0xFF, 0xFA, 0xF5, 0xD8), // warm white on crimson/magenta/pale-pink — bone contrast against pink family
-            WaveformPalette.Soule       => new SKColor(0xD4, 0xB8, 0x6A, 0xD8), // dragon gold on pine/moss/snow — Skyrim treasure-glint against the forest greens
-            WaveformPalette.BoardsOfCanada => new SKColor(0xD4, 0xA8, 0x9A, 0xD0), // dusty mauve-peach on ocean/blue/cream — warm cassette-photo contrast against the cool blues
-            WaveformPalette.Pantera     => new SKColor(0xC5, 0xBF, 0xB5, 0xD8), // gunmetal silver on charcoal/flame/bone — chrome contrast against the orange
-            _                         => new SKColor(0xE6, 0xF0, 0xFF, 0xD8), // cool white on Rekordbox bands
-        };
-        // Volume/crossfader gain-line colour comes from the theme.
-        var gainColor = new SKColor(GainOverlayColor.R, GainOverlayColor.G, GainOverlayColor.B, GainOverlayColor.A);
-        var loopColor = new SKColor(LoopColor.R, LoopColor.G, LoopColor.B, LoopColor.A);
-        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor, _vocalRegions, VocalsActive, MarkerSecs));
+        var p = Pal;
+        var bgColor       = Sk(p.Background);
+        var downbeatColor = Sk(p.Downbeat);
+        var gainColor     = Sk(p.Gain);
+        var loopColor     = IsGridNudged ? new SKColor(0xE5, 0x39, 0x35, 0xA0) : Sk(p.Loop);   // red once the grid was nudged
+        var live = new LiveColours(Sk(p.Playhead), Sk(p.BeatTick), Sk(p.Marker));
+        context.Custom(new BlitOperation(new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor, _vocalRegions, VocalsActive, MarkerSecs, bgColor, live));
 
         // Grid-edit mode: red border tint so the user knows clicks set anchors.
         if (GridEditMode)
@@ -594,6 +542,8 @@ public sealed class WaveformControl : Control
         e.Handled = true;
     }
 
+    private readonly record struct LiveColours(SKColor Playhead, SKColor BeatTick, SKColor Marker);
+
     private sealed class BlitOperation : ICustomDrawOperation
     {
         // Render-thread cached paints. Re-used and mutated rather than allocated
@@ -628,8 +578,10 @@ public sealed class WaveformControl : Control
         private readonly (double Start, double End)[]? _vocalRegions;
         private readonly bool _vocalsActive;
         private readonly double[]? _markerSecs;
+        private readonly SKColor _bgColor;
+        private readonly LiveColours _live;
 
-        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor, (double Start, double End)[]? vocalRegions, bool vocalsActive, double[]? markerSecs)
+        public BlitOperation(Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor, (double Start, double End)[]? vocalRegions, bool vocalsActive, double[]? markerSecs, SKColor bgColor, LiveColours live)
         {
             Bounds = bounds;
             _image = image;
@@ -652,6 +604,8 @@ public sealed class WaveformControl : Control
             _vocalRegions = vocalRegions;
             _vocalsActive = vocalsActive;
             _markerSecs = markerSecs;
+            _bgColor = bgColor;
+            _live = live;
         }
 
         public Rect Bounds { get; }
@@ -668,7 +622,7 @@ public sealed class WaveformControl : Control
 
             int dstW = (int)Bounds.Width;
             int dstH = (int)Bounds.Height;
-            canvas.Clear(BgColor);
+            canvas.Clear(_bgColor);
 
             if (_image is not null && _peaks is not null && _peaks.Min.Length > 0)
             {
@@ -776,7 +730,8 @@ public sealed class WaveformControl : Control
                 }
             }
 
-            _headPaint ??= new SKPaint { Color = SKColors.White, StrokeWidth = 2, IsAntialias = false };
+            _headPaint ??= new SKPaint { StrokeWidth = 2, IsAntialias = false };
+            _headPaint.Color = _live.Playhead;
             int halfX = dstW / 2;
             canvas.DrawLine(halfX, 0, halfX, dstH, _headPaint);
 
@@ -829,7 +784,8 @@ public sealed class WaveformControl : Control
             // the stem body is empty.
             if (_beats is { Length: > 0 } && refSecondsPerPeak is double btSpp)
             {
-                _beatTickPaint ??= new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xC0), StrokeWidth = 1, IsAntialias = false };
+                _beatTickPaint ??= new SKPaint { StrokeWidth = 1, IsAntialias = false };
+                _beatTickPaint.Color = _live.BeatTick;
                 // De-dupe against downbeats: a beat that's within ~1 ms of a
                 // downbeat is the downbeat (already drawn full-height above).
                 // Tolerance in seconds rather than rounded columns so this
@@ -865,7 +821,7 @@ public sealed class WaveformControl : Control
                 var mk = _markerPaint;
                 // Hot pink — deliberately unlike the yellow downbeats and green vocal
                 // lane so a saved cue jumps out. Dark contrast edge + a chunky top flag.
-                var pink = new SKColor(0xFF, 0x2D, 0x95, 0xFF);
+                var pink = _live.Marker;
                 var edge = new SKColor(0x00, 0x00, 0x00, 0x99);
                 foreach (var t in _markerSecs)
                 {
@@ -892,7 +848,8 @@ public sealed class WaveformControl : Control
                 float x = (float)((beatCol - refCenterPeak) / _playbackSpeed) + dstW / 2f;
                 if (x >= -2 && x < dstW + 2)
                 {
-                    _glowPaint ??= new SKPaint { Color = new SKColor(0x34, 0xF0, 0x6F, 0xF0), IsAntialias = false };
+                    _glowPaint ??= new SKPaint { IsAntialias = false };
+                    _glowPaint.Color = GlowColor;
                     _glowPaint.StrokeWidth = _isScrubbing ? 3 : 4;
                     var glow = _glowPaint;
                     if (_isScrubbing)

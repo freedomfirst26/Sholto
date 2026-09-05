@@ -1,0 +1,36 @@
+{
+  "name": "Dimmu Borgir",
+  "bgDeep":        "#050505",
+  "surface":       "#0F0F0F",
+  "surfaceRaised": "#1A1A1A",
+  "border":        "#2E2E2E",
+  "primary":       "#9A9A9A",
+  "accent":        "#E6E6E6",
+  "accentBg":      "#33E6E6E6",
+  "mint":          "#C8C8C8",
+  "textBright":    "#F2F2F2",
+  "textMuted":     "#707070",
+  "playedFadeColor": "#050505",
+  "waveformPalette": "Bands",
+  "camelotPalette": {
+    "hueOffset":        0,
+    "saturation":       0.0,
+    "majorLightness":   0.62,
+    "minorLightness":   0.42,
+    "onChipForeground": "#050505"
+  },
+  "waveform": {
+    "low":      "#3A3A3A",
+    "mid":      "#9A9A9A",
+    "downbeat": "#D8E6E6E6",
+    "marker":   "#E6E6E6",
+    "loop":     "#80E6E6E6"
+  },
+  "minimap": {
+    "drop":      "#E6E6E6",
+    "buildUp":   "#9A9A9A",
+    "breakdown": "#2E2E2E",
+    "intro":     "#1A1A1A",
+    "outro":     "#1A1A1A"
+  }
+}

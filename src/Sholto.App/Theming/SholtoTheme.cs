@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Media;
-using Sholto.App.Controls;
 
 namespace Sholto.App.Theming;
 
@@ -40,29 +39,12 @@ public sealed record SholtoTheme(
     IBrush TextBright,       // primary text
     IBrush TextMuted,        // secondary text
     Color  PlayedFadeColor,  // background color used by the played-half gradient
-    WaveformPalette WaveformPalette,
-    CamelotPalette CamelotPalette
+    WaveformPreset  WaveformPreset,   // named seed from "waveformPalette" (downbeat colour by default)
+    WaveformPalette Waveform,         // every colour the deck waveform draws — see WaveformPalette
+    CamelotPalette CamelotPalette,
+    MinimapPalette Minimap
 )
 {
-    /// <summary>Convenience: the raw Color behind the <see cref="Mint"/> brush, used
-    /// where we need a Color (e.g. the WaveformControl's GainOverlayColor for Skia).</summary>
-    public Color MintColor =>
-        (Mint as SolidColorBrush)?.Color ?? Color.FromArgb(0xC0, 0x34, 0xF0, 0xC6);
-
-    /// <summary>Translucent variant of <see cref="Accent"/> used as the active
-    /// loop band over the waveform. Alpha 0x80 (~50 %) is the sweet spot —
-    /// solid enough to read clearly against the waveform, soft enough that the
-    /// stem colours underneath still show through.</summary>
-    public Color LoopBandColor
-    {
-        get
-        {
-            var c = (Accent as SolidColorBrush)?.Color ?? Color.FromArgb(0xFF, 0xFF, 0xC7, 0x00);
-            return Color.FromArgb(0x80, c.R, c.G, c.B);
-        }
-    }
-
-
     /// <summary>Album-art radial gradient using the theme's primary + accent.</summary>
     public IBrush AlbumArtBrush
     {
@@ -128,10 +110,10 @@ public static class Themes
     public static SholtoTheme FrontLineAssembly => ByName("Front Line Assembly");
     public static SholtoTheme SilenceGroove     => ByName("Silence Groove");
     public static SholtoTheme JeremySoule       => ByName("Jeremy Soule");
-    public static SholtoTheme DrabMajesty       => ByName("Drab Majesty");
-    public static SholtoTheme SubFocus          => ByName("Sub Focus");
     public static SholtoTheme TypeONegative     => ByName("Type O Negative");
     public static SholtoTheme BirthdayMassacre  => ByName("Birthday Massacre");
-    public static SholtoTheme BoardsOfCanada    => ByName("Boards of Canada");
     public static SholtoTheme Pantera           => ByName("Pantera");
+    public static SholtoTheme DimmuBorgir       => ByName("Dimmu Borgir");
+    public static SholtoTheme AphexTwin         => ByName("Aphex Twin");
+    public static SholtoTheme Prodigy           => ByName("The Prodigy");
 }

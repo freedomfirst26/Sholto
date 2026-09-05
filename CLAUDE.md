@@ -157,3 +157,31 @@ only list formats/features that actually work (e.g. the decoder strategies in
 
 Living plan/spec for this app: `~/Projects/sholto.md` (single file — append, don't
 create new dated files). Capture substantive findings there as they surface.
+
+## Releases and the changelog
+
+A release is a `v*` tag; it contains every commit since the previous tag. Notes
+for it are hand-written in `CHANGELOG.md` (Keep a Changelog style), not
+auto-generated from commits.
+
+**Every user-visible change updates `CHANGELOG.md` in the same change**, under
+`## Unreleased`, in one of `### New`, `### Improved`, `### Fixed`,
+`### Housekeeping`. Write for a DJ, not a developer: what changed at the decks,
+one or two lines, no class or file names. Same rule as the README: it is part of
+the change, not an afterthought. Internal-only refactors don't get a line.
+
+**Cutting a release** (the user runs these; never tag or push on their behalf):
+
+1. Rename `## Unreleased` to `## vX.Y.Z` in `CHANGELOG.md` and add a fresh empty
+   `## Unreleased` above it. Commit.
+2. `git tag -a vX.Y.Z -m "vX.Y.Z"` then `git push origin main vX.Y.Z`.
+3. `.github/workflows/release.yml` fires on the tag: it publishes a
+   self-contained linux-x64 single-file build, bundles README + LICENSE +
+   install-deps.sh into `sholto-vX.Y.Z-linux-x64.tar.gz`, extracts the
+   `## vX.Y.Z` section from `CHANGELOG.md` as the release body, and creates the
+   GitHub Release with the tarball attached. If the changelog section is
+   missing it warns and falls back to GitHub's auto-generated commit list.
+
+Versioning: pre-1.0 semver. Bump the minor for new features, the patch for a
+fixes-only release. Nothing else in the repo carries the version — the tag is
+the source of truth.

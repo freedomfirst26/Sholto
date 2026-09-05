@@ -1,7 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Sholto.App.Controls"
-             xmlns:cvt="using:Sholto.App.Converters"
              x:Class="Sholto.App.Views.DeckView"
              x:Name="Root">
 
@@ -24,22 +23,12 @@
                                       PlaybackSpeed="{Binding PlaybackSpeed}"
                                       GainOverlay="{Binding EffectiveGain}"
                                       GainKnown="{Binding GainKnown}"
-                                      GainOverlayColor="{Binding $parent[Window].DataContext.Theme.MintColor}"
                                       MagneticGlowSec="{Binding MagneticGlowSec}"
                                       IsScrubbing="{Binding IsScrubbing}"
                                       LoopStartSec="{Binding LoopStartSec}"
                                       LoopEndSec="{Binding LoopEndSec}"
-                                      Palette="{Binding $parent[Window].DataContext.WaveformPalette}">
-                <controls:WaveformControl.LoopColor>
-                    <!-- Loop band turns red once the user has nudged this
-                         deck's grid (IsGridNudged on the VM); otherwise
-                         uses the theme's accent-derived band colour. -->
-                    <MultiBinding Converter="{x:Static cvt:LoopColorConverter.Instance}">
-                        <Binding Path="IsGridNudged"/>
-                        <Binding Path="$parent[Window].DataContext.Theme.LoopBandColor"/>
-                    </MultiBinding>
-                </controls:WaveformControl.LoopColor>
-            </controls:WaveformControl>
+                                      IsGridNudged="{Binding IsGridNudged}"
+                                      Palette="{DynamicResource SholtoWaveformPalette}"/>
 
             <!-- Fade-to-background over the played half. -->
             <Border HorizontalAlignment="Left" Width="600" IsHitTestVisible="False"
@@ -420,7 +409,8 @@
                                      IsVisible="{Binding SectionMapVisible}"
                                      Peaks="{Binding GridPeaks}"
                                      Segments="{Binding Segments}"
-                                     PlayPosition="{Binding PlayPosition}"/>
+                                     PlayPosition="{Binding PlayPosition}"
+                                     Palette="{DynamicResource SholtoMinimapPalette}"/>
         </Panel>
     </Grid>
 </UserControl>

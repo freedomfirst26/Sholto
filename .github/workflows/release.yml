@@ -50,8 +50,26 @@ jobs:
           rm -f dist/*.pdb
           tar -C dist -czf sholto-${{ github.ref_name }}-${{ matrix.rid }}.tar.gz .
 
+      # Release notes come from CHANGELOG.md: the "## <tag>" section for this tag
+      # (everything up to the next "## " heading). If the section is missing,
+      # fall back to GitHub's auto-generated commit list so the release still ships.
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          awk -v tag="${{ github.ref_name }}" '
+            $0 ~ "^## " { inside = ($2 == tag) ; next }
+            inside { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ -s release-notes.md ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No '## ${{ github.ref_name }}' section in CHANGELOG.md; using auto-generated notes"
+          fi
+
       - name: Attach to the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: sholto-${{ github.ref_name }}-${{ matrix.rid }}.tar.gz
-          generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.found == 'true' && 'release-notes.md' || '' }}
+          generate_release_notes: ${{ steps.notes.outputs.found != 'true' }}
