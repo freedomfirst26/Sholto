@@ -125,7 +125,8 @@ Dual-licensed — see [LICENSE](LICENSE):
 - **Individuals — free.** Use, modify, fork, and gig with Sholto for any
   purpose, including paid DJ sets, under the
   [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
-  plus a free individual-use grant from the author.
+  plus a free individual-use grant from the author. Forks and derived works
+  you publish must credit Sholto in their README and keep the copyright notice.
 - **Businesses & commercial use — paid.** Any use by an organization, or
   bundling Sholto into a product or hosted service, needs a paid commercial
   license — any size. Open an [issue](https://github.com/freedomfirst26/Sholto/issues)

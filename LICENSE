@@ -1,6 +1,6 @@
 # Sholto License
 
-Copyright (c) 2026 Sebastian Patten
+Copyright (c) 2026 freedomfirst26
 
 Sholto is dual-licensed. Pick the track that fits you:
 
@@ -11,11 +11,20 @@ Sholto is dual-licensed. Pick the track that fits you:
    students, researchers, and freelance or working DJs are all covered. You may
    use, modify, and fork Sholto under these terms.
 
+   **Credit.** Any fork, modified version, or work derived from Sholto that you
+   make available to others must (a) keep the `Required Notice:` line below in
+   its source and distributions, and (b) state visibly in its README or
+   equivalent user-facing documentation that it is based on Sholto by
+   freedomfirst26, with a link to <https://github.com/freedomfirst26/Sholto>.
+   This credit term is a condition of the free individual grant.
+
 2. **Organizations / commercial use — paid.** Any use by or on behalf of a
    company or other organization, and any distribution of Sholto as part of a
    commercial product or hosted service, requires a paid commercial licence —
    **regardless of the organization's size**. To arrange one, open an issue at
    <https://github.com/freedomfirst26/Sholto/issues>.
+
+Required Notice: Copyright (c) 2026 freedomfirst26 — Sholto (https://github.com/freedomfirst26/Sholto)
 
 If you're unsure which track applies, reach out before using Sholto in a
 business setting — the goal is to keep it free for individuals while asking
@@ -62,7 +71,7 @@ You must ensure that anyone who gets a copy of any part of the software
 from you also gets a copy of these terms, as well as the following
 copyright notice:
 
-> This software is Copyright (c) 2026 Sebastian Patten. It is licensed
+> This software is Copyright (c) 2026 freedomfirst26. It is licensed
 > under the PolyForm Noncommercial License 1.0.0. You may obtain a copy
 > of the License at <https://polyformproject.org/licenses/noncommercial/1.0.0>.
 
