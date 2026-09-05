@@ -96,4 +96,51 @@ public class ControllerModelTests
         Assert.Equal(0.7f, f.Value);  // a slider isn't reset — its state is physical
         Assert.False(fired);
     }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(2, 1)]
+    public void Flx4_TransportCue_PressMapsToTransportCuePressed(int channel, int expectedDeck)
+    {
+        var mapping = new DdjFlx4Mapping();
+        var evt = mapping.Translate(new NoteEvent(channel, 0x0C, 127, IsDown: true));
+        var pressed = Assert.IsType<ControllerEvent.TransportCuePressed>(evt);
+        Assert.Equal(expectedDeck, pressed.Deck);
+        Assert.False(pressed.Shifted);
+    }
+
+    // Captured on hardware 2026-09-05: holding Shift and pressing CUE sends
+    // ch=1/2 0x3F (Shift down), 0x48 down, 0x48 up, 0x3F up — the chord has its own note.
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(2, 1)]
+    public void Flx4_ShiftCue_ChordNoteMapsToShiftedTransportCue(int channel, int expectedDeck)
+    {
+        var mapping = new DdjFlx4Mapping();
+        var evt = mapping.Translate(new NoteEvent(channel, 0x48, 127, IsDown: true));
+        var pressed = Assert.IsType<ControllerEvent.TransportCuePressed>(evt);
+        Assert.Equal(expectedDeck, pressed.Deck);
+        Assert.True(pressed.Shifted);
+        Assert.Null(mapping.Translate(new NoteEvent(channel, 0x48, 0, IsDown: false)));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Flx4_TransportCue_ReleaseIsIgnored(int channel)
+    {
+        var mapping = new DdjFlx4Mapping();
+        var evt = mapping.Translate(new NoteEvent(channel, 0x0C, 0, IsDown: false));
+        Assert.Null(evt);
+    }
+
+    [Fact]
+    public void Flx4_DeckShiftNote_StillMapsToDeckShift()
+    {
+        var mapping = new DdjFlx4Mapping();
+        var evt = mapping.Translate(new NoteEvent(1, 0x3F, 127, IsDown: true));
+        var shift = Assert.IsType<ControllerEvent.DeckShift>(evt);
+        Assert.Equal(0, shift.Deck);
+        Assert.True(shift.Pressed);
+    }
 }

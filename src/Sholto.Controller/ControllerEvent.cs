@@ -116,6 +116,13 @@ public abstract record ControllerEvent
     /// Pads 2-8 on this page are unmapped for now. Passes straight through
     /// the Controller to the Orchestrator (same as StemToggle).</summary>
     public record EchoToggle(int Deck) : ControllerEvent;
+
+    /// <summary>FLX-4 CUE transport button, press edge only. The firmware sends
+    /// ch=1/2 0x0C for a plain press and remaps the Shift chord to 0x48 (like
+    /// Shift + BEAT SYNC), so <paramref name="Shifted"/> comes from the wire.
+    /// Passes straight through the Controller. Plain press is a no-op; Shift +
+    /// CUE restarts the deck's track from the beginning.</summary>
+    public record TransportCuePressed(int Deck, bool Shifted) : ControllerEvent;
 }
 
 public enum EqBand { Low, Mid, High }

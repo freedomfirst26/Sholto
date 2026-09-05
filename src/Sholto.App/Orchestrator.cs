@@ -293,6 +293,14 @@ public sealed class Orchestrator : IDisposable
             case ControllerEvent.BeatSyncPressed:
                 // Plain BEAT SYNC — beat-sync not yet implemented.
                 break;
+            case ControllerEvent.TransportCuePressed tc:
+                // Plain CUE is a no-op (see DdjFlx4Mapping's comment on why the
+                // old beatgrid re-anchor binding was removed). Shift + CUE
+                // restarts the track from the start, keeping play/pause state.
+                // Shifted comes from the wire (firmware chord note); the held-
+                // state check is a fallback in case a firmware sends plain CUE.
+                if (tc.Shifted || _shiftHeld[tc.Deck]) vm.DeckFor(tc.Deck).Player.SeekToFraction(0);
+                break;
             case ControllerEvent.EchoToggle et:
             {
                 var deckVm = vm.DeckFor(et.Deck);

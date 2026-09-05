@@ -49,10 +49,18 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Channel == _o.Deck1Channel && msg.Key == _o.PlayNote)
             return new ControllerEvent.PlayPressed(Deck: 1);
 
-        // CUE button (note 0x0C, above play/pause) is intentionally left
-        // unmapped: it used to re-anchor the beatgrid to the playhead, which
-        // clobbered the grid on every press. Grid editing now lives in
-        // track-edit mode only. (CueNote below is the headphone-cue toggle.)
+        // CUE transport button (above play/pause). Plain press used to
+        // re-anchor the beatgrid to the playhead, which clobbered the grid on
+        // every press — that binding was removed; grid editing now lives in
+        // track-edit mode only, so plain CUE stays a no-op. Shift + CUE arrives
+        // on its own note (ShiftCueNote) — the firmware remaps the chord — and
+        // restarts the track. (CueNote below is the unrelated headphone-cue toggle.)
+        if (msg.Key == _o.TransportCueNote || msg.Key == _o.ShiftCueNote)
+        {
+            bool shifted = msg.Key == _o.ShiftCueNote;
+            if (msg.Channel == _o.Deck0Channel) return new ControllerEvent.TransportCuePressed(Deck: 0, Shifted: shifted);
+            if (msg.Channel == _o.Deck1Channel) return new ControllerEvent.TransportCuePressed(Deck: 1, Shifted: shifted);
+        }
 
         // Headphone CUE buttons (per deck) — toggle this deck into the
         // pre-fader headphone cue mix (output ch3-4). Master/cue blend is done

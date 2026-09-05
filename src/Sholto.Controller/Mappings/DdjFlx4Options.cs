@@ -37,6 +37,14 @@ public sealed class DdjFlx4Options
 
     // --- Notes: transport --------------------------------------------------------
     public int PlayNote { get; set; } = 0x0B;
+    /// <summary>CUE transport button above PLAY (per deck channel). Plain press is
+    /// unmapped; Shift + CUE restarts the track from the start.</summary>
+    public int TransportCueNote { get; set; } = 0x0C;
+
+    /// <summary>Shift + CUE — like Shift + BEAT SYNC, the FLX-4 firmware remaps the
+    /// chord to its own note (DDJ-400/FLX-4 map: CUE 0x0C → Shift+CUE 0x48), so the
+    /// plain CUE note never arrives while Shift is held.</summary>
+    public int ShiftCueNote { get; set; } = 0x48;
     /// <summary>Headphone CUE toggle note, per deck.</summary>
     public int CueNote { get; set; } = 0x54;
     public int MasterCueChannel { get; set; } = 7;

@@ -54,7 +54,7 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 - **EQ knobs** (high / mid / low) driving each deck's isolator.
 - **The browse knob** scrolls the track list; **LOAD 1 / LOAD 2** load the highlighted track onto a deck.
 - **Hot-cue pads** double as **stem mute toggles** — drums, vocals, instrumental — once a track's stems are ready.
-- **The CUE buttons** send each deck to your headphones for pre-listening.
+- **The CUE buttons** send each deck to your headphones for pre-listening. **Shift + CUE** jumps the track back to the very start instead (keeps playing if it was playing).
 
 Adding support for another controller is straightforward — Sholto keeps each device's button layout in one place.
 
