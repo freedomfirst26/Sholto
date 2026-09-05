@@ -11,8 +11,10 @@ namespace Sholto.Audio;
 /// Decoding is delegated to a per-format <see cref="IAudioDecodeStrategy"/> because the
 /// formats need genuinely different decoders on Linux: MP3 via NLayer (NAudio's own MP3
 /// path uses MediaFoundation, which is absent), WAV/AIFF via NAudio's managed readers,
-/// and FLAC via SoundFlow/miniaudio (NAudio would route FLAC through the missing
-/// MediaFoundation too). Each strategy normalises to the same 48 kHz stereo float array.
+/// FLAC via SoundFlow/miniaudio (NAudio would route FLAC through the missing
+/// MediaFoundation too), and M4A/AAC by shelling out to ffmpeg (no in-process decoder
+/// in this dependency set handles AAC on Linux, and ffmpeg is already required for the
+/// beat detector). Each strategy normalises to the same 48 kHz stereo float array.
 /// </summary>
 public static class AudioFileDecoder
 {
@@ -32,6 +34,7 @@ public static class AudioFileDecoder
         new Mp3DecodeStrategy(),
         new FlacDecodeStrategy(),
         new WavDecodeStrategy(),
+        new FfmpegDecodeStrategy(),
     ];
 
     public static float[] Decode(string filePath)

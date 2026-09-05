@@ -11,7 +11,7 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 ## What it does
 
 ### Your library
-- Finds every track in your music folder — **mp3, FLAC, WAV, and AIFF** — and reads the artist, title, and other tags automatically.
+- Finds every track in your music folder — **mp3, FLAC, WAV, AIFF, and M4A/AAC** — and reads the artist, title, and other tags automatically.
 - Shows everything in a sortable list: **Artist · Track · BPM · Key · Time**.
 - Analyses each track once and remembers the result, so it's instant every time after.
 
@@ -108,7 +108,7 @@ On startup Sholto scans your music folder. Click a track to load it onto Deck 1,
 
 **Required**
 - **.NET 10** — to build and run Sholto.
-- **ffmpeg** — decodes your audio for the beat detector.
+- **ffmpeg** — decodes your audio for the beat detector, and also decodes M4A/AAC files for playback.
 - **madmom** (the `madmom-onnx` build) — finds the beats and tempo. Sholto can't play a track until it has a beatgrid, so this one isn't optional.
 - A normal **Linux desktop** (X11 or Wayland) and a working **sound system** (PipeWire, PulseAudio, or ALSA).
 

@@ -5,7 +5,7 @@ namespace Sholto.Music;
 public static class TrackScanner
 {
     private static readonly HashSet<string> SupportedExtensions =
-        [".wav", ".mp3", ".flac", ".aiff", ".aif"];
+        [".wav", ".mp3", ".flac", ".aiff", ".aif", ".m4a"];
 
     public static Task<IReadOnlyList<Track>> ScanAsync(
         string directory,
