@@ -45,6 +45,13 @@ public abstract record ControllerEvent
     /// <summary>Jog wheel rotation. Delta is +/- ticks (1 tick = one click of the wheel).</summary>
     public record JogRotated(int Deck, int Delta, JogSource Source) : ControllerEvent;
 
+    /// <summary>Top-platter touch sensor (ch=1/2 0x36), both edges. Touching =
+    /// true while a hand rests on the platter top. The App uses this as the
+    /// authoritative scratch grab/release — a resting hand holds the deck at
+    /// rate 0 instead of tripping a tick-gap timeout and snapping back to
+    /// speed. Passes straight through the Controller.</summary>
+    public record JogTouch(int Deck, bool Touching) : ControllerEvent;
+
     /// <summary>One of the three EQ pots (HI / MID / LOW). Value 0..1, 0.5 = neutral / 0 dB.</summary>
     public record EqMoved(int Deck, EqBand Band, double Value) : ControllerEvent;
 

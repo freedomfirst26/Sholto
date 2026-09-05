@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Avalonia.Threading;
 using Microsoft.EntityFrameworkCore;
 using Sholto.Analysis;
@@ -27,17 +28,9 @@ public sealed class Orchestrator : IDisposable
     // Top-platter ticks are coarser (fast scrub / scratch surface); the side
     // ring is fine-grained nudging. Shared by the silent-seek fallback path
     // and the scratch velocity accumulator below — see JogRotated.
-    private const double TopPlatterSecsPerTick = 0.05;
-    private const double SideRingSecsPerTick = 0.00125;
-    // Scratch sensitivity: track-seconds of platter travel per jog tick, used to
-    // turn the tick stream into a playback RATE (rate = accumulated secs ÷ elapsed
-    // wall-time). This is MUCH finer than the seek constant above — the jog emits
-    // ~1000+ ticks/s, so reusing 0.05 here drove the rate to ~30× (chipmunk/tinny
-    // and the position flew). ~0.001 puts a natural spin near 1× playback. It's the
-    // scratch feel knob — override live with SHOLTO_SCRATCH_SENS to dial it in.
-    private static readonly double ScratchSecsPerTick =
-        double.TryParse(Environment.GetEnvironmentVariable("SHOLTO_SCRATCH_SENS"), out var s) && s > 0
-            ? s : 0.004;
+    // Every platter-feel number (seek step, scratch sensitivity, fling/coast/brake
+    // physics) lives in ScratchOptions — tune there, not here.
+    private readonly ScratchOptions _scratchOptions;
     // SHOLTO_SCRATCH_LOG=1 → print per-frame scratch velocity + play position, so
     // the platter's actual motion (and any position jumps) are visible in the log.
     private static readonly bool _scratchLog =
@@ -53,10 +46,12 @@ public sealed class Orchestrator : IDisposable
     private DispatcherTimer? _browseHoldTimer;
     private DispatcherTimer? _positionTimer;
 
-    public Orchestrator(MainViewModel vm, Func<IDbContextFactory<SholtoDbContext>?> dbFactory)
+    public Orchestrator(MainViewModel vm, Func<IDbContextFactory<SholtoDbContext>?> dbFactory,
+                        IOptions<ScratchOptions> scratch)
     {
         _vm = vm;
         _dbFactory = dbFactory;
+        _scratchOptions = scratch.Value;
         // Double-clicking a library row re-analyzes it — same path as the browse
         // long-press. The VM only raises the request; we hold the provider + factory.
         _vm.ReanalyzeSelectedRequested += OnReanalyzeSelectedRequested;
@@ -75,12 +70,6 @@ public sealed class Orchestrator : IDisposable
         // and spins back to normal playback.
         _vm.BrakePauseRequested += OnBrakePauseRequested;
     }
-
-    // How long the vinyl brake takes to stop a deck playing at unity. Tunable
-    // with SHOLTO_BRAKE_SEC.
-    private static readonly double BrakeSeconds =
-        double.TryParse(Environment.GetEnvironmentVariable("SHOLTO_BRAKE_SEC"), out var b) && b > 0
-            ? b : 0.45;
 
     private void OnBrakePauseRequested(int deck)
     {
@@ -115,7 +104,8 @@ public sealed class Orchestrator : IDisposable
         st.PauseAtEnd = true;
         st.WasPlaying = false;              // coast target = 0 (spin down to a stop)
         st.Velocity = deckVm.Player.PlaybackSpeed;
-        st.Decel = 1.0 / BrakeSeconds;      // unity → 0 in ~BrakeSeconds
+        st.Decel = 1.0 / _scratchOptions.BrakeSeconds;      // unity → 0 in ~BrakeSeconds
+        st.TailTau = _scratchOptions.CoastTailTauSec;
         st.PeakVelocity = 0;
         st.LastTickAt = DateTime.MinValue;  // no "recent ticks" → straight to the coast branch
         deckVm.IsScratching = true;         // suppress magnetism during the brake
@@ -331,6 +321,33 @@ public sealed class Orchestrator : IDisposable
                 vm.DeckFor(target).Player.NudgeGrid(n.Beats);
                 break;
             }
+            case ControllerEvent.JogTouch jt:
+            {
+                var deckVm = vm.DeckFor(jt.Deck);
+                var st = _scratch[jt.Deck];
+                st.Touching = jt.Touching;
+                // Hand lands: grab now, at rate = the deck's current speed, so
+                // the sound holds under the finger (rate → 0 as no ticks
+                // arrive) rather than waiting for the first tick. Shift + touch
+                // is the silent fast-search, not a grab; a brake in flight
+                // keeps its own state.
+                if (jt.Touching && !st.Active && !_shiftHeld[jt.Deck] && deckVm.Player.CanScratch)
+                {
+                    st.Active = true;
+                    st.PauseAtEnd = false;
+                    st.Decel = _scratchOptions.DecelPerSec;
+                    st.TailTau = _scratchOptions.CoastTailTauSec;
+                    st.WasPlaying = deckVm.Player.IsPlaying;
+                    st.Velocity = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0;
+                    st.PeakVelocity = 0;
+                    deckVm.IsScratching = true;
+                    if (_scratchLog)
+                        Console.WriteLine($"[scratch] TOUCH deck={jt.Deck} playing={st.WasPlaying} pos={deckVm.Player.PlayPosition:F3}");
+                }
+                else if (!jt.Touching && _scratchLog)
+                    Console.WriteLine($"[scratch] LIFT  deck={jt.Deck} v={st.Velocity:F2}");
+                break;
+            }
             case ControllerEvent.JogRotated j:
             {
                 // Loop locked: the jog wheel is ignored while a loop is active, else
@@ -342,7 +359,7 @@ public sealed class Orchestrator : IDisposable
                 // track (CDJ Shift+jog), bypassing the audible scratch entirely.
                 if (j.Source == JogSource.TopPlatter && _shiftHeld[j.Deck])
                 {
-                    double fastSecs = j.Delta * TopPlatterSecsPerTick * 2;
+                    double fastSecs = j.Delta * _scratchOptions.TopPlatterSecsPerTick * 2;
                     if (j.Deck == 0) _pendingJog1 += fastSecs;
                     else             _pendingJog2 += fastSecs;
                     vm.LastJoggedDeck = j.Deck == 0 ? 1 : 2;
@@ -365,7 +382,8 @@ public sealed class Orchestrator : IDisposable
                     {
                         st.Active = true;
                         st.PauseAtEnd = false;
-                        st.Decel = ScratchDecelPerSec;
+                        st.Decel = _scratchOptions.DecelPerSec;
+                    st.TailTau = _scratchOptions.CoastTailTauSec;
                         st.WasPlaying = deckVm.Player.IsPlaying;
                         // Start from the deck's actual current rate, not 0 — a
                         // grab on a playing deck shouldn't hiccup to silence
@@ -375,14 +393,14 @@ public sealed class Orchestrator : IDisposable
                         if (_scratchLog)
                             Console.WriteLine($"[scratch] GRAB deck={j.Deck} playing={st.WasPlaying} pos={deckVm.Player.PlayPosition:F3}");
                     }
-                    st.TickAccum += j.Delta * ScratchSecsPerTick;
+                    st.TickAccum += j.Delta * _scratchOptions.ScratchSecsPerTick;
                     st.LastTickAt = DateTime.UtcNow;
                 }
                 else
                 {
                     // Accumulate; Tick() flushes it into one Seek per frame — each Seek
                     // flushes SoundFlow's buffer, so per-event seeks (~100/s) would glitch.
-                    double secsPerTick = j.Source == JogSource.TopPlatter ? TopPlatterSecsPerTick : SideRingSecsPerTick;
+                    double secsPerTick = j.Source == JogSource.TopPlatter ? _scratchOptions.TopPlatterSecsPerTick : _scratchOptions.SideRingSecsPerTick;
                     if (j.Deck == 0) _pendingJog1 += j.Delta * secsPerTick;
                     else             _pendingJog2 += j.Delta * secsPerTick;
                 }
@@ -418,40 +436,6 @@ public sealed class Orchestrator : IDisposable
         if (vm.Deck2.Player.IsLoaded) vm.Deck2.SyncPlayPosition();
     }
 
-    // How long a platter's velocity signal is smoothed over. Ticks land in
-    // bursts at the controller's poll rate and get flushed once per 60 Hz
-    // frame, so the raw (accumulated ticks) / (elapsed) instantaneous
-    // velocity below stair-steps between frames; a short low-pass hides that
-    // without adding perceptible lag to the scratch feel.
-    private const double ScratchSmoothingTauSec = 0.02;
-    // No tick for this long → the user let go of the platter.
-    private static readonly TimeSpan ScratchReleaseIdle = TimeSpan.FromMilliseconds(80);
-    // Release physics: CONSTANT deceleration (rate-units per second), like a real
-    // platter under friction — not an exponential tau. This is what makes both
-    // ends feel right: a hard backspin fling (|v| ~ 20) coasts for seconds and
-    // covers bars before settling, while a small nudge (|v| ~ 1-2) recovers to
-    // normal speed in ~0.1 s with no lingering slow-mo. Lower = longer coast.
-    // Live-tune with SHOLTO_SCRATCH_DECEL.
-    private static readonly double ScratchDecelPerSec =
-        double.TryParse(Environment.GetEnvironmentVariable("SHOLTO_SCRATCH_DECEL"), out var i) && i > 0
-            ? i : 12.0;
-    // Below this speed-gap the coast switches from constant friction to an
-    // exponential glide (CoastTailTauSec) — the drawn-out dying tail at the end
-    // of a backspin, instead of stopping on a dime.
-    private const double CoastKnee = 2.0;
-    private const double CoastTailTauSec = 0.175;
-    // Fling projection: the FLX4's platter has no flywheel — it stops almost the
-    // instant the hand leaves — so a physical quarter-second rip reads as a weak
-    // spin. When the platter is released ABOVE FlingThreshold (i.e. it was
-    // genuinely flung, not slow-scrubbed), the release velocity is multiplied by
-    // FlingBoost, projecting the momentum a weighted high-end platter would have
-    // carried. Slow deliberate scrubs stay 1:1. Tune with SHOLTO_SCRATCH_FLING.
-    // (The peak-hold launch already restores the rip's full speed, so this only
-    // needs to add a little flywheel on top — 4.0 here was hilariously too much.)
-    private static readonly double FlingBoost =
-        double.TryParse(Environment.GetEnvironmentVariable("SHOLTO_SCRATCH_FLING"), out var f) && f >= 1
-            ? f : 1.5;
-    private const double FlingThreshold = 3.0;   // |rate| above this = a fling
 
     /// <summary>Per-deck: turn accumulated top-platter ticks into a smoothed
     /// signed varispeed rate and push it into the deck (ScratchRate), or —
@@ -466,16 +450,21 @@ public sealed class Orchestrator : IDisposable
         if (dt <= 0) dt = 1.0 / 60.0;
         st.LastFlushAt = now;
 
-        bool tickedThisWindow = (now - st.LastTickAt) < ScratchReleaseIdle;
+        // Hand on = the touch sensor says so, OR ticks are still arriving (a
+        // flung platter keeps ticking after the hand has lifted — that free
+        // spin is the real backspin, so it counts as "still driving"). The
+        // tick-gap timeout is only a fallback now, not the release detector.
+        bool tickedThisWindow = (now - st.LastTickAt).TotalMilliseconds < _scratchOptions.ReleaseIdleMs;
+        bool handOn = st.Touching || tickedThisWindow;
 
-        if (tickedThisWindow)
+        if (handOn)
         {
             // Grabbed and moving: exponential low-pass of the raw instantaneous
             // velocity (sum of this frame's tick deltas ÷ elapsed time) toward
             // the smoothed value Deck actually plays at.
             double rawVelocity = st.TickAccum / dt;
             st.TickAccum = 0;
-            double alpha = 1 - Math.Exp(-dt / ScratchSmoothingTauSec);
+            double alpha = 1 - Math.Exp(-dt / _scratchOptions.SmoothingTauSec);
             st.Velocity += (rawVelocity - st.Velocity) * alpha;
             st.Coasting = false;   // hand is back on — re-arm the fling detector
             // Peak-hold the gesture's velocity (decaying, ~0.3 s memory). The
@@ -500,21 +489,39 @@ public sealed class Orchestrator : IDisposable
             // lull. The deck lands wherever the platter coasts to — no snapping.
             // First coast frame: if the hand left the platter at fling speed,
             // project the momentum (see FlingBoost above) before friction takes it.
+            double target = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0.0;
             if (!st.Coasting)
             {
                 st.Coasting = true;
-                // Launch the coast from the gesture's PEAK speed (see peak-hold
-                // above), boosted — not from the smoothed velocity, which has
-                // already decayed by the time the platter physically stopped.
-                if (Math.Abs(st.PeakVelocity) >= FlingThreshold)
+                if (Math.Abs(st.PeakVelocity) >= _scratchOptions.FlingThreshold)
                 {
-                    st.Velocity = st.PeakVelocity * FlingBoost;
+                    // A genuine fling: launch the coast from the gesture's PEAK
+                    // speed (see peak-hold above), boosted — not from the
+                    // smoothed velocity, which has already decayed by the time
+                    // the platter physically stopped.
+                    st.Velocity = st.PeakVelocity * _scratchOptions.FlingBoost;
+                    // A spinback dies out faster than a forward fling: more
+                    // friction and a shorter tail, so it completes in 1/N the time.
+                    if (st.Velocity < 0)
+                    {
+                        st.Decel *= _scratchOptions.SpinbackSpeedup;
+                        st.TailTau = _scratchOptions.CoastTailTauSec / _scratchOptions.SpinbackSpeedup;
+                    }
                     if (_scratchLog)
                         Console.WriteLine($"[scratch] FLING peak={st.PeakVelocity:F2} → v={st.Velocity:F2}");
                 }
+                else
+                {
+                    // Hand-guided scrub or rewind: no momentum. The deck resumes
+                    // from exactly where the hand left it — coasting on would
+                    // carry it a further stretch back before resuming, which
+                    // reads as "it jumped to an earlier point" rather than
+                    // "it continued". Snap the velocity to the resting rate so
+                    // the END branch below fires this same frame.
+                    st.Velocity = target;
+                }
                 st.PeakVelocity = 0;
             }
-            double target = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0.0;
             // A backspin on a playing deck glides to REST (0) — the drawn-out
             // reverse tail — and then EndScratch below resumes forward playback
             // INSTANTLY. Gliding all the way to +PlaybackSpeed would crawl
@@ -522,7 +529,7 @@ public sealed class Orchestrator : IDisposable
             // crisply the moment the reverse motion dies.
             double glideTarget = target > 0 && st.Velocity < -0.02 ? 0.0 : target;
             double gap = Math.Abs(st.Velocity - glideTarget);
-            if (gap > CoastKnee)
+            if (gap > _scratchOptions.CoastKnee)
             {
                 // Fast phase: constant friction, real momentum.
                 double step = st.Decel * dt;
@@ -534,7 +541,7 @@ public sealed class Orchestrator : IDisposable
                 // Tail: below the knee, ease exponentially into rest — the last
                 // stretch of a backspin draws out and dies away instead of
                 // stopping on a dime.
-                double a = 1 - Math.Exp(-dt / CoastTailTauSec);
+                double a = 1 - Math.Exp(-dt / st.TailTau);
                 st.Velocity += (glideTarget - st.Velocity) * a;
             }
 
@@ -597,6 +604,9 @@ public sealed class Orchestrator : IDisposable
         /// <summary>True once the hand has left and the coast is running — the
         /// fling boost fires exactly once, on the tick this flips true.</summary>
         public bool Coasting;
+        /// <summary>True while the touch sensor reports a hand on the platter
+        /// top. Authoritative grab/hold; release = hand off AND ticks stopped.</summary>
+        public bool Touching;
         /// <summary>Decaying peak of the gesture's smoothed velocity (~0.3 s
         /// memory) — the fling launches from this, since the platter has
         /// physically stopped (velocity ≈ 0) by the time release is detected.</summary>
@@ -604,7 +614,10 @@ public sealed class Orchestrator : IDisposable
         /// <summary>Deceleration for this coast (rate-units/s): the scratch
         /// friction constant normally, or the gentler vinyl-brake rate when
         /// <see cref="PauseAtEnd"/> is set.</summary>
-        public double Decel = ScratchDecelPerSec;
+        public double Decel;   // set at GRAB (DecelPerSec) or brake (1/BrakeSeconds)
+        /// <summary>Time constant of the dying tail for this coast — the option
+        /// default, shortened for a spinback (see SpinbackSpeedup).</summary>
+        public double TailTau;
         /// <summary>True while a vinyl-brake pause is in flight: when the coast
         /// reaches rest, the deck is paused instead of resuming.</summary>
         public bool PauseAtEnd;

@@ -1332,13 +1332,20 @@ public sealed class Deck
 
     /// <summary>Seek relative to current position by +/- seconds, clamped to track bounds.
     /// Works whether the deck is playing, paused, or finished.
-    /// Uses SoundPlayer.Time / Duration for the math because SoundPlayer.Seek interprets
-    /// its TimeSpan in the same internal time domain — mixing in our drift-free
-    /// PositionFrames here would over-seek by the engine/source sample-rate ratio.</summary>
+    /// <para>The "current position" is the provider's true cursor
+    /// (<see cref="PositionFrames"/>), NOT SoundPlayer.Time. The player's own clock
+    /// only advances by frames it rendered at 1×; our providers do the varispeed
+    /// internally (tempo fader, scratch), so Time drifts from the real position
+    /// whenever the rate isn't exactly 1 — and during a scratch it stays parked
+    /// near the grab point. A side-ring nudge computed from Time then yanks the
+    /// deck back to wherever the clock stalled. Source and engine rates are equal
+    /// now (AudioFileDecoder.TargetSampleRate), so frames/rate is the same time
+    /// domain SoundPlayer.Seek expects.</para></summary>
     public void SeekRelative(double seconds)
     {
         if (_player is null) return;
-        double target = Math.Clamp(_player.Time + seconds, 0.0, _player.Duration);
+        double current = PositionFrames / (double)AudioFileDecoder.TargetSampleRate;
+        double target = Math.Clamp(current + seconds, 0.0, _player.Duration);
         _player.Seek(TimeSpan.FromSeconds(target));
     }
 

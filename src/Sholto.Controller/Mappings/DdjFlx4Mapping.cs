@@ -34,6 +34,11 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Key == _o.DeckShiftNote && (msg.Channel == _o.Deck0Channel || msg.Channel == _o.Deck1Channel))
             return new ControllerEvent.DeckShift(Deck: msg.Channel == _o.Deck0Channel ? 0 : 1, Pressed: msg.IsDown);
 
+        // Top-platter touch. Both edges matter — the App scratches while the
+        // hand is on and releases the instant it lifts.
+        if (msg.Key == _o.JogTouchNote && (msg.Channel == _o.Deck0Channel || msg.Channel == _o.Deck1Channel))
+            return new ControllerEvent.JogTouch(Deck: msg.Channel == _o.Deck0Channel ? 0 : 1, Touching: msg.IsDown);
+
         // Stem-level modifier (deck-agnostic). Hold this button to repurpose
         // the EQ knobs as per-stem attenuators. Both edges matter — the App
         // tracks the held state and switches CC routing in EqMoved.

@@ -116,6 +116,11 @@ public sealed class DdjFlx4Options
     public int BrowseRotateLegacyControl { get; set; } = 0x40;
 
     public int JogTopPlatterControl { get; set; } = 0x22;
+    /// <summary>Top-platter touch sensor, per deck channel: NoteOn while a hand is
+    /// on the platter top, NoteOff when it lifts (captured via MIDI dump
+    /// 2026-09-05). Lets the App know "hand on" directly instead of guessing
+    /// from tick gaps.</summary>
+    public int JogTouchNote { get; set; } = 0x36;
     public int JogSideRingControl { get; set; } = 0x21;
     /// <summary>The firmware retransmits top-platter rotation on this CC while the
     /// deck's Shift is held (captured via MIDI dump) — drives the 4× fast search.</summary>

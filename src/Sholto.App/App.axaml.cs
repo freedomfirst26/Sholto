@@ -271,7 +271,8 @@ public partial class App : Application
         if (!_controller.Connect())
             Console.WriteLine("DDJ-FLX4 not found — use UI controls.");
 
-        _orchestrator = new Orchestrator(vm, () => _factory);
+        _orchestrator = new Orchestrator(vm, () => _factory,
+            Microsoft.Extensions.Options.Options.Create(new ScratchOptions()));
         _controller.Action += evt => Dispatcher.UIThread.Post(() => _orchestrator.HandleControllerEvent(evt));
         // Surface controller connection state in the top-bar indicator. Seed with
         // the result of the first attempt above, then follow the supervisor's events.

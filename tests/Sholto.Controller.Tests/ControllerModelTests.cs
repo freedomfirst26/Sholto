@@ -134,6 +134,22 @@ public class ControllerModelTests
         Assert.Null(evt);
     }
 
+    // Captured on hardware 2026-09-05: lifting a hand off the platter top sends
+    // ch=1/2 NoteOff 0x36; touching sends the NoteOn.
+    [Theory]
+    [InlineData(1, 0, true)]
+    [InlineData(2, 1, true)]
+    [InlineData(1, 0, false)]
+    [InlineData(2, 1, false)]
+    public void Flx4_JogTouch_BothEdgesMapToJogTouch(int channel, int expectedDeck, bool down)
+    {
+        var mapping = new DdjFlx4Mapping();
+        var evt = mapping.Translate(new NoteEvent(channel, 0x36, down ? 127 : 0, IsDown: down));
+        var touch = Assert.IsType<ControllerEvent.JogTouch>(evt);
+        Assert.Equal(expectedDeck, touch.Deck);
+        Assert.Equal(down, touch.Touching);
+    }
+
     [Fact]
     public void Flx4_DeckShiftNote_StillMapsToDeckShift()
     {
