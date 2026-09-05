@@ -7,6 +7,8 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+## v0.2.0
+
 ### New
 - **Three new themes:** Dimmu Borgir, Aphex Twin, and The Prodigy.
 - **M4A / AAC playback.** Tracks in `.m4a` (AAC) now show up in the library and
