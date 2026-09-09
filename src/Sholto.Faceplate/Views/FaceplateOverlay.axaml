@@ -1,0 +1,224 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Sholto.Faceplate.Views.FaceplateOverlay">
+
+  <UserControl.Styles>
+    <!-- The panel's one eyebrow treatment, defined once and worn by all three of
+         them: the deck above the title, "IF YOU JUST … IT", and "EVERYTHING ELSE IT
+         DOES". They do the same job — a small caps label naming what follows — and
+         a reader who meets two treatments goes looking for a difference that is not
+         there.
+
+         Never accent: an accent-coloured label beside an accent-coloured chip would
+         read as two of the same kind of thing, and the panel keeps colour for chips.
+
+         Dimmed SholtoTextBright, NOT SholtoTextMuted. Muted is a per-theme colour
+         rather than a per-theme opacity, so its contrast is whatever each theme
+         happened to pick: on Birthday Massacre #836B89 on #1B0D31 measures 3.86:1,
+         and at 11px bold that is not large text, so it misses AA. These labels are
+         the panel's wayfinding and cannot be the first thing to fail. Taking the
+         bright text down by opacity instead is theme-proof — every theme sets
+         textBright at luminance 226-245, so the ratio lands near 6:1 in all eleven.
+
+         11 is the panel's smallest of four sizes (22 title, 16 answer, 13 body,
+         11 eyebrow/chip). -->
+    <Style Selector="TextBlock.eyebrow">
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="LetterSpacing" Value="1.2"/>
+      <Setter Property="LineHeight" Value="14"/>
+      <Setter Property="Opacity" Value="0.55"/>
+      <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+    </Style>
+  </UserControl.Styles>
+
+  <!-- The controller guide, full-screen (FaceplateMount.Full). A dimmed
+       backdrop, the device drawing scaled by a Viewbox, and a panel that slides in
+       from the right when a control is picked.
+
+       The drawing itself is pure .axaml with no code-behind: everything below finds
+       the shapes by their fp:ControlSurface.Id and builds a parallel overlay layer of
+       tints, blooms and hit targets on top. Adding a controller therefore needs a new
+       layout and a new guide JSON, and no changes here. -->
+
+  <!-- The backdrop is inert: this overlay's empty space is the canvas the controller
+       drawing floats on, and the user is aiming at small targets inside it (a pad, a
+       knob, an arrow button). A click that misses by a few pixels must not destroy the
+       whole guide and whatever was selected in it — so, unlike a small dialog, clicking
+       outside here does nothing. The X button and Esc are the only two ways out. -->
+  <!-- Backdrop has no Background here on purpose: it is built in code-behind from
+       SholtoBgDeep so the field keeps the theme's own hue instead of crushing every
+       theme to the same black (see BuildScrim). -->
+  <Grid x:Name="Backdrop">
+    <Grid ColumnDefinitions="*,Auto">
+
+      <!-- Column 0 is the board: the drawing, vertically centred, and a single hint
+           line pinned to the bottom. The drawing is much wider than it is tall, so a
+           Uniform fit in a near-square frame always leaves vertical slack; the hint
+           line is what gives that slack a job instead of leaving dead space, and it is
+           also where Esc is told to a DJ who has never opened this before. -->
+      <Grid Grid.Column="0" RowDefinitions="*,Auto">
+        <Viewbox Grid.Row="0" Stretch="Uniform" Margin="28,24,28,8">
+          <!-- Stage sizes itself to the drawing; OverlayCanvas stretches over it, so a
+               coordinate in the drawing is the same coordinate in the overlay. -->
+          <Grid x:Name="Stage">
+            <ContentControl x:Name="LayoutHost"/>
+            <Canvas x:Name="OverlayCanvas"/>
+          </Grid>
+        </Viewbox>
+
+        <StackPanel Grid.Row="1" x:Name="HintLine" Orientation="Horizontal"
+                    Spacing="7" HorizontalAlignment="Center" Margin="0,0,0,24"
+                    IsHitTestVisible="False">
+          <TextBlock Text="Click any control to see what it does" VerticalAlignment="Center"
+                     FontSize="13" LetterSpacing="0.3"
+                     Foreground="{DynamicResource SholtoTextMuted}"/>
+          <TextBlock Text="·" VerticalAlignment="Center" Opacity="0.6" FontSize="13"
+                     Foreground="{DynamicResource SholtoTextMuted}"/>
+          <!-- Esc as a key cap rather than a word in a sentence: it is one of only two
+               ways out of the guide, and a DJ scanning the bottom of the screen should
+               see a key, not read a clause. -->
+          <Border CornerRadius="4" Padding="6,1,6,2" VerticalAlignment="Center"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource SholtoBorder}"
+                  Background="{DynamicResource SholtoSurfaceRaised}">
+            <TextBlock Text="Esc" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.4"
+                       Foreground="{DynamicResource SholtoTextBright}" Opacity="0.8"/>
+          </Border>
+          <TextBlock Text="closes the guide" VerticalAlignment="Center"
+                     FontSize="13" LetterSpacing="0.3"
+                     Foreground="{DynamicResource SholtoTextMuted}"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- The feather. The panel used to meet the board on a hard vertical cut; this
+           strip is the gradual approach into it. It lives in column 0, right-aligned,
+           so it darkens the board and never the panel, and it is shown only while the
+           panel is out. Its brush is built in code-behind alongside the scrim. -->
+      <Border Grid.Column="0" x:Name="Feather" Width="110"
+              HorizontalAlignment="Right" IsHitTestVisible="False"
+              IsVisible="{Binding IsPanelOpen}"/>
+
+      <!-- Background here is only the first paint: BuildScrim replaces it with a
+           gradient of the same colour whose leading edge is dipped into the field's
+           shade, which is what softens the panel/board seam (see BuildScrim). -->
+      <Border Grid.Column="1" x:Name="Panel"
+              Width="380" IsVisible="{Binding IsPanelOpen}"
+              Background="{DynamicResource SholtoSurfaceRaised}"
+              BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1,0,0,0"
+              BoxShadow="-24 0 64 0 #B3000000"
+              PointerPressed="OnPanelPressed">
+        <Border.Transitions>
+          <Transitions>
+            <TransformOperationsTransition Property="RenderTransform"
+                                           Duration="0:0:0.18" Easing="CubicEaseOut"/>
+          </Transitions>
+        </Border.Transitions>
+
+        <!-- The gesture panel: title/summary for the selected control, one headline
+             line answering "what does a plain press do?", then a bullet per everything
+             else the control is involved in — its own remaining gestures, and any
+             gesture owned by ANOTHER control that names this one as a partner.
+             HeadlinePanel and RowsPanel are built and refreshed in code-behind — the
+             content comes from live view-model state, not static markup. -->
+        <!-- 12, not 22, horizontally. The bullets' hover highlight is a card that
+             wants to sit INSIDE the panel's gutter rather than across it, and a
+             ScrollViewer clips to its viewport — so a card that tried to bleed outward
+             simply got sliced off flush with the panel edge. The gutter is split
+             instead: 12 here, and 10 of padding inside the card, which puts every
+             bullet's text back on the same 22 the title and summary keep below via
+             their own 10. See BuildRowVisual. -->
+        <ScrollViewer Margin="12,22,12,26" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel>
+            <!-- Title. The control's name and the deck it is on are two different
+                 facts, so they are two runs a full grey-step apart rather than one
+                 bold string — the name is what the reader is looking for. The right
+                 margin keeps it clear of the close button, which floats over this
+                 corner of the panel. -->
+            <!-- The deck, as the title's eyebrow. Almost every control on this board
+                 exists twice, so which deck was clicked is the second most important
+                 fact in the panel — and as a trailing "· deck 2" in the dimmest grey
+                 available it was rendered as the least important thing on the line.
+                 Above the title it reads in the order a person needs it: which deck,
+                 then which control, then what it does. Hidden outright for a global
+                 control (the crossfader, the browse knob, the BEAT arrows), which has
+                 no deck to name. Not a chip — chips mean "a control you can click",
+                 and a deck is not one. -->
+            <TextBlock x:Name="PanelDeck" Classes="eyebrow" Margin="10,0,10,3"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="9" Margin="10,0,52,0">
+              <!-- No glyph here, against the design proposal's §7. It asked for a 🎛
+                   to match the 🏷 and 🔍 the tag editor and search wear. Tried at 18
+                   and at 14: the emoji font paints it as an opaque grey plate and
+                   ignores Foreground entirely, so it cannot take the theme, and in
+                   Front Line Assembly's warm brown panel it read as a grey sticker
+                   stuck next to the control's name. A glyph that cannot be tinted and
+                   is not recognisable at 14px is decoration that earns nothing. -->
+              <TextBlock x:Name="PanelLabel" FontSize="18" FontWeight="Bold"
+                         LetterSpacing="0.2" TextWrapping="Wrap"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource SholtoTextBright}"/>
+            </StackPanel>
+
+            <TextBlock x:Name="PanelSummary" FontSize="13" TextWrapping="Wrap"
+                       LineHeight="19" Margin="10,8,10,0" Opacity="0.50"
+                       Foreground="{DynamicResource SholtoTextBright}"/>
+
+            <!-- Header rule, the same device TagEditorView uses under its title. -->
+            <Border Height="1" Margin="10,16,10,10" Opacity="0.55"
+                    Background="{DynamicResource SholtoBorder}"/>
+
+            <StackPanel x:Name="HeadlinePanel" Spacing="5" Margin="10,0"/>
+
+            <!-- Shown only when a control has neither a headline nor a bullet — TRIM,
+                 which is analogue and sends Sholto nothing. Without it the header rule
+                 above dangles over an empty panel, separating nothing from nothing. -->
+            <TextBlock x:Name="EmptyState" IsVisible="False" Margin="10,0"
+                       Text="No other gestures on this control."
+                       FontSize="13" FontStyle="Italic" LineHeight="19"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource SholtoTextMuted}"/>
+
+            <StackPanel x:Name="RowsPanel" Margin="0,24,0,0"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+    </Grid>
+
+    <!-- Close button. Top-right of the whole overlay frame — the conventional spot —
+         and plainly a button, not a bare glyph: it is now one of only two ways out
+         (the other is Esc), since the backdrop no longer closes on a stray click. A DJ
+         who has never opened this before should see it without hunting. Themed like
+         everything outside the drawing — amber is reserved for the illustration. -->
+    <Button x:Name="CloseButton" Click="OnCloseButtonClick"
+            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12"
+            Width="40" Height="40" Padding="0"
+            CornerRadius="10"
+            Background="{DynamicResource SholtoSurfaceRaised}"
+            BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1"
+            Cursor="Hand" ToolTip.Tip="Close">
+      <Button.Styles>
+        <Style Selector="Button#CloseButton:pointerover">
+          <Setter Property="Background" Value="{DynamicResource SholtoAccentBg}"/>
+        </Style>
+      </Button.Styles>
+      <TextBlock Text="&#10005;" FontSize="17" FontWeight="Bold"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Foreground="{DynamicResource SholtoTextBright}"/>
+    </Button>
+  </Grid>
+
+  <UserControl.Styles>
+    <!-- Both ends of the slide are style setters. A RenderTransform set on the Border
+         itself would be a local value, and a local value outranks every style setter —
+         the class would toggle and the panel would never move. -->
+    <Style Selector="Border#Panel">
+      <Setter Property="RenderTransform" Value="translateX(420px)"/>
+    </Style>
+    <Style Selector="Border#Panel.open">
+      <Setter Property="RenderTransform" Value="translateX(0px)"/>
+    </Style>
+  </UserControl.Styles>
+
+</UserControl>

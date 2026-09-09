@@ -6,6 +6,7 @@ using Sholto.Analysis;
 using Sholto.App.Controls;
 using Sholto.App.Theming;
 using Sholto.Audio;
+using Sholto.Controller.Gestures;
 using Sholto.Music;
 using Microsoft.Extensions.Options;
 
@@ -173,6 +174,98 @@ public sealed class MainViewModel : INotifyPropertyChanged
         get => _isCratePickerOpen;
         private set { if (_isCratePickerOpen == value) return; _isCratePickerOpen = value; Notify(); }
     }
+
+    // ---- Controller guide (Faceplate) -------------------------------------------
+
+    /// <summary>The controller guide's own state. Null until <see cref="AttachFaceplate"/>
+    /// runs (MainWindow's code-behind does this once the mounted overlay has built its
+    /// own view model from <c>FaceplateDocLoader.LoadEmbedded("ddj-flx4")</c>) — there is
+    /// deliberately no second, separately-constructed instance here; see the comment on
+    /// FaceplateHost in MainWindow.axaml for why that would silently break the panel.</summary>
+    public Sholto.Faceplate.ViewModels.FaceplateViewModel? Faceplate { get; private set; }
+
+    /// <summary>Wires up the guide's own view model (see <see cref="Faceplate"/>) once
+    /// the overlay hosting it exists. Mirrors <see cref="AttachTagService"/>: state
+    /// owned by another part of the app, handed in after construction.</summary>
+    public void AttachFaceplate(Sholto.Faceplate.ViewModels.FaceplateViewModel faceplate)
+    {
+        if (ReferenceEquals(Faceplate, faceplate)) return;
+        Faceplate = faceplate;
+        Faceplate.RequestClose += () => IsFaceplateOpen = false;
+        Notify(nameof(Faceplate));
+    }
+
+    private Sholto.Faceplate.FaceplateMount _mount = Sholto.Faceplate.FaceplateMount.Hidden;
+    /// <summary>Where the controller guide is shown — see
+    /// <see cref="Sholto.Faceplate.FaceplateMount"/>. <see cref="IsFaceplateOpen"/>
+    /// derives from this (anything but <c>Hidden</c> counts as open) rather than being
+    /// independent state. Opening sets <c>Full</c>; closing sets <c>Hidden</c>.
+    /// <c>Embedded</c> is wired but not built — selecting it behaves exactly like
+    /// <c>Full</c> until a real embedded layout exists, so it is never a
+    /// half-built layout and never a dead value nothing shows.</summary>
+    public Sholto.Faceplate.FaceplateMount Mount
+    {
+        get => _mount;
+        set
+        {
+            if (_mount == value) return;
+            var wasOpen = _mount != Sholto.Faceplate.FaceplateMount.Hidden;
+            _mount = value;
+            var isOpen = _mount != Sholto.Faceplate.FaceplateMount.Hidden;
+            Notify();
+            Notify(nameof(IsFaceplateOpen));
+            if (wasOpen == isOpen) return;
+            GestureRouting = isOpen ? GestureRouting.Inspect : GestureRouting.Play;
+            // Drop any standing selection without re-raising RequestClose — that event
+            // is how the overlay's OWN close button tells us to close; looping back into
+            // it here would just re-enter this setter (safely, since the equality check
+            // above short-circuits it, but needlessly).
+            if (!isOpen) Faceplate?.ClearSelection();
+        }
+    }
+
+    /// <summary>Whether the controller guide overlay is showing. The only way in is the
+    /// top-bar button. Three ways set it back to false: Esc, the overlay's own visible
+    /// close button, and the same top-bar button — deliberately NOT a backdrop click,
+    /// which would dismiss the whole guide (and whatever was selected) on a click that
+    /// merely missed a small control by a few pixels. A thin bool view over
+    /// <see cref="Mount"/>: true sets <c>Full</c>, false sets <c>Hidden</c>, and
+    /// the Play/Inspect <see cref="GestureRouting"/> flip lives in Mount's setter — Inspect
+    /// mode is what lets pressing PLAY on the physical unit explain PLAY instead of
+    /// starting a deck.</summary>
+    public bool IsFaceplateOpen
+    {
+        get => Mount != Sholto.Faceplate.FaceplateMount.Hidden;
+        set
+        {
+            if (IsFaceplateOpen == value) return;
+            Mount = value ? Sholto.Faceplate.FaceplateMount.Full : Sholto.Faceplate.FaceplateMount.Hidden;
+        }
+    }
+
+    private GestureRouting _gestureRouting = GestureRouting.Play;
+    /// <summary>Whether gestures currently reach the decks (<c>Play</c>) or are being
+    /// explained instead (<c>Inspect</c>). Driven purely by <see cref="Mount"/> (via
+    /// <see cref="IsFaceplateOpen"/>). <see cref="GestureRoutingChanged"/> is what
+    /// App.axaml.cs listens to, to flip the app's and the guide's gesture-binding
+    /// tables and repair the LEDs on the way back to Play.</summary>
+    public GestureRouting GestureRouting
+    {
+        get => _gestureRouting;
+        private set
+        {
+            if (_gestureRouting == value) return;
+            _gestureRouting = value;
+            Notify();
+            GestureRoutingChanged?.Invoke(value);
+        }
+    }
+
+    /// <summary>Fires whenever <see cref="GestureRouting"/> changes. App.axaml.cs wires
+    /// this to enable/disable its own and the Faceplate's <c>GestureBindings</c> tables
+    /// on the shared <c>GestureBus</c>, and to repair the LEDs when routing returns to
+    /// Play (see <see cref="Orchestrator.ReassertLights"/>).</summary>
+    public event Action<GestureRouting>? GestureRoutingChanged;
 
     private string? _toast;
     /// <summary>Brief confirmation text (e.g. "Added to Warmup Set"); null = hidden.</summary>

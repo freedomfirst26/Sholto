@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:Sholto.App.Controls"
         xmlns:v="using:Sholto.App.Views"
+        xmlns:fp="using:Sholto.Faceplate.Views"
         xmlns:media="using:Avalonia.Media"
         x:Class="Sholto.App.Views.MainWindow"
         Title="Sholto"
@@ -75,6 +76,31 @@
                            FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
             </StackPanel>
         </Border>
+        <!-- Controller guide entry point. The ONLY way to open the Faceplate overlay —
+             deliberately no keyboard shortcut. A mini controller, white outline (a
+             stroke, no fill) so it reads as chrome rather than competing with the
+             amber the guide itself uses. -->
+        <Button x:Name="FaceplateButton" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,12,0"
+                Background="Transparent" BorderThickness="0" Padding="0"
+                Cursor="Hand" ToolTip.Tip="Controller guide"
+                Click="OnFaceplateButtonClick">
+            <Viewbox Width="22" Height="16" Stretch="Uniform">
+                <Canvas Width="30" Height="22">
+                    <!-- Body -->
+                    <Rectangle Canvas.Left="1" Canvas.Top="3" Width="28" Height="16"
+                               RadiusX="2" RadiusY="2"
+                               Stroke="White" StrokeThickness="1.4" Fill="Transparent"/>
+                    <!-- Two jog-wheel circles -->
+                    <Ellipse Canvas.Left="4" Canvas.Top="6" Width="10" Height="10"
+                             Stroke="White" StrokeThickness="1.2" Fill="Transparent"/>
+                    <Ellipse Canvas.Left="16" Canvas.Top="6" Width="10" Height="10"
+                             Stroke="White" StrokeThickness="1.2" Fill="Transparent"/>
+                    <!-- Crossfader nub -->
+                    <Rectangle Canvas.Left="12" Canvas.Top="16" Width="6" Height="2"
+                               Stroke="White" StrokeThickness="0.8" Fill="Transparent"/>
+                </Canvas>
+            </Viewbox>
+        </Button>
         <Menu Background="Transparent"
               Foreground="{DynamicResource SholtoTextBright}">
             <MenuItem Header="Settings">
@@ -412,6 +438,22 @@
              never gets an IsVisible change of its own). -->
         <v:TagEditorView DataContext="{Binding TagEditor}"
                          IsVisible="{Binding #TagEditorHost.IsVisible}"/>
+    </Panel>
+    <!-- Controller guide overlay. Same hidden-parent trap as the tag editor above:
+         the child binds its OWN IsVisible to the host rather than relying on the
+         parent Panel's, so its code-behind actually sees the change. -->
+    <Panel x:Name="FaceplateHost" IsVisible="{Binding IsFaceplateOpen}">
+        <!-- No DataContext binding here, deliberately: FaceplateOverlay builds and owns
+             its own FaceplateViewModel in its constructor (its click/hover handling is
+             wired to that instance directly, in code, not through DataContext), and a
+             DataContext set from here would only relabel the Border/TextBlock bindings
+             inside FaceplateOverlay.axaml without the control's own logic ever seeing
+             it — the side panel would silently stop opening on a click. MainWindow
+             picks up the SAME instance afterwards via FaceplateOverlayView.ViewModel
+             (see DataContextChanged in the code-behind) so MainViewModel.Faceplate is
+             the real thing, not a second, inert copy. -->
+        <fp:FaceplateOverlay x:Name="FaceplateOverlayView"
+                             IsVisible="{Binding #FaceplateHost.IsVisible}"/>
     </Panel>
     <!-- Enter-mode action menu + add-to-crate picker. Above everything. -->
     <v:TrackActionsOverlay/>

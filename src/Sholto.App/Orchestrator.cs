@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Sholto.Analysis;
 using Sholto.Audio;
 using Sholto.Controller;
+using Sholto.Controller.Gestures;
 using Sholto.Storage;
 using Sholto.App.ViewModels;
 
@@ -37,21 +38,16 @@ public sealed class Orchestrator : IDisposable
         Environment.GetEnvironmentVariable("SHOLTO_SCRATCH_LOG") == "1";
     // Per-deck platter-scratch state (top platter only — see ScratchState).
     private readonly ScratchState[] _scratch = { new(), new() };
-    // Per-deck Shift modifier state — the FLX-4 emits Shift+arrow without a deck, so
-    // NudgeGrid uses this to route.
-    private readonly bool[] _shiftHeld = new bool[2];
-    // Stem-level modifier: while held, the EQ knobs become per-stem attenuators.
-    private bool _stemLevelMode;
-    // Browse long-press: hold ~1 s to force-reanalyze the highlighted track.
-    private DispatcherTimer? _browseHoldTimer;
+    private readonly GestureRecognizer _recognizer;
     private DispatcherTimer? _positionTimer;
 
     public Orchestrator(MainViewModel vm, Func<IDbContextFactory<SholtoDbContext>?> dbFactory,
-                        IOptions<ScratchOptions> scratch)
+                        IOptions<ScratchOptions> scratch, GestureRecognizer recognizer)
     {
         _vm = vm;
         _dbFactory = dbFactory;
         _scratchOptions = scratch.Value;
+        _recognizer = recognizer;
         // Double-clicking a library row re-analyzes it — same path as the browse
         // long-press. The VM only raises the request; we hold the provider + factory.
         _vm.ReanalyzeSelectedRequested += OnReanalyzeSelectedRequested;
@@ -128,6 +124,53 @@ public sealed class Orchestrator : IDisposable
     /// to the controller's PAD FX1 pad-1 LED. Args: deck, new on/off state.</summary>
     public event Action<int, bool>? EchoLightRequested;
 
+    /// <summary>Repaint every LED this Orchestrator drives, from the app's own current
+    /// state, without touching that state itself.
+    /// <para>Why this exists: the Controller lights its own buttons on press — before
+    /// it raises the event the App sees (see <c>ButtonWithLight.Press</c> /
+    /// <c>Controller.OnMidi</c>) — so disabling the App's gesture table for Inspect mode
+    /// cannot stop an LED changing. Press headphone CUE while the guide is open and the
+    /// unit's LED flips while the App's real cue state never moves; the controller and
+    /// the screen then disagree. <c>App</c> calls <see cref="Controller.Reset"/> (which
+    /// blanks every LED, and forces the cue state back to off — see its own doc) and
+    /// then this, every time gesture routing returns from Inspect to Play, so what's lit
+    /// again matches what the app actually knows rather than whatever the hardware did
+    /// while nobody who cared was listening.</para></summary>
+    public void ReassertLights()
+    {
+        for (var deck = 0; deck < 2; deck++)
+        {
+            var deckVm = _vm.DeckFor(deck);
+            BeatSyncLightRequested?.Invoke(deck, deckVm.BeatSyncLit);
+            PadLightRequested?.Invoke(deck, 0, deckVm.DrumsActive);
+            PadLightRequested?.Invoke(deck, 1, deckVm.VocalsActive);
+            PadLightRequested?.Invoke(deck, 2, deckVm.InstrumentalActive);
+            EchoLightRequested?.Invoke(deck, deckVm.EchoActive);
+        }
+    }
+
+    /// <summary>Repairs a platter grab that Inspect mode stranded. While the guide is
+    /// open the App's own gesture table is disabled (see <c>GestureRoutingChanged</c>
+    /// in App.axaml.cs), so if a hand was already resting on a top platter when Inspect
+    /// opened, the eventual <c>JogTouch(false)</c> lift never reaches
+    /// <see cref="HandleJogTouch"/> — it's swallowed by the disabled table. That leaves
+    /// <see cref="ScratchState.Touching"/> stuck true forever: <see cref="TickScratch"/>
+    /// keeps treating the hand as "on" (<c>handOn = st.Touching || tickedThisWindow</c>)
+    /// and writes <c>ScratchRate(0)</c> every frame, silencing that deck until the
+    /// platter is touched and released again in Play mode. Called on the way back to
+    /// Play, alongside <see cref="ReassertLights"/>, so a lift that never arrived is
+    /// treated as if it just had — the normal release-decay path takes it from here.
+    /// Deliberately does not touch anything else in ScratchState (velocity, decel,
+    /// coasting): only the stuck touch flag is a bug, the rest is untouched physics.
+    /// </summary>
+    public void ReleaseStrandedScratchTouches()
+    {
+        foreach (var st in _scratch)
+        {
+            if (st.Active) st.Touching = false;
+        }
+    }
+
     private void OnReanalyzeSelectedRequested() => ReanalyzeHighlighted("double-click");
 
     /// <summary>Force-reanalyze the highlighted library track (BPM/beats/peaks + key)
@@ -148,51 +191,46 @@ public sealed class Orchestrator : IDisposable
                 : null);
     }
 
+    /// <summary>Raised on every 16 ms tick, after the Orchestrator's own work.
+    /// The App uses it to pump <see cref="GestureRecognizer.Tick"/> so the browse
+    /// hold becomes due without a second timer.</summary>
+    public event Action? Ticked;
+
     /// <summary>Start the 60 Hz tick (jog flush + magnetism + playhead sync).</summary>
     public void Start()
     {
         _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        _positionTimer.Tick += (_, _) => Tick();
+        _positionTimer.Tick += (_, _) => { Tick(); Ticked?.Invoke(); };
         _positionTimer.Start();
     }
 
-    /// <summary>Translate one controller event into deck / mixer actions. Called on
-    /// the UI thread.</summary>
-    public void HandleControllerEvent(ControllerEvent evt)
+    /// <summary>Act on one gesture. Called on the UI thread.
+    /// <para>The gesture says what the DJ did. This method decides what Sholto does
+    /// about it, which is where app state belongs: whether the deck can scratch,
+    /// whether a loop is running, which deck a deckless gesture should hit.</para></summary>
+    public void HandleGesture(Gesture g)
     {
         var vm = _vm;
-        switch (evt)
+        switch (g.Id)
         {
-            case ControllerEvent.BrowseRotated r:
-                vm.OnBrowseRotated(r.Delta);
+            case GestureIds.BrowseTurn:
+                vm.OnBrowseRotated(((ControllerEvent.BrowseRotated)g.Source).Delta);
                 break;
-            case ControllerEvent.BrowsePressed:
-                // Short tap: no-op (Load 1 / Load 2 buttons do the loading). Long
-                // press (≥1 s): force-reanalyze the highlighted track. Some
-                // controllers retransmit NoteOn while held; leave a running timer be.
-                if (_browseHoldTimer is null)
-                {
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-                    timer.Tick += (_, _) =>
-                    {
-                        timer.Stop();
-                        if (ReferenceEquals(_browseHoldTimer, timer)) _browseHoldTimer = null;
-                        ReanalyzeHighlighted("browse-hold");
-                    };
-                    _browseHoldTimer = timer;
-                    timer.Start();
-                }
+
+            case GestureIds.BrowsePressShort:
+                // Deliberately nothing. LOAD 1 / LOAD 2 do the loading.
                 break;
-            case ControllerEvent.BrowseReleased:
-                _browseHoldTimer?.Stop();
-                _browseHoldTimer = null;
+
+            case GestureIds.BrowsePressHold:
+                ReanalyzeHighlighted("browse-hold");
                 break;
-            case ControllerEvent.LoadToDeck l:
+
+            case GestureIds.LoadPress:
             {
                 var sel = vm.SelectedTrack;
                 if (sel is not null)
                 {
-                    var deck = vm.DeckFor(l.Deck);
+                    var deck = vm.DeckFor(g.Deck);
                     var mult = vm.GetBpmMultiplierFor(sel.FilePath);
                     deck.BeginLoad(sel, mult);
                     _ = Task.Run(async () =>
@@ -204,51 +242,62 @@ public sealed class Orchestrator : IDisposable
                 }
                 break;
             }
-            case ControllerEvent.PlayPressed p:
-                vm.OnPlayPressed(p.Deck);
+
+            case GestureIds.PlayPress:
+                vm.OnPlayPressed(g.Deck);
                 break;
-            case ControllerEvent.CrossfaderMoved c:
-                vm.Crossfader = c.Position;
+
+            case GestureIds.CrossfaderMove:
+                vm.Crossfader = ((ControllerEvent.CrossfaderMoved)g.Source).Position;
                 break;
-            case ControllerEvent.ChannelVolumeMoved v:
-                vm.DeckFor(v.Deck).ChannelGain = v.Value;
+
+            case GestureIds.VolumeMove:
+                vm.DeckFor(g.Deck).ChannelGain = ((ControllerEvent.ChannelVolumeMoved)g.Source).Value;
                 break;
-            case ControllerEvent.CueChanged cc:
-                vm.DeckFor(cc.Deck).CueActive = cc.On;
+
+            case GestureIds.CueHeadphoneToggle:
+                vm.DeckFor(g.Deck).CueActive = ((ControllerEvent.CueChanged)g.Source).On;
                 break;
-            case ControllerEvent.MasterCueChanged mc:
-                // MASTER CUE monitor on/off (state owned by the controller button).
-                MasterCueRequested?.Invoke(mc.On);
+
+            case GestureIds.MasterCueToggle:
+                MasterCueRequested?.Invoke(((ControllerEvent.MasterCueChanged)g.Source).On);
                 break;
-            case ControllerEvent.EqMoved e:
+
+            case GestureIds.EqTurn:
             {
-                // While the stem-level button is held, the 3 EQ knobs on both decks
-                // become stem-group attenuators (HI → Drums, MID → Vocals, LOW → Inst).
-                if (_stemLevelMode)
+                var e = (ControllerEvent.EqMoved)g.Source;
+                vm.DeckFor(g.Deck).Player.SetEq((int)e.Band, e.Value);
+                break;
+            }
+
+            case GestureIds.EqStemLevelTurn:
+            {
+                // HI → Drums, MID → Vocals, LOW → Instrumental, on either deck.
+                var e = (ControllerEvent.EqMoved)g.Source;
+                var deckVm = vm.DeckFor(g.Deck);
+                switch (e.Band)
                 {
-                    var deckVm = vm.DeckFor(e.Deck);
-                    switch (e.Band)
-                    {
-                        case EqBand.High: deckVm.DrumsLevel        = e.Value; break;
-                        case EqBand.Mid:  deckVm.VocalsLevel       = e.Value; break;
-                        default:          deckVm.InstrumentalLevel = e.Value; break;
-                    }
-                }
-                else
-                {
-                    vm.DeckFor(e.Deck).Player.SetEq((int)e.Band, e.Value);
+                    case EqBand.High: deckVm.DrumsLevel        = e.Value; break;
+                    case EqBand.Mid:  deckVm.VocalsLevel       = e.Value; break;
+                    default:          deckVm.InstrumentalLevel = e.Value; break;
                 }
                 break;
             }
-            case ControllerEvent.FilterMoved f:
-                vm.DeckFor(f.Deck).Player.SetFilter(f.Position);
+
+            case GestureIds.FilterTurn:
+                vm.DeckFor(g.Deck).Player.SetFilter(((ControllerEvent.FilterMoved)g.Source).Position);
                 break;
-            case ControllerEvent.TempoMoved t:
-                vm.DeckFor(t.Deck).SetTempoPosition(t.Position);
+
+            case GestureIds.TempoMove:
+                vm.DeckFor(g.Deck).SetTempoPosition(((ControllerEvent.TempoMoved)g.Source).Position);
                 break;
-            case ControllerEvent.StemToggle st:
+
+            case GestureIds.PadStemDrums:
+            case GestureIds.PadStemVocals:
+            case GestureIds.PadStemInstrumental:
             {
-                var deckVm = vm.DeckFor(st.Deck);
+                var st = (ControllerEvent.StemToggle)g.Source;
+                var deckVm = vm.DeckFor(g.Deck);
                 bool nextActive = st.Group switch
                 {
                     0 => !deckVm.DrumsActive,
@@ -262,156 +311,179 @@ public sealed class Orchestrator : IDisposable
                     case 2: deckVm.InstrumentalActive = nextActive; break;
                 }
                 deckVm.Player.SetStemGroup(st.Group, nextActive);
-                PadLightRequested?.Invoke(st.Deck, st.Group, nextActive);
+                PadLightRequested?.Invoke(g.Deck, st.Group, nextActive);
                 break;
             }
-            case ControllerEvent.BeatLoopToggle bl:
-                vm.DeckFor(bl.Deck).Player.EnableBeatLoop(bl.Bars);
-                break;
-            case ControllerEvent.BeatLoopHalve bh:
-                vm.DeckFor(bh.Deck).Player.HalveLoop();
-                break;
-            case ControllerEvent.BeatLoopDouble bd:
-                vm.DeckFor(bd.Deck).Player.DoubleLoop();
-                break;
-            case ControllerEvent.DeckShift ds:
-                _shiftHeld[ds.Deck] = ds.Pressed;
-                break;
-            case ControllerEvent.StemLevelMode sm:
-                _stemLevelMode = sm.Pressed;
-                break;
-            case ControllerEvent.BeatSyncPressed:
-                // Plain BEAT SYNC — beat-sync not yet implemented.
-                break;
-            case ControllerEvent.TransportCuePressed tc:
-                // Plain CUE is a no-op (see DdjFlx4Mapping's comment on why the
-                // old beatgrid re-anchor binding was removed). Shift + CUE
-                // restarts the track from the start, keeping play/pause state.
-                // Shifted comes from the wire (firmware chord note); the held-
-                // state check is a fallback in case a firmware sends plain CUE.
-                if (tc.Shifted || _shiftHeld[tc.Deck]) vm.DeckFor(tc.Deck).Player.SeekToFraction(0);
-                break;
-            case ControllerEvent.EchoToggle et:
+
+            case GestureIds.PadEcho:
             {
-                var deckVm = vm.DeckFor(et.Deck);
+                var deckVm = vm.DeckFor(g.Deck);
                 deckVm.EchoActive = !deckVm.EchoActive;
-                EchoLightRequested?.Invoke(et.Deck, deckVm.EchoActive);
+                EchoLightRequested?.Invoke(g.Deck, deckVm.EchoActive);
                 break;
             }
-            case ControllerEvent.PadPageSelected:
-                // No VM binding yet — the Controller model already tracks
-                // per-deck pad-page state and repaints the mode-button + pad
-                // LEDs itself (see Controller.SetPadPage). Reserved for a
-                // future "which pad page is active" UI indicator.
+
+            case GestureIds.BeatLoopToggle:
+                vm.DeckFor(g.Deck).Player.EnableBeatLoop(((ControllerEvent.BeatLoopToggle)g.Source).Bars);
                 break;
-            case ControllerEvent.CyclePitchRange cpr:
-                vm.DeckFor(cpr.Deck).CyclePitchRange();
+            case GestureIds.BeatLoopHalve:
+                vm.DeckFor(g.Deck).Player.HalveLoop();
                 break;
-            case ControllerEvent.NudgeGrid n:
+            case GestureIds.BeatLoopDouble:
+                vm.DeckFor(g.Deck).Player.DoubleLoop();
+                break;
+
+            case GestureIds.SyncPress:
+                // Beat sync is not implemented yet.
+                break;
+
+            case GestureIds.CueTransportPlain:
+                // Deliberately nothing. See DdjFlx4Mapping's note on why the old
+                // beatgrid re-anchor binding was removed.
+                break;
+
+            case GestureIds.CueTransportRestart:
+                vm.DeckFor(g.Deck).Player.SeekToFraction(0);
+                break;
+
+            case GestureIds.SyncCyclePitchRange:
+                vm.DeckFor(g.Deck).CyclePitchRange();
+                break;
+
+            case GestureIds.GridNudgeBack:
+            case GestureIds.GridNudgeForward:
             {
-                if (n.Deck >= 0) { vm.DeckFor(n.Deck).Player.NudgeGrid(n.Beats); break; }
-                // Shift+Left/Right arrives deck-less; route via held Shift, else the
-                // active-loop deck, else deck 0.
+                int beats = ((ControllerEvent.NudgeGrid)g.Source).Beats;
+                if (g.Deck >= 0) { vm.DeckFor(g.Deck).Player.NudgeGrid(beats); break; }
+                // The BEAT arrows are one pair shared by both decks, so they arrive
+                // deckless. Pick a deck: held Shift first, then whichever deck has a
+                // loop running, then deck 0.
                 int target;
-                if (_shiftHeld[0]) target = 0;
-                else if (_shiftHeld[1]) target = 1;
+                if (_recognizer.IsShiftHeld(0)) target = 0;
+                else if (_recognizer.IsShiftHeld(1)) target = 1;
                 else if (vm.DeckFor(0).Player.ActiveLoop is not null) target = 0;
                 else if (vm.DeckFor(1).Player.ActiveLoop is not null) target = 1;
                 else target = 0;
-                vm.DeckFor(target).Player.NudgeGrid(n.Beats);
+                vm.DeckFor(target).Player.NudgeGrid(beats);
                 break;
             }
-            case ControllerEvent.JogTouch jt:
-            {
-                var deckVm = vm.DeckFor(jt.Deck);
-                var st = _scratch[jt.Deck];
-                st.Touching = jt.Touching;
-                // Hand lands: grab now, at rate = the deck's current speed, so
-                // the sound holds under the finger (rate → 0 as no ticks
-                // arrive) rather than waiting for the first tick. Shift + touch
-                // is the silent fast-search, not a grab; a brake in flight
-                // keeps its own state.
-                if (jt.Touching && !st.Active && !_shiftHeld[jt.Deck] && deckVm.Player.CanScratch)
-                {
-                    st.Active = true;
-                    st.PauseAtEnd = false;
-                    st.Decel = _scratchOptions.DecelPerSec;
-                    st.TailTau = _scratchOptions.CoastTailTauSec;
-                    st.WasPlaying = deckVm.Player.IsPlaying;
-                    st.Velocity = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0;
-                    st.PeakVelocity = 0;
-                    deckVm.IsScratching = true;
-                    if (_scratchLog)
-                        Console.WriteLine($"[scratch] TOUCH deck={jt.Deck} playing={st.WasPlaying} pos={deckVm.Player.PlayPosition:F3}");
-                }
-                else if (!jt.Touching && _scratchLog)
-                    Console.WriteLine($"[scratch] LIFT  deck={jt.Deck} v={st.Velocity:F2}");
+
+            case GestureIds.ShiftHold:
+            case GestureIds.StemLevelHold:
+            case GestureIds.PadModeHotCue:
+            case GestureIds.PadModePadFx1:
+                // State only. The recognizer holds the modifier state; the Controller
+                // already repaints the pad LEDs on a page switch.
                 break;
-            }
-            case ControllerEvent.JogRotated j:
+
+            case GestureIds.JogTopTouch:
+                HandleJogTouch((ControllerEvent.JogTouch)g.Source);
+                break;
+
+            case GestureIds.JogTopShiftTurn:
             {
-                // Loop locked: the jog wheel is ignored while a loop is active, else
-                // scrubbing could pull the playhead outside the loop and break the wrap.
-                var deckVm = vm.DeckFor(j.Deck);
+                // Silent 2x seek through the track, bypassing the audible scratch.
+                // (The "4x" in DdjFlx4Mapping's comment is stale — see the living doc.)
+                var j = (ControllerEvent.JogRotated)g.Source;
+                var deckVm = vm.DeckFor(g.Deck);
                 if (deckVm.Player.ActiveLoop is not null) break;
-
-                // Shift + top platter = fast search: silent 2× seek through the
-                // track (CDJ Shift+jog), bypassing the audible scratch entirely.
-                if (j.Source == JogSource.TopPlatter && _shiftHeld[j.Deck])
-                {
-                    double fastSecs = j.Delta * _scratchOptions.TopPlatterSecsPerTick * 2;
-                    if (j.Deck == 0) _pendingJog1 += fastSecs;
-                    else             _pendingJog2 += fastSecs;
-                    vm.LastJoggedDeck = j.Deck == 0 ? 1 : 2;
-                    vm.LastJogAt = DateTime.UtcNow;
-                    if (j.Deck == 0) vm.LastJogAt1 = vm.LastJogAt;
-                    else             vm.LastJogAt2 = vm.LastJogAt;
-                    break;
-                }
-
-                // Top platter on a scratch-capable deck: route into the scratch
-                // velocity accumulator instead of the silent-seek pipeline —
-                // Tick() turns this into an audible varispeed rate rather than a
-                // Seek. Side ring always keeps the old nudge behaviour, and the
-                // top platter falls back to it too on a deck that can't scratch
-                // yet (still on the streaming/pre-decode provider).
-                if (j.Source == JogSource.TopPlatter && deckVm.Player.CanScratch)
-                {
-                    var st = _scratch[j.Deck];
-                    if (!st.Active)
-                    {
-                        st.Active = true;
-                        st.PauseAtEnd = false;
-                        st.Decel = _scratchOptions.DecelPerSec;
-                    st.TailTau = _scratchOptions.CoastTailTauSec;
-                        st.WasPlaying = deckVm.Player.IsPlaying;
-                        // Start from the deck's actual current rate, not 0 — a
-                        // grab on a playing deck shouldn't hiccup to silence
-                        // before the hand's motion takes over.
-                        st.Velocity = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0;
-                        deckVm.IsScratching = true;
-                        if (_scratchLog)
-                            Console.WriteLine($"[scratch] GRAB deck={j.Deck} playing={st.WasPlaying} pos={deckVm.Player.PlayPosition:F3}");
-                    }
-                    st.TickAccum += j.Delta * _scratchOptions.ScratchSecsPerTick;
-                    st.LastTickAt = DateTime.UtcNow;
-                }
-                else
-                {
-                    // Accumulate; Tick() flushes it into one Seek per frame — each Seek
-                    // flushes SoundFlow's buffer, so per-event seeks (~100/s) would glitch.
-                    double secsPerTick = j.Source == JogSource.TopPlatter ? _scratchOptions.TopPlatterSecsPerTick : _scratchOptions.SideRingSecsPerTick;
-                    if (j.Deck == 0) _pendingJog1 += j.Delta * secsPerTick;
-                    else             _pendingJog2 += j.Delta * secsPerTick;
-                }
-                vm.LastJoggedDeck = j.Deck == 0 ? 1 : 2;
-                var nowUtc = DateTime.UtcNow;
-                vm.LastJogAt = nowUtc;
-                if (j.Deck == 0) vm.LastJogAt1 = nowUtc;
-                else             vm.LastJogAt2 = nowUtc;
+                double fastSecs = j.Delta * _scratchOptions.TopPlatterSecsPerTick * 2;
+                if (g.Deck == 0) _pendingJog1 += fastSecs; else _pendingJog2 += fastSecs;
+                MarkJogged(g.Deck);
                 break;
             }
+
+            case GestureIds.JogTopTurn:
+            case GestureIds.JogRingTurn:
+                HandleJogTurn(g);
+                break;
+
+            default:
+                break;   // an id nothing acts on yet
         }
+    }
+
+    private void MarkJogged(int deck)
+    {
+        _vm.LastJoggedDeck = deck == 0 ? 1 : 2;
+        var nowUtc = DateTime.UtcNow;
+        _vm.LastJogAt = nowUtc;
+        if (deck == 0) _vm.LastJogAt1 = nowUtc; else _vm.LastJogAt2 = nowUtc;
+    }
+
+    private void HandleJogTouch(ControllerEvent.JogTouch jt)
+    {
+        var vm = _vm;
+        var deckVm = vm.DeckFor(jt.Deck);
+        var st = _scratch[jt.Deck];
+        st.Touching = jt.Touching;
+        // Hand lands: grab now, at rate = the deck's current speed, so
+        // the sound holds under the finger (rate → 0 as no ticks
+        // arrive) rather than waiting for the first tick. Shift + touch
+        // is the silent fast-search, not a grab; a brake in flight
+        // keeps its own state.
+        if (jt.Touching && !st.Active && !_recognizer.IsShiftHeld(jt.Deck) && deckVm.Player.CanScratch)
+        {
+            st.Active = true;
+            st.PauseAtEnd = false;
+            st.Decel = _scratchOptions.DecelPerSec;
+            st.TailTau = _scratchOptions.CoastTailTauSec;
+            st.WasPlaying = deckVm.Player.IsPlaying;
+            st.Velocity = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0;
+            st.PeakVelocity = 0;
+            deckVm.IsScratching = true;
+            if (_scratchLog)
+                Console.WriteLine($"[scratch] TOUCH deck={jt.Deck} playing={st.WasPlaying} pos={deckVm.Player.PlayPosition:F3}");
+        }
+        else if (!jt.Touching && _scratchLog)
+            Console.WriteLine($"[scratch] LIFT  deck={jt.Deck} v={st.Velocity:F2}");
+    }
+
+    private void HandleJogTurn(Gesture g)
+    {
+        var vm = _vm;
+        var j = (ControllerEvent.JogRotated)g.Source;
+        // Loop locked: the jog wheel is ignored while a loop is active, else
+        // scrubbing could pull the playhead outside the loop and break the wrap.
+        var deckVm = vm.DeckFor(j.Deck);
+        if (deckVm.Player.ActiveLoop is not null) return;
+
+        // Top platter on a scratch-capable deck: route into the scratch
+        // velocity accumulator instead of the silent-seek pipeline —
+        // Tick() turns this into an audible varispeed rate rather than a
+        // Seek. Side ring always keeps the old nudge behaviour, and the
+        // top platter falls back to it too on a deck that can't scratch
+        // yet (still on the streaming/pre-decode provider).
+        if (j.Source == JogSource.TopPlatter && deckVm.Player.CanScratch)
+        {
+            var st = _scratch[j.Deck];
+            if (!st.Active)
+            {
+                st.Active = true;
+                st.PauseAtEnd = false;
+                st.Decel = _scratchOptions.DecelPerSec;
+            st.TailTau = _scratchOptions.CoastTailTauSec;
+                st.WasPlaying = deckVm.Player.IsPlaying;
+                // Start from the deck's actual current rate, not 0 — a
+                // grab on a playing deck shouldn't hiccup to silence
+                // before the hand's motion takes over.
+                st.Velocity = st.WasPlaying ? deckVm.Player.PlaybackSpeed : 0;
+                deckVm.IsScratching = true;
+                if (_scratchLog)
+                    Console.WriteLine($"[scratch] GRAB deck={j.Deck} playing={st.WasPlaying} pos={deckVm.Player.PlayPosition:F3}");
+            }
+            st.TickAccum += j.Delta * _scratchOptions.ScratchSecsPerTick;
+            st.LastTickAt = DateTime.UtcNow;
+        }
+        else
+        {
+            // Accumulate; Tick() flushes it into one Seek per frame — each Seek
+            // flushes SoundFlow's buffer, so per-event seeks (~100/s) would glitch.
+            double secsPerTick = j.Source == JogSource.TopPlatter ? _scratchOptions.TopPlatterSecsPerTick : _scratchOptions.SideRingSecsPerTick;
+            if (j.Deck == 0) _pendingJog1 += j.Delta * secsPerTick;
+            else             _pendingJog2 += j.Delta * secsPerTick;
+        }
+        MarkJogged(j.Deck);
     }
 
     /// <summary>60 Hz: flush coalesced jog into one Seek per deck (scaled down by
@@ -581,7 +653,7 @@ public sealed class Orchestrator : IDisposable
     /// <summary>One deck's platter-scratch state — velocity accumulator,
     /// exponential smoother, and release-decay bookkeeping. See
     /// <see cref="TickScratch"/> for how it's driven and
-    /// <see cref="HandleControllerEvent"/>'s JogRotated case for how ticks
+    /// <see cref="HandleJogTurn"/>'s JogRotated case for how ticks
     /// feed <see cref="TickAccum"/>.</summary>
     private sealed class ScratchState
     {
@@ -627,6 +699,5 @@ public sealed class Orchestrator : IDisposable
     {
         _vm.ReanalyzeSelectedRequested -= OnReanalyzeSelectedRequested;
         _positionTimer?.Stop();
-        _browseHoldTimer?.Stop();
     }
 }

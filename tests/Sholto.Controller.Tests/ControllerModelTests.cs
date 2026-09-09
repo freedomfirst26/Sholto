@@ -9,7 +9,7 @@ public class ControllerModelTests
     [Fact]
     public void Button_Press_BubblesClickUp()
     {
-        var b = new Button("cue", _ => { });
+        var b = new Button("cue");
         int clicks = 0;
         b.Clicked += _ => clicks++;
         b.Press();
@@ -18,24 +18,24 @@ public class ControllerModelTests
     }
 
     [Fact]
-    public void Button_SetLit_AppliesOnChangeOnly()
+    public void ButtonWithLight_SetLit_AppliesOnChangeOnly()
     {
         var applied = new List<bool>();
-        var b = new Button("cue", applied.Add);
+        var b = new ButtonWithLight("cue", applied.Add);
 
         b.SetLit(true);   // change → apply
         b.SetLit(true);   // same  → no apply
         b.SetLit(false);  // change → apply
 
-        Assert.True(b.IsLit is false);
+        Assert.False(b.IsLit);
         Assert.Equal([true, false], applied);
     }
 
     [Fact]
-    public void Button_Reset_TurnsLightOff()
+    public void ButtonWithLight_Reset_TurnsLightOff()
     {
         bool? last = null;
-        var b = new Button("cue", on => last = on);
+        var b = new ButtonWithLight("cue", on => last = on);
         b.SetLit(true);
         b.Reset();
         Assert.False(b.IsLit);
@@ -158,5 +158,95 @@ public class ControllerModelTests
         var shift = Assert.IsType<ControllerEvent.DeckShift>(evt);
         Assert.Equal(0, shift.Deck);
         Assert.True(shift.Pressed);
+    }
+
+    // Captured on hardware 2026-09-09 with SHOLTO_MIDI_LOG=1: the FX ON/OFF
+    // (RELEASE FX) button sends ch=06 0x47. The option said channel 5, so the
+    // modifier never fired and holding it just moved the EQ.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Flx4_StemLevelMode_ComesFromChannel6(bool down)
+    {
+        var mapping = new DdjFlx4Mapping();
+        var evt = mapping.Translate(new NoteEvent(6, 0x47, down ? 127 : 0, IsDown: down));
+        var mode = Assert.IsType<ControllerEvent.StemLevelMode>(evt);
+        Assert.Equal(down, mode.Pressed);
+    }
+
+    [Fact]
+    public void Flx4_Channel5_0x47_IsNotAControl()
+    {
+        // Nothing on the unit sends this. RELEASE FX, SMART CFX and SMART FADER were
+        // all measured and none of them do.
+        var mapping = new DdjFlx4Mapping();
+        Assert.Null(mapping.Translate(new NoteEvent(5, 0x47, 127, IsDown: true)));
+    }
+
+    // ---- cue snapshot/restore (Faceplate LED repair, Task 12 fix round 1) --------
+    //
+    // The Faceplate guide's Inspect mode calls Controller.Reset() on the way back to
+    // Play to repair LEDs the Controller changed while the app's own gesture table
+    // was disabled (see App.axaml.cs). Reset() forces both decks' headphone cue AND
+    // the master cue off with no memory of what they were — these tests are the
+    // round trip that undoes that, so "cue deck 2, open the guide, close it" doesn't
+    // silently kill a cue the DJ left running.
+
+    [Fact]
+    public void RestoreCueState_brings_back_a_cue_that_was_on_before_Reset()
+    {
+        var controller = new Controller();
+        controller.Deck1Cue.Press();               // DJ turns deck 1 cue on
+        Assert.True(controller.Deck1Cue.IsLit);
+        var snapshot = controller.SnapshotCueState();
+
+        controller.Reset();                         // guide closes: LED forced off
+        Assert.False(controller.Deck1Cue.IsLit);
+
+        var events = new List<ControllerEvent>();
+        controller.Action += events.Add;
+        controller.RestoreCueState(snapshot);
+
+        Assert.True(controller.Deck1Cue.IsLit);
+        Assert.Contains(events, e => e is ControllerEvent.CueChanged { Deck: 0, On: true });
+    }
+
+    [Fact]
+    public void RestoreCueState_leaves_a_cue_that_was_off_alone_and_quiet()
+    {
+        // The restore must not simply turn everything back on: a cue that was
+        // genuinely off before Reset must stay off, and nothing should be re-raised
+        // for a button that already matches its snapshot.
+        var controller = new Controller();
+        var snapshot = controller.SnapshotCueState();   // nothing pressed — all off
+
+        controller.Reset();
+
+        var events = new List<ControllerEvent>();
+        controller.Action += events.Add;
+        controller.RestoreCueState(snapshot);
+
+        Assert.False(controller.Deck1Cue.IsLit);
+        Assert.False(controller.Deck2Cue.IsLit);
+        Assert.False(controller.MasterCue.IsLit);
+        Assert.DoesNotContain(events, e => e is ControllerEvent.CueChanged or ControllerEvent.MasterCueChanged);
+    }
+
+    [Fact]
+    public void RestoreCueState_treats_each_button_independently()
+    {
+        // Deck 1 and master were on, deck 2 was off — the restore must reproduce
+        // exactly that mix, not "all on" or "all off".
+        var controller = new Controller();
+        controller.Deck1Cue.Press();
+        controller.MasterCue.Press();
+        var snapshot = controller.SnapshotCueState();
+
+        controller.Reset();
+        controller.RestoreCueState(snapshot);
+
+        Assert.True(controller.Deck1Cue.IsLit);
+        Assert.False(controller.Deck2Cue.IsLit);
+        Assert.True(controller.MasterCue.IsLit);
     }
 }

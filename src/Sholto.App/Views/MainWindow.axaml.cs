@@ -37,7 +37,13 @@ public partial class MainWindow : Window
         // first paint already has the right colors.
         DataContextChanged += (_, _) =>
         {
-            if (DataContext is MainViewModel vm) ApplyThemeToResources(vm.Theme);
+            if (DataContext is not MainViewModel vm) return;
+            ApplyThemeToResources(vm.Theme);
+            // Hand the view model the SAME FaceplateViewModel the mounted overlay
+            // already built for itself (see the comment on FaceplateHost in the
+            // .axaml) — not a second one, so a future caller driving Faceplate.Select
+            // from a live gesture actually reaches the control that's on screen.
+            vm.AttachFaceplate(FaceplateOverlayView.ViewModel);
         };
     }
 
@@ -161,6 +167,16 @@ public partial class MainWindow : Window
                                      _ = te.RemoveLastChipAsync();  e.Handled = true; break;
                 }
             }
+            return;
+        }
+
+        // Controller guide open → swallow the app's own shortcuts, same isolation as
+        // the tag editor above (Space would otherwise open search underneath, 1 / 2
+        // would load decks). Esc is the only key it answers to; the drawing itself
+        // handles clicks via pointer events, not key events.
+        if (vm.IsFaceplateOpen)
+        {
+            if (e.Key == Key.Escape) { vm.IsFaceplateOpen = false; e.Handled = true; }
             return;
         }
 
@@ -360,6 +376,15 @@ public partial class MainWindow : Window
             e.Handled = true;
             _ = vm.OpenTagEditorAsync(row);
         }
+    }
+
+    /// <summary>The controller guide's only entry point. Toggles: pressing it again
+    /// while the guide is open closes it, same as Esc or the overlay's own close
+    /// button.</summary>
+    private void OnFaceplateButtonClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        vm.IsFaceplateOpen = !vm.IsFaceplateOpen;
     }
 
     private async void OnOutputDeviceClick(object? sender, RoutedEventArgs e)

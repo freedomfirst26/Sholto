@@ -166,12 +166,67 @@ public sealed class Controller : IDisposable
 
     /// <summary>Return the whole controller to a known state: every component
     /// reset (all button LEDs off) and the cleared cue state percolated up to the
-    /// App so its cue audio clears too.</summary>
+    /// App so its cue audio clears too.
+    /// <para>This is deliberately destructive — it does not remember what it just
+    /// cleared. A caller that needs to undo it (the Faceplate guide's LED repair
+    /// does, mid-session) must snapshot first with <see cref="SnapshotCueState"/>
+    /// and restore afterwards with <see cref="RestoreCueState"/>; Reset alone would
+    /// otherwise silently kill a headphone or master cue the DJ had left on.</para>
+    /// </summary>
     public void Reset()
     {
         foreach (var c in _components) c.Reset();
         Action?.Invoke(new ControllerEvent.CueChanged(0, false));
         Action?.Invoke(new ControllerEvent.CueChanged(1, false));
+    }
+
+    /// <summary>What <see cref="Reset"/> is about to clear on the cue buttons — every
+    /// bit of state a physical press toggles rather than a value the app streams to
+    /// the LED. Take this before calling Reset, hand it to <see cref="RestoreCueState"/>
+    /// afterwards.</summary>
+    public readonly record struct CueSnapshot(bool Deck1, bool Deck2, bool Master);
+
+    /// <summary>Read the cue buttons' current on/off state, straight from the button
+    /// model — the same field <see cref="OnCueClicked"/>/<see cref="OnMasterCueClicked"/>
+    /// toggle, so this is the authoritative truth, not a copy the App keeps in step.</summary>
+    public CueSnapshot SnapshotCueState() => new(Deck1Cue.IsLit, Deck2Cue.IsLit, MasterCue.IsLit);
+
+    /// <summary>Undo what <see cref="Reset"/> did to the cue buttons, restoring each
+    /// one that differs from <paramref name="snapshot"/> exactly as a physical press
+    /// would: light (or leave dark) the LED AND re-raise the semantic event
+    /// (<c>CueChanged</c> / <c>MasterCueChanged</c>) so the App's own cue-active state
+    /// and the audio engine's routing follow, not just the button's LED. A button
+    /// already at the wanted value (Reset already left it off, and it was off before
+    /// too) is left alone and nothing is re-raised for it — restoring is not "turn
+    /// everything back on".</summary>
+    public void RestoreCueState(CueSnapshot snapshot)
+    {
+        RestoreCue(Deck1Cue, 0, snapshot.Deck1);
+        RestoreCue(Deck2Cue, 1, snapshot.Deck2);
+        if (MasterCue.IsLit != snapshot.Master)
+        {
+            MasterCue.SetLit(snapshot.Master);
+            Action?.Invoke(new ControllerEvent.MasterCueChanged(snapshot.Master));
+        }
+    }
+
+    private void RestoreCue(ButtonWithLight button, int deck, bool on)
+    {
+        if (button.IsLit == on) return;
+        button.SetLit(on);
+        Action?.Invoke(new ControllerEvent.CueChanged(deck, on));
+    }
+
+    /// <summary>Undo what <see cref="Reset"/> did to the pad-mode (HOT CUE / PAD FX1)
+    /// LEDs. Reset blanks every button LED, but it never touches <see cref="_padPage"/>
+    /// — the page itself was never "cleared", only the light saying which one is
+    /// active. Re-running <see cref="SetPadPage"/> with the page already on record
+    /// repaints that light (and reasserts the pad LEDs for it) without changing
+    /// anything the App or the DJ would notice as a real page switch.</summary>
+    public void ReassertPadPages()
+    {
+        SetPadPage(0, _padPage[0]);
+        SetPadPage(1, _padPage[1]);
     }
 
     private void OnMidi(ControllerEvent evt)

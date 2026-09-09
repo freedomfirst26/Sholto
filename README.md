@@ -8,7 +8,25 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 
 ![Sholto — library on top, two decks below with section maps, live waveforms, and spinning discs](pictures/sholto-ui.png)
 
-Full guide: [docs/README.md](docs/README.md) — every button on screen and on the controller.
+## What Sholto is for
+
+**Simplifying DJ controller software.** The big packages have grown into libraries,
+studios and stores with a mixer attached. Sholto goes the other way: fewer screens,
+fewer modes, fewer things to learn before you can play a record.
+
+**Built for performing, not for preparing.** Sholto is aimed at the hour you spend
+playing, not the week you spend organising. It does the preparation it must — it reads
+your tracks, finds the beat, and remembers what it worked out — so that the moment you
+have your hands on the controller, nothing is in the way. Where a feature helps you in
+the mix, it goes in. Where it only helps you build a set list days beforehand, it waits.
+
+**The controller is the instrument.** The screen is there to tell you what the
+controller cannot: where you are in the track, what is coming, and what your hands are
+doing. Click the controller icon in the top bar for a picture of your controller with
+every knob, pad and button explained.
+
+**Your music stays yours.** Everything runs on your machine, from your own files. No
+account, no cloud, no streaming service, nothing phoning home.
 
 ## What it does
 
@@ -45,18 +63,9 @@ Full guide: [docs/README.md](docs/README.md) — every button on screen and on t
 - The deck dims red when its volume is all the way down.
 - **A range of colour themes** to switch between in Settings.
 
-### Handy moves
-- **Fine-tune the beatgrid** — click the BPM on a deck to open a little tuner: nudge the tempo up or down and slide the grid left or right until it lines up with the kicks. There's a one-tap **½ / ×2** for the common case where a slow track is read at twice its real speed, and a reset back to the detected values. Every adjustment is remembered per track.
-- **Drop markers** — press **M** to mark the spot you're at on the playing deck so you can find it again.
-- **Re-analyse a track** — double-click it (or hold the browse knob on it for about a second) to analyse from scratch — a rescue for the odd track whose beats came out wrong.
-
 ## Your DDJ-FLX4
-- **Play / pause** and **jog wheels** (top platter to scrub fast, the side ring for fine nudges) on each deck.
-- **Channel faders** and the **crossfader** for volume and blending.
-- **EQ knobs** (high / mid / low) driving each deck's isolator.
-- **The browse knob** scrolls the track list; **LOAD 1 / LOAD 2** load the highlighted track onto a deck.
-- **Hot-cue pads** double as **stem mute toggles** — drums, vocals, instrumental — once a track's stems are ready.
-- **The CUE buttons** send each deck to your headphones for pre-listening. **Shift + CUE** jumps the track back to the very start instead (keeps playing if it was playing).
+Plug it in and it works. Click the controller icon in the top bar for a picture of your
+DDJ-FLX4 with every knob, pad and button explained, including the Shift combinations.
 
 Adding support for another controller is straightforward — Sholto keeps each device's button layout in one place.
 
