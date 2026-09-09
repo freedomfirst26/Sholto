@@ -11,6 +11,13 @@ changed at the decks, not which class moved.
 - **One-command install.** `curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash` downloads the latest release, installs its tools, and launches it. Re-run to update.
 - **F11 toggles fullscreen.**
 
+### Improved
+- **Shorter actions menu.** The Enter menu on a track no longer repeats "Load to Deck 1 / 2" — **1** and **2** in the track list already do that.
+- **Recently used tags come first.** The tag box and the search overlay list the tags you picked most recently at the top, so a tagging run stops meaning a lot of typing. The list resets when you restart Sholto.
+
+### Fixed
+- **The tag box takes the keyboard straight away.** Open the tag editor and type — no click needed first.
+
 ### Housekeeping
 - Added a user guide under docs/ covering every control on screen and on the DDJ-FLX4.
 

@@ -64,7 +64,7 @@ Adding support for another controller is straightforward — Sholto keeps each d
 - **Space** — open search (type to find tracks, crates, and tags).
 - **↑ / ↓** — move up and down the track list.
 - **1 / 2** — load the highlighted track onto Deck 1 or Deck 2.
-- **Enter** — open the actions menu for the highlighted track (tag it, add it to a crate, or load it).
+- **Enter** — open the actions menu for the highlighted track (add it to a crate, or tag it).
 - **P** — play / pause Deck 1; hold **Shift** for Deck 2.
 - **G** — open the beatgrid / tempo tuner on the playing deck; then **↑ / ↓** change the tempo and **← / →** nudge the grid.
 - **M** — drop a marker on the playing deck.

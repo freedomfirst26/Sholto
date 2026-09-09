@@ -172,7 +172,7 @@ public partial class MainWindow : Window
         }
 
         // Enter-mode action menu: arrows move + Enter fires, plus direct shortcuts
-        // (1/2 load a deck, C crate, T tag), Esc closes.
+        // (C crate, T tag), Esc closes.
         if (vm.IsTrackActionsOpen)
         {
             switch (e.Key)
@@ -181,8 +181,6 @@ public partial class MainWindow : Window
                 case Key.Down:   vm.TrackActions.Move(+1); e.Handled = true; break;
                 case Key.Enter:  vm.TrackActions.Commit();  e.Handled = true; break;
                 case Key.Escape: vm.TrackActions.Close();   e.Handled = true; break;
-                case Key.D1: case Key.NumPad1: vm.TrackActions.Invoke(TrackActionKind.LoadDeck1); e.Handled = true; break;
-                case Key.D2: case Key.NumPad2: vm.TrackActions.Invoke(TrackActionKind.LoadDeck2); e.Handled = true; break;
                 case Key.C: vm.TrackActions.Invoke(TrackActionKind.AddToCrate); e.Handled = true; break;
                 case Key.T: vm.TrackActions.Invoke(TrackActionKind.Tag); e.Handled = true; break;
             }
@@ -206,8 +204,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Enter on a highlighted library row → the track action menu (Tag / Add to
-        // crate / Load). Replaces the old T-to-tag shortcut.
+        // Enter on a highlighted library row → the track action menu (Add to crate /
+        // Tag). Replaces the old T-to-tag shortcut.
         if (e.Key == Key.Enter)
         {
             var row = vm.SelectedTrackRow;

@@ -110,6 +110,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public TagEditorViewModel? TagEditor { get; private set; }
 
+    /// <summary>Session-only "last selected" memory shared by the tag editor and
+    /// the search overlay, so both list recently used tags first.</summary>
+    private readonly Sholto.App.Models.TagRecency _tagRecency = new();
+
     private bool _isTagEditorOpen;
     public bool IsTagEditorOpen
     {
@@ -119,7 +123,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public void AttachTagService(Sholto.Storage.TagService service)
     {
-        TagEditor = new TagEditorViewModel(service);
+        TagEditor = new TagEditorViewModel(service, _tagRecency);
         TagEditor.RequestClose += () => IsTagEditorOpen = false;
         Notify(nameof(TagEditor));
 
@@ -131,7 +135,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => row.Tags = refreshed);
         };
 
-        Search.SetTagService(service);
+        Search.SetTagService(service, _tagRecency);
         Search.TagPicked += async name =>
         {
             var ids = await service.GetTrackIdsForTagAsync(name, default);
@@ -191,8 +195,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
             {
                 case TrackActionKind.Tag:        _ = OpenTagEditorAsync(row); break;
                 case TrackActionKind.AddToCrate: _ = OpenCratePickerAsync(row); break;
-                case TrackActionKind.LoadDeck1:  _ = LoadSelectedToDeckAsync(0); break;
-                case TrackActionKind.LoadDeck2:  _ = LoadSelectedToDeckAsync(1); break;
             }
         };
     }

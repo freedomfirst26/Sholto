@@ -406,8 +406,12 @@
     <!-- Spacebar search overlay. Sibling of DockPanel inside the top-level
          Grid so it z-orders ABOVE the entire app when its IsVisible flips on. -->
     <v:SearchOverlay/>
-    <Panel IsVisible="{Binding IsTagEditorOpen}">
-        <v:TagEditorView DataContext="{Binding TagEditor}"/>
+    <Panel x:Name="TagEditorHost" IsVisible="{Binding IsTagEditorOpen}">
+        <!-- The view binds its own IsVisible to the host so its code-behind sees
+             the change and focuses the input box (a child of a hidden parent
+             never gets an IsVisible change of its own). -->
+        <v:TagEditorView DataContext="{Binding TagEditor}"
+                         IsVisible="{Binding #TagEditorHost.IsVisible}"/>
     </Panel>
     <!-- Enter-mode action menu + add-to-crate picker. Above everything. -->
     <v:TrackActionsOverlay/>

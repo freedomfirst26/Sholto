@@ -6,12 +6,12 @@ namespace Sholto.App.ViewModels;
 
 /// <summary>What pressing Enter on a library row can do. Kept tiny and keyboard-
 /// first — the whole point is "one key, a short menu, get out of the way".</summary>
-public enum TrackActionKind { Tag, AddToCrate, LoadDeck1, LoadDeck2 }
+public enum TrackActionKind { Tag, AddToCrate }
 
 public sealed record TrackActionItem(string Icon, string Label, TrackActionKind Kind, string Key);
 
 /// <summary>Drives the Enter-mode action menu for a highlighted track. Replaces the
-/// old <c>T</c>-to-tag shortcut with a small chooser: Tag / Add to crate / Load.</summary>
+/// old <c>T</c>-to-tag shortcut with a small chooser: Add to crate / Tag.</summary>
 public sealed class TrackActionsViewModel : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -23,8 +23,6 @@ public sealed class TrackActionsViewModel : INotifyPropertyChanged
 
     public ObservableCollection<TrackActionItem> Actions { get; } = new()
     {
-        new("①", "Load to Deck 1", TrackActionKind.LoadDeck1, "1"),
-        new("②", "Load to Deck 2", TrackActionKind.LoadDeck2, "2"),
         new("📦", "Add to crate",   TrackActionKind.AddToCrate, "C"),
         new("🏷", "Tag",            TrackActionKind.Tag, "T"),
     };

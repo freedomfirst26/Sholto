@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Sholto.App.Models;
 using Sholto.Storage;
 
 namespace Sholto.App.ViewModels;
@@ -11,10 +12,12 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     public event Action? RequestClose;
 
     private readonly TagService _service;
+    private readonly TagRecency _recency;
 
-    public TagEditorViewModel(TagService service)
+    public TagEditorViewModel(TagService service, TagRecency recency)
     {
         _service = service;
+        _recency = recency;
     }
 
     public Guid TrackId { get; private set; }
@@ -83,9 +86,12 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         {
             case AddTagOutcome.Added:
                 Chips.Add(result.StoredName!);
+                _recency.MarkUsed(result.StoredName);
                 StatusMessage = null;
                 break;
             case AddTagOutcome.AlreadyPresent:
+                // Still a deliberate selection, so it counts as "recently used".
+                _recency.MarkUsed(result.StoredName);
                 StatusMessage = $"'{result.StoredName}' is already tagged.";
                 break;
             case AddTagOutcome.RejectedEmpty:
@@ -139,8 +145,18 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         const int maxSuggestions = 5;
         var prefix = _input.Trim();
         var hits = await _service.AutocompleteAsync(prefix, 10, default);
-        var picked = hits.Where(h => !Chips.Contains(h, StringComparer.OrdinalIgnoreCase))
-                         .Take(maxSuggestions).ToList();
+
+        // Tags selected earlier this session lead the list, newest first. The
+        // database order (alphabetical) fills the rest. Recent names are matched
+        // against the prefix here because they bypass the database query above.
+        var recent = _recency.RecentNames(maxSuggestions)
+            .Where(n => prefix.Length == 0 ||
+                        n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+        var picked = recent.Concat(hits)
+                           .Distinct(StringComparer.OrdinalIgnoreCase)
+                           .Where(h => !Chips.Contains(h, StringComparer.OrdinalIgnoreCase))
+                           .Take(maxSuggestions).ToList();
         Suggestions.Clear();
         foreach (var h in picked) Suggestions.Add(h);
         SuggestionIndex = picked.Count > 0 ? 0 : -1;
