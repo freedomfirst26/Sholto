@@ -8,25 +8,7 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 
 ![Sholto — library on top, two decks below with section maps, live waveforms, and spinning discs](pictures/sholto-ui.png)
 
-## What Sholto is for
-
-**Simplifying DJ controller software.** The big packages have grown into libraries,
-studios and stores with a mixer attached. Sholto goes the other way: fewer screens,
-fewer modes, fewer things to learn before you can play a record.
-
-**Built for performing, not for preparing.** Sholto is aimed at the hour you spend
-playing, not the week you spend organising. It does the preparation it must — it reads
-your tracks, finds the beat, and remembers what it worked out — so that the moment you
-have your hands on the controller, nothing is in the way. Where a feature helps you in
-the mix, it goes in. Where it only helps you build a set list days beforehand, it waits.
-
-**The controller is the instrument.** The screen is there to tell you what the
-controller cannot: where you are in the track, what is coming, and what your hands are
-doing. Click the controller icon in the top bar for a picture of your controller with
-every knob, pad and button explained.
-
-**Your music stays yours.** Everything runs on your machine, from your own files. No
-account, no cloud, no streaming service, nothing phoning home.
+Full guide: [docs/README.md](docs/README.md) — every button on screen and on the controller.
 
 ## What it does
 
