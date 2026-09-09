@@ -122,16 +122,25 @@ On startup Sholto scans your music folder. Click a track to load it onto Deck 1,
 
 ## License
 
-Dual-licensed — see [LICENSE](LICENSE):
+Sholto is under the [Business Source License 1.1](LICENSE) — source-available,
+and free for the people it is built for.
 
-- **Individuals — free.** Use, modify, fork, and gig with Sholto for any
-  purpose, including paid DJ sets, under the
-  [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
-  plus a free individual-use grant from the author. Forks and derived works
-  you publish must credit Sholto in their README and keep the copyright notice.
-- **Businesses & commercial use — paid.** Any use by an organization, or
-  bundling Sholto into a product or hosted service, needs a paid commercial
-  license — any size. Open an [issue](https://github.com/freedomfirst26/Sholto/issues)
-  to arrange one.
+- **Individuals — free, including paid gigs.** If you are a person (or a sole
+  trader / single-member company you run yourself), you can use, modify, fork,
+  and perform with Sholto for any purpose, at no cost. Forks you publish must
+  keep the copyright notice and credit Sholto in their README.
+- **Organizations — paid.** Any use by or on behalf of a company or other
+  organization, and any bundling of Sholto into a product or hosted service,
+  needs a commercial licence — any size. Email <freedomfirst26@proton.me>.
+- **It becomes Apache-2.0 on 2030-09-07.** Each released version converts to the
+  Apache License 2.0 on its Change Date, so nothing is locked away forever.
 
-The goal is to keep Sholto free for individuals while asking businesses to chip in. Contributions are welcome under the same dual terms (see LICENSE) so they can ship in both editions.
+> **Buying a commercial licence?** Read the non-commercial dependency warning in
+> [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) first — madmom's beat-detection
+> models are CC BY-NC-SA and need separate permission. Get in touch and we will
+> sort it out.
+
+"Sholto" and its logo are trademarks of the copyright holder and are not covered
+by the licence. Forks are welcome under a different name.
+
+Contributions are welcome under the DCO — see [CONTRIBUTING.md](CONTRIBUTING.md).

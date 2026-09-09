@@ -1,0 +1,14 @@
+<Project>
+  <!-- Shared assembly + licence metadata for every project in the solution.
+       Keeps the SPDX id and copyright in one place instead of six csproj files. -->
+  <PropertyGroup>
+    <Product>Sholto</Product>
+    <Authors>freedomfirst26</Authors>
+    <Company>freedomfirst26</Company>
+    <Copyright>Copyright (c) 2026 freedomfirst26</Copyright>
+    <PackageProjectUrl>https://github.com/freedomfirst26/Sholto</PackageProjectUrl>
+    <!-- Business Source License 1.1; converts to Apache-2.0 on the Change Date
+         recorded in LICENSE. See also THIRD-PARTY-NOTICES.md. -->
+    <PackageLicenseExpression>BUSL-1.1</PackageLicenseExpression>
+  </PropertyGroup>
+</Project>
