@@ -54,6 +54,8 @@ public partial class FaceplateOverlay : UserControl
     private readonly TextBlock _emptyState;
     private readonly StackPanel _headlinePanel;
     private readonly StackPanel _rowsPanel;
+    private readonly Border _layerBadge;
+    private readonly TextBlock _layerBadgeText;
 
     private readonly FaceplateViewModel _vm;
     private readonly Dictionary<(string Id, int Deck), Piece> _pieces = new();
@@ -64,6 +66,13 @@ public partial class FaceplateOverlay : UserControl
     // held selection, which always wins and is never touched by this set.
     private readonly List<(string Id, int Deck)> _highlighted = new();
     private readonly List<Control> _highlightLabels = new();
+
+    // Marks which ROW of the panel a live gesture just fired — as opposed to the
+    // pieces above, which mark which CONTROL is lit on the drawing. Rebuilt every
+    // time RebuildRows/RebuildHeadline runs, so a fresh selection never carries a
+    // stale indicator forward from the control that was showing before it.
+    private readonly Dictionary<string, Border> _rowIndicators = new();
+    private Border? _headlineIndicator;
 
     public FaceplateOverlay() : this(FaceplateDocLoader.LoadEmbedded("ddj-flx4")) { }
 
@@ -82,6 +91,8 @@ public partial class FaceplateOverlay : UserControl
         _headlinePanel = this.GetControl<StackPanel>("HeadlinePanel");
         _emptyState = this.GetControl<TextBlock>("EmptyState");
         _rowsPanel = this.GetControl<StackPanel>("RowsPanel");
+        _layerBadge = this.GetControl<Border>("LayerBadge");
+        _layerBadgeText = this.GetControl<TextBlock>("LayerBadgeText");
         _vm = new FaceplateViewModel(doc);
         DataContext = _vm;
         _layoutHost.Content = new DdjFlx4Layout();
@@ -124,6 +135,12 @@ public partial class FaceplateOverlay : UserControl
                 case nameof(FaceplateViewModel.Highlighted):
                     ApplyHighlighted(_vm.Highlighted);
                     break;
+                case nameof(FaceplateViewModel.ActiveRowId):
+                    ApplyActiveRow();
+                    break;
+                case nameof(FaceplateViewModel.ActiveLayerId):
+                    ApplyLayerBadge();
+                    break;
             }
         };
         // Bounds are only real after a layout pass, and the overlay rectangles are
@@ -132,6 +149,7 @@ public partial class FaceplateOverlay : UserControl
         LayoutUpdated += OnLayoutUpdated;
         ApplyTitle();
         _panelSummary.Text = _vm.Summary;
+        ApplyLayerBadge();
         // The scrim and the feather are raw Colors mixed from the theme, not brushes
         // bound to it, so they have to be repainted whenever the theme changes under
         // the overlay — the app swaps its Sholto* resources live from the theme menu.
@@ -508,6 +526,7 @@ public partial class FaceplateOverlay : UserControl
     private void RebuildHeadline()
     {
         _headlinePanel.Children.Clear();
+        _headlineIndicator = null;
         var headline = _vm.Headline;
         SyncEmptyState();
         if (headline is null) return;
@@ -535,7 +554,50 @@ public partial class FaceplateOverlay : UserControl
             head.FontStyle = FontStyle.Italic;
             head.Opacity = 0.62;
         }
-        _headlinePanel.Children.Add(head);
+        _headlineIndicator = RowIndicator();
+        _headlinePanel.Children.Add(WithRowIndicator(_headlineIndicator, head));
+        ApplyActiveRow();
+    }
+
+    /// <summary>The thin accent bar that marks "this is the row a live gesture just
+    /// fired" — the same accent colour the row tags and the new layer badge wear
+    /// (never amber; amber is the drawing's alone). Built invisible and toggled by
+    /// <see cref="ApplyActiveRow"/>, not rebuilt per gesture: a knob can fire many
+    /// times a second and only the opacity needs to move.</summary>
+    private Border RowIndicator() => new()
+    {
+        Width = 3,
+        CornerRadius = new CornerRadius(2),
+        Margin = new Thickness(0, 1, 8, 1),
+        Background = ResourceBrush("SholtoAccent", Brushes.Orange),
+        Opacity = 0,
+        IsHitTestVisible = false,
+    };
+
+    /// <summary>Lays the indicator bar and a row's own content side by side without
+    /// disturbing that content's existing hover/click wiring — the indicator is a
+    /// sibling, not a wrapper around it.</summary>
+    private static Grid WithRowIndicator(Border indicator, Control content)
+    {
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+        Grid.SetColumn(indicator, 0);
+        Grid.SetColumn(content, 1);
+        grid.Children.Add(indicator);
+        grid.Children.Add(content);
+        return grid;
+    }
+
+    /// <summary>Sets every row indicator's visibility from
+    /// <see cref="FaceplateViewModel.ActiveRowId"/> in one pass. Cheap enough to call
+    /// on every gesture and every rebuild rather than tracking a diff — there are at
+    /// most a handful of rows open at once.</summary>
+    private void ApplyActiveRow()
+    {
+        var active = _vm.ActiveRowId;
+        foreach (var (gestureId, indicator) in _rowIndicators)
+            indicator.Opacity = gestureId == active ? 1.0 : 0.0;
+        if (_headlineIndicator is not null)
+            _headlineIndicator.Opacity = active is not null && active == _vm.Headline?.GestureId ? 1.0 : 0.0;
     }
 
     private void SyncEmptyState() =>
@@ -572,6 +634,7 @@ public partial class FaceplateOverlay : UserControl
     private void RebuildRows()
     {
         _rowsPanel.Children.Clear();
+        _rowIndicators.Clear();
         // A control with no headline and no bullets still needs to say so — otherwise
         // the header rule under the summary is a divider with nothing under it.
         SyncEmptyState();
@@ -594,6 +657,7 @@ public partial class FaceplateOverlay : UserControl
             _rowsPanel.Children.Add(BuildRowVisual(row));
             first = false;
         }
+        ApplyActiveRow();
     }
 
     private Control BuildRowVisual(GestureRow row)
@@ -724,7 +788,10 @@ public partial class FaceplateOverlay : UserControl
             border.Background = Brushes.Transparent;
             _vm.HoverRow(null);
         };
-        return border;
+
+        var indicator = RowIndicator();
+        _rowIndicators[row.GestureId] = indicator;
+        return WithRowIndicator(indicator, border);
     }
 
     /// <summary>Builds a prose <see cref="TextBlock"/> from marker text, wiring every
@@ -792,6 +859,22 @@ public partial class FaceplateOverlay : UserControl
 
     private string LayerNameOf(string layerId) =>
         _vm.Doc.Layers.FirstOrDefault(l => l.Id == layerId)?.Name ?? layerId;
+
+    /// <summary>The one cheap, honest indication that a modifier is being held: name
+    /// it in the panel header. Hidden on "plain" — the board's default state needs no
+    /// label, same rule the row tags below apply to their own layer chip.
+    /// <para>Deliberately NOT a rebuild of the board's own labels for the held layer:
+    /// that would mean re-deriving, per control, what its shape map draws for a layer
+    /// other than "plain", and speculatively reworking the drawing's own text to match
+    /// — a much larger and riskier change than this task called for. This says which
+    /// layer is live and stops there.</para></summary>
+    private void ApplyLayerBadge()
+    {
+        var layerId = _vm.ActiveLayerId;
+        var isPlain = layerId == "plain";
+        _layerBadge.IsVisible = !isPlain;
+        if (!isPlain) _layerBadgeText.Text = LayerNameOf(layerId).ToUpperInvariant();
+    }
 
     private static string Capitalize(string s) =>
         string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];

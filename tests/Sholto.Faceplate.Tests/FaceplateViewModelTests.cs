@@ -153,12 +153,38 @@ public class FaceplateViewModelTests
     {
         // The point of the probe: hold Shift, turn the platter, and the SEARCH row
         // (the shift-turn gesture) is what's active, not the plain scrub row — even
-        // though both belong to the same control, deck.jog.
+        // though both belong to the same control, deck.jog. Strengthened beyond a
+        // single read: it starts on the plain turn's own row, and switching to the
+        // shift chord moves ActiveRowId to a DIFFERENT row of the SAME still-selected
+        // control — which is the actual claim ("marks the row, not just the control")
+        // that a single assertion on one gesture cannot distinguish from ActiveRowId
+        // simply mirroring whatever gesture id arrived most recently regardless of
+        // control.
+        var vm = New();
+        vm.OnLiveGesture(new Gesture(GestureIds.JogTopTurn, 0,
+            new ControllerEvent.JogRotated(0, 4, JogSource.TopPlatter)));
+        Assert.Equal("deck.jog", vm.Selected!.Id);
+        Assert.Equal(GestureIds.JogTopTurn, vm.ActiveRowId);
+
+        vm.OnLiveGesture(new Gesture(GestureIds.JogTopShiftTurn, 0,
+            new ControllerEvent.JogRotated(0, 4, JogSource.TopPlatter)));
+        Assert.Equal("deck.jog", vm.Selected!.Id);   // same control throughout
+        Assert.Equal(GestureIds.JogTopShiftTurn, vm.ActiveRowId);   // different row
+    }
+
+    [Fact]
+    public void Clicking_a_control_clears_whatever_row_a_live_gesture_had_marked()
+    {
+        // A click names no gesture, so it must not leave a stale row marker from
+        // before it — the panel it opens would show a row highlighted that nothing
+        // actually just fired.
         var vm = New();
         vm.OnLiveGesture(new Gesture(GestureIds.JogTopShiftTurn, 0,
             new ControllerEvent.JogRotated(0, 4, JogSource.TopPlatter)));
+        Assert.NotNull(vm.ActiveRowId);
 
-        Assert.Equal(GestureIds.JogTopShiftTurn, vm.ActiveRowId);
+        vm.Select("deck.jog", deck: 0);
+        Assert.Null(vm.ActiveRowId);
     }
 
     [Fact]

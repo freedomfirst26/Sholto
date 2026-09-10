@@ -165,6 +165,10 @@ public sealed class FaceplateViewModel : INotifyPropertyChanged
     public void Select(string controlId, int deck)
     {
         if (!SelectCore(controlId, deck)) return;
+        // A click names no gesture, so it never gets to claim a row of the panel it
+        // just opened — only a live gesture earns that (see OnLiveGesture, which sets
+        // ActiveRowId itself, before ever reaching SelectCore).
+        ActiveRowId = null;
         SelectionChanged?.Invoke(controlId, deck);
     }
 
@@ -312,6 +316,7 @@ public sealed class FaceplateViewModel : INotifyPropertyChanged
         Selected = null;
         SelectedDeck = -1;
         _hoverGestureId = null;
+        ActiveRowId = null;
         SelectionChanged?.Invoke(null, -1);
         Raise(nameof(Highlighted));
         RequestClose?.Invoke();
@@ -327,6 +332,7 @@ public sealed class FaceplateViewModel : INotifyPropertyChanged
         Selected = null;
         SelectedDeck = -1;
         _hoverGestureId = null;
+        ActiveRowId = null;
         SelectionChanged?.Invoke(null, -1);
         Raise(nameof(Highlighted));
     }
