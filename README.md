@@ -8,6 +8,12 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 
 ![Sholto — library on top, two decks below with section maps, live waveforms, and spinning discs](pictures/sholto-ui.png)
 
+![The controller guide — the DDJ-FLX4 drawn on screen with the jog wheel selected, and a panel explaining every way of using it](pictures/sholto-faceplate.png)
+
+*Your controller, drawn on screen. Click anything to learn what it does — or press it on
+the real thing and watch it light up here, without touching your decks. Controls Sholto
+doesn't use are left uncoloured, so you can see at a glance what's live.*
+
 Full guide: [docs/README.md](docs/README.md) — every button on screen and on the controller.
 
 ## What it does
@@ -48,13 +54,6 @@ Full guide: [docs/README.md](docs/README.md) — every button on screen and on t
 ## Your DDJ-FLX4
 Plug it in and it works. Click the controller icon in the top bar for a picture of your
 DDJ-FLX4 with every knob, pad and button explained, including the Shift combinations.
-
-![The controller guide — the DDJ-FLX4 drawn on screen, with the jog wheel selected and every way of using it explained](pictures/sholto-faceplate.png)
-
-Click anything on the picture and it tells you what Sholto does with it. Press it on the
-real controller and it lights up on screen and explains itself, without touching your
-decks. Controls Sholto doesn't use are left uncoloured, so you can see at a glance what
-is live.
 
 Adding support for another controller is straightforward — Sholto keeps each device's button layout in one place.
 
