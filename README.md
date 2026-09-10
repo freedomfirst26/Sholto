@@ -14,7 +14,7 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 the real thing and watch it light up here, without touching your decks. Controls Sholto
 doesn't use are left uncoloured, so you can see at a glance what's live.*
 
-Full guide: [docs/README.md](docs/README.md) — every button on screen and on the controller.
+Full guide: [docs/README.md](docs/README.md) — everything on screen. Your controller is documented inside the app.
 
 ## What it does
 
