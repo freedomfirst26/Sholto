@@ -49,6 +49,13 @@ Full guide: [docs/README.md](docs/README.md) — every button on screen and on t
 Plug it in and it works. Click the controller icon in the top bar for a picture of your
 DDJ-FLX4 with every knob, pad and button explained, including the Shift combinations.
 
+![The controller guide — the DDJ-FLX4 drawn on screen, with the jog wheel selected and every way of using it explained](pictures/sholto-faceplate.png)
+
+Click anything on the picture and it tells you what Sholto does with it. Press it on the
+real controller and it lights up on screen and explains itself, without touching your
+decks. Controls Sholto doesn't use are left uncoloured, so you can see at a glance what
+is live.
+
 Adding support for another controller is straightforward — Sholto keeps each device's button layout in one place.
 
 ### Keyboard

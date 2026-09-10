@@ -84,16 +84,13 @@ Fix the spacing with **↑ / ↓** first, then line it up with **← / →**.
 
 ## EQ, filter and faders
 
-- **EQ HI / MID / LOW** — a three-band isolator per deck. All the way down is
-  silence, not just quiet.
-- **FILTER** knob — centre is off, left sweeps a low-pass down, right sweeps a
-  high-pass up.
-- **Channel fader** — that deck's level. The waveform draws a thin horizontal
-  line at the fader's height so you can see it.
-- **Crossfader** — the blend between the two decks.
+These all live on the controller — see the controller guide (top bar) for what
+each knob and fader does.
 
-When a deck ends up completely silent — fader down, or the crossfader all the
-way to the other side — the whole deck panel washes red.
+**On screen:** the waveform draws a thin horizontal line at the channel fader's
+height, so you can see the level without looking down. And when a deck ends up
+completely silent — fader down, or the crossfader all the way to the other side
+— the whole deck panel washes red.
 
 ## Echo
 
