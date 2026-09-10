@@ -1,162 +1,113 @@
-# Sholto License
+Business Source License 1.1
 
-Copyright (c) 2026 freedomfirst26
+License text copyright (c) 2020 MariaDB Corporation Ab, All Rights Reserved.
+"Business Source License" is a trademark of MariaDB Corporation Ab.
 
-Sholto is dual-licensed. Pick the track that fits you:
+-----------------------------------------------------------------------------
 
-1. **Individuals — free.** Sholto is offered to natural persons under the
-   PolyForm Noncommercial License 1.0.0 (full text below); in addition, the
-   copyright holder grants every individual a free licence to use Sholto for
-   **any** purpose, including performing paid DJ gigs with it. Hobbyists,
-   students, researchers, and freelance or working DJs are all covered. You may
-   use, modify, and fork Sholto under these terms.
+Parameters
 
-   **Credit.** Any fork, modified version, or work derived from Sholto that you
-   make available to others must (a) keep the `Required Notice:` line below in
-   its source and distributions, and (b) state visibly in its README or
-   equivalent user-facing documentation that it is based on Sholto by
-   freedomfirst26, with a link to <https://github.com/freedomfirst26/Sholto>.
-   This credit term is a condition of the free individual grant.
+Licensor:             freedomfirst26
 
-2. **Organizations / commercial use — paid.** Any use by or on behalf of a
-   company or other organization, and any distribution of Sholto as part of a
-   commercial product or hosted service, requires a paid commercial licence —
-   **regardless of the organization's size**. To arrange one, open an issue at
-   <https://github.com/freedomfirst26/Sholto/issues>.
+Licensed Work:        Sholto
+                      The Licensed Work is (c) 2026 freedomfirst26
 
-Required Notice: Copyright (c) 2026 freedomfirst26 — Sholto (https://github.com/freedomfirst26/Sholto)
+Additional Use Grant: You may make production use of the Licensed Work for any
+                      purpose, including paid DJ performances and other paid
+                      engagements, if you are a natural person, or an entity
+                      through which a single natural person operates (such as
+                      a sole proprietorship or a single-member company),
+                      provided that any copy, fork, or derivative work of the
+                      Licensed Work that you make available to others (a)
+                      retains the Required Notice below in its source and its
+                      distributions, and (b) states in its README or
+                      equivalent user-facing documentation that it is based on
+                      Sholto by freedomfirst26, with a link to
+                      https://github.com/freedomfirst26/Sholto.
 
-If you're unsure which track applies, reach out before using Sholto in a
-business setting — the goal is to keep it free for individuals while asking
-businesses to contribute back.
+                      Any other use by or on behalf of an organization, and any
+                      distribution of the Licensed Work as part of a commercial
+                      product or hosted service, is not covered by this grant.
 
-## Contributing
+                      Required Notice: Copyright (c) 2026 freedomfirst26 —
+                      Sholto (https://github.com/freedomfirst26/Sholto)
 
-Because Sholto is dual-licensed, contributions must be usable in both the free
-and the commercial licence. By submitting a pull request you agree that your
-contribution is provided under these same dual terms and may be included by the
-copyright holder in commercially-licensed distributions of Sholto. (A short
-Contributor Licence Agreement may be requested for substantial contributions.)
+Change Date:          2030-09-07
 
----
+Change License:       Apache License, Version 2.0
 
-## PolyForm Noncommercial License 1.0.0
+For information about alternative licensing arrangements for the Licensed Work,
+please contact freedomfirst26@proton.me.
 
-<https://polyformproject.org/licenses/noncommercial/1.0.0>
+-----------------------------------------------------------------------------
 
-### Acceptance
+Notice
 
-In order to get any license under these terms, you must agree to them as
-both strict obligations and conditions to all your licenses.
+Business Source License 1.1
 
-### Copyright License
+Terms
 
-The licensor grants you a copyright license for the software to do
-everything you might do with the software that would otherwise infringe
-the licensor's copyright in it for any permitted purpose. However, you
-may only distribute the software according to **Distribution License**
-and make changes or new works based on the software according to
-**Changes and New Works License**.
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work. The
+Licensor may make an Additional Use Grant, above, permitting limited
+production use.
 
-### Distribution License
+Effective on the Change Date, or the fourth anniversary of the first publicly
+available distribution of a specific version of the Licensed Work under this
+License, whichever comes first, the Licensor hereby grants you rights under
+the terms of the Change License, and the rights granted in the paragraph
+above terminate.
 
-The licensor grants you an additional copyright license to distribute
-copies of the software. Your license to distribute covers distributing
-the software with changes and new works permitted by **Changes and New
-Works License**.
+If your use of the Licensed Work does not comply with the requirements
+currently in effect as described in this License, you must purchase a
+commercial license from the Licensor, its affiliated entities, or authorized
+resellers, or you must refrain from using the Licensed Work.
 
-### Notices
+All copies of the original and modified Licensed Work, and derivative works
+of the Licensed Work, are subject to this License. This License applies
+separately for each version of the Licensed Work and the Change Date may vary
+for each version of the Licensed Work released by Licensor.
 
-You must ensure that anyone who gets a copy of any part of the software
-from you also gets a copy of these terms, as well as the following
-copyright notice:
+You must conspicuously display this License on each original or modified copy
+of the Licensed Work. If you receive the Licensed Work in original or
+modified form from a third party, the terms and conditions set forth in this
+License apply to your use of that work.
 
-> This software is Copyright (c) 2026 freedomfirst26. It is licensed
-> under the PolyForm Noncommercial License 1.0.0. You may obtain a copy
-> of the License at <https://polyformproject.org/licenses/noncommercial/1.0.0>.
+Any use of the Licensed Work in violation of this License will automatically
+terminate your rights under this License for the current and all other
+versions of the Licensed Work.
 
-### Changes and New Works License
+This License does not grant you any right in any trademark or logo of
+Licensor or its affiliates (provided that you may use a trademark or logo of
+Licensor as expressly required by this Section).
 
-The licensor grants you an additional copyright license to make changes
-and new works based on the software for any permitted purpose.
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSED WORK IS PROVIDED ON
+AN "AS IS" BASIS. LICENSOR HEREBY DISCLAIMS ALL WARRANTIES AND CONDITIONS,
+EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
+TITLE.
 
-### Patent License
+MariaDB hereby grants you permission to use this License's text to license
+your works, and to refer to it using the trademark "Business Source License",
+as long as you comply with the Covenants of Licensor below.
 
-The licensor grants you a patent license for the software that covers
-patent claims the licensor can license, or becomes able to license, that
-you would infringe by using the software.
+Covenants of Licensor
 
-### Noncommercial Purposes
+In consideration of the right to use this License's text and the "Business
+Source License" name and trademark, Licensor covenants to MariaDB, and to all
+other recipients of the licensed work to be provided by Licensor:
 
-Any noncommercial purpose is a permitted purpose.
+1. To specify as the Change License the GPL Version 2.0 or any later version,
+   or a license that is compatible with GPL Version 2.0 or a later version,
+   where "compatible" means that software provided under the Change License can
+   be included in a program with software provided under GPL Version 2.0 or a
+   later version. Licensor may specify additional Change Licenses without
+   limitation.
 
-### Personal Uses
+2. To either: (a) specify an additional grant of rights to use that does not
+   impose any additional restriction on the right granted in this License, as
+   the Additional Use Grant; or (b) insert the text "None".
 
-Personal use for research, experiment, and testing for the benefit of
-public knowledge, personal study, private entertainment, hobby projects,
-amateur pursuits, or religious observance, without any anticipated
-commercial application, is use for a permitted purpose.
+3. To specify a Change Date.
 
-### Noncommercial Organizations
-
-Use by any charitable organization, educational institution, public
-research organization, public safety or health organization,
-environmental protection organization, or government institution is use
-for a permitted purpose regardless of the source of funding or
-obligations resulting from the funding.
-
-### Fair Use
-
-You may have "fair use" rights for the software under the law. These
-terms do not limit them.
-
-### No Other Rights
-
-These terms do not allow you to sublicense or transfer any of your
-licenses to anyone else, or prevent the licensor from granting licenses
-to anyone else. These terms do not imply any other licenses.
-
-### Patent Defense
-
-If you make any written claim that the software infringes or contributes
-to infringement of any patent, your patent license for the software
-granted under these terms ends immediately. If your company makes such a
-claim, your patent license ends immediately for work on behalf of your
-company.
-
-### Violations
-
-The first time you are notified in writing that you have violated any of
-these terms, or done anything with the software not covered by your
-licenses, your licenses can nonetheless continue if you come into full
-compliance with these terms, and take practical steps to correct past
-violations, within 32 days of receiving notice. Otherwise, all your
-licenses end immediately.
-
-### No Liability
-
-***As far as the law allows, the software comes as is, without any
-warranty or condition, and the licensor will not be liable to you for
-any damages arising out of these terms or the use or nature of the
-software, under any kind of legal claim.***
-
-### Definitions
-
-The **licensor** is the individual or entity offering these terms, and
-the **software** is the software the licensor makes available under
-these terms.
-
-**You** refers to the individual or entity agreeing to these terms.
-
-**Your company** is any legal entity, sole proprietorship, or other kind
-of organization that you work for, plus all organizations that have
-control over, are under the control of, or are under common control with
-that organization. **Control** means ownership of substantially all the
-assets of an entity, or the power to direct its management and policies
-by vote, contract, or otherwise. Control can be direct or indirect.
-
-**Your licenses** are all the licenses granted to you for the software
-under these terms.
-
-**Use** means anything you do with the software requiring one of your
-licenses.
+4. Not to modify this License in any other way.

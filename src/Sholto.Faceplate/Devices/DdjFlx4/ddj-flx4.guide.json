@@ -1,0 +1,638 @@
+{
+  "device": "DDJ-FLX4",
+  "layers": [
+    {
+      "id": "plain",
+      "name": "Plain"
+    },
+    {
+      "id": "shift",
+      "name": "Shift",
+      "modifier": "deck.shift"
+    },
+    {
+      "id": "stem-level",
+      "name": "Stem levels",
+      "modifier": "fx.onoff"
+    },
+    {
+      "id": "page.hotcue",
+      "name": "HOT CUE page",
+      "modifier": "deck.padmode.hotcue"
+    },
+    {
+      "id": "page.padfx1",
+      "name": "PAD FX1 page",
+      "modifier": "deck.padmode.padfx1"
+    }
+  ],
+  "controls": [
+    {
+      "id": "deck.jog",
+      "label": "Jog wheel",
+      "scope": "per-deck",
+      "summary": "The platter. What it does depends on where you touch it and what you hold.",
+      "gestures": [
+        {
+          "id": "jog.top.turn",
+          "verb": "turn",
+          "part": "top platter",
+          "layer": "plain",
+          "result": "Scrub through the track. On a deck that is ready to scratch, the sound follows your hand."
+        },
+        {
+          "id": "jog.top.touch",
+          "verb": "rest a hand on it",
+          "part": "top platter",
+          "layer": "plain",
+          "result": "Grabs the record. The sound holds still under your hand instead of running away."
+        },
+        {
+          "id": "jog.ring.turn",
+          "verb": "turn",
+          "part": "side ring",
+          "layer": "plain",
+          "result": "Nudge the track a little earlier or later, without scratching."
+        },
+        {
+          "id": "jog.top.shift.turn",
+          "verb": "turn",
+          "part": "top platter",
+          "layer": "shift",
+          "with": [
+            "deck.shift"
+          ],
+          "result": "Search through the track at twice speed, silently \u2014 no scratch sound, just fast motion through the track."
+        }
+      ]
+    },
+    {
+      "id": "deck.shift",
+      "label": "SHIFT",
+      "scope": "per-deck",
+      "summary": "The small SHIFT button beside the jog wheel. Hold it to unlock a second job for some of this deck's other controls.",
+      "gestures": [
+        {
+          "id": "shift.hold",
+          "verb": "hold",
+          "layer": "plain",
+          "result": "Unlocks the alternate job of the [[deck.jog]], the transport [[deck.cue.transport]] button, and [[deck.sync]] on this deck. On its own it does nothing."
+        }
+      ]
+    },
+    {
+      "id": "deck.play",
+      "label": "PLAY / PAUSE",
+      "scope": "per-deck",
+      "summary": "Starts and stops this deck.",
+      "gestures": [
+        {
+          "id": "play.press",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Starts playback if the deck is paused, or pauses it if it is playing."
+        }
+      ]
+    },
+    {
+      "id": "deck.cue.transport",
+      "label": "CUE",
+      "scope": "per-deck",
+      "summary": "The transport CUE button next to PLAY.",
+      "gestures": [
+        {
+          "id": "cue.transport.press",
+          "verb": "press",
+          "layer": "plain",
+          "used": false,
+          "result": "Does nothing."
+        },
+        {
+          "id": "cue.transport.shift",
+          "verb": "press",
+          "layer": "shift",
+          "with": [
+            "deck.shift"
+          ],
+          "result": "Restarts the track from the very beginning. If it was already playing, it carries on playing from the start."
+        }
+      ]
+    },
+    {
+      "id": "deck.cue.headphone",
+      "label": "CUE",
+      "scope": "per-deck",
+      "summary": "The small CUE button under the channel fader. Nothing to do with the big CUE next to PLAY.",
+      "gestures": [
+        {
+          "id": "cue.headphone.press",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Sends this deck to your headphones, so you can hear it before the crowd does. Press again to take it out."
+        }
+      ]
+    },
+    {
+      "id": "deck.sync",
+      "label": "BEAT SYNC",
+      "scope": "per-deck",
+      "summary": "The SYNC button below the jog wheel.",
+      "gestures": [
+        {
+          "id": "sync.press",
+          "verb": "press",
+          "layer": "plain",
+          "used": false,
+          "result": "Does nothing yet. Beat sync \u2014 matching this deck's tempo to the other deck automatically \u2014 is not implemented."
+        },
+        {
+          "id": "sync.shift",
+          "verb": "press",
+          "layer": "shift",
+          "with": [
+            "deck.shift"
+          ],
+          "result": "Cycles this deck's tempo range \u2014 how far the [[mixer.tempo]] slider can pull the speed up or down."
+        }
+      ]
+    },
+    {
+      "id": "deck.load",
+      "label": "LOAD",
+      "scope": "per-deck",
+      "summary": "Sends the highlighted track from your library to this deck.",
+      "gestures": [
+        {
+          "id": "load.press",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Loads the highlighted track from your library onto this deck, ready to play."
+        }
+      ]
+    },
+    {
+      "id": "deck.padmode.hotcue",
+      "label": "HOT CUE",
+      "scope": "per-deck",
+      "summary": "Switches this deck's performance pads to the HOT CUE page.",
+      "gestures": [
+        {
+          "id": "padmode.hotcue.press",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Switches this deck's pads to the HOT CUE page. On this page, pads 1-3 mute and unmute the drums, vocals, and instrumental; pads 4-8 do nothing."
+        }
+      ]
+    },
+    {
+      "id": "deck.padmode.padfx1",
+      "label": "PAD FX1",
+      "scope": "per-deck",
+      "summary": "Switches this deck's performance pads to the PAD FX1 page.",
+      "gestures": [
+        {
+          "id": "padmode.padfx1.press",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Switches this deck's pads to the PAD FX1 page. On this page, only [[deck.pad.1]] does anything \u2014 it toggles an echo effect; pads 2-8 do nothing."
+        }
+      ]
+    },
+    {
+      "id": "deck.pad.1",
+      "label": "Pad 1",
+      "scope": "per-deck",
+      "summary": "The first performance pad. What it does depends on the pad page.",
+      "gestures": [
+        {
+          "id": "pad.hotcue.drums",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "Mutes or brings back the drums for this deck, once its stems are ready."
+        },
+        {
+          "id": "pad.padfx1.echo",
+          "verb": "press",
+          "layer": "page.padfx1",
+          "with": [
+            "deck.padmode.padfx1"
+          ],
+          "result": "Turns a beat-synced echo on or off for this deck. Switching it off lets the echo tail ring out rather than cutting it dead."
+        }
+      ]
+    },
+    {
+      "id": "deck.pad.2",
+      "label": "Pad 2",
+      "scope": "per-deck",
+      "summary": "The second performance pad. Only does something on the HOT CUE page.",
+      "gestures": [
+        {
+          "id": "pad.hotcue.vocals",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "Mutes or brings back the vocals for this deck, once its stems are ready."
+        }
+      ]
+    },
+    {
+      "id": "deck.pad.3",
+      "label": "Pad 3",
+      "scope": "per-deck",
+      "summary": "The third performance pad. Only does something on the HOT CUE page.",
+      "gestures": [
+        {
+          "id": "pad.hotcue.instrumental",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "Mutes or brings back the instrumental \u2014 everything except vocals and drums \u2014 for this deck, once its stems are ready."
+        }
+      ]
+    },
+    {
+      "id": "deck.pad.4",
+      "label": "Pad 4",
+      "scope": "per-deck",
+      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
+      "gestures": []
+    },
+    {
+      "id": "deck.pad.5",
+      "label": "Pad 5",
+      "scope": "per-deck",
+      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
+      "gestures": []
+    },
+    {
+      "id": "deck.pad.6",
+      "label": "Pad 6",
+      "scope": "per-deck",
+      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
+      "gestures": []
+    },
+    {
+      "id": "deck.pad.7",
+      "label": "Pad 7",
+      "scope": "per-deck",
+      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
+      "gestures": []
+    },
+    {
+      "id": "deck.pad.8",
+      "label": "Pad 8",
+      "scope": "per-deck",
+      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
+      "gestures": []
+    },
+    {
+      "id": "deck.beatloop.toggle",
+      "label": "4 BEAT / EXIT",
+      "scope": "per-deck",
+      "summary": "The auto-loop button in the loop section.",
+      "gestures": [
+        {
+          "id": "beatloop.toggle",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Starts a loop from here, sized to a musical phrase. Press again to release it and carry on playing normally."
+        }
+      ]
+    },
+    {
+      "id": "deck.beatloop.halve",
+      "label": "1/2X",
+      "scope": "per-deck",
+      "summary": "Halves the current loop while one is running.",
+      "gestures": [
+        {
+          "id": "beatloop.halve",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Halves the length of the loop that is currently running."
+        }
+      ]
+    },
+    {
+      "id": "deck.beatloop.double",
+      "label": "2X",
+      "scope": "per-deck",
+      "summary": "Doubles the current loop while one is running.",
+      "gestures": [
+        {
+          "id": "beatloop.double",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Doubles the length of the loop that is currently running."
+        }
+      ]
+    },
+    {
+      "id": "mixer.trim",
+      "label": "TRIM",
+      "scope": "per-deck",
+      "summary": "The input gain knob at the top of each channel strip. It is analogue \u2014 it sends no data to Sholto at all, so it never lights up here even though it does something real to the sound.",
+      "gestures": []
+    },
+    {
+      "id": "mixer.eq.hi",
+      "label": "HI",
+      "scope": "per-deck",
+      "summary": "The top EQ knob on this channel.",
+      "gestures": [
+        {
+          "id": "eq.turn",
+          "verb": "turn",
+          "layer": "plain",
+          "result": "Boosts or cuts the high end (cymbals, hi-hats) on this deck. All the way down mutes it completely."
+        },
+        {
+          "id": "eq.stemlevel.turn",
+          "verb": "turn",
+          "layer": "stem-level",
+          "with": [
+            "fx.onoff"
+          ],
+          "result": "While [[fx.onoff]] is held, this sets the drums' volume on this deck instead of the EQ."
+        }
+      ]
+    },
+    {
+      "id": "mixer.eq.mid",
+      "label": "MID",
+      "scope": "per-deck",
+      "summary": "The middle EQ knob on this channel.",
+      "gestures": [
+        {
+          "id": "eq.turn",
+          "verb": "turn",
+          "layer": "plain",
+          "result": "Boosts or cuts the midrange (vocals, most instruments) on this deck. All the way down mutes it completely."
+        },
+        {
+          "id": "eq.stemlevel.turn",
+          "verb": "turn",
+          "layer": "stem-level",
+          "with": [
+            "fx.onoff"
+          ],
+          "result": "While [[fx.onoff]] is held, this sets the vocals' volume on this deck instead of the EQ."
+        }
+      ]
+    },
+    {
+      "id": "mixer.eq.low",
+      "label": "LOW",
+      "scope": "per-deck",
+      "summary": "The bottom EQ knob on this channel.",
+      "gestures": [
+        {
+          "id": "eq.turn",
+          "verb": "turn",
+          "layer": "plain",
+          "result": "Boosts or cuts the bass on this deck. All the way down mutes it completely \u2014 the classic bass-swap move."
+        },
+        {
+          "id": "eq.stemlevel.turn",
+          "verb": "turn",
+          "layer": "stem-level",
+          "with": [
+            "fx.onoff"
+          ],
+          "result": "While [[fx.onoff]] is held, this sets the instrumental \u2014 everything except vocals and drums \u2014 volume on this deck instead of the EQ."
+        }
+      ]
+    },
+    {
+      "id": "mixer.filter",
+      "label": "FILTER",
+      "scope": "per-deck",
+      "summary": "The COLOR / FILTER knob on this channel.",
+      "gestures": [
+        {
+          "id": "filter.turn",
+          "verb": "turn",
+          "layer": "plain",
+          "result": "Sweeps a filter across this deck. Left of centre is a low-pass sweep (muffled, underwater); right of centre is a high-pass sweep (thin, radio-like). Centre is no effect."
+        }
+      ]
+    },
+    {
+      "id": "mixer.volume",
+      "label": "Channel fader",
+      "scope": "per-deck",
+      "summary": "This deck's volume fader in the mixer.",
+      "gestures": [
+        {
+          "id": "volume.move",
+          "verb": "move",
+          "layer": "plain",
+          "result": "Sets this deck's level in the mix."
+        }
+      ]
+    },
+    {
+      "id": "mixer.tempo",
+      "label": "Tempo",
+      "scope": "per-deck",
+      "summary": "This deck's pitch/tempo slider.",
+      "gestures": [
+        {
+          "id": "tempo.move",
+          "verb": "move",
+          "layer": "plain",
+          "result": "Speeds up or slows down this deck's playback and pitch, to match another track."
+        }
+      ]
+    },
+    {
+      "id": "mixer.crossfader",
+      "label": "Crossfader",
+      "scope": "global",
+      "summary": "The horizontal fader at the bottom of the mixer.",
+      "gestures": [
+        {
+          "id": "crossfader.move",
+          "verb": "move",
+          "layer": "plain",
+          "result": "Blends between deck 1 and deck 2 \u2014 full left is deck 1 alone, full right is deck 2 alone."
+        }
+      ]
+    },
+    {
+      "id": "mixer.master.level",
+      "label": "MASTER LEVEL",
+      "scope": "global",
+      "summary": "The main output volume knob. Analogue, like TRIM \u2014 it sends nothing Sholto can see, so it never lights up here even though it changes what the crowd hears.",
+      "gestures": []
+    },
+    {
+      "id": "mixer.mic.level",
+      "label": "MIC LEVEL",
+      "scope": "global",
+      "summary": "The microphone input level knob. Analogue \u2014 it sends no data to Sholto at all.",
+      "gestures": []
+    },
+    {
+      "id": "mixer.headphone.mix",
+      "label": "Headphones MIX",
+      "scope": "global",
+      "summary": "Blends your headphones between the cued deck(s) and the master output. Analogue \u2014 it sends no data to Sholto at all.",
+      "gestures": []
+    },
+    {
+      "id": "mixer.headphone.level",
+      "label": "Headphones LEVEL",
+      "scope": "global",
+      "summary": "Your headphone volume knob. Analogue \u2014 it sends no data to Sholto at all.",
+      "gestures": []
+    },
+    {
+      "id": "mixer.mastercue",
+      "label": "MASTER CUE",
+      "scope": "global",
+      "summary": "Sends the master mix, rather than a single deck, to your headphones.",
+      "gestures": [
+        {
+          "id": "mastercue.press",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Sends the master mix \u2014 what the crowd hears \u2014 to your headphones, so you can check it without picking a deck. Press again to take it out."
+        }
+      ]
+    },
+    {
+      "id": "browse.knob",
+      "label": "Browse",
+      "scope": "global",
+      "summary": "The rotary knob for moving through your library. Turn it to scroll, press it to load or re-analyse.",
+      "gestures": [
+        {
+          "id": "browse.turn",
+          "verb": "turn",
+          "layer": "plain",
+          "result": "Scrolls up or down your library list."
+        },
+        {
+          "id": "browse.press.short",
+          "verb": "press briefly",
+          "layer": "plain",
+          "used": false,
+          "result": "Does nothing on its own. Use LOAD 1 or LOAD 2 to send the highlighted track to a deck."
+        },
+        {
+          "id": "browse.press.hold",
+          "verb": "press and hold",
+          "layer": "plain",
+          "result": "Re-analyses the highlighted track \u2014 hold for about a second to trigger it."
+        }
+      ]
+    },
+    {
+      "id": "fx.onoff",
+      "label": "FX ON/OFF (RELEASE FX)",
+      "scope": "global",
+      "summary": "The button above the BEAT FX section. Sholto repurposes it as a modifier rather than for its printed effect.",
+      "gestures": [
+        {
+          "id": "stemlevel.hold",
+          "verb": "hold",
+          "layer": "plain",
+          "result": "While held, the [[mixer.eq.hi]], [[mixer.eq.mid]] and [[mixer.eq.low]] knobs on either deck set the drums, vocals and instrumental levels instead of the EQ. On its own it does nothing."
+        }
+      ]
+    },
+    {
+      "id": "beat.nudge.back",
+      "label": "BEAT \u25c0",
+      "scope": "global",
+      "summary": "The left beatgrid-nudge button, shared by both decks.",
+      "gestures": [
+        {
+          "id": "gridnudge.back",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Nudges the beatgrid slightly earlier, on whichever deck has Shift held, else whichever deck has a loop running, else deck 1."
+        }
+      ]
+    },
+    {
+      "id": "beat.nudge.forward",
+      "label": "BEAT \u25b6",
+      "scope": "global",
+      "summary": "The right beatgrid-nudge button, shared by both decks.",
+      "gestures": [
+        {
+          "id": "gridnudge.forward",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Nudges the beatgrid slightly later, on whichever deck has Shift held, else whichever deck has a loop running, else deck 1."
+        }
+      ]
+    },
+    {
+      "id": "fx.smartcfx",
+      "label": "SMART CFX",
+      "scope": "global",
+      "summary": "Pioneer's automated combination-effect control. It sends MIDI, but Sholto does not implement this \u2014 turning or pressing it does nothing here.",
+      "gestures": []
+    },
+    {
+      "id": "fx.smartfader",
+      "label": "SMART FADER",
+      "scope": "global",
+      "summary": "Pioneer's automated crossfader-curve feature. It sends MIDI, but Sholto does not implement this \u2014 pressing it does nothing here.",
+      "gestures": []
+    },
+    {
+      "id": "fx.select.up",
+      "label": "FX SELECT \u25b2",
+      "scope": "global",
+      "summary": "The upper of the two small arrow buttons in the BEAT FX column, for stepping to the next beat effect. Sholto does not implement this \u2014 pressing it does nothing here.",
+      "gestures": []
+    },
+    {
+      "id": "fx.select.down",
+      "label": "FX SELECT \u25bc",
+      "scope": "global",
+      "summary": "The lower of the two small arrow buttons in the BEAT FX column, for stepping to the previous beat effect. Sholto does not implement this \u2014 pressing it does nothing here.",
+      "gestures": []
+    },
+    {
+      "id": "fx.leveldepth",
+      "label": "LEVEL/DEPTH",
+      "scope": "global",
+      "summary": "The knob below the BEAT arrows, marked MIN to MAX, for setting how strongly the selected beat effect is heard. Sholto does not implement this \u2014 turning it does nothing here.",
+      "gestures": []
+    },
+    {
+      "id": "fx.channelselect",
+      "label": "CH SELECT",
+      "scope": "global",
+      "summary": "The small three-position switch above the BEAT FX column, marked 1 / 2 / 1&2, for choosing which deck (or both) the beat effect is applied to. Sholto does not implement this \u2014 moving it does nothing here.",
+      "gestures": []
+    },
+    {
+      "id": "browse.back",
+      "label": "BACK",
+      "scope": "global",
+      "summary": "The small button left of the browse knob, labelled BACK for browsing your library in rekordbox. Sholto does not implement this \u2014 pressing it does nothing here.",
+      "gestures": []
+    },
+    {
+      "id": "browse.view",
+      "label": "VIEW",
+      "scope": "global",
+      "summary": "The small button right of the browse knob, labelled VIEW for browsing your library in rekordbox. Sholto does not implement this \u2014 pressing it does nothing here.",
+      "gestures": []
+    }
+  ]
+}

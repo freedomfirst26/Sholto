@@ -2,7 +2,8 @@
 
 The bottom half: two decks, each with a section map, a waveform, a spinning
 disc, and its BPM and key. Everything that moves the music is on the
-controller — the screen shows you what's happening.
+controller — the screen shows you what's happening. For what each control
+does, click the controller icon in the top bar.
 
 ## Stems
 
@@ -15,8 +16,8 @@ else). Drop the vocal out, bring the beat back, all live.
 coloured text means it's muted. The chips appear only once the stems are ready,
 and they show state — they aren't buttons.
 
-**Controller:** on the **HOT CUE** pad page, pads **1**, **2** and **3** on that
-deck toggle drums, vocals and instrumental. The pad lights follow the chips.
+Muting and riding stem levels is done from the controller — see the controller
+guide (top bar) for the pads and knobs involved.
 
 Stems need **demucs** installed. The first analysis of a track takes roughly
 half a minute to a few minutes; after that it's instant. The four files are
@@ -24,16 +25,8 @@ cached under `~/.local/share/sholto/stems/` and are uncompressed — budget arou
 250 MB a track. Beat loops need them too, so a very fresh track won't loop for
 the first few seconds.
 
-### Stem levels
-
-**Controller:** hold the stem-level button and the three **EQ** knobs on both
-decks stop being an EQ and become stem faders instead — **HI** rides the drums,
-**MID** the vocals, **LOW** the instrumental. Let go and they're an EQ again.
-This is a smooth ride, unlike the pads, which are a hard on/off.
-
 ## Play, pause and the brake
 
-**Controller:** **PLAY/PAUSE**.
 **Keyboard:** **P** for Deck 1, **Shift + P** for Deck 2.
 
 Pausing doesn't cut the sound dead — the deck spins down like a turntable whose
@@ -41,47 +34,25 @@ motor was switched off, about half a second, then stops. Press again while it's
 still slowing and it changes its mind and comes back up to speed. A deck won't
 start until its beat detection has finished.
 
-## The platter
-
-**Touch the top and turn** and you're scratching; the sound follows your hand,
-and a hand resting still holds the deck still. **Let go** and it resumes from
-exactly where you left it — unless you *spun* it, in which case it coasts on
-like a weighted platter and settles back into playback. A backspin dies out
-about twice as fast as a forward fling.
-
-**The side ring** is the fine one: small, precise nudges, no scratch sound.
-**SHIFT + the platter top** is a silent fast search, about twice the normal jog
-step.
-
 While a loop is running the platter is ignored, so a scrub can't drag the
 playhead out of the loop.
 
-## CUE and headphones
-
-| Control | What it does |
-|---|---|
-| **CUE** on the mixer (per deck) | Adds that deck to your headphones. The button lights while it's on |
-| **MASTER CUE** | Adds the main mix to your headphones as well |
-| **SHIFT + CUE** | Jumps the track back to the very start, still playing if it was playing |
-| **CUE** on its own (the transport button under PLAY) | Nothing |
-
-The headphone/master blend is the FLX-4's own **MIXING** knob.
+The jog wheels, CUE buttons, and headphone/master blend are all on the
+controller — see the controller guide (top bar) for what each one does.
 
 ## Loops
 
-**Controller:** **4 BEAT / EXIT** starts a loop of four bars — one phrase —
-snapped to the beat you're on. Press it again to come out. **½×** halves the
-running loop, **2×** doubles it.
-
-**On screen:** the loop shows on the waveform as a translucent band with bright
-edges at the loop in and out points.
+A loop of four bars — one phrase — snaps to the beat you're on, started and
+exited from the controller (see the controller guide). **On screen:** the loop
+shows on the waveform as a translucent band with bright edges at the loop in
+and out points.
 
 ## Tempo
 
-**Controller:** the tempo fader speeds the deck up or down. **SHIFT + BEAT
-SYNC** cycles how far it reaches: **±6% → ±10% → ±16% → WIDE**. While the fader
-is off centre, two small chips pop out above and below the BPM in the disc — the
-original tempo on top, the current range underneath.
+The tempo fader speeds the deck up or down — see the controller guide for the
+fader and its range switch. **On screen:** while the fader is off centre, two
+small chips pop out above and below the BPM in the disc — the original tempo on
+top, the current range underneath.
 
 ## Beatgrid
 
@@ -101,10 +72,10 @@ track read at twice its speed. The correction sticks to that track.
 | **⟲** in the tuner | Back to what the analysis found |
 | **×** or **Esc** | Close |
 
-**Controller:** hold a deck's **SHIFT** and press the **← / →** arrow buttons to
-shift that deck's grid a whole beat at a time — the quick fix when the downbeat
-landed on the wrong beat of the bar. If a loop is running it moves with the
-grid, so you can tap until the loop sits right by ear.
+The controller has its own coarse nudge for the quick fix when the downbeat
+landed on the wrong beat of the bar — see the controller guide. If a loop is
+running it moves with the grid, so you can tap until the loop sits right by
+ear.
 
 Once you've nudged a grid, the loop band on that deck's waveform turns **red**
 — a reminder that this loop is on your grid, not the detected one.
@@ -126,9 +97,9 @@ way to the other side — the whole deck panel washes red.
 
 ## Echo
 
-**Controller:** switch the pads to **PAD FX1** and press pad **1**. It's a
-half-beat echo locked to the track's tempo. Switching it off stops feeding it
-but lets the tail ring out — the classic echo-out, rather than a dead cut.
+A half-beat echo locked to the track's tempo, triggered from the controller —
+see the controller guide. Switching it off stops feeding it but lets the tail
+ring out — the classic echo-out, rather than a dead cut.
 
 ## Markers
 

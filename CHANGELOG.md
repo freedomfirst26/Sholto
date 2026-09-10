@@ -8,8 +8,24 @@ changed at the decks, not which class moved.
 ## Unreleased
 
 ### New
+- **A picture of your controller, with every button explained.** Click the controller
+  icon in the top bar to open a map of the DDJ-FLX4. Click any
+  knob, pad or button to see every way Sholto uses it — including the combinations,
+  like holding Shift. The small printed labels on the board — SHIFT, TEMPO RANGE,
+  KEYBOARD, RELEASE FX — answer to a click too, so you can aim at the word rather than
+  at the button, which on a small screen is the easier target. With the controller
+  plugged in, press anything and the map lights it up and tells you what it does,
+  without touching your decks.
 - **One-command install.** `curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash` downloads the latest release, installs its tools, and launches it. Re-run to update.
 - **F11 toggles fullscreen.**
+
+### Improved
+- **Shorter actions menu.** The Enter menu on a track no longer repeats "Load to Deck 1 / 2" — **1** and **2** in the track list already do that.
+- **Recently used tags come first.** The tag box and the search overlay list the tags you picked most recently at the top, so a tagging run stops meaning a lot of typing. The list resets when you restart Sholto.
+
+### Fixed
+- **Stem levels from the EQ knobs work again.** Hold **FX ON/OFF** and the HI, MID and LOW knobs set the drums, vocals and instrumental levels instead of the EQ. The button had been listening on the wrong channel, so it had never done anything.
+- **The tag box takes the keyboard straight away.** Open the tag editor and type — no click needed first.
 
 ### Housekeeping
 - Added a user guide under docs/ covering every control on screen and on the DDJ-FLX4.

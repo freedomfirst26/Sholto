@@ -6,7 +6,7 @@ Every part of the screen, what you click, and what you press on the DDJ-FLX4.
 
 ## What's on screen
 
-1. **Top bar** — the **Settings** menu and the controller dot. → [below](#top-bar)
+1. **Top bar** — the **Settings** menu, the controller guide icon, and the controller dot. → [below](#top-bar)
 2. **Library column headers** — ANALYZED · TAGS · ARTIST · TRACK · BPM · KEY · TIME. → [library.md](library.md#the-columns)
 3. **Track list** — every track in your music folder, one row each. → [library.md](library.md)
 4. **Section map** — the whole song as coloured blocks: intro, build, drop, breakdown. → [deck.md](deck.md#section-map)
@@ -21,35 +21,15 @@ There are two decks. Deck 1 is the upper pair (4–7), Deck 2 the lower one.
 - **Settings → Theme** — pick a colour theme; each entry shows its own colour swatches. See [themes.md](themes.md).
 - **Settings → Music folder…** — choose the folder Sholto scans for music.
 - **Settings → Output device…** — choose which sound card or headphones Sholto plays to. Your choice is remembered.
+- **Controller icon** — opens the controller guide, a picture of your DDJ-FLX4 with every knob, pad and button explained. See [below](#your-controller).
 - **Controller dot** (far right) — green means your DDJ-FLX4 is connected. It turns red and reads **Reconnect USB** when the controller drops off; Sholto keeps trying to reconnect on its own, so if it stays red, unplug and replug the USB cable.
 
-## Controller at a glance
+## Your controller
 
-| Control | What it does | More |
-|---|---|---|
-| Browse knob (turn) | Move the highlight up and down the track list | [library](library.md#choosing-a-track) |
-| Browse knob (hold ~1 s) | Re-analyse the highlighted track from scratch | [library](library.md#analysis) |
-| **LOAD 1** / **LOAD 2** | Load the highlighted track onto Deck 1 / Deck 2 | [library](library.md#loading-a-track) |
-| **PLAY/PAUSE** | Start the deck; pause spins it down like a stopping turntable | [deck](deck.md#play-pause-and-the-brake) |
-| Platter top (touch and turn) | Scratch. Let go and it resumes; spin it and it coasts | [deck](deck.md#the-platter) |
-| Platter side ring | Fine nudge, forwards or back | [deck](deck.md#the-platter) |
-| **SHIFT** + platter top | Silent fast search through the track | [deck](deck.md#the-platter) |
-| **CUE** (mixer, per deck) | Send that deck to your headphones | [deck](deck.md#cue-and-headphones) |
-| **SHIFT** + **CUE** | Restart the track from the very beginning | [deck](deck.md#cue-and-headphones) |
-| **MASTER CUE** | Fold the main mix into your headphones too | [deck](deck.md#cue-and-headphones) |
-| **4 BEAT / EXIT** | Start a 4-bar loop on the beat; press again to exit | [deck](deck.md#loops) |
-| **½×** / **2×** | Halve or double the running loop | [deck](deck.md#loops) |
-| **HOT CUE** / **PAD FX1** | Switch that deck's pads between the two pages | [deck](deck.md#stems) |
-| Pads **1 / 2 / 3** (HOT CUE page) | Mute drums / vocals / instrumental | [deck](deck.md#stems) |
-| Pad **1** (PAD FX1 page) | Beat-synced echo on and off | [deck](deck.md#echo) |
-| Stem-level button (hold) + EQ knobs | Ride each stem's level instead of the EQ | [deck](deck.md#stem-levels) |
-| **EQ HI / MID / LOW** | Three-band isolator — full cut at the bottom | [deck](deck.md#eq-filter-and-faders) |
-| **FILTER** knob | Low-pass to the left, high-pass to the right, off in the middle | [deck](deck.md#eq-filter-and-faders) |
-| Channel faders / crossfader | Deck volume and the blend between decks | [deck](deck.md#eq-filter-and-faders) |
-| Tempo fader | Speed the deck up or down | [deck](deck.md#tempo) |
-| **SHIFT** + **BEAT SYNC** | Cycle the tempo range: ±6 → ±10 → ±16 → WIDE | [deck](deck.md#tempo) |
-| **SHIFT** + ← / → arrows | Nudge the beatgrid one beat earlier or later | [deck](deck.md#beatgrid) |
-| **BEAT SYNC** (on its own) | Nothing yet — beat sync isn't built | — |
+Every knob, pad and button on the DDJ-FLX4 — including the Shift combinations — is
+documented in the controller guide: click the controller icon in the top bar for a
+picture of your controller with each control explained. With it plugged in, press
+anything and the guide lights up the matching control and tells you what it does.
 
 Transport is controller-only: nothing on screen starts, stops, or jumps the music.
 

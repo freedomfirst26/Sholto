@@ -316,6 +316,12 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         _                     => false,
     };
 
+    /// <summary>The BEAT SYNC LED's current resolved state — same value
+    /// <see cref="DeckLightChanged"/> carries on the next change. Exposed as a
+    /// property (not just the event) so a repaint driven from current state, not a
+    /// transition, can read it — see Orchestrator.ReassertLights.</summary>
+    public bool BeatSyncLit => ResolveLight();
+
     /// <summary>Disc-ring opacity: solid (1.0) normally; flashes 1.0↔0.35 in sync
     /// with the LED while the track is Ending. Bound by the DiscRing in the view.</summary>
     public double DiscRingOpacity =>

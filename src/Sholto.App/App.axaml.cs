@@ -1,3 +1,4 @@
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Sholto.Storage;
 using Sholto.Storage.Entities;
 using Sholto.Controller;
+using Sholto.Controller.Gestures;
 using Sholto.Controller.Mappings;
 using Sholto.Music;
 using Sholto.App.Theming;
@@ -22,6 +24,10 @@ public partial class App : Application
     private AudioEngine? _audioEngine;
     private Sholto.Controller.Controller? _controller;
     private Orchestrator? _orchestrator;
+    private GestureRecognizer? _recognizer;
+    private GestureBus? _bus;
+    private GestureBindings? _appBindings;
+    private GestureBindings? _faceplateBindings;
     private DispatcherTimer? _statsTimer;
     private MainViewModel? _vm;
     private IDbContextFactory<SholtoDbContext>? _factory;
@@ -271,9 +277,90 @@ public partial class App : Application
         if (!_controller.Connect())
             Console.WriteLine("DDJ-FLX4 not found — use UI controls.");
 
+        _recognizer = new GestureRecognizer();
         _orchestrator = new Orchestrator(vm, () => _factory,
-            Microsoft.Extensions.Options.Options.Create(new ScratchOptions()));
-        _controller.Action += evt => Dispatcher.UIThread.Post(() => _orchestrator.HandleControllerEvent(evt));
+            Microsoft.Extensions.Options.Options.Create(new ScratchOptions()),
+            _recognizer);
+
+        _bus = new GestureBus();
+        _appBindings = new GestureBindings("app",
+            GestureIds.All.ToDictionary(id => id, _ => new Action<Gesture>(g => _orchestrator!.HandleGesture(g))));
+        _bus.Register(_appBindings);
+        // The controller guide's own table on the SAME bus, same vocabulary, different
+        // delegate — every gesture selects and blinks the control that owns it (see
+        // FaceplateViewModel.OnLiveGesture) instead of acting on the deck. Starts
+        // disabled; GestureRoutingChanged below flips it in lockstep with the app's own
+        // table, one on while the other is off, so the two are never both live and the
+        // guide never receives a gesture no one is showing it to.
+        _faceplateBindings = new GestureBindings("faceplate",
+            GestureIds.All.ToDictionary(id => id, _ => new Action<Gesture>(g => vm.Faceplate?.OnLiveGesture(g))))
+        {
+            Enabled = false,
+        };
+        _bus.Register(_faceplateBindings);
+        _bus.HandlerFailed += (table, g, ex) =>
+            Console.WriteLine($"[Gestures] '{table.Name}' threw on {g.Id}: {ex.Message}");
+
+        // Inspect mode (guide open) silences the decks and hands every gesture to the
+        // guide instead; Play mode is the reverse.
+        //
+        // The Controller lights its own buttons on press, BEFORE it raises the event
+        // the App sees (see Controller.OnCueClicked/OnMasterCueClicked), so disabling
+        // the app's gesture table for Inspect mode cannot stop an LED changing: press
+        // headphone CUE while the guide is open and the unit's LED flips while the
+        // App's real cue state never moves — controller and screen disagree. On the
+        // way back to Play we call Controller.Reset() (blanks every LED) then
+        // Orchestrator.ReassertLights() (repaints BEAT SYNC / stem-mute / echo from
+        // what the App actually knows) to fix that.
+        //
+        // But Reset() is also destructive to the cue buttons specifically — it forces
+        // both decks' headphone cue AND master cue off, with no memory of what they
+        // were. Left alone, "cue deck 2, open the guide, close the guide" would leave
+        // the LED and the app's cue-active flag agreeing, but agreeing on the wrong
+        // (dead) state — a DJ mid-set coming back to a killed cue. So we snapshot the
+        // cue buttons' real on/off state on the way INTO Inspect (before anything has
+        // touched them) and restore it on the way out, through RestoreCueState — which
+        // re-raises CueChanged/MasterCueChanged exactly as a physical press would, so
+        // the audio routing follows too, not just the LED. Reset() also blanks the
+        // pad-mode (HOT CUE / PAD FX1) LEDs without forgetting which page is actually
+        // active, so ReassertPadPages() repaints those from the Controller's own
+        // memory the same way.
+        Sholto.Controller.Controller.CueSnapshot cueSnapshot = default;
+        vm.GestureRoutingChanged += routing =>
+        {
+            var inspect = routing == GestureRouting.Inspect;
+            _appBindings.Enabled = !inspect;
+            _faceplateBindings.Enabled = inspect;
+            if (inspect)
+            {
+                cueSnapshot = _controller!.SnapshotCueState();
+            }
+            else
+            {
+                _controller!.Reset();
+                _orchestrator!.ReassertLights();
+                // A platter grabbed just before Inspect opened never gets its lift
+                // event (App's own gesture table was disabled) — clear any scratch
+                // state Inspect stranded so the deck isn't left silenced. See
+                // Orchestrator.ReleaseStrandedScratchTouches.
+                _orchestrator.ReleaseStrandedScratchTouches();
+                _controller.ReassertPadPages();
+                _controller.RestoreCueState(cueSnapshot);
+            }
+        };
+
+        _controller.Action += evt => Dispatcher.UIThread.Post(() =>
+        {
+            var gesture = _recognizer!.Recognize(evt, DateTime.UtcNow);
+            if (gesture is not null) _bus.Dispatch(gesture);
+        });
+
+        // The browse hold becomes due through time, not through an event.
+        _orchestrator.Ticked += () =>
+        {
+            foreach (var due in _recognizer.Tick(DateTime.UtcNow))
+                _bus.Dispatch(due);
+        };
         // Surface controller connection state in the top-bar indicator. Seed with
         // the result of the first attempt above, then follow the supervisor's events.
         vm.ControllerConnected = _controller.IsConnected;

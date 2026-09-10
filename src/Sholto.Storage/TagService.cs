@@ -129,6 +129,21 @@ public sealed class TagService
             .ToListAsync(ct);
     }
 
+    /// <summary>Hits for an explicit set of tag names, for callers that already
+    /// know which tags they want to show (e.g. a recently-used list) but still
+    /// need each tag's track count. Names that no longer exist are skipped.</summary>
+    public async Task<IReadOnlyList<TagSearchHit>> HitsForNamesAsync(IReadOnlyCollection<string> names, CancellationToken ct)
+    {
+        if (names.Count == 0) return Array.Empty<TagSearchHit>();
+
+        await using var db = _factory.CreateDbContext();
+        var wanted = names.ToList();
+        return await db.Tags.AsNoTracking()
+            .Where(t => wanted.Contains(t.Name))
+            .Select(t => new TagSearchHit(t.Name, t.TrackTags.Count))
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<string>> AutocompleteAsync(string prefix, int limit, CancellationToken ct)
     {
         await using var db = _factory.CreateDbContext();

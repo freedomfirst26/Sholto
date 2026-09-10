@@ -21,10 +21,12 @@ public sealed class SearchViewModel : INotifyPropertyChanged
     private readonly ObservableCollection<TrackRow> _all;
     private Sholto.Storage.TagService? _tagService;
     private Sholto.Storage.CrateService? _crateService;
+    private Sholto.App.Models.TagRecency? _tagRecency;
 
-    public void SetTagService(Sholto.Storage.TagService service)
+    public void SetTagService(Sholto.Storage.TagService service, Sholto.App.Models.TagRecency recency)
     {
         _tagService = service;
+        _tagRecency = recency;
         _ = RefreshTagHitsAsync(_searchGen);
     }
 
@@ -36,7 +38,11 @@ public sealed class SearchViewModel : INotifyPropertyChanged
 
     public ObservableCollection<Sholto.Storage.TagSearchHit> TagHits { get; } = new();
     public event Action<string>? TagPicked;
-    public void PickTag(string name) => TagPicked?.Invoke(name);
+    public void PickTag(string name)
+    {
+        _tagRecency?.MarkUsed(name);
+        TagPicked?.Invoke(name);
+    }
 
     /// <summary>Crates whose name matches the query — the CRATES section of the
     /// grouped results. Empty query shows all crates so space-bar is a crate browser.</summary>
@@ -215,10 +221,31 @@ public sealed class SearchViewModel : INotifyPropertyChanged
         var q = _query;
         try
         {
-            // Empty query = "what can I search for" browse → the most-used tags.
-            var hits = string.IsNullOrWhiteSpace(q)
-                ? await _tagService.TopTagsAsync(10, default)
-                : await _tagService.SearchTagsAsync(q, 10, default);
+            const int limit = 10;
+            IReadOnlyList<Sholto.Storage.TagSearchHit> hits;
+            if (string.IsNullOrWhiteSpace(q))
+            {
+                // Empty query = "what can I search for" browse. Tags picked
+                // earlier this session lead, newest first; the most-used tags
+                // fill the rest, so a fresh session looks exactly as before.
+                var recentNames = _tagRecency?.RecentNames(limit) ?? Array.Empty<string>();
+                var recentHits = await _tagService.HitsForNamesAsync(recentNames, default);
+                var byName = recentHits.ToDictionary(h => h.Name, StringComparer.OrdinalIgnoreCase);
+                var ordered = recentNames.Where(byName.ContainsKey).Select(n => byName[n]);
+
+                var top = await _tagService.TopTagsAsync(limit, default);
+                hits = ordered.Concat(top)
+                              .DistinctBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+                              .Take(limit)
+                              .ToList();
+            }
+            else
+            {
+                var matches = await _tagService.SearchTagsAsync(q, limit, default);
+                hits = _tagRecency is null
+                    ? matches
+                    : _tagRecency.OrderRecentFirst(matches, h => h.Name);
+            }
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (gen != _searchGen) return;

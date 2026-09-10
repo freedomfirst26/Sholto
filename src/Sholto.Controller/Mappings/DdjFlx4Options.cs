@@ -32,7 +32,10 @@ public sealed class DdjFlx4Options
     /// <summary>Per-deck Shift modifier note (sent on <see cref="Deck0Channel"/> / <see cref="Deck1Channel"/>).</summary>
     public int DeckShiftNote { get; set; } = 0x3F;
 
-    public int StemLevelModeChannel { get; set; } = 5;
+    // The FX ON/OFF (RELEASE FX) button. Measured on hardware 2026-09-09: it sends
+    // ch=06 0x47. This said 5 from the start, so the modifier never fired and the
+    // stem-level feature was dead from the day it shipped.
+    public int StemLevelModeChannel { get; set; } = 6;
     public int StemLevelModeNote { get; set; } = 0x47;
 
     // --- Notes: transport --------------------------------------------------------

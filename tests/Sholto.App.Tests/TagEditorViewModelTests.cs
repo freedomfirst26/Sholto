@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sholto.App.Models;
 using Sholto.App.ViewModels;
 using Sholto.Storage;
 using Sholto.Storage.Entities;
@@ -26,7 +27,7 @@ public class TagEditorViewModelTests
         var (svc, trackId, dbPath) = await NewAsync();
         try
         {
-            var vm = new TagEditorViewModel(svc);
+            var vm = new TagEditorViewModel(svc, new TagRecency());
             int closeCount = 0;
             vm.RequestClose += () => closeCount++;
             await vm.OpenForAsync(trackId, "Artist", "Title");
@@ -47,7 +48,7 @@ public class TagEditorViewModelTests
         var (svc, trackId, dbPath) = await NewAsync();
         try
         {
-            var vm = new TagEditorViewModel(svc);
+            var vm = new TagEditorViewModel(svc, new TagRecency());
             int closeCount = 0;
             vm.RequestClose += () => closeCount++;
             await vm.OpenForAsync(trackId, "Artist", "Title");
@@ -67,7 +68,7 @@ public class TagEditorViewModelTests
         var (svc, trackId, dbPath) = await NewAsync();
         try
         {
-            var vm = new TagEditorViewModel(svc);
+            var vm = new TagEditorViewModel(svc, new TagRecency());
             await vm.OpenForAsync(trackId, "Artist", "Title");
             vm.Input = "a"; await vm.CommitAsync();
             vm.Input = "b"; await vm.CommitAsync();
@@ -84,7 +85,7 @@ public class TagEditorViewModelTests
         var (svc, trackId, dbPath) = await NewAsync();
         try
         {
-            var vm = new TagEditorViewModel(svc);
+            var vm = new TagEditorViewModel(svc, new TagRecency());
             int closeCount = 0;
             vm.RequestClose += () => closeCount++;
             await vm.OpenForAsync(trackId, "Artist", "Title");
@@ -104,7 +105,7 @@ public class TagEditorViewModelTests
         var (svc, trackId, dbPath) = await NewAsync();
         try
         {
-            var vm = new TagEditorViewModel(svc);
+            var vm = new TagEditorViewModel(svc, new TagRecency());
             await vm.OpenForAsync(trackId, "Artist", "Title");
             vm.Input = "   ";
             await vm.CommitAsync();
@@ -120,7 +121,7 @@ public class TagEditorViewModelTests
         var (svc, trackId, dbPath) = await NewAsync();
         try
         {
-            var vm = new TagEditorViewModel(svc);
+            var vm = new TagEditorViewModel(svc, new TagRecency());
             await vm.OpenForAsync(trackId, "Artist", "Title");
             vm.Input = new string('x', 200);
             await vm.CommitAsync();
@@ -137,13 +138,38 @@ public class TagEditorViewModelTests
         var (svc, trackId, dbPath) = await NewAsync();
         try
         {
-            var vm = new TagEditorViewModel(svc);
+            var vm = new TagEditorViewModel(svc, new TagRecency());
             await vm.OpenForAsync(trackId, "Artist", "Title");
             vm.Input = "deep house"; await vm.CommitAsync();
             vm.Input = "Deep House"; await vm.CommitAsync();
             Assert.Single(vm.Chips);
             Assert.NotNull(vm.StatusMessage);
             Assert.Contains("already tagged", vm.StatusMessage!, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { if (File.Exists(dbPath)) File.Delete(dbPath); }
+    }
+
+    [Fact]
+    public async Task Suggestions_list_the_most_recently_committed_tag_first()
+    {
+        var (svc, trackId, dbPath) = await NewAsync();
+        try
+        {
+            // "zulu" sorts last alphabetically, so the database order alone would
+            // never put it on top. Committing it makes it the newest selection.
+            var vm = new TagEditorViewModel(svc, new TagRecency());
+            await vm.OpenForAsync(trackId, "Artist", "Title");
+            vm.Input = "alpha"; await vm.CommitAsync();
+            vm.Input = "zulu";  await vm.CommitAsync();
+
+            // Untag both, so neither is filtered out of the suggestion list, then
+            // re-open the editor the way the overlay does.
+            await vm.RemoveChipAsync("zulu");
+            await vm.RemoveChipAsync("alpha");
+            await vm.OpenForAsync(trackId, "Artist", "Title");
+
+            Assert.Equal("zulu", vm.Suggestions[0]);
+            Assert.Equal("alpha", vm.Suggestions[1]);
         }
         finally { if (File.Exists(dbPath)) File.Delete(dbPath); }
     }

@@ -37,7 +37,13 @@ public partial class MainWindow : Window
         // first paint already has the right colors.
         DataContextChanged += (_, _) =>
         {
-            if (DataContext is MainViewModel vm) ApplyThemeToResources(vm.Theme);
+            if (DataContext is not MainViewModel vm) return;
+            ApplyThemeToResources(vm.Theme);
+            // Hand the view model the SAME FaceplateViewModel the mounted overlay
+            // already built for itself (see the comment on FaceplateHost in the
+            // .axaml) — not a second one, so a future caller driving Faceplate.Select
+            // from a live gesture actually reaches the control that's on screen.
+            vm.AttachFaceplate(FaceplateOverlayView.ViewModel);
         };
     }
 
@@ -164,6 +170,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Controller guide open → swallow the app's own shortcuts, same isolation as
+        // the tag editor above (Space would otherwise open search underneath, 1 / 2
+        // would load decks). Esc is the only key it answers to; the drawing itself
+        // handles clicks via pointer events, not key events.
+        if (vm.IsFaceplateOpen)
+        {
+            if (e.Key == Key.Escape) { vm.IsFaceplateOpen = false; e.Handled = true; }
+            return;
+        }
+
         // Crate picker owns input via its TextBox; Esc is a global backstop.
         if (vm.IsCratePickerOpen)
         {
@@ -172,7 +188,7 @@ public partial class MainWindow : Window
         }
 
         // Enter-mode action menu: arrows move + Enter fires, plus direct shortcuts
-        // (1/2 load a deck, C crate, T tag), Esc closes.
+        // (C crate, T tag), Esc closes.
         if (vm.IsTrackActionsOpen)
         {
             switch (e.Key)
@@ -181,8 +197,6 @@ public partial class MainWindow : Window
                 case Key.Down:   vm.TrackActions.Move(+1); e.Handled = true; break;
                 case Key.Enter:  vm.TrackActions.Commit();  e.Handled = true; break;
                 case Key.Escape: vm.TrackActions.Close();   e.Handled = true; break;
-                case Key.D1: case Key.NumPad1: vm.TrackActions.Invoke(TrackActionKind.LoadDeck1); e.Handled = true; break;
-                case Key.D2: case Key.NumPad2: vm.TrackActions.Invoke(TrackActionKind.LoadDeck2); e.Handled = true; break;
                 case Key.C: vm.TrackActions.Invoke(TrackActionKind.AddToCrate); e.Handled = true; break;
                 case Key.T: vm.TrackActions.Invoke(TrackActionKind.Tag); e.Handled = true; break;
             }
@@ -206,8 +220,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Enter on a highlighted library row → the track action menu (Tag / Add to
-        // crate / Load). Replaces the old T-to-tag shortcut.
+        // Enter on a highlighted library row → the track action menu (Add to crate /
+        // Tag). Replaces the old T-to-tag shortcut.
         if (e.Key == Key.Enter)
         {
             var row = vm.SelectedTrackRow;
@@ -362,6 +376,15 @@ public partial class MainWindow : Window
             e.Handled = true;
             _ = vm.OpenTagEditorAsync(row);
         }
+    }
+
+    /// <summary>The controller guide's only entry point. Toggles: pressing it again
+    /// while the guide is open closes it, same as Esc or the overlay's own close
+    /// button.</summary>
+    private void OnFaceplateButtonClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        vm.IsFaceplateOpen = !vm.IsFaceplateOpen;
     }
 
     private async void OnOutputDeviceClick(object? sender, RoutedEventArgs e)

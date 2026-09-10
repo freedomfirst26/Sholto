@@ -27,7 +27,6 @@ unanalysed, and it will play fine.
 
 ## Loading a track
 
-**On screen:** open the actions menu (below) and pick **Load to Deck 1 / 2**.
 **Controller:** **LOAD 1** or **LOAD 2** loads the highlighted track.
 **Keyboard:** **1** or **2**.
 
@@ -57,8 +56,6 @@ Clicking the dark backdrop closes search too.
 
 | Item | Key |
 |---|---|
-| ① Load to Deck 1 | **1** |
-| ② Load to Deck 2 | **2** |
 | 📦 Add to crate | **C** |
 | 🏷 Tag | **T** |
 

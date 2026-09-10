@@ -45,18 +45,9 @@ Full guide: [docs/README.md](docs/README.md) — every button on screen and on t
 - The deck dims red when its volume is all the way down.
 - **A range of colour themes** to switch between in Settings.
 
-### Handy moves
-- **Fine-tune the beatgrid** — click the BPM on a deck to open a little tuner: nudge the tempo up or down and slide the grid left or right until it lines up with the kicks. There's a one-tap **½ / ×2** for the common case where a slow track is read at twice its real speed, and a reset back to the detected values. Every adjustment is remembered per track.
-- **Drop markers** — press **M** to mark the spot you're at on the playing deck so you can find it again.
-- **Re-analyse a track** — double-click it (or hold the browse knob on it for about a second) to analyse from scratch — a rescue for the odd track whose beats came out wrong.
-
 ## Your DDJ-FLX4
-- **Play / pause** and **jog wheels** (top platter to scrub fast, the side ring for fine nudges) on each deck.
-- **Channel faders** and the **crossfader** for volume and blending.
-- **EQ knobs** (high / mid / low) driving each deck's isolator.
-- **The browse knob** scrolls the track list; **LOAD 1 / LOAD 2** load the highlighted track onto a deck.
-- **Hot-cue pads** double as **stem mute toggles** — drums, vocals, instrumental — once a track's stems are ready.
-- **The CUE buttons** send each deck to your headphones for pre-listening. **Shift + CUE** jumps the track back to the very start instead (keeps playing if it was playing).
+Plug it in and it works. Click the controller icon in the top bar for a picture of your
+DDJ-FLX4 with every knob, pad and button explained, including the Shift combinations.
 
 Adding support for another controller is straightforward — Sholto keeps each device's button layout in one place.
 
@@ -64,7 +55,7 @@ Adding support for another controller is straightforward — Sholto keeps each d
 - **Space** — open search (type to find tracks, crates, and tags).
 - **↑ / ↓** — move up and down the track list.
 - **1 / 2** — load the highlighted track onto Deck 1 or Deck 2.
-- **Enter** — open the actions menu for the highlighted track (tag it, add it to a crate, or load it).
+- **Enter** — open the actions menu for the highlighted track (add it to a crate, or tag it).
 - **P** — play / pause Deck 1; hold **Shift** for Deck 2.
 - **G** — open the beatgrid / tempo tuner on the playing deck; then **↑ / ↓** change the tempo and **← / →** nudge the grid.
 - **M** — drop a marker on the playing deck.
@@ -122,16 +113,25 @@ On startup Sholto scans your music folder. Click a track to load it onto Deck 1,
 
 ## License
 
-Dual-licensed — see [LICENSE](LICENSE):
+Sholto is under the [Business Source License 1.1](LICENSE) — source-available,
+and free for the people it is built for.
 
-- **Individuals — free.** Use, modify, fork, and gig with Sholto for any
-  purpose, including paid DJ sets, under the
-  [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
-  plus a free individual-use grant from the author. Forks and derived works
-  you publish must credit Sholto in their README and keep the copyright notice.
-- **Businesses & commercial use — paid.** Any use by an organization, or
-  bundling Sholto into a product or hosted service, needs a paid commercial
-  license — any size. Open an [issue](https://github.com/freedomfirst26/Sholto/issues)
-  to arrange one.
+- **Individuals — free, including paid gigs.** If you are a person (or a sole
+  trader / single-member company you run yourself), you can use, modify, fork,
+  and perform with Sholto for any purpose, at no cost. Forks you publish must
+  keep the copyright notice and credit Sholto in their README.
+- **Organizations — paid.** Any use by or on behalf of a company or other
+  organization, and any bundling of Sholto into a product or hosted service,
+  needs a commercial licence — any size. Email <freedomfirst26@proton.me>.
+- **It becomes Apache-2.0 on 2030-09-07.** Each released version converts to the
+  Apache License 2.0 on its Change Date, so nothing is locked away forever.
 
-The goal is to keep Sholto free for individuals while asking businesses to chip in. Contributions are welcome under the same dual terms (see LICENSE) so they can ship in both editions.
+> **Buying a commercial licence?** Read the non-commercial dependency warning in
+> [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) first — madmom's beat-detection
+> models are CC BY-NC-SA and need separate permission. Get in touch and we will
+> sort it out.
+
+"Sholto" and its logo are trademarks of the copyright holder and are not covered
+by the licence. Forks are welcome under a different name.
+
+Contributions are welcome under the DCO — see [CONTRIBUTING.md](CONTRIBUTING.md).
