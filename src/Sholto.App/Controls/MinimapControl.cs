@@ -3,6 +3,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers.Segments;
+using Sholto.Analysis.Analyzers.Waveform;
 using Sholto.App.Theming;
 
 namespace Sholto.App.Controls;

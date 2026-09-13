@@ -1,5 +1,6 @@
 using Avalonia.Media;
 using Sholto.Analysis;
+using Sholto.Analysis.Harmony;
 
 namespace Sholto.App.Theming;
 

@@ -1,5 +1,8 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers.Beats;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.ToolBoundary;
 
 namespace Sholto.ExternalTools;
 

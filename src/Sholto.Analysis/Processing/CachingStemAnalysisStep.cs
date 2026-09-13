@@ -1,3 +1,6 @@
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Stems;
+
 namespace Sholto.Analysis.Processing;
 
 /// <summary>

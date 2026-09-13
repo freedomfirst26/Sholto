@@ -1,5 +1,9 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Stems;
+using Sholto.Analysis.Analyzers.Waveform;
 using SoundFlow.Abstracts;
 using SoundFlow.Components;
 using SoundFlow.Enums;

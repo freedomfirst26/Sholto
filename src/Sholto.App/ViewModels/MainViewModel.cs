@@ -9,8 +9,12 @@ using Sholto.Audio;
 using Sholto.Controller.Gestures;
 using Sholto.Library;
 using Microsoft.Extensions.Options;
+using Sholto.Analysis.Harmony;
+using Sholto.Analysis.Analyzers.Keys;
 using Sholto.Analysis.Reporting;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.Analyzers.Segments;
+using Sholto.Analysis.Stems;
 
 namespace Sholto.App.ViewModels;
 
@@ -452,17 +456,17 @@ public sealed class MainViewModel : INotifyPropertyChanged, IApplication
     private readonly IAudioFileDecoder _decoder;
     private readonly IThemeContext _themeContext;
     private readonly DemucsStemPresence _stemCache;
-    private readonly Sholto.Analysis.IHarmonicKeys _harmonicKeys;
-    private readonly Sholto.Analysis.IKeyAnalyzer _keyAnalyzer;
+    private readonly Sholto.Analysis.Harmony.IHarmonicKeys _harmonicKeys;
+    private readonly Sholto.Analysis.Analyzers.Keys.IKeyAnalyzer _keyAnalyzer;
 
     public MainViewModel(IOptions<FeatureOptions> features,
                          IAudioFileDecoder decoder, IDeckFactory deckFactory,
                          IThemeContext themeContext, DemucsStemPresence stemCache,
                          IAnalysisReporter reporter,
                          Sholto.Library.ITrackScanner trackScanner,
-                         Sholto.Analysis.IHarmonicKeys harmonicKeys,
-                         Sholto.Analysis.IKeyAnalyzer keyAnalyzer,
-                         Sholto.Analysis.ISongSegmentAnalyzer songSegmentAnalyzer)
+                         Sholto.Analysis.Harmony.IHarmonicKeys harmonicKeys,
+                         Sholto.Analysis.Analyzers.Keys.IKeyAnalyzer keyAnalyzer,
+                         ISongSegmentAnalyzer songSegmentAnalyzer)
     {
         _features = features.Value;
         _decoder = decoder;
@@ -668,8 +672,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IApplication
     /// place and re-broadcasts the harmony reference so dimming refreshes.</summary>
     public async Task OnBrowseHeldAsync(
         Func<Track, float[]> decodeTrack,
-        Sholto.Analysis.IAnalysisProvider analysisProvider,
-        Func<string, Sholto.Analysis.KeyAnalysis, Task>? saveKey = null)
+        Sholto.Analysis.Analyzers.IAnalysisProvider analysisProvider,
+        Func<string, Sholto.Analysis.Analyzers.Keys.KeyAnalysis, Task>? saveKey = null)
     {
         var track = SelectedTrack;
         if (track is null) return;

@@ -1,4 +1,7 @@
+using Sholto.Analysis.Analyzers.Beats;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Analyzers.Waveform;
 
 namespace Sholto.Analysis.Analyzers;
 

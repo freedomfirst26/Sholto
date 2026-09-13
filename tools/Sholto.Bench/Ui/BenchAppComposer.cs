@@ -1,5 +1,11 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Harmony;
+using Sholto.Analysis.Analyzers.Keys;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Analyzers.Segments;
+using Sholto.Analysis.Stems;
+using Sholto.Analysis.Analyzers.Waveform;
 using Sholto.App;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;

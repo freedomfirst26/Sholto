@@ -1,4 +1,5 @@
 using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Analyzers.Keys;
 using Sholto.Analysis.Reporting;
 
 namespace Sholto.Analysis.Processing;

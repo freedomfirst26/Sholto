@@ -1,5 +1,9 @@
 using Sholto.Analysis;
 using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Analyzers.Keys;
+using Sholto.Analysis.Analyzers.Segments;
+using Sholto.Analysis.Stems;
+using Sholto.Analysis.Analyzers.Vocals;
 
 namespace Sholto.Audio;
 

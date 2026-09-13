@@ -1,5 +1,7 @@
 using Sholto.Analysis;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Stems;
 
 namespace Sholto.Bench.Rendering;
 

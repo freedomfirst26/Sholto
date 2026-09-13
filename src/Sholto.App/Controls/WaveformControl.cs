@@ -7,6 +7,9 @@ using Avalonia.Threading;
 using Sholto.App.Theming;
 using Sholto.Audio;
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers.Beats;
+using Sholto.Analysis.Analyzers.Vocals;
+using Sholto.Analysis.Analyzers.Waveform;
 using SkiaSharp;
 
 namespace Sholto.App.Controls;

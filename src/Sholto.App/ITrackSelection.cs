@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Analyzers.Keys;
 using Sholto.Library;
 
 namespace Sholto.App;

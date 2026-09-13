@@ -5,6 +5,12 @@ using Sholto.Analysis;
 using Sholto.App.Theming;
 using Sholto.Library;
 using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Harmony;
+using Sholto.Analysis.Analyzers.Keys;
+using Sholto.Analysis.Analyzers.Segments;
+using Sholto.Analysis.Stems;
+using Sholto.Analysis.Analyzers.Vocals;
+using Sholto.Analysis.Analyzers.Waveform;
 
 namespace Sholto.App.ViewModels;
 
@@ -625,14 +631,14 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <summary>True once Demucs stems have landed for this track. Until then
     /// the stem mute toggles do nothing audibly, so the chip row hides — the
     /// deck progressively unlocks each feature as its analysis becomes available.</summary>
-    public bool HasStems => Analysis.Get<Sholto.Analysis.StemPaths>() is not null;
+    public bool HasStems => Analysis.Get<StemPaths>() is not null;
 
     /// <summary>Camelot code for the loaded track (e.g. "8B"), or empty if key
     /// analysis hasn't completed yet.</summary>
-    public string Camelot => Analysis.Get<Sholto.Analysis.KeyAnalysis>()?.Camelot ?? "";
+    public string Camelot => Analysis.Get<Sholto.Analysis.Analyzers.Keys.KeyAnalysis>()?.Camelot ?? "";
 
     /// <summary>Musical key name (e.g. "Cm"), shown as a secondary label under the Camelot code.</summary>
-    public string KeyName => Analysis.Get<Sholto.Analysis.KeyAnalysis>()?.KeyName ?? "";
+    public string KeyName => Analysis.Get<Sholto.Analysis.Analyzers.Keys.KeyAnalysis>()?.KeyName ?? "";
 
     public bool HasKey => !string.IsNullOrEmpty(Camelot);
 

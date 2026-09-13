@@ -1,7 +1,9 @@
 using System.Globalization;
 
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers.Beats;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.ToolBoundary;
 
 namespace Sholto.ExternalTools;
 

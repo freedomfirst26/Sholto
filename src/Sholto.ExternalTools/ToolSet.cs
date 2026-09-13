@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.ToolBoundary;
 
 namespace Sholto.ExternalTools;
 

@@ -1,5 +1,10 @@
 using Microsoft.Extensions.Options;
 using Sholto.Analysis;
+using Sholto.Analysis.Harmony;
+using Sholto.Analysis.Analyzers.Keys;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Analyzers.Segments;
+using Sholto.Analysis.Stems;
 using Sholto.Audio;
 using Sholto.Controller;
 using Sholto.Library;

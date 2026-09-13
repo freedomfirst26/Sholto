@@ -1,4 +1,12 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Analyzers.Beats;
+using Sholto.Analysis.Harmony;
+using Sholto.Analysis.Analyzers.Keys;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Stores;
+using Sholto.Analysis.Analyzers.Vocals;
+using Sholto.Analysis.Analyzers.Waveform;
 using Sholto.Audio;
 
 namespace Sholto.Bench.Rendering;

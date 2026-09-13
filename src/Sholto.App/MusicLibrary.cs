@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Sholto.Analysis;
+using Sholto.Analysis.Harmony;
 using Sholto.App.ViewModels;
 using Sholto.Library;
 using Sholto.Storage;

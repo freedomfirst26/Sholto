@@ -1,5 +1,6 @@
 using Avalonia.Media;
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers.Segments;
 
 namespace Sholto.App.Theming;
 

@@ -1,3 +1,5 @@
+using Sholto.Analysis.Analyzers.Waveform;
+
 namespace Sholto.Analysis.Analyzers;
 
 /// <summary>

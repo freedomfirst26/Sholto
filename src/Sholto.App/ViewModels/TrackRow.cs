@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media;
 using Sholto.Analysis;
+using Sholto.Analysis.Harmony;
 using Sholto.Analysis.Reporting;
 using Sholto.App.Theming;
 using Sholto.Library;

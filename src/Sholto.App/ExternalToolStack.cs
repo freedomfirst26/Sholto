@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Sholto.Analysis;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.Stems;
 using Sholto.ExternalTools;
 
 namespace Sholto.App;

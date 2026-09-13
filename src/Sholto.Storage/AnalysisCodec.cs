@@ -1,5 +1,6 @@
 using Sholto.Analysis;
 using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Analyzers.Waveform;
 
 namespace Sholto.Storage;
 

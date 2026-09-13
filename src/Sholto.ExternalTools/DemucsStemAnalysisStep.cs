@@ -1,6 +1,8 @@
 using Sholto.Analysis;
 using Sholto.Analysis.Processing;
 using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Stems;
+using Sholto.Analysis.ToolBoundary;
 
 namespace Sholto.ExternalTools;
 

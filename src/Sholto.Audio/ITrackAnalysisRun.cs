@@ -1,5 +1,8 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers;
 using Sholto.Analysis.Processing;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Stems;
 
 namespace Sholto.Audio;
 

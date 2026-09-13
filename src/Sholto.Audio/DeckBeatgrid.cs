@@ -1,5 +1,8 @@
 using Sholto.Analysis;
 using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Analyzers.Beats;
+using Sholto.Analysis.Stores;
+using Sholto.Analysis.Analyzers.Waveform;
 
 namespace Sholto.Audio;
 

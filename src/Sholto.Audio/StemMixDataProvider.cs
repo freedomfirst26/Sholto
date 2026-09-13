@@ -1,5 +1,6 @@
 using System.Threading;
 using Sholto.Analysis;
+using Sholto.Analysis.Stems;
 using SoundFlow.Enums;
 using SoundFlow.Interfaces;
 using SoundFlow.Metadata.Models;
