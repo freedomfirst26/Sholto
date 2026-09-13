@@ -1,18 +1,6 @@
 namespace Sholto.Analysis;
 
 /// <summary>
-/// One track's musical key. Lives on <see cref="TrackAnalysis"/> alongside Basic
-/// and StemPaths so each kind of analysis is independent — Basic can land before
-/// Key, Key before Stems, etc. CamelotKeys provides the layer that turns these
-/// codes into "compatible with my current deck" decisions for row tinting.
-/// </summary>
-public sealed record KeyAnalysis(string KeyName, string Camelot) : IAnalysis
-{
-    public string Name => "Key";
-    public static KeyAnalysis Empty { get; } = new("", "");
-}
-
-/// <summary>
 /// Pure-C# musical-key estimator. No FFT lib needed: a bank of Goertzel filters
 /// computes per-frame energy at every pitch we care about, those collapse into a
 /// 12-bin chroma vector, and the chroma is correlated against the 24
@@ -21,29 +9,39 @@ public sealed record KeyAnalysis(string KeyName, string Camelot) : IAnalysis
 /// Accuracy is ~95% on dance music with a clear tonal centre; weaker on noise /
 /// percussion-heavy intros. Runs in a few seconds on a 6-min track in-process,
 /// no Python subprocess, no native dep.
+///
+/// Default <see cref="IKeyAnalyzer"/>. Instance so a test/Bench harness can
+/// substitute a fake instead of paying the real chroma + correlation cost;
+/// it holds no state of its own beyond the injected <see cref="IHarmonicKeys"/>
+/// it uses to format the Camelot code.
 /// </summary>
-public static class KeyAnalyzer
+public sealed class KeyAnalyzer : IKeyAnalyzer
 {
-    public const string KeyStep = "key";
+    private readonly IHarmonicKeys _harmonicKeys;
+
+    public KeyAnalyzer(IHarmonicKeys harmonicKeys)
+    {
+        _harmonicKeys = harmonicKeys;
+    }
 
     /// <summary>Fire-and-await wrapper: runs the heavy chroma + correlation on a
     /// background task and reports progress like the other analyzers.</summary>
-    public static async Task<KeyAnalysis> AnalyzeAsync(
+    public async Task<KeyAnalysis> AnalyzeAsync(
         string filePath, float[] stereoSamples, int channels, int sampleRate,
-        AnalysisReporter? reporter = null, CancellationToken ct = default)
+        IAnalysisReporter reporter, CancellationToken ct = default)
     {
-        reporter?.Running(filePath, KeyStep);
+        reporter.Running(filePath, AnalysisSteps.Key);
         try
         {
             var result = await Task.Run(
                 () => Estimate(stereoSamples, channels, sampleRate), ct);
             var analysis = new KeyAnalysis(result.KeyName, result.Camelot);
-            reporter?.Complete(filePath, KeyStep, $"{result.KeyName} ({result.Camelot})");
+            reporter.Complete(filePath, AnalysisSteps.Key, $"{result.KeyName} ({result.Camelot})");
             return analysis;
         }
         catch (Exception ex)
         {
-            reporter?.Failed(filePath, KeyStep, ex.Message);
+            reporter.Failed(filePath, AnalysisSteps.Key, ex.Message);
             throw;
         }
     }
@@ -64,7 +62,7 @@ public static class KeyAnalyzer
     /// Estimate the key of an interleaved float buffer. Returns a Result with both
     /// the musical key (e.g. "Am") and the Camelot code (e.g. "8A").
     /// </summary>
-    public static Result Estimate(float[] stereoSamples, int channels, int sampleRate)
+    public Result Estimate(float[] stereoSamples, int channels, int sampleRate)
     {
         var chroma = ComputeChroma(stereoSamples, channels, sampleRate);
 
@@ -85,11 +83,11 @@ public static class KeyAnalyzer
         }
 
         string keyName = NoteNames[bestTonic] + (bestMajor ? "" : "m");
-        string camelot = CamelotKeys.ToCamelot(bestTonic, bestMajor);
+        string camelot = _harmonicKeys.ToCamelot(bestTonic, bestMajor);
         return new Result(bestTonic, bestMajor, keyName, camelot);
     }
 
-    private static double Correlate(double[] chroma, double[] profile, int shift)
+    private double Correlate(double[] chroma, double[] profile, int shift)
     {
         double s = 0;
         for (int i = 0; i < 12; i++)
@@ -103,7 +101,7 @@ public static class KeyAnalyzer
     /// across its octaves. 4096-sample frames at 48 kHz ≈ 85 ms — short enough
     /// to catch fast chord changes, long enough to give the filter resolution.
     /// </summary>
-    private static double[] ComputeChroma(float[] samples, int channels, int sampleRate)
+    private double[] ComputeChroma(float[] samples, int channels, int sampleRate)
     {
         const int frameSize = 4096;
         const int firstMidi = 36;   // C2

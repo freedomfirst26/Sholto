@@ -11,7 +11,30 @@ namespace Sholto.Analysis;
 ///       caches: [ new MemoryAnalysisCache(), new BasicAnalysisCache(factory) ],
 ///       compute: (path, samples, rate) => BasicAnalysis.ComputeAsync(...));
 /// </summary>
-public sealed class AnalysisProvider
+/// <summary>
+/// Port for <see cref="AnalysisProvider"/>. Lets a test/Bench harness supply cache
+/// behaviour (always-hit, always-miss, slow compute) without wiring the real cache
+/// stack, decoder and analyser chain just to construct a <c>Deck</c>.
+/// </summary>
+public interface IAnalysisProvider
+{
+    /// <summary>
+    /// Resolve the basic analysis for a track. Returns the cache name where the
+    /// hit occurred (or "computed") so callers can log/observe cache behaviour.
+    /// </summary>
+    Task<(BasicAnalysis Analysis, string Source)> GetAsync(
+        string filePath, float[] stereoSamples, int sampleRate, CancellationToken ct = default);
+
+    /// <summary>
+    /// Force a fresh compute, bypassing every cache, and write the result through
+    /// to every tier (overwriting any stale entry). Used by the "hold song-select
+    /// to re-analyze" gesture when the cached BPM/beats are wrong.
+    /// </summary>
+    Task<BasicAnalysis> RecomputeAsync(
+        string filePath, float[] stereoSamples, int sampleRate, CancellationToken ct = default);
+}
+
+public sealed class AnalysisProvider : IAnalysisProvider
 {
     private readonly IReadOnlyList<IAnalysisCache> _caches;
     private readonly Func<string, float[], int, CancellationToken, Task<BasicAnalysis>> _compute;

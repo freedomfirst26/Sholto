@@ -20,18 +20,19 @@ public sealed class AudioEngine : IAudioOutput
     /// mix lands on channels 3-4 there — but each deck's own chain is 2ch.</summary>
     public static readonly AudioFormat DeckFormat = new()
     {
-        SampleRate = 48000,
+        SampleRate = AudioFileDecoder.TargetSampleRate,
         Channels = 2,
         Format = SampleFormat.F32
     };
 
     private readonly IReadOnlyList<Deck> _decks;
     private readonly SfEngine _engine;
+    private readonly IPipeWireRouter _pipeWireRouter;
     private AudioPlaybackDevice? _playbackDevice;
     private CueOutputRouter? _router;
     private bool _running;
     // MASTER CUE state, kept here so it survives a device switch (which builds a
-    // fresh router) — re-applied to the new router in Start.
+    // fresh router) — passed into the new router's constructor in Start.
     private bool _masterCueActive;
     // Set while the FLX4 is open AND its master bus has been PipeWire-routed
     // to a separate speaker sink (see Start/ApplyPipeWireMasterRoute). Used by
@@ -41,12 +42,17 @@ public sealed class AudioEngine : IAudioOutput
     public bool IsRunning => _running;
     public SfEngine Engine => _engine;
 
-    public AudioEngine(params Deck[] decks)
+    /// <summary>Every <see cref="INeedsAudioEngine"/> is handed the SoundFlow engine
+    /// this constructor creates, the same way each deck is (see <c>Deck.AttachEngine</c>
+    /// below). FLAC decoding is the only such collaborator today; the engine does not
+    /// know or care which format that is.</summary>
+    public AudioEngine(IEnumerable<INeedsAudioEngine> engineDependents, IPipeWireRouter pipeWireRouter, params Deck[] decks)
     {
         _decks = decks;
+        _pipeWireRouter = pipeWireRouter;
         var miniEngine = new MiniAudioEngine();
         _engine = miniEngine;
-        AudioFileDecoder.SoundFlowEngine = miniEngine;   // FLAC decode uses miniaudio via this engine
+        foreach (var dependent in engineDependents) dependent.AttachEngine(miniEngine);
         Console.WriteLine($"[AudioEngine] active backend: {miniEngine.ActiveBackend}; decks={decks.Length}");
         foreach (var deck in _decks) deck.AttachEngine(_engine, DeckFormat);
     }
@@ -92,7 +98,7 @@ public sealed class AudioEngine : IAudioOutput
         int channels = DeviceOutputChannels(target);
         var deviceFormat = new AudioFormat
         {
-            SampleRate = 48000,
+            SampleRate = AudioFileDecoder.TargetSampleRate,
             Channels = channels,
             Format = SampleFormat.F32,
         };
@@ -112,7 +118,7 @@ public sealed class AudioEngine : IAudioOutput
         // One router is the device's source: it pulls each deck's post-EQ stereo
         // and composes master (ch1-2) + PFL cue (ch3-4). Decks are NOT added to
         // the mixer directly (that would sum them to stereo and double-process).
-        _router = new CueOutputRouter(_engine, deviceFormat, _decks) { MasterCueActive = _masterCueActive };
+        _router = new CueOutputRouter(_engine, deviceFormat, _decks, _masterCueActive);
         _playbackDevice.MasterMixer.AddComponent(_router);
         _playbackDevice.Start();
         _running = true;
@@ -131,24 +137,24 @@ public sealed class AudioEngine : IAudioOutput
     /// throws, never blocks longer than PipeWireRouter's own ~3s port poll.</summary>
     private void ApplyPipeWireMasterRoute(string masterSpeakerName)
     {
-        if (!PipeWireRouter.IsAvailable())
+        if (!_pipeWireRouter.IsAvailable())
         {
             Console.WriteLine("[AudioEngine] pw-link not available — master stays on FLX4 (not on PipeWire?)");
             return;
         }
-        var flx4Node = PipeWireRouter.FindFlx4Sink();
+        var flx4Node = _pipeWireRouter.FindFlx4Sink();
         if (flx4Node is null)
         {
             Console.WriteLine("[AudioEngine] FLX4 not found via pactl — master stays on FLX4");
             return;
         }
-        var speaker = PipeWireRouter.EnumerateSpeakerSinks().FirstOrDefault(s => s.Desc == masterSpeakerName);
+        var speaker = _pipeWireRouter.EnumerateSpeakerSinks().FirstOrDefault(s => s.Desc == masterSpeakerName);
         if (speaker.Node is null)
         {
             Console.WriteLine($"[AudioEngine] master speaker '{masterSpeakerName}' not found among PipeWire sinks — master stays on FLX4");
             return;
         }
-        if (PipeWireRouter.ApplyMasterRoute(flx4Node, speaker.Node, out var log))
+        if (_pipeWireRouter.ApplyMasterRoute(flx4Node, speaker.Node, out var log))
         {
             _routedFlx4Node = flx4Node;
             Console.WriteLine($"[AudioEngine] master routed to '{masterSpeakerName}': {log}");
@@ -170,7 +176,9 @@ public sealed class AudioEngine : IAudioOutput
 
     /// <summary>MASTER CUE toggle — fold the master mix into the headphone cue
     /// (ch3-4) so you can monitor the speakers' output in your phones. Remembered
-    /// across a device switch (re-applied to the fresh router in Start).</summary>
+    /// here so it survives a device switch (passed to the fresh router's
+    /// constructor in Start); also forwarded to the live router directly so a
+    /// toggle takes effect immediately without waiting for a rebuild.</summary>
     public void SetMasterCue(bool on)
     {
         _masterCueActive = on;
@@ -210,7 +218,7 @@ public sealed class AudioEngine : IAudioOutput
         // go away, so a stale link isn't left dangling on the speaker sink.
         if (_routedFlx4Node is not null)
         {
-            PipeWireRouter.ResetMasterRoute(_routedFlx4Node);
+            _pipeWireRouter.ResetMasterRoute(_routedFlx4Node);
             _routedFlx4Node = null;
         }
         if (_playbackDevice is not null)

@@ -27,10 +27,6 @@ madmom's models. Organizations must obtain their own permission from JKU, or
 wait for Sholto to ship a permissively-licensed default beat tracker. If you are
 buying a commercial license, raise this first: <freedomfirst26@proton.me>.
 
-The optional `allin1` install pulls upstream madmom (`install-deps.sh`), so it
-carries the same terms. `allin1`'s own pretrained weights have not been
-audited — treat them as unverified for commercial use.
-
 ## External tools (installed separately, invoked as processes)
 
 | Tool | Role | Required? | License |
@@ -38,7 +34,6 @@ audited — treat them as unverified for commercial use.
 | madmom / madmom-onnx | beat + downbeat detection | **required** | BSD 2-clause (code) + **CC BY-NC-SA 4.0 (models)** — see above |
 | ffmpeg | fallback audio decoding (`FfmpegDecodeStrategy`) | fallback only | LGPL-2.1+, or GPL-2.0+ for `--enable-gpl` builds (most distro builds). Invoked as a separate process; not linked, not shipped. |
 | demucs | stem separation | optional | MIT (Meta) |
-| allin1 | AI song-section detection | optional | see note above; weights unverified |
 
 ## Bundled libraries (NuGet, redistributed with Sholto)
 
@@ -53,7 +48,7 @@ audited — treat them as unverified for commercial use.
 | CommunityToolkit.Mvvm | MVVM helpers | MIT |
 | Microsoft.Extensions.Options | configuration | MIT |
 | Microsoft.Data.Sqlite | storage | MIT |
-| Microsoft.EntityFrameworkCore.Sqlite / .Design | storage | MIT |
+| Microsoft.EntityFrameworkCore.Sqlite | storage | MIT |
 
 All of the above are MIT and impose no restriction on Sholto's commercial track.
 

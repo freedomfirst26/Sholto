@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Sholto.Audio;
 using Sholto.Analysis;
+using Sholto.ExternalTools;
 using Microsoft.EntityFrameworkCore;
 using Sholto.Storage;
 using Sholto.Storage.Entities;
@@ -22,30 +23,87 @@ namespace Sholto.App;
 public partial class App : Application
 {
     private AudioEngine? _audioEngine;
-    private Sholto.Controller.Controller? _controller;
+    private Sholto.Controller.IControlSurface? _controller;
     private Orchestrator? _orchestrator;
     private GestureRecognizer? _recognizer;
     private GestureBus? _bus;
     private GestureBindings? _appBindings;
     private GestureBindings? _faceplateBindings;
     private DispatcherTimer? _statsTimer;
+    // Resolves its initial theme through Avalonia's AssetLoader (avares://) — see
+    // IThemeContext's doc — so, unlike every other leaf below, it cannot be built
+    // in Program.BuildAvaloniaApp's factory lambda (runs before Initialize(), with
+    // no live Avalonia application to load bundled themes through). Stays here.
+    private IThemeContext? _themeContext;
+    private ProcessStats? _processStats;
     private MainViewModel? _vm;
     private IDbContextFactory<SholtoDbContext>? _factory;
+    private Controller.Mappings.IControllerMappings? _mappingRegistry;
+    private Controller.MidiManager? _midiManager;
     // Other startup tasks (music-dir resolution, audio init) need the DB to read
     // settings. They await this TCS so they don't race the DB open task.
     private readonly TaskCompletionSource<IDbContextFactory<SholtoDbContext>?> _dbReady =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    // Which world this process runs against — real FLX4 + real window + real view
+    // model, or (later) a scripted stand-in. Chosen once, at the entry point
+    // (Program.BuildAvaloniaApp), and handed in here; App itself never picks. The
+    // factory only ASSEMBLES the three entities Orchestrator binds — every leaf
+    // collaborator below is still built by this class. See ISholtoEntities.
+    private readonly ISholtoEntities _entities;
+
+    // The plain-.NET leaves (tool stack, decoder, analysis stack, deck factory,
+    // storage, device enumeration, track scanner) — built in Program.BuildAvaloniaApp,
+    // before Avalonia's own setup runs, and handed in here. See SholtoStack for what's
+    // inside, why it had to move up, and why _themeContext above did NOT move with it.
+    private readonly SholtoStack _stack;
+
+    public App() : this(new LiveEntities(), SholtoStack.Build()) { }
+
+    public App(ISholtoEntities entities, SholtoStack stack)
+    {
+        _entities = entities;
+        _stack = stack;
+    }
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var vm = new MainViewModel(
-                Microsoft.Extensions.Options.Options.Create(new MagnetismOptions()),
-                Microsoft.Extensions.Options.Options.Create(new FeatureOptions()));
+            // Every leaf below except _themeContext was built in
+            // Program.BuildAvaloniaApp, before this method (and before
+            // Initialize()) ever ran — see SholtoStack for what's inside, in
+            // what order, and why. demucsCache is read out here because it
+            // (unlike the rest of the tool stack) is only needed for the
+            // ApplicationLeaves bundle just below, not by anything already
+            // baked into _stack.
+            var demucsCache = _stack.ToolStack.StemCache;
+
+            _themeContext = new ThemeContext();
+
+            // Leaves are done. Hand the app-side bundle to the entity factory and let
+            // IT assemble the application + keyboard pair — that pairing (the window's
+            // DataContext IS the application Orchestrator is given) is the factory's
+            // whole reason to exist, and used to be an unguaranteed
+            // `(IKeyboard)desktop.MainWindow!` cast down in InitializeServices.
+            // The leaves only mean anything to the live assembly; a scripted one
+            // brings its own, which is why this is not on ISholtoEntities.
+            if (_entities is LiveEntities live)
+                live.UseApplicationLeaves(new ApplicationLeaves(
+                    SholtoOptions.Default.Feature,
+                    _stack.Decoder, _stack.DeckFactory, _themeContext, demucsCache, _stack.AnalysisStack.Reporter,
+                    _stack.TrackScanner, _stack.AnalysisStack.HarmonicKeys, _stack.AnalysisStack.KeyAnalyzer,
+                    _stack.AnalysisStack.SongSegments));
+
+            // The one remaining concrete coupling: App's own startup work (library
+            // scan, theme, known-BPM seeding, debug stats) is MainViewModel-specific
+            // and deliberately NOT on IApplication — IApplication is the four roles
+            // Orchestrator needs, not everything the app can do.
+            var vm = (MainViewModel)_entities.CreateApplication();
             _vm = vm;
-            desktop.MainWindow = new Views.MainWindow { DataContext = vm };
+            desktop.MainWindow = (Avalonia.Controls.Window)_entities.CreateKeyboard();
 
             // Let the window paint its first frame, THEN initialize services.
             // Posting at Background priority ensures Render runs before InitializeServices.
@@ -64,7 +122,7 @@ public partial class App : Application
         {
             try
             {
-                _factory = await SholtoStorage.OpenAsync();
+                _factory = await _stack.Storage.OpenAsync();
                 Console.WriteLine($"[DB] opened {SholtoStorage.DefaultDbPath()}");
 
                 var tagService = new TagService(_factory);
@@ -77,33 +135,16 @@ public partial class App : Application
                     vm.AttachMarkerService(markerService);
                 });
 
-                var basicCache = new BasicAnalysisCache(_factory);
-                var keyCache   = new KeyAnalysisCache(_factory);
-                var gridCache  = new GridAdjustmentCache(_factory);
-
-                var sharedCaches = new IAnalysisCache[]
-                {
-                    new MemoryAnalysisCache(),
-                    basicCache,
-                };
-                AnalysisProvider MakeProvider() => new(
-                    caches: sharedCaches,
-                    compute: (path, samples, rate, ct) =>
-                        BasicAnalysis.ComputeAsync(path, samples, channels: 2, sampleRate: rate, reporter: vm.Reporter, ct: ct));
-                vm.Deck1.Player.AnalysisProvider = MakeProvider();
-                vm.Deck2.Player.AnalysisProvider = MakeProvider();
-
-                foreach (var deck in new[] { vm.Deck1.Player, vm.Deck2.Player })
-                {
-                    deck.KeyCacheGet = keyCache.TryGetAsync;
-                    deck.KeyCachePut = keyCache.PutAsync;
-                    // Persist manual beatgrid corrections (BPM override +
-                    // phase offset) as a tiny per-track row. madmom's
-                    // detection stays immutable; the grid is regenerated
-                    // from detection + this adjustment on every load.
-                    deck.GridAdjustmentPut = gridCache.PutAsync;
-                    deck.GridAdjustmentGet = gridCache.TryGetAsync;
-                }
+                // Build the 3 DB-backed tiers and point the switchable
+                // wrappers at them. Both decks already hold those SAME
+                // switchable instances (handed to DeckFactory before the DB
+                // existed) — nothing here reaches back into Deck1.Player/
+                // Deck2.Player; the very temporal coupling IDeckFactory exists
+                // to remove. AttachDatabase is the one mutation in this whole
+                // path, and it mutates the switchable wrappers, never Deck.
+                // See AnalysisStack's class doc for what silently breaks if
+                // this call is ever skipped.
+                _stack.AnalysisStack.AttachDatabase(_factory);
 
                 Dictionary<string, double> bpms;
                 Dictionary<string, double> mults;
@@ -272,19 +313,38 @@ public partial class App : Application
         // doesn't take a Microsoft.Extensions.Options dependency); App builds it
         // through IOptions like the other *Options types, then hands the .Value
         // straight to the Controller, which threads it down to the mapping.
-        var flx4Options = Microsoft.Extensions.Options.Options.Create(new DdjFlx4Options());
-        _controller = new Sholto.Controller.Controller(flx4Options.Value);
+        var flx4Options = SholtoOptions.Default.DdjFlx4;
+        _mappingRegistry = new Controller.Mappings.MappingRegistry(flx4Options.Value);
+        _midiManager = new Controller.MidiManager(_mappingRegistry)
+        {
+            LogAllMessages = Environment.GetEnvironmentVariable("SHOLTO_MIDI_LOG") == "1",
+        };
+        // Leaves again: the MIDI stack is App's to build (mappings + manager above),
+        // the control surface made out of it is the factory's to assemble.
+        if (_entities is LiveEntities live) live.UseMidi(_midiManager);
+        _controller = _entities.CreateControlSurface();
         if (!_controller.Connect())
             Console.WriteLine("DDJ-FLX4 not found — use UI controls.");
 
         _recognizer = new GestureRecognizer();
-        _orchestrator = new Orchestrator(vm, () => _factory,
-            Microsoft.Extensions.Options.Options.Create(new ScratchOptions()),
-            _recognizer);
+        // The three entities Orchestrator glues, all three from the same factory, so
+        // they are consistent by construction: the control surface (just created),
+        // the keyboard (the same MainWindow already on screen — see IKeyboard), and
+        // the app (vm, which composes the four IApplication roles).
+        var keyboard = _entities.CreateKeyboard();
+        _orchestrator = new Orchestrator(_controller, keyboard, vm, () => _factory,
+            SholtoOptions.Default.Scratch,
+            SholtoOptions.Default.Magnetism,
+            _recognizer, _stack.Decoder);
+        // Orchestrator now owns magnetism eligibility (moved out of MainViewModel
+        // along with the jog state it's computed from — see the split plan in
+        // ~/Projects/sholto.md). It has no MainViewModel reference (only
+        // IApplication), so it pushes the UI-bound flag back via this event, the
+        // same pattern MasterCueRequested uses below.
+        _orchestrator.MagnetEligibilityChanged += eligible => vm.IsMagnetEligible = eligible;
 
         _bus = new GestureBus();
-        _appBindings = new GestureBindings("app",
-            GestureIds.All.ToDictionary(id => id, _ => new Action<Gesture>(g => _orchestrator!.HandleGesture(g))));
+        _appBindings = new GestureBindings("app", _orchestrator.BuildGestureTable());
         _bus.Register(_appBindings);
         // The controller guide's own table on the SAME bus, same vocabulary, different
         // delegate — every gesture selects and blinks the control that owns it (see
@@ -325,7 +385,7 @@ public partial class App : Application
         // pad-mode (HOT CUE / PAD FX1) LEDs without forgetting which page is actually
         // active, so ReassertPadPages() repaints those from the Controller's own
         // memory the same way.
-        Sholto.Controller.Controller.CueSnapshot cueSnapshot = default;
+        Sholto.Controller.CueSnapshot cueSnapshot = default;
         vm.GestureRoutingChanged += routing =>
         {
             var inspect = routing == GestureRouting.Inspect;
@@ -366,25 +426,27 @@ public partial class App : Application
         vm.ControllerConnected = _controller.IsConnected;
         _controller.ConnectionChanged += connected =>
             Dispatcher.UIThread.Post(() => vm.ControllerConnected = connected);
-        // App→controller output: orchestrator asks, controller lights the LED.
-        _orchestrator.BeatSyncLightRequested += (deck, on) => _controller.SetBeatSync(deck, on);
-        _orchestrator.PadLightRequested += (deck, group, on) => _controller.SetPadLight(deck, group, on);
-        _orchestrator.EchoLightRequested += (deck, on) => _controller.SetEchoLight(deck, on);
+        // Orchestrator now drives BEAT SYNC/pad/echo LEDs directly against the
+        // control surface it was constructed with (the LED relay moved out of
+        // App and into Orchestrator — see Orchestrator.ReassertLights). Master
+        // cue still goes through an event: its destination is the audio engine,
+        // not the control surface, and Orchestrator holds no reference to it.
         _orchestrator.MasterCueRequested += on => _audioEngine?.SetMasterCue(on);
 
         // Known state on boot: every button LED off + cue audio cleared, emitted
-        // after Action is wired so the cleared-cue events reach the Session.
+        // after Action is wired so the cleared-cue events reach the Tool.
         _controller.Reset();
         _orchestrator.Start();
 
         // SHOLTO_DEBUG_STATS=1 → top-right CPU/RAM readout, sampled once per second.
-        if (ProcessStats.Enabled)
+        _processStats = new ProcessStats();
+        if (_processStats.Enabled)
         {
             // Warm-up read so the first displayed value isn't garbage from the
             // long since-startup interval.
-            _ = ProcessStats.Sample();
+            _ = _processStats.Sample();
             _statsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _statsTimer.Tick += (_, _) => vm.DebugStats = ProcessStats.SampleString();
+            _statsTimer.Tick += (_, _) => vm.DebugStats = _processStats.SampleString();
             _statsTimer.Start();
         }
 
@@ -399,7 +461,7 @@ public partial class App : Application
 
     private async Task StartAudioAsync(MainViewModel vm, IClassicDesktopStyleApplicationLifetime desktop)
     {
-        var allDevices = await Task.Run(() => AudioDevices.EnumerateOutputs());
+        var allDevices = await Task.Run(() => _stack.AudioDevices.EnumerateOutputs());
         if (allDevices.Count == 0)
         {
             Console.WriteLine("No audio output devices found.");
@@ -443,7 +505,7 @@ public partial class App : Application
         {
             try
             {
-                var engine = new AudioEngine(vm.Deck1.Player, vm.Deck2.Player);
+                var engine = new AudioEngine([_stack.FlacStrategy], _stack.PipeWireRouter, vm.Deck1.Player, vm.Deck2.Player);
                 engine.Start(chosen?.Name);
                 _audioEngine = engine;
                 Console.WriteLine($"Audio engine started; master speaker={(chosen?.Name ?? "(FLX4, no separate speaker chosen)")}");
@@ -510,7 +572,7 @@ public partial class App : Application
 
         // Excludes the FLX4 — see StartAudioAsync's comment. If it's the only
         // device connected there's nothing to offer; leave master on it.
-        var allDevices = await Task.Run(() => AudioDevices.EnumerateOutputs());
+        var allDevices = await Task.Run(() => _stack.AudioDevices.EnumerateOutputs());
         var devices = allDevices.Where(d => !PipeWireRouter.IsFlx4(d.Name)).ToList();
         if (devices.Count == 0) return;
 
@@ -540,7 +602,7 @@ public partial class App : Application
             {
                 if (_audioEngine is null)
                 {
-                    var engine = new AudioEngine(_vm.Deck1.Player, _vm.Deck2.Player);
+                    var engine = new AudioEngine([_stack.FlacStrategy], _stack.PipeWireRouter, _vm.Deck1.Player, _vm.Deck2.Player);
                     engine.Start(chosen.Name);
                     _audioEngine = engine;
                 }

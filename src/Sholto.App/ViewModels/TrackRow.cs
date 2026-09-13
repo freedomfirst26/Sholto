@@ -17,6 +17,10 @@ public enum TrackAnalysisState
     Analyzing,
     /// <summary>BPM/beats + stems are done.</summary>
     Analyzed,
+    /// <summary>An analysis step reported a failure and the track did not finish.
+    /// Distinct from <see cref="Unanalyzed"/> on purpose: a broken external analyser
+    /// used to look exactly like a track nobody had got round to yet.</summary>
+    Failed,
 }
 
 /// <summary>
@@ -33,7 +37,15 @@ public sealed class TrackRow : INotifyPropertyChanged
     public string Artist => Track.Artist;
     public TimeSpan Duration => Track.Duration;
 
-    public TrackRow(Track track) { Track = track; }
+    private readonly IThemeContext _theme;
+    private readonly IHarmonicKeys _harmonicKeys;
+
+    public TrackRow(Track track, IThemeContext theme, IHarmonicKeys harmonicKeys)
+    {
+        Track = track;
+        _theme = theme;
+        _harmonicKeys = harmonicKeys;
+    }
 
     private double? _bpm;
     /// <summary>Raw BPM as detected by madmom (or null pre-analysis).</summary>
@@ -73,12 +85,54 @@ public sealed class TrackRow : INotifyPropertyChanged
         set { if (_isAnalyzing == value) return; _isAnalyzing = value; Notify(); NotifyAnalysisState(); }
     }
 
+    private string? _analysisFailure;
+    /// <summary>The failure text from the reporter (step name + the analyser's own
+    /// output tail), or null if nothing has failed. Set by MainViewModel from
+    /// <see cref="AnalysisReport.FailureMessage"/>.</summary>
+    public string? AnalysisFailure
+    {
+        get => _analysisFailure;
+        set
+        {
+            if (_analysisFailure == value) return;
+            _analysisFailure = value;
+            Notify();
+            Notify(nameof(AnalysisFailureTooltip));
+            NotifyAnalysisState();
+        }
+    }
+
+    /// <summary>Tooltip behind the failure marker.</summary>
+    public string AnalysisFailureTooltip =>
+        string.IsNullOrEmpty(_analysisFailure) ? "" : "Analysis failed\n" + _analysisFailure;
+
+    private bool _hasRequiredFailure;
+    /// <summary>True when <see cref="AnalysisFailure"/> includes a failure of a
+    /// REQUIRED step (currently just beat/BPM detection — see
+    /// <see cref="Sholto.Analysis.AnalysisReport.HasRequiredFailure"/>). Set by
+    /// MainViewModel alongside <see cref="AnalysisFailure"/>. Distinct from a plain
+    /// non-empty <see cref="AnalysisFailure"/> because that also covers OPTIONAL
+    /// step failures (stems, segments), which must not override a green tick — a
+    /// required failure must.</summary>
+    public bool HasRequiredFailure
+    {
+        get => _hasRequiredFailure;
+        set
+        {
+            if (_hasRequiredFailure == value) return;
+            _hasRequiredFailure = value;
+            Notify();
+            NotifyAnalysisState();
+        }
+    }
+
     private void NotifyAnalysisState()
     {
         Notify(nameof(Analyzed));
         Notify(nameof(AnalysisState));
         Notify(nameof(ShowAnalyzingSpinner));
         Notify(nameof(ShowAnalyzedCheck));
+        Notify(nameof(ShowAnalysisFailed));
     }
 
     /// <summary>Fully analyzed: basic (BPM + beats) AND stems on disk.</summary>
@@ -88,15 +142,25 @@ public sealed class TrackRow : INotifyPropertyChanged
     /// wins over "done" so we never render a spinner and a checkmark together — that
     /// overlap (reporter still busy on a later step while BPM+stems already landed)
     /// was the double-decoration bug.</summary>
+    /// <para>An OPTIONAL step's failure ranks below Analyzed: it can
+    /// fail on a track whose BPM and stems both landed, and that track really is
+    /// analysed — the marker appears only when something is genuinely missing.
+    /// A REQUIRED step's failure (<see cref="HasRequiredFailure"/>) ranks ABOVE
+    /// Analyzed: a re-analysis with a broken beat tracker must not keep showing the
+    /// green tick just because a previous successful run left BPM + stems cached —
+    /// the beatgrid the tick promises did not actually get regenerated.</para>
     public TrackAnalysisState AnalysisState =>
-        _isAnalyzing ? TrackAnalysisState.Analyzing
-      : Analyzed     ? TrackAnalysisState.Analyzed
-      :                TrackAnalysisState.Unanalyzed;
+        _isAnalyzing                         ? TrackAnalysisState.Analyzing
+      : _hasRequiredFailure                  ? TrackAnalysisState.Failed
+      : Analyzed                             ? TrackAnalysisState.Analyzed
+      : !string.IsNullOrEmpty(_analysisFailure) ? TrackAnalysisState.Failed
+      :                                        TrackAnalysisState.Unanalyzed;
 
     // View helpers — exactly one is ever true (compiled bindings are off, so the
     // XAML binds these bools rather than comparing the enum).
     public bool ShowAnalyzingSpinner => AnalysisState == TrackAnalysisState.Analyzing;
     public bool ShowAnalyzedCheck    => AnalysisState == TrackAnalysisState.Analyzed;
+    public bool ShowAnalysisFailed   => AnalysisState == TrackAnalysisState.Failed;
 
     private string? _key;
     public string? Key
@@ -118,10 +182,8 @@ public sealed class TrackRow : INotifyPropertyChanged
         get
         {
             if (string.IsNullOrEmpty(_key)) return Brushes.Transparent;
-            var p = ThemeContext.Current.CamelotPalette;
-            double sat = _isPlayed ? p.Saturation * 0.3 : p.Saturation;
-            uint rgb = CamelotKeys.Rgb(_key!, p.HueOffset, sat, p.MajorLightness, p.MinorLightness);
-            return new SolidColorBrush(unchecked((uint)0xFF000000 | rgb));
+            var p = _theme.Current.CamelotPalette;
+            return p.KeyBrush(_key!, _harmonicKeys, saturationScale: _isPlayed ? 0.3 : 1.0);
         }
     }
 
@@ -154,7 +216,7 @@ public sealed class TrackRow : INotifyPropertyChanged
     public double HarmonyOpacity =>
         (string.IsNullOrEmpty(_referenceKey) || string.IsNullOrEmpty(_key))
             ? 1.0
-            : CamelotKeys.Compatibility(_referenceKey!, _key!) switch
+            : _harmonicKeys.Compatibility(_referenceKey!, _key!) switch
             {
                 CamelotKeys.Harmony.Perfect     => 1.00,
                 CamelotKeys.Harmony.Close       => 0.85,
@@ -171,7 +233,7 @@ public sealed class TrackRow : INotifyPropertyChanged
         get
         {
             if (string.IsNullOrEmpty(_referenceKey) || string.IsNullOrEmpty(_key)) return false;
-            return CamelotKeys.Compatibility(_referenceKey!, _key!) != CamelotKeys.Harmony.Far;
+            return _harmonicKeys.Compatibility(_referenceKey!, _key!) != CamelotKeys.Harmony.Far;
         }
     }
 

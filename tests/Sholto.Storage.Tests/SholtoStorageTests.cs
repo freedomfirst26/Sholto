@@ -12,35 +12,13 @@ public class SholtoStorageTests
         var p = Path.Combine(Path.GetTempPath(), $"sholto-open-{Guid.NewGuid():N}.db");
         try
         {
-            var factory = await SholtoStorage.OpenAsync(p);
+            var factory = await new SholtoStorage().OpenAsync(p);
             await using var db = factory.CreateDbContext();
             db.Tracks.Add(new Track { Path = "/a.flac", Title = "T", Artist = "A" });
             await db.SaveChangesAsync();
             Assert.Equal(1, await db.Tracks.CountAsync());
         }
         finally { if (File.Exists(p)) File.Delete(p); }
-    }
-
-    [Fact]
-    public async Task OpenAsync_on_v3_path_bridges_and_returns_factory()
-    {
-        var p = Path.Combine(Path.GetTempPath(), $"sholto-open-v3-{Guid.NewGuid():N}.db");
-        try
-        {
-            await V3FixtureBuilder.BuildAsync(p);
-            await V3FixtureBuilder.InsertTrackAsync(p,
-                new V3FixtureBuilder.SeedTrack("/a.flac", 1, 1, "T", "A", 100));
-            var factory = await SholtoStorage.OpenAsync(p);
-            await using var db = factory.CreateDbContext();
-            Assert.Equal(1, await db.Tracks.CountAsync());
-            Assert.Equal("/a.flac", (await db.Tracks.FirstAsync()).Path);
-        }
-        finally
-        {
-            if (File.Exists(p)) File.Delete(p);
-            foreach (var b in Directory.GetFiles(Path.GetTempPath(),
-                Path.GetFileName(p) + ".pre-efcore-backup-*")) File.Delete(b);
-        }
     }
 
     [Fact]
@@ -51,7 +29,7 @@ public class SholtoStorageTests
         try
         {
             await File.WriteAllBytesAsync(trackFile, new byte[] { 1, 2, 3 });
-            var factory = await SholtoStorage.OpenAsync(p);
+            var factory = await new SholtoStorage().OpenAsync(p);
 
             await using (var db = factory.CreateDbContext())
             {

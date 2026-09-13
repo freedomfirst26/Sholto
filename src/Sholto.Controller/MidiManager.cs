@@ -15,7 +15,7 @@ public sealed class MidiManager : IDisposable
     private AlsaRawMidi? _rawMidi;
     private IControllerMapping? _mapping;
     private CancellationTokenSource? _superCts;
-    private readonly DdjFlx4Options _flx4Options;
+    private readonly IControllerMappings _mappings;
 
     public event Action<ControllerEvent>? EventReceived;
 
@@ -40,10 +40,9 @@ public sealed class MidiManager : IDisposable
     /// <summary>Write raw MIDI bytes out to the controller (e.g. LED updates).</summary>
     public void Send(byte[] bytes) => _rawMidi?.SendRaw(bytes);
 
-    /// <param name="flx4Options">Wire numbers for the DDJ-FLX4 mapping. Defaults
-    /// to <c>new DdjFlx4Options()</c> (the device's built-in wire numbers) if
-    /// not supplied.</param>
-    public MidiManager(DdjFlx4Options? flx4Options = null) => _flx4Options = flx4Options ?? new DdjFlx4Options();
+    /// <param name="mappings">The configured device mapping set, composed once at
+    /// bootstrap (carries the DDJ-FLX4's wire numbers).</param>
+    public MidiManager(IControllerMappings mappings) => _mappings = mappings;
 
     /// <summary>Start keeping a controller connected. Makes one immediate attempt
     /// (so a controller present at launch is live at once) and then supervises in
@@ -62,7 +61,7 @@ public sealed class MidiManager : IDisposable
 
     private bool TryConnectOnce()
     {
-        foreach (var mapping in MappingRegistry.Build(_flx4Options))
+        foreach (var mapping in _mappings.Mappings)
         {
             var raw = AlsaRawMidi.Open(mapping.DeviceNameMatch);
             if (raw is null) continue;
@@ -72,6 +71,8 @@ public sealed class MidiManager : IDisposable
             raw.Disconnected += OnDeviceLost;
             _rawMidi = raw;
             Console.WriteLine($"[MIDI] connected to {mapping.DeviceNameMatch} via /dev/snd raw MIDI (mapping: {mapping.GetType().Name})");
+            var init = mapping.StartupInit();
+            if (init is not null) raw.SendRaw(init);
             Connected?.Invoke();
             return true;
         }

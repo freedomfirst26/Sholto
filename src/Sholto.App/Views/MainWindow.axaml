@@ -226,6 +226,15 @@
                                              Background="Transparent"
                                              Foreground="{DynamicResource SholtoAccent}"
                                              IsVisible="{Binding ShowAnalyzingSpinner}"/>
+                                <!-- Failed state — amber "!" where the tick would be.
+                                     An analyser that died used to leave this cell blank,
+                                     which reads identically to "not analysed yet". The
+                                     tooltip carries the analyser's own error output. -->
+                                <TextBlock Text="!"
+                                           Foreground="{DynamicResource SholtoWarning}"
+                                           FontSize="13" FontWeight="Bold"
+                                           ToolTip.Tip="{Binding AnalysisFailureTooltip}"
+                                           IsVisible="{Binding ShowAnalysisFailed}"/>
                             </Grid>
                             <Border Grid.Column="1"
                                     IsVisible="{Binding HasTags}"

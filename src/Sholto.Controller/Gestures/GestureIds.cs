@@ -13,7 +13,7 @@ public static class GestureIds
     public const string CueHeadphoneToggle   = "cue.headphone.press";
     public const string MasterCueToggle      = "mastercue.press";
     public const string SyncPress            = "sync.press";
-    public const string SyncCyclePitchRange  = "sync.shift";
+    public const string SyncCycleTempoRange  = "sync.shift";
     public const string LoadPress            = "load.press";
 
     // Jog
@@ -35,6 +35,7 @@ public static class GestureIds
     public const string PadStemVocals        = "pad.hotcue.vocals";
     public const string PadStemInstrumental  = "pad.hotcue.instrumental";
     public const string PadEcho              = "pad.padfx1.echo";
+    public const string PadRoll              = "pad.padfx1.roll";
     public const string PadModeHotCue        = "padmode.hotcue.press";
     public const string PadModePadFx1        = "padmode.padfx1.press";
 
@@ -57,10 +58,10 @@ public static class GestureIds
     public static readonly IReadOnlyList<string> All =
     [
         PlayPress, CueTransportPlain, CueTransportRestart, CueHeadphoneToggle,
-        MasterCueToggle, SyncPress, SyncCyclePitchRange, LoadPress,
+        MasterCueToggle, SyncPress, SyncCycleTempoRange, LoadPress,
         JogTopTurn, JogTopShiftTurn, JogTopTouch, JogRingTurn,
         EqTurn, EqStemLevelTurn, FilterTurn, VolumeMove, TempoMove, CrossfaderMove,
-        PadStemDrums, PadStemVocals, PadStemInstrumental, PadEcho,
+        PadStemDrums, PadStemVocals, PadStemInstrumental, PadEcho, PadRoll,
         PadModeHotCue, PadModePadFx1,
         BeatLoopToggle, BeatLoopHalve, BeatLoopDouble, GridNudgeBack, GridNudgeForward,
         BrowseTurn, BrowsePressShort, BrowsePressHold,

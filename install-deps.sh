@@ -7,12 +7,30 @@
 set -e
 
 if [ -t 1 ]; then
-    BOLD=$'\033[1m'; DIM=$'\033[2m'; GREEN=$'\033[1;32m'; CYAN=$'\033[1;36m'; BLUE=$'\033[1;34m'; RESET=$'\033[0m'
+    BOLD=$'\033[1m'; DIM=$'\033[2m'; GREEN=$'\033[1;32m'; CYAN=$'\033[1;36m'; YELLOW=$'\033[1;33m'; BLUE=$'\033[1;34m'; RESET=$'\033[0m'
 else
-    BOLD=''; DIM=''; GREEN=''; CYAN=''; BLUE=''; RESET=''
+    BOLD=''; DIM=''; GREEN=''; CYAN=''; YELLOW=''; BLUE=''; RESET=''
 fi
 ok()   { echo "  ${GREEN}✓${RESET} $*"; }
 info() { echo "  ${CYAN}·${RESET} ${DIM}$*${RESET}"; }
+warn() { echo "  ${YELLOW}✗${RESET} $*" >&2; }
+
+# ── Shared tool definitions ───────────────────────────────────────────────────
+# Pins and health checks live in sholto-deps.sh so install.sh and this script
+# cannot drift apart. It ships in the release tarball next to this file.
+DEPS_DIR="$(dirname "$(readlink -f "$0")")"
+if [ ! -r "$DEPS_DIR/sholto-deps.sh" ]; then
+    warn "sholto-deps.sh is missing from $DEPS_DIR — re-extract the release tarball."
+    exit 1
+fi
+# shellcheck source=sholto-deps.sh
+. "$DEPS_DIR/sholto-deps.sh"
+
+if [ "${1:-}" = "--verify" ]; then
+    echo ""
+    echo "${BOLD}${BLUE}Sholto${RESET} — ${DIM}verify${RESET}"
+    if deps_verify; then exit 0; else exit 1; fi
+fi
 
 echo ""
 echo "${BOLD}${BLUE}Sholto${RESET} — ${DIM}runtime dependencies${RESET}"
@@ -40,20 +58,45 @@ fi
 ok "uv $(uv --version 2>/dev/null | awk '{print $2}')"
 
 # 4. madmom — REQUIRED. Beat/tempo detection; without a beatgrid a track won't play.
-uv tool install madmom-onnx && ok "madmom-onnx (beat tracker)"
+#    Versions and the reasoning behind them are in sholto-deps.sh.
+# Unlike demucs below, a broken madmom is fatal to the install — see the
+# check at the end of this script. We still `|| true` the install command itself
+# (a failed `uv tool install` shouldn't kill the script under set -e before we
+# get a chance to print a proper error) and keep going so demucs below
+# still gets installed for a user who wants to fix madmom afterwards.
+MADMOM_BROKEN=0
+if check_madmom; then
+    ok "madmom-onnx (beat tracker) already working"
+else
+    uv tool install --force --python "$SHOLTO_PYTHON" \
+        "$SHOLTO_MADMOM_SPEC" "${SHOLTO_MADMOM_WITH[@]}" || true
+    if check_madmom; then
+        ok "madmom-onnx (beat tracker)"
+    else
+        warn "madmom-onnx installed but failed its functional check (${SHOLTO_CHECK_DETAIL})"
+        MADMOM_BROKEN=1
+    fi
+fi
 
 # 5. demucs — OPTIONAL. Stem separation (drums / vocals / bass / other).
-uv tool install demucs && ok "demucs (stems)" || info "demucs failed — stems disabled"
-
-# 6. allin1 — OPTIONAL, large (PyTorch). AI song sections. Off unless asked for.
-if [ "${SHOLTO_INSTALL_ALLIN1:-0}" = "1" ]; then
-    uv tool install "allin1" --with "torch" --with "natten" \
-        --with "madmom @ git+https://github.com/CPJKU/madmom" \
-        && ok "allin1 (AI song sections)" \
-        || info "allin1 failed — Sholto falls back to the built-in segmenter"
+if check_demucs; then
+    ok "demucs (stems) already working"
 else
-    info "Skipping allin1 (set SHOLTO_INSTALL_ALLIN1=1 to enable AI song sections)"
+    uv tool install --force --python "$SHOLTO_PYTHON" \
+        "$SHOLTO_DEMUCS_SPEC" "${SHOLTO_DEMUCS_WITH[@]}" || true
+    if check_demucs; then
+        ok "demucs (stems) — verified with a test separation"
+    else
+        info "demucs installed but failed its functional check (${SHOLTO_CHECK_DETAIL}) — stems disabled"
+    fi
 fi
 
 echo ""
+if [ "$MADMOM_BROKEN" = "1" ]; then
+    warn "madmom-onnx (beat tracker) is REQUIRED and still not working — Sholto will run"
+    warn "but no track will get a beatgrid, so nothing will play."
+    warn "Check the warning above, fix your network/Python environment, then re-run"
+    warn "./install-deps.sh (or just './install-deps.sh --verify' to recheck)."
+    exit 1
+fi
 ok "Done. Ensure ~/.local/bin is on your PATH, then run ./Sholto.App"

@@ -11,16 +11,13 @@ public sealed record BasicAnalysis(
     double[] BeatTimes,
     double[] DownbeatTimes) : IAnalysis
 {
-    public const string WaveformStep = "waveform";
-    public const string BeatsStep    = "beats";
-
     public string Name => "Basic";
 
     public static BasicAnalysis Empty { get; } = new(WaveformPeaks.Empty, 0.0, [], []);
 
     /// <summary>
-    /// Build waveform peaks from the decoded samples and run madmom on the file
-    /// for BPM + beats + downbeats. Reports progress through <paramref name="reporter"/>
+    /// Build waveform peaks from the decoded samples and run the beat analysis
+    /// step for BPM + beats + downbeats. Reports progress through <paramref name="reporter"/>
     /// if supplied.
     /// </summary>
     public static async Task<BasicAnalysis> ComputeAsync(
@@ -28,34 +25,37 @@ public sealed record BasicAnalysis(
         float[] stereoSamples,
         int channels,
         int sampleRate,
-        AnalysisReporter? reporter = null,
+        IBeatAnalysisStep beatAnalyzer,
+        IWaveformPeakAnalyzer peakAnalyzer,
+        IBeatgridFitter beatgridFitter,
+        IAnalysisReporter reporter,
         CancellationToken ct = default)
     {
-        reporter?.Running(filePath, WaveformStep);
-        var (peaks, _, _) = WaveformPeaks.ComputeWithOnsets(stereoSamples, channels, sampleRate);
-        reporter?.Complete(filePath, WaveformStep);
+        reporter.Running(filePath, AnalysisSteps.Waveform);
+        var peaks = peakAnalyzer.Compute(stereoSamples, channels, sampleRate);
+        reporter.Complete(filePath, AnalysisSteps.Waveform);
 
-        reporter?.Running(filePath, BeatsStep);
+        reporter.Running(filePath, AnalysisSteps.Beats);
         try
         {
-            var (bpm, rawBeats, rawDownbeats) = await MadmomBeatAnalyzer.AnalyzeAsync(filePath, ct);
+            var (bpm, rawBeats, rawDownbeats) = await beatAnalyzer.AnalyzeAsync(filePath, ct);
 
-            // Replace madmom's raw beat + downbeat detections with a constant-
-            // spacing beatgrid derived from the song's BPM and the densest-
-            // cluster phase anchor. Every Nth synthesized beat is a synthesized
-            // downbeat by construction — guarantees the waveform's small beat
-            // ticks always coincide with the tall downbeat bars, and gives sync
-            // / quantised-loops a single canonical grid.
+            // Replace the beat analysis step's raw beat + downbeat detections
+            // with a constant-spacing beatgrid derived from the song's BPM and
+            // the densest-cluster phase anchor. Every Nth synthesized beat is a
+            // synthesized downbeat by construction — guarantees the waveform's
+            // small beat ticks always coincide with the tall downbeat bars, and
+            // gives sync / quantised-loops a single canonical grid.
             double durationSec = stereoSamples.Length / (double)Math.Max(channels, 1) / Math.Max(sampleRate, 1);
-            var (beats, downbeats) = Beatgrid.SynthesizeFullGrid(bpm, rawBeats, rawDownbeats, durationSec);
+            var (beats, downbeats) = beatgridFitter.SynthesizeFullGrid(bpm, rawBeats, rawDownbeats, durationSec);
 
-            reporter?.Complete(filePath, BeatsStep,
+            reporter.Complete(filePath, AnalysisSteps.Beats,
                 $"{bpm:F1} BPM, {downbeats.Length} downbeats / {beats.Length} beats (from {rawDownbeats.Length}/{rawBeats.Length} raw)");
             return new BasicAnalysis(peaks, bpm, beats, downbeats);
         }
         catch (Exception ex)
         {
-            reporter?.Failed(filePath, BeatsStep, ex.Message);
+            reporter.Failed(filePath, AnalysisSteps.Beats, ex.Message);
             throw;
         }
     }

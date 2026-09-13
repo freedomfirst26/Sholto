@@ -45,12 +45,18 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     // can unsubscribe from it when _player.Analysis gets replaced (each
     // BeginLoad creates a fresh TrackAnalysis on the player).
     private TrackAnalysis? _subscribedAnalysis;
+    private readonly IThemeContext _theme;
+    private readonly IHarmonicKeys _harmonicKeys;
+    private readonly ISongSegmentAnalyzer _songSegmentAnalyzer;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public DeckViewModel(Deck player)
+    public DeckViewModel(Deck player, IThemeContext theme, IHarmonicKeys harmonicKeys, ISongSegmentAnalyzer songSegmentAnalyzer)
     {
         _player = player;
+        _theme = theme;
+        _harmonicKeys = harmonicKeys;
+        _songSegmentAnalyzer = songSegmentAnalyzer;
         RebindAnalysisSubscription();
         _player.LoopChanged += OnLoopChanged;
         _player.GridNudgedChanged += OnGridNudgedChanged;
@@ -153,28 +159,13 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             _subscribedAnalysis.KeyReady        -= OnKeyReady;
             _subscribedAnalysis.StemsReady        -= OnStemsReady;
             _subscribedAnalysis.VocalRegionsReady -= OnVocalRegionsReady;
-            _subscribedAnalysis.SongSegmentsReady -= OnSongSegmentsReady;
         }
         _subscribedAnalysis = _player.Analysis;
         _subscribedAnalysis.BasicReady        += OnBasicReady;
         _subscribedAnalysis.KeyReady          += OnKeyReady;
         _subscribedAnalysis.StemsReady        += OnStemsReady;
         _subscribedAnalysis.VocalRegionsReady += OnVocalRegionsReady;
-        _subscribedAnalysis.SongSegmentsReady += OnSongSegmentsReady;
     }
-
-    // Model-based sections (allin1) arrive after the instant heuristic; when they do,
-    // they replace it (higher quality, real labels).
-    private void OnSongSegmentsReady(SongSegments g) =>
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            if (g.Segments.Count == 0) return;
-            Segments = g;
-            Console.WriteLine($"[Deck] AI song segments: {g.Segments.Count} (allin1)");
-            Notify(nameof(Segments));
-            Notify(nameof(HasSegments));
-            Notify(nameof(SectionMapVisible));
-        });
 
     // Each per-type handler only re-notifies the bindings that DEPEND on that
     // analysis type. Cheaper than the old "fire everything on AnalysisUpdated"
@@ -187,7 +178,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
             var basic = Analysis.Basic;
             if (basic is not null)
             {
-                Segments = SongSegmentAnalyzer.Analyze(
+                Segments = _songSegmentAnalyzer.Analyze(
                     basic.Peaks, basic.DownbeatTimes, AudioFileDecoder.TargetSampleRate);
                 Console.WriteLine($"[Deck] song segments: {Segments.Segments.Count} " +
                     $"(peaks={basic.Peaks.Min.Length}, downbeats={basic.DownbeatTimes.Length})");
@@ -646,16 +637,15 @@ public sealed class DeckViewModel : INotifyPropertyChanged
 
     /// <summary>Avalonia brush coloured by the Camelot key — used to tint the deck's
     /// key chip so the same colour shows here and in the library row. Pulls
-    /// hue/sat/lightness from the active <see cref="ThemeContext.Current"/>'s
+    /// hue/sat/lightness from the active <see cref="ThemeContext"/>'s
     /// CamelotPalette so theme switches retone live.</summary>
     public Avalonia.Media.IBrush KeyBrush
     {
         get
         {
             if (string.IsNullOrEmpty(Camelot)) return Avalonia.Media.Brushes.Transparent;
-            var p = ThemeContext.Current.CamelotPalette;
-            uint rgb = CamelotKeys.Rgb(Camelot, p.HueOffset, p.Saturation, p.MajorLightness, p.MinorLightness);
-            return new Avalonia.Media.SolidColorBrush(unchecked((uint)0xFF000000 | rgb));
+            var p = _theme.Current.CamelotPalette;
+            return p.KeyBrush(Camelot, _harmonicKeys);
         }
     }
 
@@ -665,7 +655,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     /// <summary>Adjust this deck's tempo fader so its <see cref="EffectiveBpm"/>
     /// matches <paramref name="targetBpm"/>. Used by magnet-snap: once two decks
     /// phase-align, locking their effective BPMs is what keeps them locked. If
-    /// the required shift falls outside <see cref="Deck.PitchRange"/>,
+    /// the required shift falls outside <see cref="Deck.TempoRange"/>,
     /// clamps to the edge of the fader range and gets as close as possible.
     /// Returns false on inputs that don't make sense (target ≤ 0, no source BPM,
     /// no pitch range configured).</summary>
@@ -689,7 +679,7 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         double mult = _bpmMultiplier > 0 ? _bpmMultiplier : 1.0;
         double desiredFader = desiredPlaybackSpeed / mult;
 
-        double range = _player.PitchRange;
+        double range = _player.TempoRange;
         if (range <= 0) return false;
 
         // PlaybackSpeed fader = 1 + (-1 + 2*pos) * range  ⇒  pos = 0.5 + (fader-1)/(2*range).
@@ -727,35 +717,35 @@ public sealed class DeckViewModel : INotifyPropertyChanged
         Notify(nameof(PlaybackSpeed));
     }
 
-    /// <summary>Forward a pitch-range change to the player and refresh UI.</summary>
-    public void SetPitchRange(double range)
+    /// <summary>Forward a tempo-range change to the player and refresh UI.</summary>
+    public void SetTempoRange(double range)
     {
-        _player.PitchRange = range;
+        _player.TempoRange = range;
         Notify(nameof(BpmDisplay));
         Notify(nameof(BpmDisplayShort));
         Notify(nameof(EffectiveBpm));
         Notify(nameof(IsTempoShifted));
-        Notify(nameof(PitchRangeDisplay));
+        Notify(nameof(TempoRangeDisplay));
         Notify(nameof(PlaybackSpeed));
     }
 
     // Rekordbox-style tempo-range stops: ±6 → ±10 → ±16 → WIDE (±100). The
     // fader keeps its physical position; only the span it maps to changes,
     // so the current playback speed is preserved across a range change as
-    // long as TempoPosition is re-applied (PitchRange setter does this).
-    private static readonly double[] PitchRangeStops = { 0.06, 0.10, 0.16, 1.00 };
+    // long as TempoPosition is re-applied (TempoRange setter does this).
+    private static readonly double[] TempoRangeStops = { 0.06, 0.10, 0.16, 1.00 };
 
     /// <summary>Cycle the tempo / pitch-fader range to the next Rekordbox
     /// stop (±6 → ±10 → ±16 → WIDE → ±6). Bound to Shift + BEAT SYNC.</summary>
-    public void CyclePitchRange()
+    public void CycleTempoRange()
     {
-        double current = _player.PitchRange;
+        double current = _player.TempoRange;
         int idx = 0;
-        for (int i = 0; i < PitchRangeStops.Length; i++)
-            if (Math.Abs(PitchRangeStops[i] - current) < 1e-6) { idx = i; break; }
-        double next = PitchRangeStops[(idx + 1) % PitchRangeStops.Length];
-        SetPitchRange(next);
-        Console.WriteLine($"[Deck] pitch range → {PitchRangeDisplay}");
+        for (int i = 0; i < TempoRangeStops.Length; i++)
+            if (Math.Abs(TempoRangeStops[i] - current) < 1e-6) { idx = i; break; }
+        double next = TempoRangeStops[(idx + 1) % TempoRangeStops.Length];
+        SetTempoRange(next);
+        Console.WriteLine($"[Deck] tempo range → {TempoRangeDisplay}");
     }
 
     /// <summary>True only when the tempo *fader* has moved off-centre. The
@@ -795,9 +785,9 @@ public sealed class DeckViewModel : INotifyPropertyChanged
     public string OriginalBpmShort =>
         SourceBpm > 0 ? $"{(SourceBpm * _bpmMultiplier):F1}" : "";
 
-    /// <summary>"±6%" / "±10%" / "±16%" / "WIDE" — the current pitch-range mode.</summary>
-    public string PitchRangeDisplay =>
-        _player.PitchRange >= 0.99 ? "WIDE" : $"±{_player.PitchRange * 100:F0}%";
+    /// <summary>"±6%" / "±10%" / "±16%" / "WIDE" — the current tempo-range mode.</summary>
+    public string TempoRangeDisplay =>
+        _player.TempoRange >= 0.99 ? "WIDE" : $"±{_player.TempoRange * 100:F0}%";
 
     /// <summary>Update the deck's UI for the incoming track *immediately*, before
     /// audio samples have been decoded. Clears stale analysis-derived bindings

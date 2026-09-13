@@ -8,14 +8,18 @@ namespace Sholto.Analysis;
 /// Thresholds against the stem's OWN peak envelope so a quiet-but-present vocal
 /// still registers, drops brief specks, and bridges short gaps — so the result
 /// reads as clean rectangles rather than a stipple.
+///
+/// Default <see cref="IVocalRegionAnalyzer"/>. Pure computation — no environment/
+/// filesystem/clock dependency — instance so a test/Bench harness can substitute
+/// a fake; it holds no state of its own.
 /// </summary>
-public static class VocalRegionAnalyzer
+public sealed class VocalRegionAnalyzer : IVocalRegionAnalyzer
 {
     public const float PresenceThreshold = 0.12f; // fraction of the stem's peak envelope
     public const double MinSpanSec = 0.20;        // ignore blips shorter than this
     public const double MergeGapSec = 0.25;       // bridge gaps shorter than this
 
-    public static VocalRegions Analyze(WaveformPeaks vocal, int sampleRate)
+    public VocalRegions Analyze(WaveformPeaks vocal, int sampleRate)
     {
         int n = vocal.Max.Length;
         if (n == 0) return VocalRegions.Empty;

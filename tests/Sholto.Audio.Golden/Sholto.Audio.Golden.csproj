@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Golden-audio regression tests: render fixed, synthesised scenarios through
+    the REAL mix path (Sholto.Bench's RenderSession → CueOutputRouter.Process,
+    the same per-buffer pull the real audio device makes) and diff the result
+    against a checked-in reference WAV.
+
+    Deliberately its OWN project, separate from Sholto.Bench.Tests, for two
+    reasons: (1) Sholto.Bench.Tests's own doc says it is "deliberately NOT
+    audio-hardware ... dependent: no MiniAudioEngine" — these tests build a
+    real MiniAudioEngine (no device opened, see BenchDeck.CreateEngine's doc,
+    but still a different dependency footprint / build time than Bench.Tests'
+    fast parser/header unit tests); (2) failure-diagnosis output here is
+    audio-specific (sample index, time, peak deviation) and doesn't belong
+    mixed in with Bench's own JSON/WAV-header/ffmpeg-parser tests.
+
+    References tools/Sholto.Bench directly (not Sholto.Audio) so it renders
+    through the exact same BenchDeck/BenchDeckFactory/RenderSession plumbing
+    the `render`/`state` CLI subcommands use — no parallel "test-only" deck
+    wiring to drift from what Bench itself does.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Sholto.Bench\Sholto.Bench.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

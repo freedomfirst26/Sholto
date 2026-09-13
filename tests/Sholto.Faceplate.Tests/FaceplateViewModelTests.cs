@@ -10,7 +10,7 @@ namespace Sholto.Faceplate.Tests;
 public class FaceplateViewModelTests
 {
     private static FaceplateViewModel New() =>
-        new(FaceplateDocLoader.LoadEmbedded("ddj-flx4"));
+        new(new FaceplateDocLoader().LoadEmbedded("ddj-flx4"));
 
     [Fact]
     public void The_panel_starts_closed_so_the_drawing_has_the_full_width()

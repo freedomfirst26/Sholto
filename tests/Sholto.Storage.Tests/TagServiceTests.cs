@@ -9,7 +9,7 @@ public class TagServiceTests
     private static async Task<(IDbContextFactory<SholtoDbContext> factory, Guid trackId, string dbPath)> NewWithOneTrackAsync()
     {
         var dbPath = Path.Combine(Path.GetTempPath(), $"sholto-tags-{Guid.NewGuid():N}.db");
-        var factory = await SholtoStorage.OpenAsync(dbPath);
+        var factory = await new SholtoStorage().OpenAsync(dbPath);
         var trackId = Guid.NewGuid();
         await using (var db = factory.CreateDbContext())
         {

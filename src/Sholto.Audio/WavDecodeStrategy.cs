@@ -11,5 +11,5 @@ public sealed class WavDecodeStrategy : IAudioDecodeStrategy
         extension is ".wav" or ".aiff" or ".aif";
 
     public float[] Decode(string filePath) =>
-        AudioFileDecoder.ReadNAudioToFloats(new AudioFileReader(filePath));
+        NAudioDecoding.ReadNAudioToFloats(new AudioFileReader(filePath));
 }

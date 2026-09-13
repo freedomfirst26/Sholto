@@ -10,7 +10,16 @@ sealed class Program
         .StartWithClassicDesktopLifetime(args);
 
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+        // The entry point picks the world: LiveEntities = real FLX4, real window,
+        // real view model. Avalonia's Configure<TApp>(Func<TApp>) overload is what
+        // lets App take constructor dependencies at all — see ISholtoEntities.
+        //
+        // SholtoStack.Build() runs here, inside this factory lambda — BEFORE
+        // Initialize() and OnFrameworkInitializationCompleted, ahead of even
+        // StartWithClassicDesktopLifetime's own setup. Avalonia's docs say nothing
+        // here may touch Avalonia types or expect a SynchronizationContext; every
+        // leaf SholtoStack builds was checked against that rule — see its class doc.
+        => AppBuilder.Configure(() => new App(new LiveEntities(), SholtoStack.Build()))
             .UsePlatformDetect()
             // Avalonia's X11 default is { Glx, Software } which often silently
             // falls back to Software on NVIDIA proprietary + Cinnamon. That kills

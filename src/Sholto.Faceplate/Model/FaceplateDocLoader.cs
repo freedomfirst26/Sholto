@@ -6,7 +6,7 @@ namespace Sholto.Faceplate.Model;
 /// assembly so the single-file release stays self-contained; an override in the
 /// user's data directory wins if it exists, so wording can be fixed without a
 /// rebuild.</summary>
-public static class FaceplateDocLoader
+public sealed class FaceplateDocLoader
 {
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -16,11 +16,11 @@ public static class FaceplateDocLoader
     };
 
     /// <summary>Path an override would live at, whether or not it exists.</summary>
-    public static string OverridePath(string deviceKey) => Path.Combine(
+    public string OverridePath(string deviceKey) => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "sholto", $"{deviceKey}.guide.json");
 
-    public static FaceplateDoc LoadEmbedded(string deviceKey)
+    public FaceplateDoc LoadEmbedded(string deviceKey)
     {
         var overridePath = OverridePath(deviceKey);
         if (File.Exists(overridePath))

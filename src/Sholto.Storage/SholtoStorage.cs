@@ -9,16 +9,16 @@ namespace Sholto.Storage;
 /// every operation can grab a short-lived <see cref="SholtoDbContext"/> with
 /// no shared mutable state.
 /// </summary>
-public static class SholtoStorage
+public sealed class SholtoStorage
 {
-    public static async Task<IDbContextFactory<SholtoDbContext>> OpenAsync(
+
+    public async Task<IDbContextFactory<SholtoDbContext>> OpenAsync(
         string? overridePath = null,
         CancellationToken ct = default)
     {
         var path = overridePath ?? DefaultDbPath();
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-        await DatabaseBridge.RunIfNeededAsync(path, ct);
 
         // No Cache=Shared: shared-cache serialises at table granularity and
         // returns SQLITE_LOCKED immediately on contention (not retryable by a

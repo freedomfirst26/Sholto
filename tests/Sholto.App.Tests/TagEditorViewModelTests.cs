@@ -11,7 +11,7 @@ public class TagEditorViewModelTests
     private static async Task<(TagService svc, Guid trackId, string dbPath)> NewAsync()
     {
         var dbPath = Path.Combine(Path.GetTempPath(), $"sholto-tageditor-{Guid.NewGuid():N}.db");
-        var factory = await SholtoStorage.OpenAsync(dbPath);
+        var factory = await new SholtoStorage().OpenAsync(dbPath);
         var trackId = Guid.NewGuid();
         await using (var db = factory.CreateDbContext())
         {

@@ -94,7 +94,7 @@ public sealed class DdjFlx4Options
     // --- Notes: beat sync ------------------------------------------------------------
     public int BeatSyncNote { get; set; } = 0x58;
     /// <summary>Shift + BEAT SYNC — the FLX-4 firmware remaps the chord to its own note.</summary>
-    public int CyclePitchRangeNote { get; set; } = 0x60;
+    public int CycleTempoRangeNote { get; set; } = 0x60;
 
     // --- CCs: mixer ---------------------------------------------------------------
     public int CrossfaderChannel { get; set; } = 7;

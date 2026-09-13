@@ -37,7 +37,7 @@
        from the right when a control is picked.
 
        The drawing itself is pure .axaml with no code-behind: everything below finds
-       the shapes by their fp:ControlSurface.Id and builds a parallel overlay layer of
+       the shapes by their fp:DeviceLayout.Id and builds a parallel overlay layer of
        tints, blooms and hit targets on top. Adding a controller therefore needs a new
        layout and a new guide JSON, and no changes here. -->
 

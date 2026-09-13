@@ -7,7 +7,7 @@ namespace Sholto.Faceplate.Tests;
 
 public class FaceplateDocTests
 {
-    private static FaceplateDoc Flx4() => FaceplateDocLoader.LoadEmbedded("ddj-flx4");
+    private static FaceplateDoc Flx4() => new FaceplateDocLoader().LoadEmbedded("ddj-flx4");
 
     [Fact]
     public void The_shipped_file_loads()

@@ -7,7 +7,7 @@ namespace Sholto.Faceplate.Tests;
 
 public class ProseWithChipsTests
 {
-    private static FaceplateDoc Doc() => FaceplateDocLoader.LoadEmbedded("ddj-flx4");
+    private static FaceplateDoc Doc() => new FaceplateDocLoader().LoadEmbedded("ddj-flx4");
 
     [Fact]
     public void A_plain_string_with_no_markers_becomes_a_single_run()

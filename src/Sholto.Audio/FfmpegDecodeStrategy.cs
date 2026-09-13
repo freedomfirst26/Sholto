@@ -9,11 +9,22 @@ namespace Sholto.Audio;
 /// MediaFoundation (Windows-only), and SoundFlow/miniaudio has no AAC decoder either.
 /// ffmpeg is already a required runtime dependency (installed by install.sh for the
 /// beat detector), so this shells out to it rather than pulling in a new library —
-/// the same subprocess pattern <c>MadmomBeatAnalyzer</c> uses for its external tool.
+/// the same subprocess pattern <c>MadmomBeatAnalysisStep</c> uses for its external tool.
 /// ffmpeg decodes and resamples straight to the target format, so its stdout is
-/// already 48 kHz stereo float32 with no further conversion needed.</summary>
+/// already 48 kHz stereo float32 with no further conversion needed.
+///
+/// Deliberately NOT run through <c>ExternalToolRunner</c>: this is a streaming
+/// decoder whose stdout is consumed as a live pipe straight into the audio path. It
+/// has no completed-postcondition shape, and buffering its output the way the runner
+/// does for a batch tool would break decoding.</summary>
 public sealed class FfmpegDecodeStrategy : IAudioDecodeStrategy
 {
+    // Resolved once at bootstrap (App.axaml.cs, via ExternalToolFinder) and handed
+    // in as a plain value — this class does no lookup of its own.
+    private readonly string _ffmpegPath;
+
+    public FfmpegDecodeStrategy(string ffmpegPath) => _ffmpegPath = ffmpegPath;
+
     public bool CanDecode(string extension) =>
         extension is ".m4a" or ".aac" or ".mp4";
 
@@ -21,7 +32,7 @@ public sealed class FfmpegDecodeStrategy : IAudioDecodeStrategy
     {
         var psi = new ProcessStartInfo
         {
-            FileName = "ffmpeg",
+            FileName = _ffmpegPath,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,

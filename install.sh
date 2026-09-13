@@ -18,7 +18,23 @@ fi
 
 ok()      { echo "  ${GREEN}✓${RESET} $*"; }
 info()    { echo "  ${CYAN}·${RESET} ${DIM}$*${RESET}"; }
+warn()    { echo "  ${YELLOW}✗${RESET} $*" >&2; }
 section() { echo ""; echo "${MAGENTA}── $* ──────────────────────────────────────────────────${RESET}"; }
+
+# ── Shared tool definitions ───────────────────────────────────────────────────
+# Pins and health checks live in sholto-deps.sh so this script and
+# install-deps.sh cannot drift apart. We have already cd'd to the repo root.
+if [ ! -r ./sholto-deps.sh ]; then
+    warn "sholto-deps.sh is missing from $(pwd) — check out the full repo (this script must run from a Sholto git checkout, not a standalone copy)."
+    exit 1
+fi
+# shellcheck source=sholto-deps.sh
+. ./sholto-deps.sh
+
+if [ "${1:-}" = "--verify" ]; then
+    section "verify"
+    if deps_verify; then exit 0; else exit 1; fi
+fi
 
 echo ""
 echo "${BOLD}${BLUE}Sholto${RESET} — ${DIM}install${RESET}"
@@ -59,6 +75,9 @@ else
     ok "linked $LIB/libpulse.so → libpulse.so.0"
 fi
 
+# The pinned versions of the Python analysis tools, and the full explanation of
+# why each pin exists and how to bump it, are in sholto-deps.sh — sourced above.
+
 # ── 3. madmom (beat tracker) ──────────────────────────────────────────────────
 section "madmom (beat tracker)"
 if ! command -v uv &>/dev/null; then
@@ -68,39 +87,40 @@ if ! command -v uv &>/dev/null; then
 fi
 ok "uv $(uv --version | awk '{print $2}')"
 
-if [ -x "$HOME/.local/bin/DBNDownBeatTracker" ]; then
-    ok "madmom-onnx already installed"
+# madmom is REQUIRED — unlike demucs below, a broken madmom fails the
+# whole install (see the check just before the final "Done" banner). We still
+# `|| true` the install command itself so a failed `uv tool install` doesn't
+# kill the script under set -e before we get to print a proper error, and we
+# keep going rather than exit here: a user with a broken madmom may still want
+# Sholto built so they can retry the tool afterwards without rebuilding too.
+MADMOM_BROKEN=0
+if check_madmom; then
+    ok "madmom-onnx already installed and working"
 else
     info "Installing madmom-onnx (ONNX-runtime fork that builds on Python 3.12+)..."
-    uv tool install madmom-onnx
-    ok "madmom-onnx installed at ~/.local/bin/"
+    uv tool install --force --python "$SHOLTO_PYTHON" \
+        "$SHOLTO_MADMOM_SPEC" "${SHOLTO_MADMOM_WITH[@]}" || true
+    if check_madmom; then
+        ok "madmom-onnx installed at ~/.local/bin/"
+    else
+        warn "madmom-onnx installed but failed its functional check (${SHOLTO_CHECK_DETAIL})"
+        MADMOM_BROKEN=1
+    fi
 fi
 
 # ── 4. demucs (stem separation) ───────────────────────────────────────────────
 section "demucs (stem separation)"
-if [ -x "$HOME/.local/bin/demucs" ]; then
-    ok "demucs already installed"
+if check_demucs; then
+    ok "demucs already installed and working"
 else
     info "Installing demucs (htdemucs 4-stem source separation)..."
-    uv tool install demucs
-    ok "demucs installed at ~/.local/bin/"
-fi
-
-# ── 4b. allin1 (AI song-structure analysis) — OPTIONAL ────────────────────────
-# Model-based section labels (intro/verse/chorus/bridge/outro) that drive the
-# minimap. Heavy (PyTorch + NATTEN + model download); the app works without it,
-# falling back to a fast energy heuristic. Set SHOLTO_INSTALL_ALLIN1=1 to install.
-section "allin1 (AI song sections — optional)"
-if [ -x "$HOME/.local/bin/allin1" ]; then
-    ok "allin1 already installed"
-elif [ "${SHOLTO_INSTALL_ALLIN1:-0}" = "1" ]; then
-    info "Installing allin1 (PyTorch + NATTEN + madmom; large download)..."
-    uv tool install "allin1" --with "torch" --with "natten" \
-        --with "madmom @ git+https://github.com/CPJKU/madmom" \
-        && ok "allin1 installed at ~/.local/bin/" \
-        || info "allin1 install failed — app still runs with the heuristic segmenter"
-else
-    info "Skipping allin1 (set SHOLTO_INSTALL_ALLIN1=1 to enable AI sections)"
+    uv tool install --force --python "$SHOLTO_PYTHON" \
+        "$SHOLTO_DEMUCS_SPEC" "${SHOLTO_DEMUCS_WITH[@]}" || true
+    if check_demucs; then
+        ok "demucs installed at ~/.local/bin/ — verified with a test separation"
+    else
+        warn "demucs installed but failed its functional check (${SHOLTO_CHECK_DETAIL}) — stems will not be produced"
+    fi
 fi
 
 # ── 5. NuGet restore ──────────────────────────────────────────────────────────
@@ -121,6 +141,16 @@ dotnet publish src/Sholto.App/Sholto.App.csproj \
 ok "published → $DIST/Sholto.App"
 
 echo ""
+if [ "$MADMOM_BROKEN" = "1" ]; then
+    echo "${BOLD}${YELLOW}Built, but not ready.${RESET}"
+    echo "  ${DIM}Binary:${RESET} ${CYAN}$DIST/Sholto.App${RESET} ${DIM}(built successfully)${RESET}"
+    warn "madmom-onnx (beat tracker) is REQUIRED and still not working — no track will"
+    warn "get a beatgrid, so nothing will play in the app you just built."
+    warn "Check the warning above, fix your network/Python environment, then re-run"
+    warn "./install.sh (or just './install.sh --verify' to recheck) before using Sholto."
+    echo ""
+    exit 1
+fi
 echo "${BOLD}${GREEN}Done.${RESET}"
 echo "  ${DIM}Binary:${RESET} ${CYAN}$DIST/Sholto.App${RESET}"
 echo ""

@@ -24,6 +24,11 @@ public sealed class MinimapControl : Control
     // Fallback so the designer/preview (no theme resource resolved yet) doesn't crash.
     private static readonly MinimapPalette DefaultPalette = Themes.Classic.Minimap;
 
+    // Avalonia constructs this control from XAML with no constructor arguments
+    // (see WaveformControl's matching field doc) — an instance field, not a
+    // static type-name call.
+    private readonly IWaveformBandScaler _bandScaler = new WaveformBandScaler();
+
     public static readonly StyledProperty<SongSegments?> SegmentsProperty =
         AvaloniaProperty.Register<MinimapControl, SongSegments?>(nameof(Segments));
 
@@ -75,7 +80,7 @@ public sealed class MinimapControl : Control
         if (trackSecs <= 0) { InvalidateVisual(); return; }
 
         bool hasBands = pk.Low.Length == pk.Min.Length;
-        var scaling = hasBands ? WaveformBandScaling.Calibrate(pk.Low, pk.Mid, pk.High) : default;
+        var scaling = hasBands ? _bandScaler.Calibrate(pk.Low, pk.Mid, pk.High) : default;
 
         foreach (var s in segs)
         {

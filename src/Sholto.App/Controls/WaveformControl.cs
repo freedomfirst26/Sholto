@@ -20,6 +20,13 @@ public sealed class WaveformControl : Control
 {
     private const int BakedHeight = 256;
 
+    // Avalonia constructs this control from XAML with no constructor
+    // arguments, so there's no composition-root seam to inject through (unlike
+    // Deck/DeckFactory) — an instance field is the "remove statics" fix here:
+    // no more static type-name call, same substitutability if this control is
+    // ever driven from a test/Bench harness.
+    private readonly IWaveformBandScaler _bandScaler = new WaveformBandScaler();
+
     // Fixed on every theme (owner decision): the vocal lane and the beat-snap
     // glow are the app's "stem green", the VOX chip matches them.
     private static readonly SKColor VocalActiveColor = new(0x34, 0xF0, 0x6F, 0xD0);
@@ -380,7 +387,7 @@ public sealed class WaveformControl : Control
         canvas.DrawPath(path, paint);
     }
 
-    private static SKImage? BakeWaveform(WaveformPeaks peaks, SKColor bg, SKColor low, SKColor mid, SKColor high, CancellationToken ct)
+    private SKImage? BakeWaveform(WaveformPeaks peaks, SKColor bg, SKColor low, SKColor mid, SKColor high, CancellationToken ct)
     {
         int width = peaks.Min.Length;
         if (width == 0) return null;
@@ -411,7 +418,7 @@ public sealed class WaveformControl : Control
         // drop reads tall) instead of every busy section maxing out. The band split
         // still colours the shape; bass dominates the height, highs a thin crest.
         var scaling = hasBands
-            ? WaveformBandScaling.CalibrateShared(peaks.Low, peaks.Mid, peaks.High)
+            ? _bandScaler.CalibrateShared(peaks.Low, peaks.Mid, peaks.High)
             : default;
         // Nested stack (Rekordbox 3-band): the bands are drawn CUMULATIVELY — white
         // innermost, orange around it, blue outermost — so blue always CONTAINS

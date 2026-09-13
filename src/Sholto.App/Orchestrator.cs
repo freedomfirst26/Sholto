@@ -20,8 +20,15 @@ namespace Sholto.App;
 /// All methods run on the UI thread (the caller marshals controller events there).</summary>
 public sealed class Orchestrator : IDisposable
 {
-    private readonly MainViewModel _vm;
+    private readonly IControlSurface _surface;
+    private readonly IKeyboard _keyboard;
+    private readonly IApplication _app;
     private readonly Func<IDbContextFactory<SholtoDbContext>?> _dbFactory;
+    private readonly IAudioFileDecoder _decoder;
+    // Built lazily from _dbFactory the first time a reanalyze needs to save a key
+    // (the DB may legitimately not exist yet when Orchestrator is constructed —
+    // see _dbFactory's own doc), then reused — not rebuilt per invocation.
+    private SqliteKeyAnalysisStore? _keyAnalysisCache;
 
     // Jog-wheel scrubs are coalesced per frame so we issue one Seek per deck per ~16 ms.
     private double _pendingJog1, _pendingJog2;
@@ -38,39 +45,129 @@ public sealed class Orchestrator : IDisposable
         Environment.GetEnvironmentVariable("SHOLTO_SCRATCH_LOG") == "1";
     // Per-deck platter-scratch state (top platter only — see ScratchState).
     private readonly ScratchState[] _scratch = { new(), new() };
-    private readonly GestureRecognizer _recognizer;
+    private readonly IGestureRecognizer _recognizer;
     private DispatcherTimer? _positionTimer;
 
-    public Orchestrator(MainViewModel vm, Func<IDbContextFactory<SholtoDbContext>?> dbFactory,
-                        IOptions<ScratchOptions> scratch, GestureRecognizer recognizer)
+    // Orchestrator's own working state for the jog wheel — see JogTracker's doc
+    // for why this isn't a ViewModel property any more.
+    private readonly JogTracker _jog = new();
+
+    // Magnetic beat-snap: tuning + state. Moved here from MainViewModel along with
+    // the jog state it's computed from — see the split plan in ~/Projects/sholto.md.
+    private readonly MagnetismOptions _magnetismOptions;
+    private bool _lastMagnetEligible;
+    private bool _quantizeFired;
+    private const double EngageThreshold = 0.3;     // same as glow threshold — see one, fire one
+    private const double DisengageThreshold = 0.15; // hysteresis to avoid re-fire chatter
+    private static readonly TimeSpan JogIdleForQuantize = TimeSpan.FromMilliseconds(180);
+    // Auto-quantize only counts as "user released a jog gesture" if the jog was
+    // recent. Without this window, two decks running at different tempos would
+    // eventually drift into alignment and an old jog from minutes ago would
+    // trigger a surprise seek.
+    private static readonly TimeSpan JogRecencyForQuantize = TimeSpan.FromSeconds(2);
+
+    /// <summary>The three entities Orchestrator glues together, per the
+    /// three-entity refactor recorded in ~/Projects/sholto.md: a control surface
+    /// (real FLX4 <c>Controller</c> or Bench's <c>ScriptedControlSurface</c>), a
+    /// keyboard (real <c>MainWindow</c> or a scripted one), and the app itself
+    /// (composition of the four real roles — see <see cref="IApplication"/>).
+    /// Orchestrator owns the LED relay for <paramref name="surface"/> directly
+    /// (<see cref="ReassertLights"/> and the deck-light forwarding below call it),
+    /// and turns every keyboard gesture that has a control-surface equivalent
+    /// into the SAME app call the equivalent gesture makes (see
+    /// <see cref="OnKeyboardAction"/> and <see cref="HandleGesture"/>'s
+    /// <c>LoadPress</c>/<c>PlayPress</c> cases).</summary>
+    public Orchestrator(IControlSurface surface, IKeyboard keyboard, IApplication app,
+                        Func<IDbContextFactory<SholtoDbContext>?> dbFactory,
+                        IOptions<ScratchOptions> scratch, IOptions<MagnetismOptions> magnetism,
+                        IGestureRecognizer recognizer, IAudioFileDecoder decoder)
     {
-        _vm = vm;
+        _surface = surface;
+        _keyboard = keyboard;
+        _app = app;
         _dbFactory = dbFactory;
+        _decoder = decoder;
         _scratchOptions = scratch.Value;
+        _magnetismOptions = magnetism.Value;
         _recognizer = recognizer;
         // Double-clicking a library row re-analyzes it — same path as the browse
         // long-press. The VM only raises the request; we hold the provider + factory.
-        _vm.ReanalyzeSelectedRequested += OnReanalyzeSelectedRequested;
+        _app.ReanalyzeSelectedRequested += OnReanalyzeSelectedRequested;
 
         // Deck transport → controller output: each deck raises the resolved LED state
         // (solid while Playing, blinking while Ending, off while Stopped — the deck
         // owns the flash clock so the LED stays in lockstep with its disc ring). We
-        // forward it to that deck's BEAT SYNC LED (App wires BeatSyncLightRequested to
-        // Controller.SetBeatSync).
-        _vm.Deck1.DeckLightChanged += on => BeatSyncLightRequested?.Invoke(0, on);
-        _vm.Deck2.DeckLightChanged += on => BeatSyncLightRequested?.Invoke(1, on);
+        // drive that deck's BEAT SYNC LED directly — Orchestrator owns the LED
+        // relay now, App no longer forwards it.
+        _app.Deck1.DeckLightChanged += on => _surface.SetBeatSync(0, on);
+        _app.Deck2.DeckLightChanged += on => _surface.SetBeatSync(1, on);
 
         // Pause on a scratch-capable deck = vinyl brake: ride the scratch coast
         // down to zero (pitch falling like a stopping turntable), THEN pause —
         // instead of cutting to stone silence. Second press mid-brake cancels
         // and spins back to normal playback.
-        _vm.BrakePauseRequested += OnBrakePauseRequested;
+        _app.BrakePauseRequested += OnBrakePauseRequested;
+
+        // Keyboard → Orchestrator → app: the other half of the fix. A keyboard
+        // gesture that has a control-surface equivalent (see IKeyboard's doc)
+        // reaches the exact same app call the equivalent controller gesture does.
+        _keyboard.Action += OnKeyboardAction;
     }
+
+    /// <summary>Turn one keyboard gesture into the same app call its control-surface
+    /// equivalent makes. <see cref="KeyboardGesture.LoadSelected"/> shares
+    /// <see cref="LoadSelectedIntoDeck"/> with <c>GestureIds.LoadPress</c>;
+    /// <see cref="KeyboardGesture.Play"/> shares <see cref="PlayPressed"/> with
+    /// <c>GestureIds.PlayPress</c>. <see cref="KeyboardGesture.AddMarker"/> and
+    /// <see cref="KeyboardGesture.OpenGridEdit"/> have no FLX4 equivalent (see
+    /// IKeyboard's doc) but are handled here too, per the keyboard-split decision.</summary>
+    private void OnKeyboardAction(KeyboardEvent k)
+    {
+        switch (k.Kind)
+        {
+            case KeyboardGesture.LoadSelected:
+                LoadSelectedIntoDeck(k.Deck);
+                break;
+            case KeyboardGesture.Play:
+                PlayPressed(k.Deck);
+                break;
+            case KeyboardGesture.AddMarker:
+                _ = _app.AddMarkerToTargetDeckAsync(k.Deck);
+                break;
+            case KeyboardGesture.OpenGridEdit:
+                GridEditTarget()?.OpenEdit();
+                break;
+        }
+    }
+
+    /// <summary>Which deck a grid edit applies to: the deck whose grid editor is
+    /// already open, else the one with an active loop, else the first loaded deck,
+    /// else null. Mirrors <c>MainWindow.GridTarget</c> — that copy stays in the view
+    /// for the phase/BPM-tune keys (←/→/↑/↓), which remain UI chrome and are out of
+    /// scope for this port; duplicated rather than shared to avoid widening either
+    /// side's surface for one four-line targeting rule.</summary>
+    private DeckViewModel? GridEditTarget()
+    {
+        if (_app.Deck1.EditOpen) return _app.Deck1;
+        if (_app.Deck2.EditOpen) return _app.Deck2;
+        if (_app.Deck1.Player.ActiveLoop is not null) return _app.Deck1;
+        if (_app.Deck2.Player.ActiveLoop is not null) return _app.Deck2;
+        if (_app.Deck1.Player.IsLoaded) return _app.Deck1;
+        if (_app.Deck2.Player.IsLoaded) return _app.Deck2;
+        return null;
+    }
+
+    /// <summary>Raised whenever magnet-lock eligibility flips. The App composition
+    /// root wires this to <c>MainViewModel.IsMagnetEligible</c> so the centerline
+    /// magnet glyph still updates, without Orchestrator holding a concrete
+    /// MainViewModel reference — the same "raise an event, App forwards it"
+    /// pattern <see cref="MasterCueRequested"/> uses.</summary>
+    public event Action<bool>? MagnetEligibilityChanged;
 
     private void OnBrakePauseRequested(int deck)
     {
         var st = _scratch[deck];
-        var deckVm = _vm.DeckFor(deck);
+        var deckVm = _app.DeckFor(deck);
 
         if (st.Active && st.PauseAtEnd)
         {
@@ -107,22 +204,13 @@ public sealed class Orchestrator : IDisposable
         deckVm.IsScratching = true;         // suppress magnetism during the brake
     }
 
-    /// <summary>Raised to request a deck's BEAT SYNC LED be set (deck index, on/off).
-    /// The App forwards this to the controller.</summary>
-    public event Action<int, bool>? BeatSyncLightRequested;
-
-    /// <summary>Raised when a stem-mute pad's active state changes — App forwards
-    /// this to the controller's pad LED. Args: deck, stem group (0=Drums,
-    /// 1=Vocals, 2=Instrumental), new on/off state.</summary>
-    public event Action<int, int, bool>? PadLightRequested;
-
     /// <summary>Raised when MASTER CUE is toggled — App forwards it to the audio
-    /// engine's master-cue monitor. Bool is the new on/off state.</summary>
+    /// engine's master-cue monitor. Bool is the new on/off state. Unlike the other
+    /// three light requests (BEAT SYNC / pad / echo), this one's destination is the
+    /// audio engine, not the control surface, so it stays an event App relays rather
+    /// than a call Orchestrator makes directly — Orchestrator has no reference to
+    /// the audio engine and shouldn't gain one just for this.</summary>
     public event Action<bool>? MasterCueRequested;
-
-    /// <summary>Raised when a deck's echo effect is toggled — App forwards this
-    /// to the controller's PAD FX1 pad-1 LED. Args: deck, new on/off state.</summary>
-    public event Action<int, bool>? EchoLightRequested;
 
     /// <summary>Repaint every LED this Orchestrator drives, from the app's own current
     /// state, without touching that state itself.
@@ -135,17 +223,20 @@ public sealed class Orchestrator : IDisposable
     /// blanks every LED, and forces the cue state back to off — see its own doc) and
     /// then this, every time gesture routing returns from Inspect to Play, so what's lit
     /// again matches what the app actually knows rather than whatever the hardware did
-    /// while nobody who cared was listening.</para></summary>
+    /// while nobody who cared was listening.</para>
+    /// <para>Calls <see cref="_surface"/> directly — Orchestrator owns the LED relay
+    /// now, App no longer forwards <c>BeatSyncLightRequested</c>/<c>PadLightRequested</c>/
+    /// <c>EchoLightRequested</c> events (removed; this is the only caller they had).</para></summary>
     public void ReassertLights()
     {
         for (var deck = 0; deck < 2; deck++)
         {
-            var deckVm = _vm.DeckFor(deck);
-            BeatSyncLightRequested?.Invoke(deck, deckVm.BeatSyncLit);
-            PadLightRequested?.Invoke(deck, 0, deckVm.DrumsActive);
-            PadLightRequested?.Invoke(deck, 1, deckVm.VocalsActive);
-            PadLightRequested?.Invoke(deck, 2, deckVm.InstrumentalActive);
-            EchoLightRequested?.Invoke(deck, deckVm.EchoActive);
+            var deckVm = _app.DeckFor(deck);
+            _surface.SetBeatSync(deck, deckVm.BeatSyncLit);
+            _surface.SetPadLight(deck, 0, deckVm.DrumsActive);
+            _surface.SetPadLight(deck, 1, deckVm.VocalsActive);
+            _surface.SetPadLight(deck, 2, deckVm.InstrumentalActive);
+            _surface.SetEchoLight(deck, deckVm.EchoActive);
         }
     }
 
@@ -178,17 +269,27 @@ public sealed class Orchestrator : IDisposable
     /// browse-knob long-press and the library double-click.</summary>
     private void ReanalyzeHighlighted(string source)
     {
-        var vm = _vm;
-        var provider = vm.Deck1.Player.AnalysisProvider;
+        var provider = _app.Deck1.Player.AnalysisProvider;
         if (provider is null) { Console.WriteLine($"[Orchestrator] {source} re-analyze: no AnalysisProvider yet"); return; }
-        Console.WriteLine($"[Orchestrator] {source} → re-analyzing {vm.SelectedTrack?.FilePath}");
-        var factory = _dbFactory();
-        _ = vm.OnBrowseHeldAsync(
-            t => AudioFileDecoder.Decode(t.FilePath),
+        Console.WriteLine($"[Orchestrator] {source} → re-analyzing {_app.SelectedTrack?.FilePath}");
+        var keyCache = KeyAnalysisCacheOrNull();
+        _ = _app.OnBrowseHeldAsync(
+            t => _decoder.Decode(t.FilePath),
             provider,
-            saveKey: factory is not null
-                ? (path, key) => new KeyAnalysisCache(factory).PutAsync(path, key)
-                : null);
+            saveKey: keyCache is not null ? keyCache.PutAsync : null);
+    }
+
+    /// <summary>Resolves once the DB factory becomes available, then reused — a
+    /// cache constructed per invocation was the flagged bug (see the architectural
+    /// review's Pass 1 addendum); a truly eager, constructor-injected instance isn't
+    /// possible here because <see cref="_dbFactory"/> is deliberately lazy (the DB
+    /// may not exist yet at construction time).</summary>
+    private SqliteKeyAnalysisStore? KeyAnalysisCacheOrNull()
+    {
+        if (_keyAnalysisCache is not null) return _keyAnalysisCache;
+        var factory = _dbFactory();
+        if (factory is null) return null;
+        return _keyAnalysisCache = new SqliteKeyAnalysisStore(factory);
     }
 
     /// <summary>Raised on every 16 ms tick, after the Orchestrator's own work.
@@ -204,217 +305,76 @@ public sealed class Orchestrator : IDisposable
         _positionTimer.Start();
     }
 
-    /// <summary>Act on one gesture. Called on the UI thread.
-    /// <para>The gesture says what the DJ did. This method decides what Sholto does
-    /// about it, which is where app state belongs: whether the deck can scratch,
-    /// whether a loop is running, which deck a deckless gesture should hit.</para></summary>
-    public void HandleGesture(Gesture g)
+    /// <summary>Load the highlighted library track into a deck. Shared by
+    /// <c>GestureIds.LoadPress</c> (FLX4 LOAD 1/2) and
+    /// <see cref="KeyboardGesture.LoadSelected"/> (keyboard 1/2) — the same code
+    /// either path runs, not just the same outcome.</summary>
+    private void LoadSelectedIntoDeck(int deckIndex)
     {
-        var vm = _vm;
-        switch (g.Id)
+        var sel = _app.SelectedTrack;
+        if (sel is null) return;
+        var deck = _app.DeckFor(deckIndex);
+        var mult = _app.GetBpmMultiplierFor(sel.FilePath);
+        deck.BeginLoad(sel, mult);
+        _ = Task.Run(async () =>
         {
-            case GestureIds.BrowseTurn:
-                vm.OnBrowseRotated(((ControllerEvent.BrowseRotated)g.Source).Delta);
-                break;
-
-            case GestureIds.BrowsePressShort:
-                // Deliberately nothing. LOAD 1 / LOAD 2 do the loading.
-                break;
-
-            case GestureIds.BrowsePressHold:
-                ReanalyzeHighlighted("browse-hold");
-                break;
-
-            case GestureIds.LoadPress:
-            {
-                var sel = vm.SelectedTrack;
-                if (sel is not null)
-                {
-                    var deck = vm.DeckFor(g.Deck);
-                    var mult = vm.GetBpmMultiplierFor(sel.FilePath);
-                    deck.BeginLoad(sel, mult);
-                    _ = Task.Run(async () =>
-                    {
-                        var samples = AudioFileDecoder.Decode(sel.FilePath);
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                            deck.LoadTrack(sel, sel.FilePath, samples, mult));
-                    });
-                }
-                break;
-            }
-
-            case GestureIds.PlayPress:
-                vm.OnPlayPressed(g.Deck);
-                break;
-
-            case GestureIds.CrossfaderMove:
-                vm.Crossfader = ((ControllerEvent.CrossfaderMoved)g.Source).Position;
-                break;
-
-            case GestureIds.VolumeMove:
-                vm.DeckFor(g.Deck).ChannelGain = ((ControllerEvent.ChannelVolumeMoved)g.Source).Value;
-                break;
-
-            case GestureIds.CueHeadphoneToggle:
-                vm.DeckFor(g.Deck).CueActive = ((ControllerEvent.CueChanged)g.Source).On;
-                break;
-
-            case GestureIds.MasterCueToggle:
-                MasterCueRequested?.Invoke(((ControllerEvent.MasterCueChanged)g.Source).On);
-                break;
-
-            case GestureIds.EqTurn:
-            {
-                var e = (ControllerEvent.EqMoved)g.Source;
-                vm.DeckFor(g.Deck).Player.SetEq((int)e.Band, e.Value);
-                break;
-            }
-
-            case GestureIds.EqStemLevelTurn:
-            {
-                // HI → Drums, MID → Vocals, LOW → Instrumental, on either deck.
-                var e = (ControllerEvent.EqMoved)g.Source;
-                var deckVm = vm.DeckFor(g.Deck);
-                switch (e.Band)
-                {
-                    case EqBand.High: deckVm.DrumsLevel        = e.Value; break;
-                    case EqBand.Mid:  deckVm.VocalsLevel       = e.Value; break;
-                    default:          deckVm.InstrumentalLevel = e.Value; break;
-                }
-                break;
-            }
-
-            case GestureIds.FilterTurn:
-                vm.DeckFor(g.Deck).Player.SetFilter(((ControllerEvent.FilterMoved)g.Source).Position);
-                break;
-
-            case GestureIds.TempoMove:
-                vm.DeckFor(g.Deck).SetTempoPosition(((ControllerEvent.TempoMoved)g.Source).Position);
-                break;
-
-            case GestureIds.PadStemDrums:
-            case GestureIds.PadStemVocals:
-            case GestureIds.PadStemInstrumental:
-            {
-                var st = (ControllerEvent.StemToggle)g.Source;
-                var deckVm = vm.DeckFor(g.Deck);
-                bool nextActive = st.Group switch
-                {
-                    0 => !deckVm.DrumsActive,
-                    1 => !deckVm.VocalsActive,
-                    _ => !deckVm.InstrumentalActive,
-                };
-                switch (st.Group)
-                {
-                    case 0: deckVm.DrumsActive        = nextActive; break;
-                    case 1: deckVm.VocalsActive       = nextActive; break;
-                    case 2: deckVm.InstrumentalActive = nextActive; break;
-                }
-                deckVm.Player.SetStemGroup(st.Group, nextActive);
-                PadLightRequested?.Invoke(g.Deck, st.Group, nextActive);
-                break;
-            }
-
-            case GestureIds.PadEcho:
-            {
-                var deckVm = vm.DeckFor(g.Deck);
-                deckVm.EchoActive = !deckVm.EchoActive;
-                EchoLightRequested?.Invoke(g.Deck, deckVm.EchoActive);
-                break;
-            }
-
-            case GestureIds.BeatLoopToggle:
-                vm.DeckFor(g.Deck).Player.EnableBeatLoop(((ControllerEvent.BeatLoopToggle)g.Source).Bars);
-                break;
-            case GestureIds.BeatLoopHalve:
-                vm.DeckFor(g.Deck).Player.HalveLoop();
-                break;
-            case GestureIds.BeatLoopDouble:
-                vm.DeckFor(g.Deck).Player.DoubleLoop();
-                break;
-
-            case GestureIds.SyncPress:
-                // Beat sync is not implemented yet.
-                break;
-
-            case GestureIds.CueTransportPlain:
-                // Deliberately nothing. See DdjFlx4Mapping's note on why the old
-                // beatgrid re-anchor binding was removed.
-                break;
-
-            case GestureIds.CueTransportRestart:
-                vm.DeckFor(g.Deck).Player.SeekToFraction(0);
-                break;
-
-            case GestureIds.SyncCyclePitchRange:
-                vm.DeckFor(g.Deck).CyclePitchRange();
-                break;
-
-            case GestureIds.GridNudgeBack:
-            case GestureIds.GridNudgeForward:
-            {
-                int beats = ((ControllerEvent.NudgeGrid)g.Source).Beats;
-                if (g.Deck >= 0) { vm.DeckFor(g.Deck).Player.NudgeGrid(beats); break; }
-                // The BEAT arrows are one pair shared by both decks, so they arrive
-                // deckless. Pick a deck: held Shift first, then whichever deck has a
-                // loop running, then deck 0.
-                int target;
-                if (_recognizer.IsShiftHeld(0)) target = 0;
-                else if (_recognizer.IsShiftHeld(1)) target = 1;
-                else if (vm.DeckFor(0).Player.ActiveLoop is not null) target = 0;
-                else if (vm.DeckFor(1).Player.ActiveLoop is not null) target = 1;
-                else target = 0;
-                vm.DeckFor(target).Player.NudgeGrid(beats);
-                break;
-            }
-
-            case GestureIds.ShiftHold:
-            case GestureIds.StemLevelHold:
-            case GestureIds.PadModeHotCue:
-            case GestureIds.PadModePadFx1:
-                // State only. The recognizer holds the modifier state; the Controller
-                // already repaints the pad LEDs on a page switch.
-                break;
-
-            case GestureIds.JogTopTouch:
-                HandleJogTouch((ControllerEvent.JogTouch)g.Source);
-                break;
-
-            case GestureIds.JogTopShiftTurn:
-            {
-                // Silent 2x seek through the track, bypassing the audible scratch.
-                // (The "4x" in DdjFlx4Mapping's comment is stale — see the living doc.)
-                var j = (ControllerEvent.JogRotated)g.Source;
-                var deckVm = vm.DeckFor(g.Deck);
-                if (deckVm.Player.ActiveLoop is not null) break;
-                double fastSecs = j.Delta * _scratchOptions.TopPlatterSecsPerTick * 2;
-                if (g.Deck == 0) _pendingJog1 += fastSecs; else _pendingJog2 += fastSecs;
-                MarkJogged(g.Deck);
-                break;
-            }
-
-            case GestureIds.JogTopTurn:
-            case GestureIds.JogRingTurn:
-                HandleJogTurn(g);
-                break;
-
-            default:
-                break;   // an id nothing acts on yet
-        }
+            var samples = _decoder.Decode(sel.FilePath);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                deck.LoadTrack(sel, sel.FilePath, samples, mult));
+        });
     }
 
-    private void MarkJogged(int deck)
+    /// <summary>Play/pause a deck. Shared by <c>GestureIds.PlayPress</c> (FLX4 PLAY)
+    /// and <see cref="KeyboardGesture.Play"/> (keyboard P) — same call, same path.</summary>
+    private void PlayPressed(int deckIndex) => _app.OnPlayPressed(deckIndex);
+
+    /// <summary>Build the full gesture→action table for App's "app" GestureBindings,
+    /// replacing what used to be a 34-arm switch in <c>HandleGesture</c> (removed —
+    /// see <c>~/Projects/sholto.md</c> for the dissolution plan). Delegates to five
+    /// small classes grouped by what they actually touch (transport, mixer, pads,
+    /// loops, browse); each is independently testable with a fake deck. The four
+    /// jog/scratch ids stay wired directly to Orchestrator's own methods below —
+    /// the scratch engine is deliberately not touched or extracted in this pass, so
+    /// its call sites are left exactly where they were, just addressed by id
+    /// instead of by switch arm.
+    /// <para>Every gesture id in <see cref="GestureIds.All"/> must appear here
+    /// exactly once — a test asserts the two sets match.</para></summary>
+    public Dictionary<string, Action<Gesture>> BuildGestureTable()
     {
-        _vm.LastJoggedDeck = deck == 0 ? 1 : 2;
-        var nowUtc = DateTime.UtcNow;
-        _vm.LastJogAt = nowUtc;
-        if (deck == 0) _vm.LastJogAt1 = nowUtc; else _vm.LastJogAt2 = nowUtc;
+        var map = new Dictionary<string, Action<Gesture>>();
+
+        TransportBindings.Add(map, _app, PlayPressed, on => MasterCueRequested?.Invoke(on));
+        MixerBindings.Add(map, _app);
+        PadBindings.Add(map, _app, _surface);
+        LoopBindings.Add(map, _app, _recognizer);
+        BrowseBindings.Add(map, _app, LoadSelectedIntoDeck, ReanalyzeHighlighted);
+
+        // Jog/scratch — left as direct Orchestrator calls; see this method's doc.
+        map[GestureIds.JogTopTouch] = g => HandleJogTouch((ControllerEvent.JogTouch)g.Source);
+        map[GestureIds.JogTopShiftTurn] = HandleJogTopShiftTurn;
+        map[GestureIds.JogTopTurn] = HandleJogTurn;
+        map[GestureIds.JogRingTurn] = HandleJogTurn;
+
+        return map;
     }
+
+    /// <summary>Silent 2x seek through the track, bypassing the audible scratch.
+    /// (The "4x" in DdjFlx4Mapping's comment is stale — see the living doc.)</summary>
+    private void HandleJogTopShiftTurn(Gesture g)
+    {
+        var j = (ControllerEvent.JogRotated)g.Source;
+        var deckVm = _app.DeckFor(g.Deck);
+        if (deckVm.Player.ActiveLoop is not null) return;
+        double fastSecs = j.Delta * _scratchOptions.TopPlatterSecsPerTick * 2;
+        if (g.Deck == 0) _pendingJog1 += fastSecs; else _pendingJog2 += fastSecs;
+        MarkJogged(g.Deck);
+    }
+
+    private void MarkJogged(int deck) => _jog.MarkJogged(deck);
 
     private void HandleJogTouch(ControllerEvent.JogTouch jt)
     {
-        var vm = _vm;
-        var deckVm = vm.DeckFor(jt.Deck);
+        var deckVm = _app.DeckFor(jt.Deck);
         var st = _scratch[jt.Deck];
         st.Touching = jt.Touching;
         // Hand lands: grab now, at rate = the deck's current speed, so
@@ -441,11 +401,10 @@ public sealed class Orchestrator : IDisposable
 
     private void HandleJogTurn(Gesture g)
     {
-        var vm = _vm;
         var j = (ControllerEvent.JogRotated)g.Source;
         // Loop locked: the jog wheel is ignored while a loop is active, else
         // scrubbing could pull the playhead outside the loop and break the wrap.
-        var deckVm = vm.DeckFor(j.Deck);
+        var deckVm = _app.DeckFor(j.Deck);
         if (deckVm.Player.ActiveLoop is not null) return;
 
         // Top platter on a scratch-capable deck: route into the scratch
@@ -490,22 +449,21 @@ public sealed class Orchestrator : IDisposable
     /// magnetic beat-snap), mark scrubbing, update magnetism, sync playheads.</summary>
     public void Tick()
     {
-        var vm = _vm;
-        double scale = 1 - vm.MagnetismFactor * 0.9;
-        if (_pendingJog1 != 0) { vm.Deck1.Player.SeekRelative(_pendingJog1 * scale); _pendingJog1 = 0; }
-        if (_pendingJog2 != 0) { vm.Deck2.Player.SeekRelative(_pendingJog2 * scale); _pendingJog2 = 0; }
+        double scale = 1 - MagnetismFactor() * 0.9;
+        if (_pendingJog1 != 0) { _app.Deck1.Player.SeekRelative(_pendingJog1 * scale); _pendingJog1 = 0; }
+        if (_pendingJog2 != 0) { _app.Deck2.Player.SeekRelative(_pendingJog2 * scale); _pendingJog2 = 0; }
 
         var now = DateTime.UtcNow;
-        vm.Deck1.IsScrubbing = vm.LastJoggedDeck == 1 && (now - vm.LastJogAt) < TimeSpan.FromMilliseconds(250);
-        vm.Deck2.IsScrubbing = vm.LastJoggedDeck == 2 && (now - vm.LastJogAt) < TimeSpan.FromMilliseconds(250);
+        _app.Deck1.IsScrubbing = _jog.LastJoggedDeck == 1 && (now - _jog.LastJogAt) < JogTracker.ActiveJogWindow;
+        _app.Deck2.IsScrubbing = _jog.LastJoggedDeck == 2 && (now - _jog.LastJogAt) < JogTracker.ActiveJogWindow;
 
-        TickScratch(vm.Deck1, _scratch[0], now);
-        TickScratch(vm.Deck2, _scratch[1], now);
+        TickScratch(_app.Deck1, _scratch[0], now);
+        TickScratch(_app.Deck2, _scratch[1], now);
 
-        vm.UpdateMagnetism();
+        UpdateMagnetism();
 
-        if (vm.Deck1.Player.IsLoaded) vm.Deck1.SyncPlayPosition();
-        if (vm.Deck2.Player.IsLoaded) vm.Deck2.SyncPlayPosition();
+        if (_app.Deck1.Player.IsLoaded) _app.Deck1.SyncPlayPosition();
+        if (_app.Deck2.Player.IsLoaded) _app.Deck2.SyncPlayPosition();
     }
 
 
@@ -635,9 +593,7 @@ public sealed class Orchestrator : IDisposable
                 // doesn't fire ~180 ms after release and SeekRelative the deck
                 // up to half a beat — the post-release hop to "a place the
                 // timeline wasn't". The deck stays exactly where it coasted to.
-                _vm.LastJogAt = DateTime.MinValue;
-                if (ReferenceEquals(deckVm, _vm.Deck1)) _vm.LastJogAt1 = DateTime.MinValue;
-                else                                    _vm.LastJogAt2 = DateTime.MinValue;
+                _jog.ClearAfterScratchEnd(ReferenceEquals(deckVm, _app.Deck1));
                 if (_scratchLog)
                     Console.WriteLine($"[scratch] END  pos={deckVm.Player.PlayPosition,7:F3}");
             }
@@ -647,6 +603,217 @@ public sealed class Orchestrator : IDisposable
                     Console.WriteLine($"[scratch] COAST v={st.Velocity,7:F2} pos={deckVm.Player.PlayPosition,7:F3}");
                 deckVm.Player.ScratchRate(st.Velocity);
             }
+        }
+    }
+
+    /// <summary>
+    /// Magnet-lock eligibility. True iff:
+    /// <list type="bullet">
+    ///   <item>both decks have completed basic analysis (BPM + beat grid),</item>
+    ///   <item>both decks are actually playing,</item>
+    ///   <item>their <em>playback</em> BPMs (source × multiplier × tempo fader)
+    ///         are within <see cref="MagnetismOptions.BpmEligibilityTolerance"/>,</item>
+    ///   <item>the user isn't currently rotating <em>both</em> jog wheels at
+    ///         once (a dual-jog gesture is the user doing something deliberate;
+    ///         the magnet should hold off until they release one).</item>
+    /// </list>
+    /// Moved here from <c>MainViewModel</c> — see the split plan in
+    /// <c>~/Projects/sholto.md</c> ("MagnetismFactor/UpdateMagnetism ... follow
+    /// the same path [as the jog state], since magnetism is computed from jog
+    /// recency").</summary>
+    private bool IsBpmEligibleForMagnetism()
+    {
+        var deck1 = _app.Deck1;
+        var deck2 = _app.Deck2;
+        if (!deck1.HasAnalysis || !deck2.HasAnalysis) return false;
+        if (!deck1.Player.IsPlaying || !deck2.Player.IsPlaying) return false;
+        // A scratching deck isn't a candidate for a magnetic beat-snap —
+        // Quantize()'s SeekRelative would yank the platter out from under
+        // the user's hand mid-gesture. (Also covers the force-Play() a
+        // paused deck gets while scratched: without this gate that alone
+        // could newly satisfy "both decks playing" and fire a surprise snap.)
+        if (deck1.IsScratching || deck2.IsScratching) return false;
+
+        double eff1 = deck1.EffectiveBpm;
+        double eff2 = deck2.EffectiveBpm;
+        if (eff1 <= 0 || eff2 <= 0) return false;
+
+        double diff = Math.Abs(eff1 - eff2) / Math.Max(eff1, eff2);
+        if (diff > _magnetismOptions.BpmEligibilityTolerance) return false;
+
+        // Both decks being jogged simultaneously → user is in the middle of
+        // a manual adjustment, don't surprise them with a lock.
+        if (_jog.BothDecksActivelyJogging) return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// 0..1: 1 when both decks are playing and their nearest beats are in-phase,
+    /// 0 when out of the magnetic window. Returns 0 unconditionally when BPMs
+    /// aren't eligible — without this gate, two decks running far apart in tempo
+    /// would still drift into phase alignment every few bars and trigger a
+    /// surprise snap.
+    /// </summary>
+    private double MagnetismFactor()
+    {
+        if (!IsBpmEligibleForMagnetism()) return 0;
+        var deck1 = _app.Deck1;
+        var deck2 = _app.Deck2;
+        var d1 = deck1.Analysis.Basic?.DownbeatTimes;
+        var d2 = deck2.Analysis.Basic?.DownbeatTimes;
+        if (d1 is null || d1.Length == 0 || d2 is null || d2.Length == 0) return 0;
+
+        double phase1 = deck1.PlaybackSeconds - deck1.NearestDownbeatSec();
+        double phase2 = deck2.PlaybackSeconds - deck2.NearestDownbeatSec();
+        double misalign = Math.Abs(phase1 - phase2);
+
+        const double window = 0.15;  // 150 ms — bar-start tolerance is wider than beat-start
+        double t = Math.Min(misalign / window, 1);
+        return 1 - t * t * (3 - 2 * t);  // smoothstep, 1 at t=0 → 0 at t=1
+    }
+
+    /// <summary>Push current magnetism state into each deck's MagneticGlowSec for the UI.
+    /// Also runs the engaged → release → quantize state machine.</summary>
+    private void UpdateMagnetism()
+    {
+        // Publish the binary eligibility so the centerline magnet glyph
+        // pops in/out via its own style-class transition (App wires this to
+        // MainViewModel.IsMagnetEligible — see MagnetEligibilityChanged).
+        bool eligible = IsBpmEligibleForMagnetism();
+        if (eligible != _lastMagnetEligible)
+        {
+            _lastMagnetEligible = eligible;
+            MagnetEligibilityChanged?.Invoke(eligible);
+        }
+
+        double f = MagnetismFactor();
+
+        if (f < DisengageThreshold)
+            _quantizeFired = false;  // user pulled them apart; re-arm
+
+        // Fire once: greens visible + user let go of the jog for a beat.
+        // Crucial gate: ignore if the user hasn't jogged at all this session
+        // (LastJogAt = DateTime.MinValue), or if their last jog was so long ago
+        // that "the user just let go" isn't a believable framing any more. This
+        // is what stops two decks running at different tempos from triggering a
+        // surprise seek every time their phases drift into alignment.
+        var sinceJog = DateTime.UtcNow - _jog.LastJogAt;
+        bool userRecentlyReleasedJog =
+            _jog.LastJogAt != DateTime.MinValue
+            && sinceJog > JogIdleForQuantize
+            && sinceJog < JogRecencyForQuantize;
+
+        if (!_quantizeFired
+            && f >= EngageThreshold
+            && userRecentlyReleasedJog)
+        {
+            Quantize();
+            _quantizeFired = true;
+        }
+
+        // Show greens whenever engaged AND we haven't snapped yet. Once snapped, the
+        // visuals collapse — that's the "locked, hands off" signal.
+        bool active = f >= EngageThreshold && !_quantizeFired;
+        _app.Deck1.MagneticGlowSec = active ? _app.Deck1.NearestDownbeatSec() : -1;
+        _app.Deck2.MagneticGlowSec = active ? _app.Deck2.NearestDownbeatSec() : -1;
+    }
+
+    /// <summary>Snap the last-jogged deck to the reference deck — phase aligns
+    /// the downbeats AND tempo-locks so the link actually holds. Without the
+    /// tempo lock, a fraction-of-a-percent BPM difference (e.g. 176.5 vs 176.6)
+    /// would let the decks drift apart immediately after the snap.</summary>
+    private void Quantize()
+    {
+        var deck1 = _app.Deck1;
+        var deck2 = _app.Deck2;
+        DeckViewModel adjusted, reference;
+        if (_jog.LastJoggedDeck == 1 || _jog.LastJoggedDeck == 2)
+        {
+            adjusted  = _jog.LastJoggedDeck == 1 ? deck1 : deck2;
+            reference = _jog.LastJoggedDeck == 1 ? deck2 : deck1;
+        }
+        else
+        {
+            // No jog history — pick whichever deck is further from its own downbeat
+            // (the one with more error to correct).
+            double e1 = Math.Abs(deck1.PlaybackSeconds - deck1.NearestDownbeatSec());
+            double e2 = Math.Abs(deck2.PlaybackSeconds - deck2.NearestDownbeatSec());
+            (adjusted, reference) = e1 > e2 ? (deck1, deck2) : (deck2, deck1);
+        }
+
+        // 1) Tempo-lock: pull the adjusted deck's EffectiveBpm onto the reference.
+        //    Done first so the phase math below works against the locked tempo.
+        adjusted.MatchEffectiveBpm(reference.EffectiveBpm);
+
+        // 2) Phase-snap: shift adjusted so its next downbeat lands at the same
+        //    wall-clock moment as the reference's next downbeat. Math: place
+        //    adj at (its nearest downbeat) + (ref's offset past *its* nearest
+        //    downbeat). Walks the same number of seconds past a downbeat as
+        //    ref, so the next beats fire together — independent of which bar
+        //    of either song they happen to be in.
+        double refPhase = reference.PlaybackSeconds - reference.NearestDownbeatSec();
+        double adjDownbeat = adjusted.NearestDownbeatSec();
+        if (adjDownbeat < 0) return;
+        double delta = (adjDownbeat + refPhase) - adjusted.PlaybackSeconds;
+        if (Math.Abs(delta) > 0.0001) adjusted.Player.SeekRelative(delta);
+        Console.WriteLine($"[Magnet] snap: refPhase={refPhase:F4}s adjDownbeat={adjDownbeat:F4}s delta={delta:F4}s | refBpm={reference.EffectiveBpm:F3} adjBpm={adjusted.EffectiveBpm:F3}");
+    }
+
+    /// <summary>Orchestrator's own working state for the jog wheel — when each deck
+    /// was last jogged, and which deck was jogged most recently. Previously these
+    /// were settable properties on <c>MainViewModel</c> (<c>IDeckHost</c>):
+    /// Orchestrator wrote its own working state into the ViewModel and read it back,
+    /// a shared mutable scratchpad rather than a real collaboration. Read every use
+    /// in Orchestrator.cs and MainViewModel.cs before moving this (see the split
+    /// plan in <c>~/Projects/sholto.md</c>) — MainViewModel's own magnetism
+    /// calculation read these too, which is why <see cref="IsBpmEligibleForMagnetism"/>
+    /// / <see cref="MagnetismFactor"/> / <see cref="UpdateMagnetism"/> /
+    /// <see cref="Quantize"/> moved here alongside the jog state itself, rather than
+    /// leaving MainViewModel to somehow read Orchestrator's private state.</summary>
+    private sealed class JogTracker
+    {
+        /// <summary>Deck most recently nudged by the jog wheel (1 or 2), or -1 if
+        /// neither has been jogged yet. The other deck acts as Quantize's reference.</summary>
+        public int LastJoggedDeck { get; private set; } = -1;
+        /// <summary>Wall-clock of last jog tick — used to detect "user let go" for quantize.</summary>
+        public DateTime LastJogAt { get; private set; } = DateTime.MinValue;
+        /// <summary>Wall-clock of the last jog event on deck 1 specifically. Used so
+        /// we can tell "both decks are being touched right now" apart from "one is".</summary>
+        public DateTime LastJogAt1 { get; private set; } = DateTime.MinValue;
+        /// <summary>Wall-clock of the last jog event on deck 2 specifically.</summary>
+        public DateTime LastJogAt2 { get; private set; } = DateTime.MinValue;
+
+        // How recently a jog event has to have arrived for that deck to count as
+        // "actively being adjusted right now". Also used directly by
+        // Orchestrator.Tick() for the IsScrubbing window, so the two always agree.
+        internal static readonly TimeSpan ActiveJogWindow = TimeSpan.FromMilliseconds(250);
+
+        public bool BothDecksActivelyJogging =>
+            IsActivelyJogging(LastJogAt1) && IsActivelyJogging(LastJogAt2);
+
+        private static bool IsActivelyJogging(DateTime deckLastJog) =>
+            deckLastJog != DateTime.MinValue
+            && DateTime.UtcNow - deckLastJog < ActiveJogWindow;
+
+        /// <param name="deck">Zero-based deck index (0 or 1), as gestures carry it.</param>
+        public void MarkJogged(int deck)
+        {
+            LastJoggedDeck = deck == 0 ? 1 : 2;
+            var nowUtc = DateTime.UtcNow;
+            LastJogAt = nowUtc;
+            if (deck == 0) LastJogAt1 = nowUtc; else LastJogAt2 = nowUtc;
+        }
+
+        /// <summary>A scratch ending is NOT a jog release: expire the recency stamps
+        /// so the magnetic Quantize() (armed by "recently jogged, now idle") doesn't
+        /// misfire off the coast-to-rest that follows a scratch. See TickScratch's
+        /// own comment at the call site.</summary>
+        /// <param name="isDeck1">Which deck the scratch that just ended was on.</param>
+        public void ClearAfterScratchEnd(bool isDeck1)
+        {
+            LastJogAt = DateTime.MinValue;
+            if (isDeck1) LastJogAt1 = DateTime.MinValue; else LastJogAt2 = DateTime.MinValue;
         }
     }
 
@@ -697,7 +864,8 @@ public sealed class Orchestrator : IDisposable
 
     public void Dispose()
     {
-        _vm.ReanalyzeSelectedRequested -= OnReanalyzeSelectedRequested;
+        _app.ReanalyzeSelectedRequested -= OnReanalyzeSelectedRequested;
+        _keyboard.Action -= OnKeyboardAction;
         _positionTimer?.Stop();
     }
 }

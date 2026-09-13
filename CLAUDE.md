@@ -83,14 +83,13 @@ re-notify just the affected bindings (cause→effect is explicit):
 `BasicReady` (peaks, BPM, downbeats) · `KeyReady` · `StemsReady` / `StemPeaksReady`
 (Demucs) · `VocalRegionsReady` · `SongSegmentsReady` (song structure).
 
-Song sections: `SongSegmentAnalyzer` produces an **instant heuristic** on `BasicReady`
-(energy envelope + beatgrid → intro/build/drop/…); `AllInOneSegmentAnalyzer` (the
-`allin1` CLI, optional/heavy) later **replaces** it via `SongSegmentsReady` with real
-labels. `allin1` is best-in-class for functional labelled sections; the heuristic is
-the always-available fallback.
+Song sections: `SongSegmentAnalyzer` produces the section labels on `BasicReady`
+(energy envelope + beatgrid → intro/build/drop/…) — an instant heuristic, and
+currently the only song-section source (see `TODO.md` for a removed optional
+model-based analyser that used to replace it via `SongSegmentsReady`).
 
 External analyzers are subprocesses expected on `PATH`: madmom-onnx (beats/downbeats),
-Demucs (stems), allin1 (structure). Absence degrades gracefully.
+Demucs (stems). Absence degrades gracefully.
 
 ## Storage gotchas (`Sholto.Storage`)
 
@@ -100,7 +99,8 @@ Demucs (stems), allin1 (structure). Absence degrades gracefully.
 - **WAL + busy_timeout** via `SqlitePragmaInterceptor`; do **not** use `Cache=Shared`
   (it reintroduced lock contention). Concurrent analysis writers were verified 20/20.
 - DB lives at `~/.local/share/sholto/library.db`. Migrations auto-apply on startup;
-  incompatible schema → `IncompatibleSchemaException`.
+  The pre-EF raw-SQL schema and its one-shot migration were removed 2026-09-11:
+  no released build ever wrote one (EF was present in the first commit).
 
 ## UI / rendering notes
 
@@ -157,6 +157,31 @@ only list formats/features that actually work (e.g. the decoder strategies in
 
 Living plan/spec for this app: `~/Projects/sholto.md` (single file — append, don't
 create new dated files). Capture substantive findings there as they surface.
+
+## Branch docs
+
+This project keeps one markdown document per branch, at
+`~/.claude/branches/<project>-<branch with "/" replaced by "-">.md`, in Claude's home
+folder — not inside the repository — created when the branch is created. It lives outside
+the repo because it is working state, not a project artifact: keeping it out keeps `git
+status` and review diffs clean instead of polluting them. It has four required sections,
+in order:
+
+1. **Gist** — what the branch changes, why, and what is explicitly out of scope.
+2. **Acceptance criteria** — a checklist, where each item is checkable by someone else
+   rather than a judgement call.
+3. **Findings** — what was learned doing the work, with file:line and numbers, written
+   so each finding stands alone without the surrounding conversation.
+4. **Open / not done** — what remains, and what is blocked on Sebastian.
+
+Associated artifacts — proof WAVs, before/after measurements, profiling output — are
+listed in the doc with their paths, so the evidence for a claim stays findable.
+
+This is distinct from `~/Projects/sholto.md`, the long-running plan spanning branches,
+and from `TODO.md`, the product/feature backlog.
+
+Branch names follow `<type>/<short-kebab-topic>`, using the same type prefixes as
+commit subjects: `feat`, `fix`, `refactor`, `docs`.
 
 ## Releases and the changelog
 

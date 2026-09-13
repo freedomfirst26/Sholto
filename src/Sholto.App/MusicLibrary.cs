@@ -14,6 +14,17 @@ namespace Sholto.App;
 
 public sealed class MusicLibrary : INotifyPropertyChanged
 {
+    private readonly Sholto.App.Theming.IThemeContext _theme;
+    private readonly ITrackScanner _trackScanner;
+    private readonly IHarmonicKeys _harmonicKeys;
+
+    public MusicLibrary(Sholto.App.Theming.IThemeContext theme, ITrackScanner trackScanner, IHarmonicKeys harmonicKeys)
+    {
+        _theme = theme;
+        _trackScanner = trackScanner;
+        _harmonicKeys = harmonicKeys;
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     public ObservableCollection<TrackRow> Tracks { get; } = new();
     public event Action<string>? Scanned;
@@ -93,7 +104,7 @@ public sealed class MusicLibrary : INotifyPropertyChanged
         try
         {
             Console.WriteLine($"[Library] scanning {musicDir}");
-            var scanned = await TrackScanner.ScanAsync(musicDir);
+            var scanned = await _trackScanner.ScanAsync(musicDir);
 
             Dictionary<string, double>? cachedBpms = null;
             Dictionary<string, double>? cachedMults = null;
@@ -191,7 +202,8 @@ public sealed class MusicLibrary : INotifyPropertyChanged
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 Tracks.Clear();
-                foreach (var t in scanned) Tracks.Add(new TrackRow(t));
+                foreach (var t in scanned.OrderBy(t => t.Artist).ThenBy(t => t.Title))
+                    Tracks.Add(new TrackRow(t, _theme, _harmonicKeys));
 
                 if (cachedBpms is not null)
                     foreach (var row in Tracks)

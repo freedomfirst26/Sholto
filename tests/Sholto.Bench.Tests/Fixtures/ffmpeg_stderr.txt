@@ -1,0 +1,126 @@
+[aist#0:0/pcm_f32le @ 0x5f8bbfe3cc40] Guessed Channel Layout: stereo
+Input #0, wav, from '/tmp/claude-1000/-home-s/9581d0a6-2d39-467f-bc34-30359de8a0d6/scratchpad/bench/scenario1.wav':
+  Duration: 00:00:02.00, bitrate: 3072 kb/s
+  Stream #0:0: Audio: pcm_f32le ([3][0][0][0] / 0x0003), 48000 Hz, 2 channels, flt, 3072 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.0999792  TARGET:-23 LUFS    M:-120.7 S:-120.7     I: -70.0 LUFS       LRA:   0.0 LU  FTPK: -89.4 -90.9 dBFS  TPK: -89.4 -90.9 dBFS
+Output #0, null, to 'pipe:':
+  Metadata:
+    encoder         : Lavf60.16.100
+  Stream #0:0: Audio: pcm_s16le, 48000 Hz, stereo, s16, 1536 kb/s
+    Metadata:
+      encoder         : Lavc60.31.102 pcm_s16le
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.199979   TARGET:-23 LUFS    M:-120.7 S:-120.7     I: -70.0 LUFS       LRA:   0.0 LU  FTPK: -83.9 -83.4 dBFS  TPK: -83.9 -83.4 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.299979   TARGET:-23 LUFS    M:-120.7 S:-120.7     I: -70.0 LUFS       LRA:   0.0 LU  FTPK: -80.9 -79.3 dBFS  TPK: -80.9 -79.3 dBFS
+[silencedetect @ 0x5f8bbfe44380] silence_start: 0
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.399979   TARGET:-23 LUFS    M: -22.6 S:-120.7     I: -22.6 LUFS       LRA:   0.0 LU  FTPK:  -8.6  -8.7 dBFS  TPK:  -8.6  -8.7 dBFS
+[silencedetect @ 0x5f8bbfe44380] silence_end: 0.342333 | silence_duration: 0.342333
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.499979   TARGET:-23 LUFS    M: -17.6 S:-120.7     I: -19.4 LUFS       LRA:   0.0 LU  FTPK:  -4.8  -5.3 dBFS  TPK:  -4.8  -5.3 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.599979   TARGET:-23 LUFS    M: -14.9 S:-120.7     I: -17.4 LUFS       LRA:   0.0 LU  FTPK:  -4.5  -5.9 dBFS  TPK:  -4.5  -5.3 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.699979   TARGET:-23 LUFS    M: -12.8 S:-120.7     I: -15.7 LUFS       LRA:   0.0 LU  FTPK:  -3.3  -4.0 dBFS  TPK:  -3.3  -4.0 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.799979   TARGET:-23 LUFS    M: -11.4 S:-120.7     I: -14.4 LUFS       LRA:   0.0 LU  FTPK:  -1.8  -3.6 dBFS  TPK:  -1.8  -3.6 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.899979   TARGET:-23 LUFS    M: -10.7 S:-120.7     I: -13.6 LUFS       LRA:   0.0 LU  FTPK:  -0.8  -3.3 dBFS  TPK:  -0.8  -3.3 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 0.999979   TARGET:-23 LUFS    M: -10.1 S:-120.7     I: -12.9 LUFS       LRA:   0.0 LU  FTPK:  -0.7  -2.5 dBFS  TPK:  -0.7  -2.5 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.09998    TARGET:-23 LUFS    M: -10.5 S:-120.7     I: -12.0 LUFS       LRA:   0.0 LU  FTPK:  -4.3  -6.5 dBFS  TPK:  -0.7  -2.5 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.19998    TARGET:-23 LUFS    M: -10.8 S:-120.7     I: -11.8 LUFS       LRA:   0.0 LU  FTPK:  -2.9  -2.4 dBFS  TPK:  -0.7  -2.4 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.29998    TARGET:-23 LUFS    M: -10.5 S:-120.7     I: -11.6 LUFS       LRA:   0.0 LU  FTPK:  -1.2  -1.1 dBFS  TPK:  -0.7  -1.1 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.39998    TARGET:-23 LUFS    M:  -9.9 S:-120.7     I: -11.4 LUFS       LRA:   0.0 LU  FTPK:   0.1   0.4 dBFS  TPK:   0.1   0.4 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.49998    TARGET:-23 LUFS    M:  -8.3 S:-120.7     I: -11.0 LUFS       LRA:   0.0 LU  FTPK:   0.6   2.0 dBFS  TPK:   0.6   2.0 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.59998    TARGET:-23 LUFS    M:  -6.9 S:-120.7     I: -10.5 LUFS       LRA:   0.0 LU  FTPK:   2.6   2.1 dBFS  TPK:   2.6   2.1 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.69998    TARGET:-23 LUFS    M:  -5.7 S:-120.7     I:  -9.9 LUFS       LRA:   0.0 LU  FTPK:   3.3   3.6 dBFS  TPK:   3.3   3.6 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.79998    TARGET:-23 LUFS    M:  -4.7 S:-120.7     I:  -9.2 LUFS       LRA:   0.0 LU  FTPK:   3.1   3.3 dBFS  TPK:   3.3   3.6 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.89998    TARGET:-23 LUFS    M:  -4.1 S:-120.7     I:  -8.6 LUFS       LRA:   0.0 LU  FTPK:   2.4   4.2 dBFS  TPK:   3.3   4.2 dBFS
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] t: 1.99998    TARGET:-23 LUFS    M:  -3.7 S:-120.7     I:  -8.1 LUFS       LRA:   0.0 LU  FTPK:   2.9   3.8 dBFS  TPK:   3.3   4.2 dBFS
+[out#0/null @ 0x5f8bbfe01880] video:0kB audio:375kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+size=N/A time=00:00:01.90 bitrate=N/A speed=87.9x    
+[Parsed_astats_0 @ 0x5f8bbfe44880] Channel: 1
+[Parsed_astats_0 @ 0x5f8bbfe44880] DC offset: -0.000853
+[Parsed_astats_0 @ 0x5f8bbfe44880] Min level: -1.422608
+[Parsed_astats_0 @ 0x5f8bbfe44880] Max level: 1.450100
+[Parsed_astats_0 @ 0x5f8bbfe44880] Min difference: 0.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Max difference: 0.496451
+[Parsed_astats_0 @ 0x5f8bbfe44880] Mean difference: 0.042254
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS difference: 0.062415
+[Parsed_astats_0 @ 0x5f8bbfe44880] Peak level dB: 3.227958
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS level dB: -11.308669
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS peak dB: -6.601072
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS trough dB: -inf
+[Parsed_astats_0 @ 0x5f8bbfe44880] Crest factor: 5.331278
+[Parsed_astats_0 @ 0x5f8bbfe44880] Flat factor: 0.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Peak count: 2
+[Parsed_astats_0 @ 0x5f8bbfe44880] Abs Peak count: 1
+[Parsed_astats_0 @ 0x5f8bbfe44880] Noise floor dB: -inf
+[Parsed_astats_0 @ 0x5f8bbfe44880] Noise floor count: 16
+[Parsed_astats_0 @ 0x5f8bbfe44880] Entropy: 0.829434
+[Parsed_astats_0 @ 0x5f8bbfe44880] Bit depth: 32/32/32/32
+[Parsed_astats_0 @ 0x5f8bbfe44880] Dynamic range: 244.051955
+[Parsed_astats_0 @ 0x5f8bbfe44880] Zero crossings: 9075
+[Parsed_astats_0 @ 0x5f8bbfe44880] Zero crossings rate: 0.094531
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of NaNs: 0
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of Infs: 0
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of denormals: 0
+[Parsed_astats_0 @ 0x5f8bbfe44880] Channel: 2
+[Parsed_astats_0 @ 0x5f8bbfe44880] DC offset: -0.000704
+[Parsed_astats_0 @ 0x5f8bbfe44880] Min level: -1.595673
+[Parsed_astats_0 @ 0x5f8bbfe44880] Max level: 1.380636
+[Parsed_astats_0 @ 0x5f8bbfe44880] Min difference: 0.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Max difference: 0.510434
+[Parsed_astats_0 @ 0x5f8bbfe44880] Mean difference: 0.045066
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS difference: 0.066227
+[Parsed_astats_0 @ 0x5f8bbfe44880] Peak level dB: 4.058877
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS level dB: -10.536973
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS peak dB: -5.078812
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS trough dB: -127.221808
+[Parsed_astats_0 @ 0x5f8bbfe44880] Crest factor: 5.367753
+[Parsed_astats_0 @ 0x5f8bbfe44880] Flat factor: 0.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Peak count: 2
+[Parsed_astats_0 @ 0x5f8bbfe44880] Abs Peak count: 1
+[Parsed_astats_0 @ 0x5f8bbfe44880] Noise floor dB: -99.339899
+[Parsed_astats_0 @ 0x5f8bbfe44880] Noise floor count: 847
+[Parsed_astats_0 @ 0x5f8bbfe44880] Entropy: 0.834452
+[Parsed_astats_0 @ 0x5f8bbfe44880] Bit depth: 32/32/32/32
+[Parsed_astats_0 @ 0x5f8bbfe44880] Dynamic range: 244.882874
+[Parsed_astats_0 @ 0x5f8bbfe44880] Zero crossings: 9620
+[Parsed_astats_0 @ 0x5f8bbfe44880] Zero crossings rate: 0.100208
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of NaNs: 0
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of Infs: 0
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of denormals: 0
+[Parsed_astats_0 @ 0x5f8bbfe44880] Overall
+[Parsed_astats_0 @ 0x5f8bbfe44880] DC offset: -0.000853
+[Parsed_astats_0 @ 0x5f8bbfe44880] Min level: -1.595673
+[Parsed_astats_0 @ 0x5f8bbfe44880] Max level: 1.450100
+[Parsed_astats_0 @ 0x5f8bbfe44880] Min difference: 0.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Max difference: 0.510434
+[Parsed_astats_0 @ 0x5f8bbfe44880] Mean difference: 0.043660
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS difference: 0.064349
+[Parsed_astats_0 @ 0x5f8bbfe44880] Peak level dB: 4.058877
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS level dB: -10.905703
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS peak dB: -5.078812
+[Parsed_astats_0 @ 0x5f8bbfe44880] RMS trough dB: -inf
+[Parsed_astats_0 @ 0x5f8bbfe44880] Flat factor: 0.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Peak count: 2.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Abs Peak count: 1.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Noise floor dB: -99.339899
+[Parsed_astats_0 @ 0x5f8bbfe44880] Noise floor count: 431.500000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Entropy: 0.831943
+[Parsed_astats_0 @ 0x5f8bbfe44880] Bit depth: 32/32/32/32
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of samples: 96000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of NaNs: 0.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of Infs: 0.000000
+[Parsed_astats_0 @ 0x5f8bbfe44880] Number of denormals: 0.000000
+[Parsed_ebur128_1 @ 0x5f8bbfe44280] Summary:
+
+  Integrated loudness:
+    I:          -8.1 LUFS
+    Threshold: -18.3 LUFS
+
+  Loudness range:
+    LRA:         0.0 LU
+    Threshold:   0.0 LUFS
+    LRA low:     0.0 LUFS
+    LRA high:    0.0 LUFS
+
+  True peak:
+    Peak:        4.2 dBFS

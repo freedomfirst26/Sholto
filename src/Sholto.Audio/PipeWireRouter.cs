@@ -2,6 +2,36 @@ using System.Diagnostics;
 
 namespace Sholto.Audio;
 
+/// <summary>Port onto <see cref="PipeWireRouter"/>'s world-touching operations —
+/// consumed by <see cref="AudioEngine"/>, which is composed with a real instance at
+/// bootstrap. <see cref="PipeWireRouter.IsFlx4"/> and <see cref="PipeWireRouter.ParseSinks"/>
+/// stay static: they're pure functions with no process/filesystem access, called from
+/// places (e.g. the composition root's device filtering) that have no router instance
+/// to hand.</summary>
+public interface IPipeWireRouter
+{
+    /// <summary>True if <c>pw-link</c> is on PATH. Everything else here no-ops
+    /// (returns null/false/empty) when this is false.</summary>
+    bool IsAvailable();
+
+    /// <summary>All non-FLX4 playback sinks — i.e. the master-speaker choices
+    /// the user is allowed to pick from. Returns empty (never throws) if
+    /// <c>pactl</c> isn't available.</summary>
+    IReadOnlyList<(string Node, string Desc)> EnumerateSpeakerSinks();
+
+    /// <summary>The FLX4's PipeWire sink node name, or null if it isn't
+    /// currently connected/enumerated by PipeWire.</summary>
+    string? FindFlx4Sink();
+
+    /// <summary>Re-link Sholto's master FL/FR output ports from the FLX4 to
+    /// <paramref name="speakerNode"/>. RL/RR (cue) are left connected to the
+    /// FLX4. Never throws; returns false + a log line on any failure.</summary>
+    bool ApplyMasterRoute(string flx4Node, string speakerNode, out string log);
+
+    /// <summary>Relink master FL/FR back onto the FLX4 (undo <see cref="ApplyMasterRoute"/>).</summary>
+    void ResetMasterRoute(string flx4Node);
+}
+
 /// <summary>
 /// Linux/PipeWire-only helper for the dual-sound-card master routing scenario:
 /// the DDJ-FLX4 stays open as the 4ch playback device (master 1-2 + headphone
@@ -15,7 +45,7 @@ namespace Sholto.Audio;
 /// method here is guarded: a missing tool, an absent sink, or a shell failure
 /// degrades to "master stays on the FLX4" and is logged, never thrown.
 /// </summary>
-public static class PipeWireRouter
+public sealed class PipeWireRouter : IPipeWireRouter
 {
     /// <summary>True if the node/description names look like the DDJ-FLX4.
     /// Matches on "DDJ-FLX4" or "AlphaTheta" (the manufacturer) rather than a
@@ -28,16 +58,11 @@ public static class PipeWireRouter
 
     /// <summary>True if <c>pw-link</c> is on PATH. Everything else here no-ops
     /// (returns null/false/empty) when this is false.</summary>
-    public static bool IsAvailable()
+    public bool IsAvailable()
     {
         try
         {
-            using var p = Process.Start(new ProcessStartInfo("pw-link", "--version")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            });
+            using var p = Process.Start(StartInfo("pw-link", "--version"));
             if (p is null) return false;
             p.WaitForExit(2000);
             return p.ExitCode == 0;
@@ -74,18 +99,18 @@ public static class PipeWireRouter
     /// <summary>All non-FLX4 playback sinks — i.e. the master-speaker choices
     /// the user is allowed to pick from. Returns empty (never throws) if
     /// <c>pactl</c> isn't available.</summary>
-    public static IReadOnlyList<(string Node, string Desc)> EnumerateSpeakerSinks()
+    public IReadOnlyList<(string Node, string Desc)> EnumerateSpeakerSinks()
     {
-        var text = RunCapture("pactl", "list sinks");
+        var text = RunCapture("pactl", "list", "sinks");
         if (text is null) return Array.Empty<(string, string)>();
         return ParseSinks(text).Where(s => !IsFlx4(s.Node) && !IsFlx4(s.Desc)).ToList();
     }
 
     /// <summary>The FLX4's PipeWire sink node name, or null if it isn't
     /// currently connected/enumerated by PipeWire.</summary>
-    public static string? FindFlx4Sink()
+    public string? FindFlx4Sink()
     {
-        var text = RunCapture("pactl", "list sinks");
+        var text = RunCapture("pactl", "list", "sinks");
         if (text is null) return null;
         var match = ParseSinks(text).FirstOrDefault(s => IsFlx4(s.Node) || IsFlx4(s.Desc));
         return match.Node;
@@ -96,7 +121,7 @@ public static class PipeWireRouter
     /// FLX4. Polls for Sholto's ports for ~3s since they only exist once the
     /// device is actively streaming (call this after <c>Start()</c>).
     /// Never throws; returns false + a log line on any failure.</summary>
-    public static bool ApplyMasterRoute(string flx4Node, string speakerNode, out string log)
+    public bool ApplyMasterRoute(string flx4Node, string speakerNode, out string log)
     {
         var logLines = new List<string>();
         void Log(string s) { Console.WriteLine($"[PipeWire] {s}"); logLines.Add(s); }
@@ -121,8 +146,8 @@ public static class PipeWireRouter
         {
             // Disconnect from the FLX4 first. Ignore its exit code: it's a
             // (harmless) non-zero no-op if the port wasn't linked there.
-            Run("pw-link", $"-d \"{port}\" \"{flx4Node}:playback_{chan}\"");
-            if (Run("pw-link", $"\"{port}\" \"{speakerNode}:playback_{chan}\""))
+            Run("pw-link", "-d", port, $"{flx4Node}:playback_{chan}");
+            if (Run("pw-link", port, $"{speakerNode}:playback_{chan}"))
             {
                 Log($"{port} -> {speakerNode}:playback_{chan}");
             }
@@ -140,7 +165,7 @@ public static class PipeWireRouter
     /// <see cref="ApplyMasterRoute"/>). We don't track which speaker sink
     /// master was last routed to, so this best-effort disconnects from every
     /// currently-enumerated speaker sink before relinking to the FLX4.</summary>
-    public static void ResetMasterRoute(string flx4Node)
+    public void ResetMasterRoute(string flx4Node)
     {
         if (!IsAvailable()) return;
         var (fl, fr) = FindSholtoOutputPorts();
@@ -154,8 +179,8 @@ public static class PipeWireRouter
         foreach (var (port, chan) in new[] { (fl, "FL"), (fr, "FR") })
         {
             foreach (var sink in speakers)
-                Run("pw-link", $"-d \"{port}\" \"{sink.Node}:playback_{chan}\"");
-            if (Run("pw-link", $"\"{port}\" \"{flx4Node}:playback_{chan}\""))
+                Run("pw-link", "-d", port, $"{sink.Node}:playback_{chan}");
+            if (Run("pw-link", port, $"{flx4Node}:playback_{chan}"))
                 Console.WriteLine($"[PipeWire] {port} -> {flx4Node}:playback_{chan} (reset to FLX4)");
         }
     }
@@ -190,39 +215,46 @@ public static class PipeWireRouter
         return (null, null);
     }
 
+    /// <summary>Builds a <see cref="ProcessStartInfo"/> with <paramref name="args"/>
+    /// passed via <see cref="ProcessStartInfo.ArgumentList"/> rather than a single
+    /// interpolated command-line string — no shell is involved, so a node/sink name
+    /// containing a quote, space, or shell metacharacter is passed through verbatim
+    /// instead of breaking (or being interpreted as) the command line.</summary>
+    private static ProcessStartInfo StartInfo(string exe, params string[] args)
+    {
+        var psi = new ProcessStartInfo(exe)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        foreach (var arg in args) psi.ArgumentList.Add(arg);
+        return psi;
+    }
+
     /// <summary>Runs a command, ignoring stdout, returning whether it exited 0.</summary>
-    private static bool Run(string exe, string args)
+    private static bool Run(string exe, params string[] args)
     {
         try
         {
-            using var p = Process.Start(new ProcessStartInfo(exe, args)
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            });
+            using var p = Process.Start(StartInfo(exe, args));
             if (p is null) return false;
             p.WaitForExit(3000);
             return p.ExitCode == 0;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PipeWire] '{exe} {args}' failed: {ex.Message}");
+            Console.WriteLine($"[PipeWire] '{exe} {string.Join(' ', args)}' failed: {ex.Message}");
             return false;
         }
     }
 
     /// <summary>Runs a command and returns its captured stdout, or null on failure.</summary>
-    private static string? RunCapture(string exe, string args)
+    private static string? RunCapture(string exe, params string[] args)
     {
         try
         {
-            using var p = Process.Start(new ProcessStartInfo(exe, args)
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            });
+            using var p = Process.Start(StartInfo(exe, args));
             if (p is null) return null;
             string stdout = p.StandardOutput.ReadToEnd();
             p.WaitForExit(5000);
@@ -230,7 +262,7 @@ public static class PipeWireRouter
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PipeWire] '{exe} {args}' failed: {ex.Message}");
+            Console.WriteLine($"[PipeWire] '{exe} {string.Join(' ', args)}' failed: {ex.Message}");
             return null;
         }
     }

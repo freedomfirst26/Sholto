@@ -96,8 +96,7 @@ bass, other), then the song sections.
 
 - A small moving bar in **ANALYZED** means something is running for that row.
 - A tick means tempo, beats **and** stems are all done.
-- Stems need **demucs** installed; song sections use **allin1** if you have it,
-  and fall back to a simpler built-in guess if you don't.
+- Stems need **demucs** installed; song sections use a simpler built-in guess.
 
 **Re-analyse a track** — for the odd one whose beats came out wrong:
 

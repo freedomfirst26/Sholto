@@ -1,7 +1,5 @@
 using System;
 using System.Reflection;
-using System.Threading;
-using Avalonia;
 using Microsoft.Extensions.Options;
 using Sholto.App.ViewModels;
 using Sholto.Controller.Gestures;
@@ -18,24 +16,20 @@ namespace Sholto.App.Tests;
 /// simulate a grab without a scratch-capable Deck (real audio + a varispeed provider).</summary>
 public class OrchestratorScratchRepairTests
 {
-    // MainViewModel's ctor loads the bundled themes via Avalonia's AssetLoader
-    // (Themes.SilenceGroove), which needs a live Avalonia Application — nothing else
-    // in this test needs a window or a platform, so set one up once, headlessly,
-    // rather than pull in a real windowing backend.
-    private static int _avaloniaInit;
-    private static void EnsureAvalonia()
-    {
-        if (Interlocked.Exchange(ref _avaloniaInit, 1) != 0) return;
-        AppBuilder.Configure<Application>()
-            .UsePlatformDetect()
-            .SetupWithoutStarting();
-    }
-
     private static Orchestrator MakeOrchestrator(out MainViewModel vm)
     {
-        EnsureAvalonia();
-        vm = new MainViewModel(Options.Create(new MagnetismOptions()), Options.Create(new FeatureOptions()));
-        return new Orchestrator(vm, () => null, Options.Create(new ScratchOptions()), new GestureRecognizer());
+        AvaloniaTestApp.EnsureStarted();
+        var decoder = new Sholto.Audio.AudioFileDecoder([]);
+        var session = new NullExternalTool();
+        var stemAnalyzer = new Sholto.Analysis.DemucsStemAnalyzer(session);
+        vm = new MainViewModel(
+            Options.Create(new FeatureOptions()),
+            decoder, stemAnalyzer,
+            new Sholto.App.Theming.ThemeContext(), Sholto.Audio.NullLoopDebug.Instance, stemAnalyzer,
+            new Sholto.Music.TrackScanner());
+        return new Orchestrator(vm, vm, vm, vm, () => null,
+            Options.Create(new ScratchOptions()), Options.Create(new MagnetismOptions()),
+            new GestureRecognizer(), decoder);
     }
 
     private static object GetScratchState(Orchestrator orchestrator, int deck)

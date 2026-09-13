@@ -1,260 +1,256 @@
 namespace Sholto.Analysis;
 
 /// <summary>
-/// Turns madmom's raw, sometimes-irregular downbeat detections into the
-/// constant-spacing "beatgrid" every DJ tool actually shows on screen.
+/// A constant-spacing beatgrid, and the whole of one: after fitting, every grid
+/// in Sholto is described completely by these four numbers. Beats are at
+/// <c>anchor + n·beatPeriod</c>, downbeats at every <see cref="BeatsPerBar"/>th
+/// of them, out to <see cref="DurationSec"/>. There is no such thing as an
+/// irregular grid here — madmom's raw, wobbling detections are
+/// <see cref="DetectedBeats"/>, and <see cref="BeatgridFitter"/> is the one
+/// place that turns those into one of these.
 ///
-/// Why this exists: madmom's DBN tracks tempo as a Bayesian latent state, so
-/// raw downbeats can wobble (intro at wrong perceived tempo, half-time → full
-/// mix lock, time-varying tempo in live recordings). DJs need a constant grid
-/// derived from a single BPM + a single trusted phase anchor so beat-jumping,
-/// quantised loops, and visual alignment all behave predictably. This is what
-/// Rekordbox / Serato / Traktor do too — they don't draw raw beat detections.
+/// Why a value type and not two <c>double[]</c>: the arrays are a RENDERING of
+/// the grid, not the grid. Consumers that hold only the arrays end up
+/// reverse-engineering these four numbers back out of them — recovering
+/// beats-per-bar from array deltas, binary-searching for a beat index that is
+/// one <c>Math.Round</c>, indexing <c>beats[i + bars*4]</c> and needing a
+/// fallback branch purely because the array happens to end. All of that is
+/// arithmetic dressed up as lookup. Carry the grid; materialise only at the
+/// edges that genuinely need an array.
+///
+/// Two such edges remain, both deliberate:
+/// <list type="bullet">
+/// <item><see cref="BasicAnalysis"/> stores the materialised arrays because the
+/// on-disk analysis cache (<c>AnalysisCodec.Version</c> 3) stores them, and
+/// changing that shape would invalidate every cached analysis in the user's
+/// library and re-run madmom on every track.</item>
+/// <item><c>WaveformControl</c> needs <c>double[]</c> for its
+/// <c>AffectsRender</c> property and blit path.</item>
+/// </list>
+///
+/// Immutable: the adjustment operations (<see cref="ShiftedBy"/>,
+/// <see cref="AtBpm"/>, <see cref="PivotedAt"/>) each return a new grid, which
+/// is what makes "detected grid" and "effective grid" two values rather than
+/// one mutable object plus a pile of correction fields.
 /// </summary>
-public static class Beatgrid
+/// <param name="AnchorSec">A time at which a DOWNBEAT falls. Not required to be
+/// the first one, or even to be inside the track — <see cref="ShiftedBy"/> and
+/// <see cref="PivotedAt"/> can move it anywhere. Materialisation normalises it
+/// into the first bar (<see cref="FirstDownbeatSec"/>).</param>
+/// <param name="BeatPeriodSec">Seconds per beat, i.e. <c>60 / bpm</c>. The
+/// period, not the BPM, is the stored form: it is what every piece of grid
+/// arithmetic actually uses, and storing BPM would round-trip a division
+/// through every operation.</param>
+/// <param name="BeatsPerBar">4 for almost all DJ-able music, 3 for waltz-time.
+/// CARRIED, never re-derived: once it has been established it travels with the
+/// grid, so a BPM tweak or a nudge cannot accidentally flip 4/4 to 3/4.</param>
+/// <param name="DurationSec">Track length — the extent the materialisers emit
+/// out to. Part of the grid because "the grid for this track" is bounded; two
+/// grids with the same tempo and phase but different durations render
+/// differently.</param>
+public sealed record Beatgrid(
+    double AnchorSec,
+    double BeatPeriodSec,
+    int BeatsPerBar,
+    double DurationSec)
 {
-    /// <summary>Synthesize a constant-spacing downbeat grid covering the track.
-    /// Returns an empty array if BPM or duration are missing — caller should
-    /// fall back to "no grid" rather than guessing. Equivalent to
-    /// <see cref="SynthesizeFullGrid"/>.Downbeats; kept for callers that only
-    /// need the downbeats.</summary>
-    public static double[] Synthesize(
-        double bpm,
-        double[] rawBeats,
-        double[] rawDownbeats,
-        double durationSec)
-        => SynthesizeFullGrid(bpm, rawBeats, rawDownbeats, durationSec).Downbeats;
+    /// <summary>The canonical "no grid" value: what a fitter returns when it was
+    /// given a non-positive BPM or duration. Materialises to empty arrays, so
+    /// callers that only ever render do not need a null check.</summary>
+    public static Beatgrid Empty { get; } = new(0.0, 0.0, 4, 0.0);
 
-    /// <summary>
-    /// Synthesize both the per-beat grid and the per-bar (downbeat) grid from
-    /// the same constant-spacing math. Crucially, beats and downbeats share an
-    /// anchor + period so every Nth beat is a downbeat by construction. This
-    /// is what guarantees the waveform's small per-beat ticks line up exactly
-    /// with the tall downbeat bars — without it, the two would drift apart by
-    /// 1-2 columns whenever the synth anchor didn't fall on a raw beat.
-    /// </summary>
-    public static (double[] Beats, double[] Downbeats) SynthesizeFullGrid(
-        double bpm,
-        double[] rawBeats,
-        double[] rawDownbeats,
-        double durationSec)
+    /// <summary>True when this grid describes nothing renderable. Mirrors
+    /// exactly the guards the old tuple-returning synthesis methods used before
+    /// returning <c>([], [])</c>.</summary>
+    public bool IsEmpty => BeatPeriodSec <= 0 || DurationSec <= 0 || BeatsPerBar < 1;
+
+    /// <summary>Tempo in beats per minute. Derived — <see cref="BeatPeriodSec"/>
+    /// is the stored form.</summary>
+    public double Bpm => BeatPeriodSec > 0 ? 60.0 / BeatPeriodSec : 0.0;
+
+    /// <summary>Seconds per bar.</summary>
+    public double BarPeriodSec => BeatPeriodSec * BeatsPerBar;
+
+    /// <summary>The first downbeat at or after 0 — <see cref="AnchorSec"/>
+    /// walked into <c>[0, BarPeriodSec)</c>. This is the origin of the index
+    /// space used by <see cref="BeatAt"/>, <see cref="DownbeatAt"/> and the
+    /// materialisers, so <c>BeatAt(i)</c> corresponds to <c>BeatTimes()[i]</c>.
+    ///
+    /// Deliberately repeated addition/subtraction rather than <c>%</c>: the
+    /// synthesis this replaces walked the anchor in exactly this way, and the
+    /// two do not agree bit-for-bit on every input.</summary>
+    public double FirstDownbeatSec
     {
-        if (bpm <= 0 || durationSec <= 0) return ([], []);
-
-        int beatsPerBar = InferBeatsPerBar(rawBeats, rawDownbeats);
-        double beatPeriod = 60.0 / bpm;
-        double barPeriod  = beatPeriod * beatsPerBar;
-        if (barPeriod <= 0) return ([], []);
-
-        double anchor = ComputeAnchor(rawDownbeats, barPeriod);
-
-        // Anchor is in [0, barPeriod). Walk backward to the first downbeat
-        // ≥ 0 so we cover the very start of the song.
-        double t0 = anchor;
-        while (t0 - barPeriod >= 0) t0 -= barPeriod;
-
-        var downbeats = new List<double>(capacity: (int)(durationSec / barPeriod) + 2);
-        var beats     = new List<double>(capacity: (int)(durationSec / beatPeriod) + 2);
-
-        for (double db = t0; db <= durationSec + barPeriod / 2; db += barPeriod)
+        get
         {
-            if (db >= 0) downbeats.Add(db);
-            // Emit beatsPerBar beats starting AT this downbeat. The first one
-            // IS the downbeat itself; the next (beatsPerBar - 1) are the
-            // intermediate beats.
-            for (int i = 0; i < beatsPerBar; i++)
-            {
-                double bt = db + i * beatPeriod;
-                if (bt >= 0 && bt <= durationSec + beatPeriod / 2) beats.Add(bt);
-            }
+            double bar = BarPeriodSec;
+            if (bar <= 0) return 0.0;
+            double t0 = AnchorSec;
+            while (t0 - bar >= 0) t0 -= bar;
+            while (t0 < 0) t0 += bar;
+            return t0;
         }
+    }
+
+    /// <summary>Time of beat <paramref name="index"/>, counting from
+    /// <see cref="FirstDownbeatSec"/>. O(1), and defined for indices outside the
+    /// track — the grid is infinite, only its materialisation is bounded.</summary>
+    public double BeatAt(int index) => FirstDownbeatSec + index * BeatPeriodSec;
+
+    /// <summary>Time of downbeat (bar start) <paramref name="index"/>. O(1).</summary>
+    public double DownbeatAt(int index) => FirstDownbeatSec + index * BarPeriodSec;
+
+    /// <summary>Index of the beat nearest <paramref name="timeSec"/>. One
+    /// rounded division — this is what the binary searches over the beat array
+    /// were computing the long way round. May return a negative index or one
+    /// past the end of the track; callers that need a beat inside the track
+    /// should clamp to <c>[0, BeatCount - 1]</c>.</summary>
+    public int NearestBeatIndex(double timeSec)
+        => BeatPeriodSec > 0
+            ? (int)Math.Round((timeSec - FirstDownbeatSec) / BeatPeriodSec)
+            : 0;
+
+    /// <summary>Time of the downbeat nearest <paramref name="timeSec"/>. O(1).</summary>
+    public double NearestDownbeatSec(double timeSec)
+    {
+        double bar = BarPeriodSec;
+        if (bar <= 0) return 0.0;
+        double first = FirstDownbeatSec;
+        return first + Math.Round((timeSec - first) / bar) * bar;
+    }
+
+    /// <summary>Number of beats <see cref="BeatTimes"/> emits — i.e. the last
+    /// valid beat index for this track.
+    ///
+    /// Walks the grid rather than closing the form, and NOT because that is
+    /// easier: the walk accumulates (see <see cref="Walk"/>), so on roughly 2%
+    /// of (tempo, phase, duration) inputs the accumulated final bar lands on the
+    /// other side of the tail guard from the exactly-multiplied one, and a
+    /// closed form is off by one against the array actually emitted. Measured:
+    /// 104 disagreements in 4992 sampled cases. A count that can disagree with
+    /// the array it counts is worse than an O(bars) loop over a few hundred
+    /// items.</summary>
+    public int BeatCount => Walk(null, null).Beats;
+
+    /// <summary>Number of downbeats <see cref="DownbeatTimes"/> emits. Same
+    /// walk, same reasoning as <see cref="BeatCount"/>.</summary>
+    public int DownbeatCount => Walk(null, null).Downbeats;
+
+    /// <summary>Same tempo, phase moved by <paramref name="deltaSec"/>. The grid
+    /// nudge controls.</summary>
+    public Beatgrid ShiftedBy(double deltaSec) => this with { AnchorSec = AnchorSec + deltaSec };
+
+    /// <summary>Same anchor, new tempo — the spacing stretches and shrinks
+    /// around the anchored downbeat, so the kick the user is looking at stays
+    /// put while distant ones move. Beats-per-bar is carried, so a width tweak
+    /// cannot flip 4/4 to 3/4. A non-positive BPM yields <see cref="Empty"/>'s
+    /// period, i.e. an empty grid.</summary>
+    public Beatgrid AtBpm(double bpm) => this with { BeatPeriodSec = bpm > 0 ? 60.0 / bpm : 0.0 };
+
+    /// <summary>Same tempo, anchor placed exactly at <paramref name="anchorSec"/>
+    /// — i.e. make that instant a downbeat. The "set downbeat here" /
+    /// two-point-grid operation.</summary>
+    public Beatgrid PivotedAt(double anchorSec) => this with { AnchorSec = anchorSec };
+
+    /// <summary>Recover a grid from already-materialised beat and downbeat
+    /// arrays — the adapter for the one boundary that still loses the four
+    /// numbers: the version-3 analysis cache, which stores
+    /// <see cref="BasicAnalysis"/>'s arrays and nothing else. The arrays are
+    /// read back at deck-load time and beats-per-bar has to be recovered from
+    /// their spacing because nothing carried it across the cache.
+    ///
+    /// This is the ONLY re-derivation of beats-per-bar from a synthesised grid
+    /// in the codebase, and it exists here — once, at the boundary — rather
+    /// than in the deck. It disappears the day the cache stores
+    /// (anchor, period, beatsPerBar, duration) directly.
+    ///
+    /// Note this is NOT the same job as <see cref="BeatgridFitter"/>'s internal
+    /// inference: that one takes a majority vote over madmom's noisy RAW
+    /// detections, where bars genuinely disagree. These arrays are a synthesised
+    /// constant-spacing grid, so a single delta ratio is exact.</summary>
+    public static Beatgrid FromGridArrays(
+        double[] beatTimes, double[] downbeatTimes, double bpm, double durationSec)
+    {
+        if (bpm <= 0) return Empty;
+
+        int beatsPerBar = 4;
+        if (downbeatTimes.Length >= 2 && beatTimes.Length >= 2)
+        {
+            double beatPeriod = beatTimes[1] - beatTimes[0];
+            double barPeriod = downbeatTimes[1] - downbeatTimes[0];
+            if (beatPeriod > 1e-6) beatsPerBar = Math.Max(1, (int)Math.Round(barPeriod / beatPeriod));
+        }
+
+        double anchor = downbeatTimes.Length > 0 ? downbeatTimes[0] : 0.0;
+        return new Beatgrid(anchor, 60.0 / bpm, beatsPerBar, durationSec);
+    }
+
+    /// <summary>Render the grid to the per-beat and per-bar arrays the analysis
+    /// cache and the waveform renderer consume. THE array-building loop — the
+    /// only one; every other "grid array" in the app comes from here.
+    ///
+    /// Beats and downbeats are emitted from the same walk so every
+    /// <see cref="BeatsPerBar"/>th beat IS a downbeat by construction. That is
+    /// what guarantees the waveform's small per-beat ticks land exactly on the
+    /// tall bar lines; generating the two independently drifts them apart by a
+    /// column or two whenever the anchor does not fall on a raw beat.
+    ///
+    /// The walk accumulates (<c>db += barPeriod</c>) rather than computing
+    /// <c>t0 + k·barPeriod</c>. That is the pre-refactor behaviour preserved
+    /// deliberately: the two differ in the last bits, and the arrays this emits
+    /// are compared against cached ones.</summary>
+    public (double[] Beats, double[] Downbeats) Materialise()
+    {
+        if (IsEmpty) return ([], []);
+
+        var downbeats = new List<double>(capacity: (int)(DurationSec / BarPeriodSec) + 2);
+        var beats = new List<double>(capacity: (int)(DurationSec / BeatPeriodSec) + 2);
+        Walk(beats, downbeats);
         return (beats.ToArray(), downbeats.ToArray());
     }
 
-    /// <summary>Regenerate a constant-spacing grid at a given BPM, pivoting
-    /// around <paramref name="anchorSec"/> so that one downbeat stays fixed
-    /// at that time while the spacing stretches/shrinks around it. Used by
-    /// the live BPM-width adjustment: the user keeps the kick they're looking
-    /// at pinned and only the bar SPACING changes, so distant kicks stop
-    /// drifting. beatsPerBar is passed in (caller derives it from the
-    /// existing grid) rather than re-inferred, so a width tweak can't
-    /// accidentally flip 4/4 ↔ 3/4.</summary>
-    public static (double[] Beats, double[] Downbeats) SynthesizeAnchored(
-        double bpm, double anchorSec, int beatsPerBar, double durationSec)
+    /// <summary>The one walk over the grid. Appends to whichever lists are
+    /// supplied (both may be null, to count only) and returns how many of each
+    /// it emitted, so <see cref="Materialise"/> and <see cref="BeatCount"/>
+    /// cannot drift apart: there is one loop and one set of tail guards.</summary>
+    private (int Beats, int Downbeats) Walk(List<double>? beats, List<double>? downbeats)
     {
-        if (bpm <= 0 || durationSec <= 0 || beatsPerBar < 1) return ([], []);
+        int nBeats = 0, nDownbeats = 0;
+        if (IsEmpty) return (0, 0);
 
-        double beatPeriod = 60.0 / bpm;
-        double barPeriod  = beatPeriod * beatsPerBar;
+        double beatPeriod = BeatPeriodSec;
+        double barPeriod = BarPeriodSec;
 
-        // Walk the anchor back to the first downbeat ≥ 0 so we cover the start.
-        double t0 = anchorSec;
-        while (t0 - barPeriod >= 0) t0 -= barPeriod;
-        while (t0 < 0) t0 += barPeriod;
-
-        var downbeats = new List<double>(capacity: (int)(durationSec / barPeriod) + 2);
-        var beats     = new List<double>(capacity: (int)(durationSec / beatPeriod) + 2);
-
-        for (double db = t0; db <= durationSec + barPeriod / 2; db += barPeriod)
+        for (double db = FirstDownbeatSec; db <= DurationSec + barPeriod / 2; db += barPeriod)
         {
-            if (db >= 0) downbeats.Add(db);
-            for (int i = 0; i < beatsPerBar; i++)
+            if (db >= 0) { nDownbeats++; downbeats?.Add(db); }
+            // Emit BeatsPerBar beats starting AT this downbeat. The first one IS
+            // the downbeat itself; the rest are the intermediate beats.
+            for (int i = 0; i < BeatsPerBar; i++)
             {
                 double bt = db + i * beatPeriod;
-                if (bt >= 0 && bt <= durationSec + beatPeriod / 2) beats.Add(bt);
+                if (bt >= 0 && bt <= DurationSec + beatPeriod / 2) { nBeats++; beats?.Add(bt); }
             }
         }
-        return (beats.ToArray(), downbeats.ToArray());
+        return (nBeats, nDownbeats);
     }
 
-    /// <summary>Beats-per-bar from the *mode* of beat-counts between consecutive
-    /// raw downbeats. 4 is overwhelmingly correct for DJ-able music; we only
-    /// pick 3 if the evidence is strong (mostly-3 distribution).</summary>
-    private static int InferBeatsPerBar(double[] beats, double[] downbeats)
-    {
-        if (downbeats.Length < 2 || beats.Length < 2) return 4;
+    /// <summary>The per-beat times. Allocates — see <see cref="Materialise"/>.
+    /// If you need both arrays, call <see cref="Materialise"/> once instead of
+    /// this and <see cref="DownbeatTimes"/>.</summary>
+    public double[] BeatTimes() => Materialise().Beats;
 
-        int threes = 0, fours = 0, other = 0;
-        for (int i = 1; i < downbeats.Length; i++)
-        {
-            double span = downbeats[i] - downbeats[i - 1];
-            if (span <= 0) continue;
-            // Count beats strictly inside (downbeats[i-1], downbeats[i]].
-            int n = 0;
-            foreach (var b in beats)
-            {
-                if (b > downbeats[i - 1] + 1e-6 && b <= downbeats[i] + 1e-6) n++;
-            }
-            if (n == 3) threes++;
-            else if (n == 4) fours++;
-            else other++;
-        }
-        // Need a clear majority of 3s to pick 3 — guards against a single weird
-        // intro bar making us misgrid the whole song.
-        if (threes > fours && threes >= (threes + fours + other) * 0.6) return 3;
-        return 4;
-    }
+    /// <summary>The per-bar (downbeat) times. Allocates — see
+    /// <see cref="Materialise"/>.</summary>
+    public double[] DownbeatTimes() => Materialise().Downbeats;
 
-    /// <summary>Find the phase in [0, period) that best fits the raw downbeats.
-    /// Robust to outliers: projects each downbeat to its phase, finds the
-    /// densest half-period window on the circle, averages the phases inside.</summary>
-    /// <summary>Number of opening downbeats used to anchor the grid phase.</summary>
-    private const int AnchorWindowBars = 16;
-
-    /// <summary>Result of <see cref="FitGrid"/>. When <see cref="UsedFit"/> is
-    /// false, the caller should ignore Bpm/AnchorSec/ResidualRmsMs and fall
-    /// back to (reported BPM, first detected downbeat) as before.</summary>
-    public readonly record struct GridFitResult(
-        bool UsedFit, double Bpm, double AnchorSec, double ResidualRmsMs, string Reason);
-
-    /// <summary>Minimum beat count required to trust a least-squares fit over
-    /// the reported BPM.</summary>
-    private const int MinFitBeats = 8;
-
-    /// <summary>Fitted period may not differ from the reported 60/Bpm period
-    /// by more than this fraction, else the fit is treated as bogus (wrong
-    /// beat/half-beat lock, octave error, etc).</summary>
-    private const double MaxPeriodRelError = 0.05;
-
-    /// <summary>Residual RMS above this means the track isn't constant-tempo
-    /// (or beats are too noisy) — a rigid grid would be wrong, so fall back.</summary>
-    private const double MaxResidualRmsSec = 0.025;
-
-    /// <summary>Least-squares fit a constant-spacing grid t(n) = anchor + n*period
-    /// through every raw beat detection, rather than trusting just the reported
-    /// BPM + first downbeat. A single reported BPM that's off by a few hundredths
-    /// (175.0 vs a true 175.04) makes a rigid synthesized grid drift visibly off
-    /// the kicks by the end of a track; regressing through all of madmom's beats
-    /// finds the period that actually matches what was detected. The fitted
-    /// anchor's phase is then snapped to the nearest fitted-grid line to the
-    /// first detected downbeat, so bar 1 still lands on a real downbeat.
-    /// Falls back (UsedFit = false) when there isn't enough data, the fit
-    /// disagrees too much with the reported BPM, or beats are too irregular
-    /// for a single constant tempo to make sense (variable-tempo track).</summary>
-    public static GridFitResult FitGrid(double[] beatTimes, double reportedBpm, double firstDownbeatSec)
-    {
-        int n = beatTimes.Length;
-        if (n < MinFitBeats)
-            return new GridFitResult(false, 0, 0, 0, $"too few beats ({n} < {MinFitBeats})");
-
-        // Simple linear regression of t[i] against index i.
-        double sumI = 0, sumT = 0, sumIT = 0, sumII = 0;
-        for (int i = 0; i < n; i++)
-        {
-            sumI += i;
-            sumT += beatTimes[i];
-            sumIT += i * beatTimes[i];
-            sumII += (double)i * i;
-        }
-        double denom = n * sumII - sumI * sumI;
-        if (denom <= 0)
-            return new GridFitResult(false, 0, 0, 0, "degenerate regression");
-
-        double period = (n * sumIT - sumI * sumT) / denom;
-        double anchor0 = (sumT - period * sumI) / n;
-        if (period <= 0)
-            return new GridFitResult(false, 0, 0, 0, $"non-positive fitted period ({period:F4}s)");
-
-        double sqErr = 0;
-        for (int i = 0; i < n; i++)
-        {
-            double resid = beatTimes[i] - (anchor0 + i * period);
-            sqErr += resid * resid;
-        }
-        double residualRmsSec = Math.Sqrt(sqErr / n);
-
-        double fittedBpm = 60.0 / period;
-
-        if (reportedBpm > 0)
-        {
-            double reportedPeriod = 60.0 / reportedBpm;
-            double relError = Math.Abs(period - reportedPeriod) / reportedPeriod;
-            if (relError > MaxPeriodRelError)
-                return new GridFitResult(false, fittedBpm, anchor0, residualRmsSec * 1000,
-                    $"fitted BPM {fittedBpm:F2} disagrees with reported {reportedBpm:F2} by {relError:P1}");
-        }
-
-        if (residualRmsSec > MaxResidualRmsSec)
-            return new GridFitResult(false, fittedBpm, anchor0, residualRmsSec * 1000,
-                $"residual RMS {residualRmsSec * 1000:F1}ms too irregular (variable tempo?)");
-
-        // Snap the fitted anchor's phase so bar 1 lands on the real first
-        // detected downbeat: shift by the whole number of beats that brings
-        // anchor0 nearest firstDownbeatSec, without touching the fitted period.
-        double k = Math.Round((firstDownbeatSec - anchor0) / period);
-        double anchor = anchor0 + k * period;
-
-        return new GridFitResult(true, fittedBpm, anchor, residualRmsSec * 1000,
-            $"fit ok, {fittedBpm:F2} BPM (reported {reportedBpm:F2}), RMS {residualRmsSec * 1000:F1}ms");
-    }
-
-    private static double ComputeAnchor(double[] downbeats, double period)
-    {
-        if (downbeats.Length == 0) return 0;
-
-        // Anchor the grid's phase to the OPENING downbeats only. madmom's beat
-        // positions random-walk across a track — its DBN tracks tempo as a latent
-        // state that wanders, so absolute beat times drift ±hundreds of ms over a
-        // few minutes even when the true tempo is constant. Averaging the phase
-        // over ALL downbeats therefore smears it and lands the grid up to ~a beat
-        // off even at the very start. The opening bars are the freshest and are
-        // where the DJ cues, so we estimate phase from them and leave any later
-        // drift to the nudge / set-downbeat controls.
-        int k = Math.Min(downbeats.Length, AnchorWindowBars);
-        var phases = new double[k];
-        for (int i = 0; i < k; i++)
-        {
-            double p = downbeats[i] % period;
-            phases[i] = p < 0 ? p + period : p;
-        }
-
-        // Median of the opening phases: robust to a single mis-detected first
-        // downbeat. Opening bars of a steady track share almost the same phase, so
-        // there is no wrap-around seam to handle here.
-        Array.Sort(phases);
-        double anchor = phases[k / 2];
-        anchor %= period;
-        if (anchor < 0) anchor += period;
-        return anchor;
-    }
+    /// <summary>Two-element deconstruction into the materialised
+    /// <c>(beats, downbeats)</c> pair — identical to <see cref="Materialise"/>,
+    /// and the reason <c>var (beats, downbeats) = fitter.Synthesize…(…)</c>
+    /// still reads the way it always did at the array boundary in
+    /// <see cref="BasicAnalysis.ComputeAsync"/>. It ALLOCATES, unlike the
+    /// four-element deconstruction the record generates for its own components;
+    /// prefer naming <see cref="Materialise"/> where that matters.</summary>
+    public void Deconstruct(out double[] Beats, out double[] Downbeats)
+        => (Beats, Downbeats) = Materialise();
 }

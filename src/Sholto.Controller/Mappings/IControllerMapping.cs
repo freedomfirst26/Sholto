@@ -29,4 +29,11 @@ public interface IControllerMapping
     /// device, or <c>null</c> if the device has no such light. Default: no lights.
     /// This is the output counterpart of <see cref="Translate(NoteEvent)"/>.</summary>
     byte[]? RenderLight(ControllerLight light, bool on) => null;
+
+    /// <summary>The raw MIDI bytes to send once, immediately after a successful
+    /// connection, to put the device into the state this mapping expects (e.g.
+    /// selecting a pad mode) — or <c>null</c> if the device needs no such
+    /// initialisation. The transport writes these bytes verbatim; it does not
+    /// interpret them. Default: no startup init.</summary>
+    byte[]? StartupInit() => null;
 }

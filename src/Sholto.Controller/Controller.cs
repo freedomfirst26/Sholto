@@ -12,7 +12,7 @@ namespace Sholto.Controller;
 /// whose <see cref="Button.Clicked"/> the Controller catches. The Controller then
 /// orchestrates output DOWN (lights the button) and emits the semantic event UP
 /// to the App. The App is entirely ignorant of the lighting.</summary>
-public sealed class Controller : IDisposable
+public sealed class Controller : IControlSurface
 {
     // Set SHOLTO_MIDI_LOG=1 to print every incoming MIDI message ([MIDI raw] …) —
     // handy for discovering which channel/note a button sends when mapping it.
@@ -57,15 +57,12 @@ public sealed class Controller : IDisposable
     /// <summary>True while a controller is currently connected.</summary>
     public bool IsConnected => _midi.IsConnected;
 
-    /// <param name="flx4Options">Wire numbers for the DDJ-FLX4 mapping. Defaults
-    /// to <c>new DdjFlx4Options()</c> (the device's built-in wire numbers) if
-    /// not supplied — existing call sites keep working unchanged.</param>
-    public Controller(Mappings.DdjFlx4Options? flx4Options = null)
+    /// <param name="midi">The MIDI manager (device connection + mapping), composed
+    /// once at bootstrap and injected — Controller no longer decides its identity
+    /// or reads <c>SHOLTO_MIDI_LOG</c> itself; the composition root does both.</param>
+    public Controller(MidiManager midi)
     {
-        _midi = new MidiManager(flx4Options)
-        {
-            LogAllMessages = Environment.GetEnvironmentVariable("SHOLTO_MIDI_LOG") == "1",
-        };
+        _midi = midi;
 
         MasterCue     = MakeButton("MasterCue",     new ControllerLight(0, LightFunction.MasterCue));
         Deck1Cue      = MakeButton("Deck1Cue",      new ControllerLight(0, LightFunction.Cue));
@@ -179,12 +176,6 @@ public sealed class Controller : IDisposable
         Action?.Invoke(new ControllerEvent.CueChanged(0, false));
         Action?.Invoke(new ControllerEvent.CueChanged(1, false));
     }
-
-    /// <summary>What <see cref="Reset"/> is about to clear on the cue buttons — every
-    /// bit of state a physical press toggles rather than a value the app streams to
-    /// the LED. Take this before calling Reset, hand it to <see cref="RestoreCueState"/>
-    /// afterwards.</summary>
-    public readonly record struct CueSnapshot(bool Deck1, bool Deck2, bool Master);
 
     /// <summary>Read the cue buttons' current on/off state, straight from the button
     /// model — the same field <see cref="OnCueClicked"/>/<see cref="OnMasterCueClicked"/>

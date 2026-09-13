@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.Audio;
 using Xunit;
@@ -10,8 +11,10 @@ public class DeckFaderInitTests
     [Fact]
     public void NewDeck_StartsFaderDown_SoNothingPlaysUntilPickedUp()
     {
-        var player = new Deck { Reporter = new AnalysisReporter() };
-        var deck = new DeckViewModel(player);
+        AvaloniaTestApp.EnsureStarted();
+        var session = new NullExternalTool();
+        var player = new Deck(new AudioFileDecoder([]), new DemucsStemAnalyzer(session), NullLoopDebug.Instance) { Reporter = new AnalysisReporter(Array.Empty<string>()) };
+        var deck = new DeckViewModel(player, new ThemeContext());
 
         // Master-path gain (channel × crossfade) starts at 0 — a freshly loaded
         // deck is silent until the fader is brought up, rather than blasting at
@@ -22,8 +25,10 @@ public class DeckFaderInitTests
     [Fact]
     public void BringingFaderUp_AppliesGain()
     {
-        var player = new Deck { Reporter = new AnalysisReporter() };
-        var deck = new DeckViewModel(player);
+        AvaloniaTestApp.EnsureStarted();
+        var session = new NullExternalTool();
+        var player = new Deck(new AudioFileDecoder([]), new DemucsStemAnalyzer(session), NullLoopDebug.Instance) { Reporter = new AnalysisReporter(Array.Empty<string>()) };
+        var deck = new DeckViewModel(player, new ThemeContext());
 
         deck.ChannelGain = 1.0;
         Assert.Equal(1f, player.MasterGain);

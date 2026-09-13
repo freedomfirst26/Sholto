@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Dev tool only — never shipped. Renders Sholto's audio output offline (no
+    sound card) and measures it, so bugs that only a human could previously
+    hear (deck audio dropping out, a backspin jolting) become assertable
+    numbers. See ~/Projects/sholto.md, "Design — Sholto.Bench".
+
+    OutputType Exe (the CLI face) but the library types underneath are public,
+    so a future test project can reference this project and call the same
+    render/measure/state code the CLI shells out to.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Sholto.Bench</RootNamespace>
+    <AssemblyName>Sholto.Bench</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sholto.Audio\Sholto.Audio.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Analysis\Sholto.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.ExternalTools\Sholto.ExternalTools.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Music\Sholto.Music.csproj" />
+    <!-- Phase 1b "hands": the ui subcommand drives the real Sholto.App window
+         tree headlessly, so Bench needs the app itself. Nothing in src/ may
+         reference back to Bench — this is a one-way dependency. -->
+    <ProjectReference Include="..\..\src\Sholto.App\Sholto.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Needed directly to construct the SoundFlow engine/format for offline
+         rendering (Sholto.Audio only exposes AudioEngine.DeckFormat, not the
+         engine type itself). Version pinned to match Sholto.Audio. -->
+    <PackageReference Include="SoundFlow" Version="1.4.1" />
+    <!-- Drives the real Avalonia UI tree with no display for the `ui` and
+         `screenshot` subcommands. Pinned to match the Avalonia version the
+         app itself uses (11.3.15) rather than floating to latest. -->
+    <PackageReference Include="Avalonia.Headless" Version="11.3.15" />
+  </ItemGroup>
+
+</Project>

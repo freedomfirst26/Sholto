@@ -1,5 +1,6 @@
 using SoundFlow.Providers;
 using SoundFlow.Utils;
+using SfEngine = SoundFlow.Abstracts.AudioEngine;
 
 namespace Sholto.Audio;
 
@@ -7,15 +8,23 @@ namespace Sholto.Audio;
 /// route FLAC through MediaFoundation, which is absent on Linux; miniaudio decodes it
 /// natively. Decoding targets the deck format (48 kHz stereo F32) directly, so the
 /// output matches the NAudio strategies without a separate resample pass.</summary>
-public sealed class FlacDecodeStrategy : IAudioDecodeStrategy
+public sealed class FlacDecodeStrategy : IAudioDecodeStrategy, INeedsAudioEngine
 {
+    private SfEngine? _engine;
+
+    /// <summary>Supplies the SoundFlow engine this strategy decodes through. Called
+    /// once from <see cref="AudioEngine"/>'s constructor, the same way it hands a
+    /// <see cref="Deck"/> its engine via <c>Deck.AttachEngine</c>; FLAC decoding
+    /// before that throws with a clear message.</summary>
+    public void AttachEngine(SfEngine engine) => _engine = engine;
+
     public bool CanDecode(string extension) => extension == ".flac";
 
     public float[] Decode(string filePath)
     {
-        var engine = AudioFileDecoder.SoundFlowEngine
+        var engine = _engine
             ?? throw new InvalidOperationException(
-                "FLAC decoding needs the SoundFlow engine, which AudioEngine sets on startup — " +
+                "FLAC decoding needs the SoundFlow engine, which AudioEngine attaches on startup — " +
                 "it isn't initialised yet.");
 
         using var fs = File.OpenRead(filePath);

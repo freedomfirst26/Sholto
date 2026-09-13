@@ -7,13 +7,13 @@
        (1792 x 1316) so a coordinate measured off the unit is a coordinate typed
        here. A Viewbox scales the whole thing; nothing below needs to change.
 
-       Every shape that a user can point at carries fp:ControlSurface.Id, and
+       Every shape that a user can point at carries fp:DeviceLayout.Id, and
        Deck 0 / 1 for the per-deck ones. Decorative shapes carry neither and are
        marked IsHitTestVisible="False" so they never swallow a hover from the
        shape underneath.
 
        A printed legend — the small silk-screened box above or below a button —
-       instead carries fp:ControlSurface.HitFor, naming the control it belongs to.
+       instead carries fp:DeviceLayout.HitFor, naming the control it belongs to.
        It is a hit PROXY, not a second shape: hovering or clicking it lights and
        selects that control, while the control's own body stays the thing that
        glows. Scaled into a window a 36px button is about 20 screen pixels and its
@@ -187,7 +187,7 @@
     <TextBlock Canvas.Left="213.0" Canvas.Top="337.8" Width="60.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource AccentInk}" IsHitTestVisible="False" Text="OUT ADJ"/>
     <TextBlock Canvas.Left="263.0" Canvas.Top="258.6" Width="130.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="4 BEAT/EXIT"/>
     <Ellipse Canvas.Left="309.0" Canvas.Top="288.0" Width="38.0" Height="38.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.beatloop.toggle" fp:ControlSurface.Deck="0" Canvas.Left="312.0" Canvas.Top="287.0" Width="32.0" Height="32.0">
+    <Ellipse fp:DeviceLayout.Id="deck.beatloop.toggle" fp:DeviceLayout.Deck="0" Canvas.Left="312.0" Canvas.Top="287.0" Width="32.0" Height="32.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -206,12 +206,12 @@
         </RadialGradientBrush>
       </Ellipse.Fill>
     </Ellipse>
-    <Border fp:ControlSurface.HitFor="deck.beatloop.toggle" fp:ControlSurface.Deck="0" Canvas.Left="302.0" Canvas.Top="336.5" Width="52.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.beatloop.toggle" fp:DeviceLayout.Deck="0" Canvas.Left="302.0" Canvas.Top="336.5" Width="52.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="302.0" Canvas.Top="337.8" Width="52.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="ACTIVE"/>
     <TextBlock Canvas.Left="388.0" Canvas.Top="254.6" Width="130.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="CUE/LOOP"/>
     <TextBlock Canvas.Left="388.0" Canvas.Top="275.6" Width="130.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="CALL"/>
     <Ellipse Canvas.Left="394.0" Canvas.Top="291.0" Width="40.0" Height="40.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.beatloop.halve" fp:ControlSurface.Deck="0" Canvas.Left="397.0" Canvas.Top="290.0" Width="34.0" Height="34.0">
+    <Ellipse fp:DeviceLayout.Id="deck.beatloop.halve" fp:DeviceLayout.Deck="0" Canvas.Left="397.0" Canvas.Top="290.0" Width="34.0" Height="34.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -232,7 +232,7 @@
     </Ellipse>
     <TextBlock Canvas.Left="399.0" Canvas.Top="299.1" Width="30.0" TextAlignment="Center" FontSize="11" FontWeight="Normal" Foreground="#C8CCD3" IsHitTestVisible="False" Text="◄"/>
     <Ellipse Canvas.Left="473.0" Canvas.Top="291.0" Width="40.0" Height="40.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.beatloop.double" fp:ControlSurface.Deck="0" Canvas.Left="476.0" Canvas.Top="290.0" Width="34.0" Height="34.0">
+    <Ellipse fp:DeviceLayout.Id="deck.beatloop.double" fp:DeviceLayout.Deck="0" Canvas.Left="476.0" Canvas.Top="290.0" Width="34.0" Height="34.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -254,16 +254,16 @@
     <TextBlock Canvas.Left="478.0" Canvas.Top="299.1" Width="30.0" TextAlignment="Center" FontSize="11" FontWeight="Normal" Foreground="#C8CCD3" IsHitTestVisible="False" Text="►"/>
     <TextBlock Canvas.Left="392.0" Canvas.Top="327.5" Width="44.0" TextAlignment="Center" FontSize="9" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="1/2X"/>
     <TextBlock Canvas.Left="471.0" Canvas.Top="327.5" Width="44.0" TextAlignment="Center" FontSize="9" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="2X"/>
-    <Border fp:ControlSurface.HitFor="deck.beatloop.halve" fp:ControlSurface.Deck="0" Canvas.Left="394.0" Canvas.Top="343.5" Width="40.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.beatloop.halve" fp:DeviceLayout.Deck="0" Canvas.Left="394.0" Canvas.Top="343.5" Width="40.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="394.0" Canvas.Top="345.2" Width="40.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="DEL"/>
     <Border Canvas.Left="430.0" Canvas.Top="323.5" Width="46.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="430.0" Canvas.Top="325.2" Width="46.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="LOOP"/>
-    <Border fp:ControlSurface.HitFor="deck.beatloop.double" fp:ControlSurface.Deck="0" Canvas.Left="464.0" Canvas.Top="343.5" Width="58.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.beatloop.double" fp:DeviceLayout.Deck="0" Canvas.Left="464.0" Canvas.Top="343.5" Width="58.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="464.0" Canvas.Top="345.2" Width="58.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="MEMORY"/>
     <TextBlock Canvas.Left="502.0" Canvas.Top="258.6" Width="130.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="— MASTER"/>
     <Ellipse Canvas.Left="541.0" Canvas.Top="280.0" Width="52.0" Height="52.0" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
     <Ellipse Canvas.Left="542.0" Canvas.Top="278.0" Width="50.0" Height="50.0" Fill="#15161A" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.sync" fp:ControlSurface.Deck="0" Canvas.Left="545.0" Canvas.Top="281.0" Width="44.0" Height="44.0">
+    <Ellipse fp:DeviceLayout.Id="deck.sync" fp:DeviceLayout.Deck="0" Canvas.Left="545.0" Canvas.Top="281.0" Width="44.0" Height="44.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="34%,26%" Center="50%,46%" RadiusX="80%" RadiusY="80%">
           <GradientStop Offset="0.0" Color="#FFD3A0"/>
@@ -283,10 +283,10 @@
     </Ellipse>
     <TextBlock Canvas.Left="545.0" Canvas.Top="292.7" Width="44.0" TextAlignment="Center" FontSize="8" FontWeight="Bold" Foreground="#3A1D04" IsHitTestVisible="False" Text="BEAT"/>
     <TextBlock Canvas.Left="545.0" Canvas.Top="301.7" Width="44.0" TextAlignment="Center" FontSize="8" FontWeight="Bold" Foreground="#3A1D04" IsHitTestVisible="False" Text="SYNC"/>
-    <Border fp:ControlSurface.HitFor="deck.sync" fp:ControlSurface.Deck="0" Canvas.Left="525.0" Canvas.Top="336.5" Width="84.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.sync" fp:DeviceLayout.Deck="0" Canvas.Left="525.0" Canvas.Top="336.5" Width="84.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="525.0" Canvas.Top="337.8" Width="84.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="TEMPO RANGE"/>
     <Ellipse Canvas.Left="137.0" Canvas.Top="353.0" Width="446.0" Height="446.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.jog" fp:ControlSurface.Deck="0" Canvas.Left="140.0" Canvas.Top="350.0" Width="440.0" Height="440.0">
+    <Ellipse fp:DeviceLayout.Id="deck.jog" fp:DeviceLayout.Deck="0" Canvas.Left="140.0" Canvas.Top="350.0" Width="440.0" Height="440.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="48%,44%" RadiusX="80%" RadiusY="80%">
           <GradientStop Offset="0.0" Color="#5C6066"/>
@@ -558,9 +558,9 @@
     <TextBlock Canvas.Left="155.0" Canvas.Top="394.1" Width="120.0" TextAlignment="Center" FontSize="11" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="◄ SEARCH ►" RenderTransformOrigin="50%,50%">
       <TextBlock.RenderTransform><RotateTransform Angle="-42.0"/></TextBlock.RenderTransform>
     </TextBlock>
-    <Border fp:ControlSurface.HitFor="deck.shift" fp:ControlSurface.Deck="0" Canvas.Left="133.0" Canvas.Top="791.5" Width="50.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.shift" fp:DeviceLayout.Deck="0" Canvas.Left="133.0" Canvas.Top="791.5" Width="50.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="133.0" Canvas.Top="792.8" Width="50.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="SHIFT"/>
-    <Border fp:ControlSurface.Id="deck.shift" fp:ControlSurface.Deck="0" Canvas.Left="140.0" Canvas.Top="812.0" Width="36.0" Height="36.0" CornerRadius="5" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="deck.shift" fp:DeviceLayout.Deck="0" Canvas.Left="140.0" Canvas.Top="812.0" Width="36.0" Height="36.0" CornerRadius="5" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonTopColor}"/>
@@ -570,7 +570,7 @@
       </Border.Background>
     </Border>
     <Ellipse Canvas.Left="115.0" Canvas.Top="883.0" Width="86.0" Height="86.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.cue.transport" fp:ControlSurface.Deck="0" Canvas.Left="118.0" Canvas.Top="882.0" Width="80.0" Height="80.0">
+    <Ellipse fp:DeviceLayout.Id="deck.cue.transport" fp:DeviceLayout.Deck="0" Canvas.Left="118.0" Canvas.Top="882.0" Width="80.0" Height="80.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -591,7 +591,7 @@
     </Ellipse>
     <TextBlock Canvas.Left="118.0" Canvas.Top="911.2" Width="80.0" TextAlignment="Center" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentInk}" IsHitTestVisible="False" Text="CUE"/>
     <Ellipse Canvas.Left="115.0" Canvas.Top="976.0" Width="86.0" Height="86.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.play" fp:ControlSurface.Deck="0" Canvas.Left="118.0" Canvas.Top="975.0" Width="80.0" Height="80.0">
+    <Ellipse fp:DeviceLayout.Id="deck.play" fp:DeviceLayout.Deck="0" Canvas.Left="118.0" Canvas.Top="975.0" Width="80.0" Height="80.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -612,7 +612,7 @@
     </Ellipse>
     <TextBlock Canvas.Left="118.0" Canvas.Top="1003.5" Width="80.0" TextAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#C4D96B" IsHitTestVisible="False" Text="▶/II"/>
     <TextBlock Canvas.Left="88.0" Canvas.Top="1062.6" Width="140.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="PLAY/PAUSE"/>
-    <Border fp:ControlSurface.Id="deck.padmode.hotcue" fp:ControlSurface.Deck="0" Canvas.Left="220.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.padmode.hotcue" fp:DeviceLayout.Deck="0" Canvas.Left="220.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonFaceColor}"/>
@@ -622,9 +622,9 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="220.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentLit}" IsHitTestVisible="False" Text="HOT CUE"/>
-    <Border fp:ControlSurface.HitFor="deck.padmode.hotcue" fp:ControlSurface.Deck="0" Canvas.Left="219.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.padmode.hotcue" fp:DeviceLayout.Deck="0" Canvas.Left="219.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="219.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="KEYBOARD"/>
-    <Border fp:ControlSurface.Id="deck.padmode.padfx1" fp:ControlSurface.Deck="0" Canvas.Left="296.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.padmode.padfx1" fp:DeviceLayout.Deck="0" Canvas.Left="296.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonFaceColor}"/>
@@ -634,7 +634,7 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="296.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentLit}" IsHitTestVisible="False" Text="PAD FX1"/>
-    <Border fp:ControlSurface.HitFor="deck.padmode.padfx1" fp:ControlSurface.Deck="0" Canvas.Left="295.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.padmode.padfx1" fp:DeviceLayout.Deck="0" Canvas.Left="295.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="295.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="PAD FX2"/>
     <Border Canvas.Left="372.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
@@ -661,7 +661,7 @@
     <Border Canvas.Left="447.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="447.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="KEY SHIFT"/>
     <Rectangle Canvas.Left="220.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.1" fp:ControlSurface.Deck="0" Canvas.Left="220.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.1" fp:DeviceLayout.Deck="0" Canvas.Left="220.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -679,7 +679,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="296.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.2" fp:ControlSurface.Deck="0" Canvas.Left="296.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.2" fp:DeviceLayout.Deck="0" Canvas.Left="296.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -697,7 +697,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="372.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.3" fp:ControlSurface.Deck="0" Canvas.Left="372.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.3" fp:DeviceLayout.Deck="0" Canvas.Left="372.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -715,7 +715,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="448.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.4" fp:ControlSurface.Deck="0" Canvas.Left="448.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.4" fp:DeviceLayout.Deck="0" Canvas.Left="448.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -733,7 +733,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="220.0" Canvas.Top="1003.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.5" fp:ControlSurface.Deck="0" Canvas.Left="220.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.5" fp:DeviceLayout.Deck="0" Canvas.Left="220.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -751,7 +751,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="296.0" Canvas.Top="1003.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.6" fp:ControlSurface.Deck="0" Canvas.Left="296.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.6" fp:DeviceLayout.Deck="0" Canvas.Left="296.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -769,7 +769,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="372.0" Canvas.Top="1003.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.7" fp:ControlSurface.Deck="0" Canvas.Left="372.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.7" fp:DeviceLayout.Deck="0" Canvas.Left="372.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -787,7 +787,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="448.0" Canvas.Top="1003.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.8" fp:ControlSurface.Deck="0" Canvas.Left="448.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.8" fp:DeviceLayout.Deck="0" Canvas.Left="448.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -827,7 +827,7 @@
     <TextBlock Canvas.Left="519.0" Canvas.Top="915.4" Width="18.0" TextAlignment="Center" FontSize="12" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="0"/>
     <TextBlock Canvas.Left="519.0" Canvas.Top="1020.6" Width="18.0" TextAlignment="Center" FontSize="13" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="+"/>
     <Rectangle Canvas.Left="538.0" Canvas.Top="921.0" Width="50.0" Height="26.0" RadiusX="4" RadiusY="4" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="mixer.tempo" fp:ControlSurface.Deck="0" Canvas.Left="538.0" Canvas.Top="918.0" Width="50.0" Height="26.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
+    <Border fp:DeviceLayout.Id="mixer.tempo" fp:DeviceLayout.Deck="0" Canvas.Left="538.0" Canvas.Top="918.0" Width="50.0" Height="26.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="#5A5E65"/>
@@ -889,7 +889,7 @@
     <TextBlock Canvas.Left="1287.0" Canvas.Top="337.8" Width="60.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource AccentInk}" IsHitTestVisible="False" Text="OUT ADJ"/>
     <TextBlock Canvas.Left="1337.0" Canvas.Top="258.6" Width="130.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="4 BEAT/EXIT"/>
     <Ellipse Canvas.Left="1383.0" Canvas.Top="288.0" Width="38.0" Height="38.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.beatloop.toggle" fp:ControlSurface.Deck="1" Canvas.Left="1386.0" Canvas.Top="287.0" Width="32.0" Height="32.0">
+    <Ellipse fp:DeviceLayout.Id="deck.beatloop.toggle" fp:DeviceLayout.Deck="1" Canvas.Left="1386.0" Canvas.Top="287.0" Width="32.0" Height="32.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -908,12 +908,12 @@
         </RadialGradientBrush>
       </Ellipse.Fill>
     </Ellipse>
-    <Border fp:ControlSurface.HitFor="deck.beatloop.toggle" fp:ControlSurface.Deck="1" Canvas.Left="1376.0" Canvas.Top="336.5" Width="52.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.beatloop.toggle" fp:DeviceLayout.Deck="1" Canvas.Left="1376.0" Canvas.Top="336.5" Width="52.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1376.0" Canvas.Top="337.8" Width="52.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="ACTIVE"/>
     <TextBlock Canvas.Left="1462.0" Canvas.Top="254.6" Width="130.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="CUE/LOOP"/>
     <TextBlock Canvas.Left="1462.0" Canvas.Top="275.6" Width="130.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="CALL"/>
     <Ellipse Canvas.Left="1468.0" Canvas.Top="291.0" Width="40.0" Height="40.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.beatloop.halve" fp:ControlSurface.Deck="1" Canvas.Left="1471.0" Canvas.Top="290.0" Width="34.0" Height="34.0">
+    <Ellipse fp:DeviceLayout.Id="deck.beatloop.halve" fp:DeviceLayout.Deck="1" Canvas.Left="1471.0" Canvas.Top="290.0" Width="34.0" Height="34.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -934,7 +934,7 @@
     </Ellipse>
     <TextBlock Canvas.Left="1473.0" Canvas.Top="299.1" Width="30.0" TextAlignment="Center" FontSize="11" FontWeight="Normal" Foreground="#C8CCD3" IsHitTestVisible="False" Text="◄"/>
     <Ellipse Canvas.Left="1547.0" Canvas.Top="291.0" Width="40.0" Height="40.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.beatloop.double" fp:ControlSurface.Deck="1" Canvas.Left="1550.0" Canvas.Top="290.0" Width="34.0" Height="34.0">
+    <Ellipse fp:DeviceLayout.Id="deck.beatloop.double" fp:DeviceLayout.Deck="1" Canvas.Left="1550.0" Canvas.Top="290.0" Width="34.0" Height="34.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -956,16 +956,16 @@
     <TextBlock Canvas.Left="1552.0" Canvas.Top="299.1" Width="30.0" TextAlignment="Center" FontSize="11" FontWeight="Normal" Foreground="#C8CCD3" IsHitTestVisible="False" Text="►"/>
     <TextBlock Canvas.Left="1466.0" Canvas.Top="327.5" Width="44.0" TextAlignment="Center" FontSize="9" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="1/2X"/>
     <TextBlock Canvas.Left="1545.0" Canvas.Top="327.5" Width="44.0" TextAlignment="Center" FontSize="9" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="2X"/>
-    <Border fp:ControlSurface.HitFor="deck.beatloop.halve" fp:ControlSurface.Deck="1" Canvas.Left="1468.0" Canvas.Top="343.5" Width="40.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.beatloop.halve" fp:DeviceLayout.Deck="1" Canvas.Left="1468.0" Canvas.Top="343.5" Width="40.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1468.0" Canvas.Top="345.2" Width="40.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="DEL"/>
     <Border Canvas.Left="1504.0" Canvas.Top="323.5" Width="46.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="1504.0" Canvas.Top="325.2" Width="46.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="LOOP"/>
-    <Border fp:ControlSurface.HitFor="deck.beatloop.double" fp:ControlSurface.Deck="1" Canvas.Left="1538.0" Canvas.Top="343.5" Width="58.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.beatloop.double" fp:DeviceLayout.Deck="1" Canvas.Left="1538.0" Canvas.Top="343.5" Width="58.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1538.0" Canvas.Top="345.2" Width="58.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="MEMORY"/>
     <TextBlock Canvas.Left="1576.0" Canvas.Top="258.6" Width="130.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="— MASTER"/>
     <Ellipse Canvas.Left="1615.0" Canvas.Top="280.0" Width="52.0" Height="52.0" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
     <Ellipse Canvas.Left="1616.0" Canvas.Top="278.0" Width="50.0" Height="50.0" Fill="#15161A" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.sync" fp:ControlSurface.Deck="1" Canvas.Left="1619.0" Canvas.Top="281.0" Width="44.0" Height="44.0">
+    <Ellipse fp:DeviceLayout.Id="deck.sync" fp:DeviceLayout.Deck="1" Canvas.Left="1619.0" Canvas.Top="281.0" Width="44.0" Height="44.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="34%,26%" Center="50%,46%" RadiusX="80%" RadiusY="80%">
           <GradientStop Offset="0.0" Color="#FFD3A0"/>
@@ -985,10 +985,10 @@
     </Ellipse>
     <TextBlock Canvas.Left="1619.0" Canvas.Top="292.7" Width="44.0" TextAlignment="Center" FontSize="8" FontWeight="Bold" Foreground="#3A1D04" IsHitTestVisible="False" Text="BEAT"/>
     <TextBlock Canvas.Left="1619.0" Canvas.Top="301.7" Width="44.0" TextAlignment="Center" FontSize="8" FontWeight="Bold" Foreground="#3A1D04" IsHitTestVisible="False" Text="SYNC"/>
-    <Border fp:ControlSurface.HitFor="deck.sync" fp:ControlSurface.Deck="1" Canvas.Left="1599.0" Canvas.Top="336.5" Width="84.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.sync" fp:DeviceLayout.Deck="1" Canvas.Left="1599.0" Canvas.Top="336.5" Width="84.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1599.0" Canvas.Top="337.8" Width="84.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="TEMPO RANGE"/>
     <Ellipse Canvas.Left="1211.0" Canvas.Top="353.0" Width="446.0" Height="446.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.jog" fp:ControlSurface.Deck="1" Canvas.Left="1214.0" Canvas.Top="350.0" Width="440.0" Height="440.0">
+    <Ellipse fp:DeviceLayout.Id="deck.jog" fp:DeviceLayout.Deck="1" Canvas.Left="1214.0" Canvas.Top="350.0" Width="440.0" Height="440.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="48%,44%" RadiusX="80%" RadiusY="80%">
           <GradientStop Offset="0.0" Color="#5C6066"/>
@@ -1260,9 +1260,9 @@
     <TextBlock Canvas.Left="1229.0" Canvas.Top="394.1" Width="120.0" TextAlignment="Center" FontSize="11" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="◄ SEARCH ►" RenderTransformOrigin="50%,50%">
       <TextBlock.RenderTransform><RotateTransform Angle="-42.0"/></TextBlock.RenderTransform>
     </TextBlock>
-    <Border fp:ControlSurface.HitFor="deck.shift" fp:ControlSurface.Deck="1" Canvas.Left="1207.0" Canvas.Top="791.5" Width="50.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.shift" fp:DeviceLayout.Deck="1" Canvas.Left="1207.0" Canvas.Top="791.5" Width="50.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1207.0" Canvas.Top="792.8" Width="50.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="SHIFT"/>
-    <Border fp:ControlSurface.Id="deck.shift" fp:ControlSurface.Deck="1" Canvas.Left="1214.0" Canvas.Top="812.0" Width="36.0" Height="36.0" CornerRadius="5" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="deck.shift" fp:DeviceLayout.Deck="1" Canvas.Left="1214.0" Canvas.Top="812.0" Width="36.0" Height="36.0" CornerRadius="5" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonTopColor}"/>
@@ -1272,7 +1272,7 @@
       </Border.Background>
     </Border>
     <Ellipse Canvas.Left="1189.0" Canvas.Top="883.0" Width="86.0" Height="86.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.cue.transport" fp:ControlSurface.Deck="1" Canvas.Left="1192.0" Canvas.Top="882.0" Width="80.0" Height="80.0">
+    <Ellipse fp:DeviceLayout.Id="deck.cue.transport" fp:DeviceLayout.Deck="1" Canvas.Left="1192.0" Canvas.Top="882.0" Width="80.0" Height="80.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -1293,7 +1293,7 @@
     </Ellipse>
     <TextBlock Canvas.Left="1192.0" Canvas.Top="911.2" Width="80.0" TextAlignment="Center" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentInk}" IsHitTestVisible="False" Text="CUE"/>
     <Ellipse Canvas.Left="1189.0" Canvas.Top="976.0" Width="86.0" Height="86.0" Fill="{StaticResource Shadow}" Opacity="0.55" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="deck.play" fp:ControlSurface.Deck="1" Canvas.Left="1192.0" Canvas.Top="975.0" Width="80.0" Height="80.0">
+    <Ellipse fp:DeviceLayout.Id="deck.play" fp:DeviceLayout.Deck="1" Canvas.Left="1192.0" Canvas.Top="975.0" Width="80.0" Height="80.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="30%,22%" Center="50%,50%" RadiusX="85%" RadiusY="85%">
           <GradientStop Offset="0.0" Color="#565A60"/>
@@ -1314,7 +1314,7 @@
     </Ellipse>
     <TextBlock Canvas.Left="1192.0" Canvas.Top="1003.5" Width="80.0" TextAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#C4D96B" IsHitTestVisible="False" Text="▶/II"/>
     <TextBlock Canvas.Left="1162.0" Canvas.Top="1062.6" Width="140.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="PLAY/PAUSE"/>
-    <Border fp:ControlSurface.Id="deck.padmode.hotcue" fp:ControlSurface.Deck="1" Canvas.Left="1294.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.padmode.hotcue" fp:DeviceLayout.Deck="1" Canvas.Left="1294.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonFaceColor}"/>
@@ -1324,9 +1324,9 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="1294.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentLit}" IsHitTestVisible="False" Text="HOT CUE"/>
-    <Border fp:ControlSurface.HitFor="deck.padmode.hotcue" fp:ControlSurface.Deck="1" Canvas.Left="1293.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.padmode.hotcue" fp:DeviceLayout.Deck="1" Canvas.Left="1293.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1293.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="KEYBOARD"/>
-    <Border fp:ControlSurface.Id="deck.padmode.padfx1" fp:ControlSurface.Deck="1" Canvas.Left="1370.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.padmode.padfx1" fp:DeviceLayout.Deck="1" Canvas.Left="1370.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonFaceColor}"/>
@@ -1336,7 +1336,7 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="1370.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource AccentLit}" IsHitTestVisible="False" Text="PAD FX1"/>
-    <Border fp:ControlSurface.HitFor="deck.padmode.padfx1" fp:ControlSurface.Deck="1" Canvas.Left="1369.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.padmode.padfx1" fp:DeviceLayout.Deck="1" Canvas.Left="1369.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1369.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="PAD FX2"/>
     <Border Canvas.Left="1446.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
@@ -1363,7 +1363,7 @@
     <Border Canvas.Left="1521.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="1521.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="KEY SHIFT"/>
     <Rectangle Canvas.Left="1294.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.1" fp:ControlSurface.Deck="1" Canvas.Left="1294.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.1" fp:DeviceLayout.Deck="1" Canvas.Left="1294.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -1381,7 +1381,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="1370.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.2" fp:ControlSurface.Deck="1" Canvas.Left="1370.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.2" fp:DeviceLayout.Deck="1" Canvas.Left="1370.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -1399,7 +1399,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="1446.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.3" fp:ControlSurface.Deck="1" Canvas.Left="1446.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.3" fp:DeviceLayout.Deck="1" Canvas.Left="1446.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -1417,7 +1417,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="1522.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.4" fp:ControlSurface.Deck="1" Canvas.Left="1522.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.4" fp:DeviceLayout.Deck="1" Canvas.Left="1522.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -1435,7 +1435,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="1294.0" Canvas.Top="1003.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.5" fp:ControlSurface.Deck="1" Canvas.Left="1294.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.5" fp:DeviceLayout.Deck="1" Canvas.Left="1294.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -1453,7 +1453,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="1370.0" Canvas.Top="1003.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.6" fp:ControlSurface.Deck="1" Canvas.Left="1370.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.6" fp:DeviceLayout.Deck="1" Canvas.Left="1370.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -1471,7 +1471,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="1446.0" Canvas.Top="1003.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.7" fp:ControlSurface.Deck="1" Canvas.Left="1446.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.7" fp:DeviceLayout.Deck="1" Canvas.Left="1446.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -1489,7 +1489,7 @@
       </Border.BorderBrush>
     </Border>
     <Rectangle Canvas.Left="1522.0" Canvas.Top="1003.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="deck.pad.8" fp:ControlSurface.Deck="1" Canvas.Left="1522.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
+    <Border fp:DeviceLayout.Id="deck.pad.8" fp:DeviceLayout.Deck="1" Canvas.Left="1522.0" Canvas.Top="1000.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource AccentEdge}" BorderThickness="2.5">
       <Border.Background>
         <LinearGradientBrush StartPoint="12%,0%" EndPoint="88%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource PadWarmColor}"/>
@@ -1529,7 +1529,7 @@
     <TextBlock Canvas.Left="1593.0" Canvas.Top="915.4" Width="18.0" TextAlignment="Center" FontSize="12" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="0"/>
     <TextBlock Canvas.Left="1593.0" Canvas.Top="1020.6" Width="18.0" TextAlignment="Center" FontSize="13" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="+"/>
     <Rectangle Canvas.Left="1612.0" Canvas.Top="921.0" Width="50.0" Height="26.0" RadiusX="4" RadiusY="4" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="mixer.tempo" fp:ControlSurface.Deck="1" Canvas.Left="1612.0" Canvas.Top="918.0" Width="50.0" Height="26.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
+    <Border fp:DeviceLayout.Id="mixer.tempo" fp:DeviceLayout.Deck="1" Canvas.Left="1612.0" Canvas.Top="918.0" Width="50.0" Height="26.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="#5A5E65"/>
@@ -1544,7 +1544,7 @@
     <TextBlock Canvas.Left="1592.0" Canvas.Top="1060.6" Width="100.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="TEMPO"/>
     <!-- Centre panel: browse, mic/headphones, FX -->
     <Ellipse Canvas.Left="864.0" Canvas.Top="231.0" Width="58.0" Height="58.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="browse.knob" fp:ControlSurface.Deck="-1" Canvas.Left="865.0" Canvas.Top="229.0" Width="56.0" Height="56.0">
+    <Ellipse fp:DeviceLayout.Id="browse.knob" fp:DeviceLayout.Deck="-1" Canvas.Left="865.0" Canvas.Top="229.0" Width="56.0" Height="56.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="#7A7E84"/>
@@ -1573,16 +1573,16 @@
       </Ellipse.Fill>
     </Ellipse>
     <Line StartPoint="893.0,254.2" EndPoint="893.0,231.2" Stroke="{StaticResource PointerInk}" StrokeThickness="2.7" StrokeLineCap="Round" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="browse.back" fp:ControlSurface.Deck="-1" Canvas.Left="866" Canvas.Top="288" Width="54" Height="18" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.Id="browse.back" fp:DeviceLayout.Deck="-1" Canvas.Left="866" Canvas.Top="288" Width="54" Height="18" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="866.0" Canvas.Top="289.8" Width="54.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="BACK"/>
-    <Border fp:ControlSurface.Id="browse.view" fp:ControlSurface.Deck="-1" Canvas.Left="979" Canvas.Top="288" Width="54" Height="18" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.Id="browse.view" fp:DeviceLayout.Deck="-1" Canvas.Left="979" Canvas.Top="288" Width="54" Height="18" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="979.0" Canvas.Top="289.8" Width="54.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="VIEW"/>
     <TextBlock Canvas.Left="620.0" Canvas.Top="314.1" Width="160.0" TextAlignment="Center" FontSize="11" FontWeight="Normal" Foreground="#8D9299" IsHitTestVisible="False" Text="PERFORMANCE"/>
     <TextBlock Canvas.Left="620.0" Canvas.Top="330.1" Width="160.0" TextAlignment="Center" FontSize="11" FontWeight="Normal" Foreground="#8D9299" IsHitTestVisible="False" Text="DJ CONTROLLER"/>
     <TextBlock Canvas.Left="610.0" Canvas.Top="342.9" Width="180.0" TextAlignment="Center" FontSize="21" FontWeight="Bold" Foreground="#D8DCE2" IsHitTestVisible="False" Text="DDJ-FLX4"/>
     <TextBlock Canvas.Left="642.0" Canvas.Top="461.4" Width="120.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="MIC LEVEL"/>
     <Ellipse Canvas.Left="675.0" Canvas.Top="481.0" Width="54.0" Height="54.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.mic.level" fp:ControlSurface.Deck="-1" Canvas.Left="676.0" Canvas.Top="479.0" Width="52.0" Height="52.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.mic.level" fp:DeviceLayout.Deck="-1" Canvas.Left="676.0" Canvas.Top="479.0" Width="52.0" Height="52.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -1615,7 +1615,7 @@
     <TextBlock Canvas.Left="718.0" Canvas.Top="530.8" Width="40.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="0"/>
     <Ellipse Canvas.Left="676.0" Canvas.Top="650.0" Width="52.0" Height="52.0" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
     <Ellipse Canvas.Left="677.0" Canvas.Top="648.0" Width="50.0" Height="50.0" Fill="#15161A" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="fx.smartcfx" fp:ControlSurface.Deck="-1" Canvas.Left="680.0" Canvas.Top="651.0" Width="44.0" Height="44.0">
+    <Ellipse fp:DeviceLayout.Id="fx.smartcfx" fp:DeviceLayout.Deck="-1" Canvas.Left="680.0" Canvas.Top="651.0" Width="44.0" Height="44.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="34%,26%" Center="50%,46%" RadiusX="80%" RadiusY="80%">
           <GradientStop Offset="0.0" Color="#FFD3A0"/>
@@ -1635,14 +1635,14 @@
     </Ellipse>
     <TextBlock Canvas.Left="680.0" Canvas.Top="661.5" Width="44.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="#3A1D04" IsHitTestVisible="False" Text="SMART"/>
     <TextBlock Canvas.Left="680.0" Canvas.Top="671.5" Width="44.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="#3A1D04" IsHitTestVisible="False" Text="CFX"/>
-    <Border fp:ControlSurface.HitFor="fx.smartcfx" fp:ControlSurface.Deck="-1" Canvas.Left="669.0" Canvas.Top="701.5" Width="66.0" Height="17.0" CornerRadius="2" BorderBrush="#B0762F" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="fx.smartcfx" fp:DeviceLayout.Deck="-1" Canvas.Left="669.0" Canvas.Top="701.5" Width="66.0" Height="17.0" CornerRadius="2" BorderBrush="#B0762F" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="669.0" Canvas.Top="702.8" Width="66.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource AccentInk}" IsHitTestVisible="False" Text="FX SELECT"/>
     <Path Stroke="{StaticResource LabelInk}" StrokeThickness="2.0" IsHitTestVisible="False" Data="M 673.0,732.0 A 9.0,9.0 0 0 1 691.0,732.0"/>
     <Rectangle Canvas.Left="670.8" Canvas.Top="731.5" Width="4.4" Height="7.0" RadiusX="2" RadiusY="2" Fill="{StaticResource LabelInk}" IsHitTestVisible="False"/>
     <Rectangle Canvas.Left="688.8" Canvas.Top="731.5" Width="4.4" Height="7.0" RadiusX="2" RadiusY="2" Fill="{StaticResource LabelInk}" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="650.0" Canvas.Top="724.4" Width="120.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="MIX"/>
     <Ellipse Canvas.Left="675.0" Canvas.Top="746.0" Width="54.0" Height="54.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.headphone.mix" fp:ControlSurface.Deck="-1" Canvas.Left="676.0" Canvas.Top="744.0" Width="52.0" Height="52.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.headphone.mix" fp:DeviceLayout.Deck="-1" Canvas.Left="676.0" Canvas.Top="744.0" Width="52.0" Height="52.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -1678,7 +1678,7 @@
     <Rectangle Canvas.Left="682.8" Canvas.Top="820.5" Width="4.4" Height="7.0" RadiusX="2" RadiusY="2" Fill="{StaticResource LabelInk}" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="654.0" Canvas.Top="813.4" Width="120.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="LEVEL"/>
     <Ellipse Canvas.Left="675.0" Canvas.Top="836.0" Width="54.0" Height="54.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.headphone.level" fp:ControlSurface.Deck="-1" Canvas.Left="676.0" Canvas.Top="834.0" Width="52.0" Height="52.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.headphone.level" fp:DeviceLayout.Deck="-1" Canvas.Left="676.0" Canvas.Top="834.0" Width="52.0" Height="52.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -1711,7 +1711,7 @@
     <TextBlock Canvas.Left="718.0" Canvas.Top="885.8" Width="40.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="0"/>
     <Ellipse Canvas.Left="676.0" Canvas.Top="939.0" Width="52.0" Height="52.0" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
     <Ellipse Canvas.Left="677.0" Canvas.Top="937.0" Width="50.0" Height="50.0" Fill="#15161A" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="fx.smartfader" fp:ControlSurface.Deck="-1" Canvas.Left="680.0" Canvas.Top="940.0" Width="44.0" Height="44.0">
+    <Ellipse fp:DeviceLayout.Id="fx.smartfader" fp:DeviceLayout.Deck="-1" Canvas.Left="680.0" Canvas.Top="940.0" Width="44.0" Height="44.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="34%,26%" Center="50%,46%" RadiusX="80%" RadiusY="80%">
           <GradientStop Offset="0.0" Color="#FFD3A0"/>
@@ -1762,7 +1762,7 @@
       </Rectangle.Fill>
     </Rectangle>
     <Rectangle Canvas.Left="880.0" Canvas.Top="1015.0" Width="26.0" Height="66.0" RadiusX="4" RadiusY="4" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="mixer.crossfader" fp:ControlSurface.Deck="-1" Canvas.Left="880.0" Canvas.Top="1012.0" Width="26.0" Height="66.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
+    <Border fp:DeviceLayout.Id="mixer.crossfader" fp:DeviceLayout.Deck="-1" Canvas.Left="880.0" Canvas.Top="1012.0" Width="26.0" Height="66.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
           <GradientStop Offset="0.0" Color="#8E939A"/>
@@ -1776,7 +1776,7 @@
     <Rectangle Canvas.Left="891.5" Canvas.Top="1015.0" Width="3" Height="60.0" Fill="#E4E7EB" Opacity="0.85" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="1006.0" Canvas.Top="299.4" Width="160.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="MASTER LEVEL"/>
     <Ellipse Canvas.Left="1055.0" Canvas.Top="315.0" Width="62.0" Height="62.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.master.level" fp:ControlSurface.Deck="-1" Canvas.Left="1056.0" Canvas.Top="313.0" Width="60.0" Height="60.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.master.level" fp:DeviceLayout.Deck="-1" Canvas.Left="1056.0" Canvas.Top="313.0" Width="60.0" Height="60.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -1807,7 +1807,7 @@
     <Line StartPoint="1084.7,340.3" EndPoint="1074.3,318.0" Stroke="{StaticResource PointerInk}" StrokeThickness="2.9" StrokeLineCap="Round" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="1026.0" Canvas.Top="370.8" Width="40.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="−∞"/>
     <TextBlock Canvas.Left="1106.0" Canvas.Top="370.8" Width="40.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="0"/>
-    <Border fp:ControlSurface.Id="mixer.mastercue" fp:ControlSurface.Deck="-1" Canvas.Left="1061.0" Canvas.Top="415.0" Width="50.0" Height="24.0" CornerRadius="4" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="mixer.mastercue" fp:DeviceLayout.Deck="-1" Canvas.Left="1061.0" Canvas.Top="415.0" Width="50.0" Height="24.0" CornerRadius="4" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonFaceColor}"/>
@@ -1822,7 +1822,7 @@
     <Ellipse Canvas.Left="1060" Canvas.Top="572" Width="4" Height="4" Fill="{StaticResource LabelInkDim}" IsHitTestVisible="False"/>
     <Ellipse Canvas.Left="1084" Canvas.Top="572" Width="4" Height="4" Fill="{StaticResource LabelInkDim}" IsHitTestVisible="False"/>
     <Ellipse Canvas.Left="1108" Canvas.Top="572" Width="4" Height="4" Fill="{StaticResource LabelInkDim}" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="fx.channelselect" fp:ControlSurface.Deck="-1" Canvas.Left="1056.0" Canvas.Top="580.0" Width="60.0" Height="26.0" CornerRadius="4" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="fx.channelselect" fp:DeviceLayout.Deck="-1" Canvas.Left="1056.0" Canvas.Top="580.0" Width="60.0" Height="26.0" CornerRadius="4" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtMidColor}"/>
@@ -1841,7 +1841,7 @@
       </Rectangle.Fill>
     </Rectangle>
     <TextBlock Canvas.Left="1016.0" Canvas.Top="642.1" Width="140.0" TextAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="FX SELECT"/>
-    <Border fp:ControlSurface.Id="fx.select.down" fp:ControlSurface.Deck="-1" Canvas.Left="1062.0" Canvas.Top="661.0" Width="48.0" Height="23.0" CornerRadius="3" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="fx.select.down" fp:DeviceLayout.Deck="-1" Canvas.Left="1062.0" Canvas.Top="661.0" Width="48.0" Height="23.0" CornerRadius="3" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonTopColor}"/>
@@ -1851,7 +1851,7 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="1062.0" Canvas.Top="665.3" Width="48.0" TextAlignment="Center" FontSize="10" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="▼"/>
-    <Border fp:ControlSurface.Id="fx.select.up" fp:ControlSurface.Deck="-1" Canvas.Left="1062.0" Canvas.Top="688.0" Width="48.0" Height="17.0" CornerRadius="3" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="fx.select.up" fp:DeviceLayout.Deck="-1" Canvas.Left="1062.0" Canvas.Top="688.0" Width="48.0" Height="17.0" CornerRadius="3" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonTopColor}"/>
@@ -1862,7 +1862,7 @@
     </Border>
     <TextBlock Canvas.Left="1062.0" Canvas.Top="690.0" Width="48.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="▲"/>
     <TextBlock Canvas.Left="1026.0" Canvas.Top="726.6" Width="120.0" TextAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="BEAT"/>
-    <Border fp:ControlSurface.Id="beat.nudge.back" fp:ControlSurface.Deck="-1" Canvas.Left="1046.0" Canvas.Top="748.0" Width="36.0" Height="26.0" CornerRadius="3" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="beat.nudge.back" fp:DeviceLayout.Deck="-1" Canvas.Left="1046.0" Canvas.Top="748.0" Width="36.0" Height="26.0" CornerRadius="3" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonTopColor}"/>
@@ -1872,7 +1872,7 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="1046.0" Canvas.Top="753.1" Width="36.0" TextAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="◄"/>
-    <Border fp:ControlSurface.Id="beat.nudge.forward" fp:ControlSurface.Deck="-1" Canvas.Left="1090.0" Canvas.Top="748.0" Width="36.0" Height="26.0" CornerRadius="3" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="beat.nudge.forward" fp:DeviceLayout.Deck="-1" Canvas.Left="1090.0" Canvas.Top="748.0" Width="36.0" Height="26.0" CornerRadius="3" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonTopColor}"/>
@@ -1882,13 +1882,13 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="1090.0" Canvas.Top="753.1" Width="36.0" TextAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="►"/>
-    <Border fp:ControlSurface.HitFor="beat.nudge.back" fp:ControlSurface.Deck="-1" Canvas.Left="1042.0" Canvas.Top="778.5" Width="44.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="beat.nudge.back" fp:DeviceLayout.Deck="-1" Canvas.Left="1042.0" Canvas.Top="778.5" Width="44.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1042.0" Canvas.Top="780.2" Width="44.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="AUTO"/>
-    <Border fp:ControlSurface.HitFor="beat.nudge.forward" fp:ControlSurface.Deck="-1" Canvas.Left="1086.0" Canvas.Top="778.5" Width="44.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="beat.nudge.forward" fp:DeviceLayout.Deck="-1" Canvas.Left="1086.0" Canvas.Top="778.5" Width="44.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1086.0" Canvas.Top="780.2" Width="44.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="TAP"/>
     <TextBlock Canvas.Left="1006.0" Canvas.Top="815.4" Width="160.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="LEVEL/DEPTH"/>
     <Ellipse Canvas.Left="1055.0" Canvas.Top="832.0" Width="62.0" Height="62.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="fx.leveldepth" fp:ControlSurface.Deck="-1" Canvas.Left="1056.0" Canvas.Top="830.0" Width="60.0" Height="60.0">
+    <Ellipse fp:DeviceLayout.Id="fx.leveldepth" fp:DeviceLayout.Deck="-1" Canvas.Left="1056.0" Canvas.Top="830.0" Width="60.0" Height="60.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -1922,7 +1922,7 @@
     <TextBlock Canvas.Left="1016.0" Canvas.Top="917.4" Width="140.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="ON/OFF"/>
     <Ellipse Canvas.Left="1056.0" Canvas.Top="935.0" Width="60.0" Height="60.0" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
     <Ellipse Canvas.Left="1057.0" Canvas.Top="933.0" Width="58.0" Height="58.0" Fill="#15161A" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="fx.onoff" fp:ControlSurface.Deck="-1" Canvas.Left="1060.0" Canvas.Top="936.0" Width="52.0" Height="52.0">
+    <Ellipse fp:DeviceLayout.Id="fx.onoff" fp:DeviceLayout.Deck="-1" Canvas.Left="1060.0" Canvas.Top="936.0" Width="52.0" Height="52.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="34%,26%" Center="50%,46%" RadiusX="80%" RadiusY="80%">
           <GradientStop Offset="0.0" Color="#FFD3A0"/>
@@ -1940,11 +1940,11 @@
         </LinearGradientBrush>
       </Ellipse.Fill>
     </Ellipse>
-    <Border fp:ControlSurface.HitFor="fx.onoff" fp:ControlSurface.Deck="-1" Canvas.Left="1043.0" Canvas.Top="993.5" Width="86.0" Height="17.0" CornerRadius="2" BorderBrush="#B0762F" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="fx.onoff" fp:DeviceLayout.Deck="-1" Canvas.Left="1043.0" Canvas.Top="993.5" Width="86.0" Height="17.0" CornerRadius="2" BorderBrush="#B0762F" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="1043.0" Canvas.Top="994.8" Width="86.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource AccentInk}" IsHitTestVisible="False" Text="RELEASE FX"/>
     <!-- Channel strip 1 -->
     <TextBlock Canvas.Left="751.0" Canvas.Top="229.4" Width="70.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="LOAD"/>
-    <Border fp:ControlSurface.Id="deck.load" fp:ControlSurface.Deck="0" Canvas.Left="763.0" Canvas.Top="252.0" Width="46.0" Height="26.0" CornerRadius="4" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="deck.load" fp:DeviceLayout.Deck="0" Canvas.Left="763.0" Canvas.Top="252.0" Width="46.0" Height="26.0" CornerRadius="4" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonTopColor}"/>
@@ -1953,11 +1953,11 @@
         </LinearGradientBrush>
       </Border.Background>
     </Border>
-    <Border fp:ControlSurface.HitFor="deck.load" fp:ControlSurface.Deck="0" Canvas.Left="763.0" Canvas.Top="287.5" Width="46.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
+    <Border fp:DeviceLayout.HitFor="deck.load" fp:DeviceLayout.Deck="0" Canvas.Left="763.0" Canvas.Top="287.5" Width="46.0" Height="17.0" CornerRadius="2" BorderBrush="{StaticResource LegendEdge}" BorderThickness="1" Background="{StaticResource LegendFill}"/>
     <TextBlock Canvas.Left="763.0" Canvas.Top="288.8" Width="46.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LegendInk}" IsHitTestVisible="False" Text="⤢"/>
     <TextBlock Canvas.Left="787.0" Canvas.Top="299.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="TRIM"/>
     <Ellipse Canvas.Left="801.0" Canvas.Top="320.0" Width="52.0" Height="52.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.trim" fp:ControlSurface.Deck="0" Canvas.Left="802.0" Canvas.Top="318.0" Width="50.0" Height="50.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.trim" fp:DeviceLayout.Deck="0" Canvas.Left="802.0" Canvas.Top="318.0" Width="50.0" Height="50.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -1990,7 +1990,7 @@
     <TextBlock Canvas.Left="842.0" Canvas.Top="364.8" Width="40.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="+9"/>
     <TextBlock Canvas.Left="787.0" Canvas.Top="376.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="HI"/>
     <Ellipse Canvas.Left="797.0" Canvas.Top="399.0" Width="60.0" Height="60.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.eq.hi" fp:ControlSurface.Deck="0" Canvas.Left="798.0" Canvas.Top="397.0" Width="58.0" Height="58.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.eq.hi" fp:DeviceLayout.Deck="0" Canvas.Left="798.0" Canvas.Top="397.0" Width="58.0" Height="58.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2023,7 +2023,7 @@
     <TextBlock Canvas.Left="843.0" Canvas.Top="450.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="+6"/>
     <TextBlock Canvas.Left="787.0" Canvas.Top="455.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="MID"/>
     <Ellipse Canvas.Left="797.0" Canvas.Top="478.0" Width="60.0" Height="60.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.eq.mid" fp:ControlSurface.Deck="0" Canvas.Left="798.0" Canvas.Top="476.0" Width="58.0" Height="58.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.eq.mid" fp:DeviceLayout.Deck="0" Canvas.Left="798.0" Canvas.Top="476.0" Width="58.0" Height="58.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2056,7 +2056,7 @@
     <TextBlock Canvas.Left="843.0" Canvas.Top="529.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="+6"/>
     <TextBlock Canvas.Left="787.0" Canvas.Top="536.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="LOW"/>
     <Ellipse Canvas.Left="797.0" Canvas.Top="559.0" Width="60.0" Height="60.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.eq.low" fp:ControlSurface.Deck="0" Canvas.Left="798.0" Canvas.Top="557.0" Width="58.0" Height="58.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.eq.low" fp:DeviceLayout.Deck="0" Canvas.Left="798.0" Canvas.Top="557.0" Width="58.0" Height="58.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2089,7 +2089,7 @@
     <TextBlock Canvas.Left="843.0" Canvas.Top="610.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="+6"/>
     <TextBlock Canvas.Left="787.0" Canvas.Top="625.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="CFX"/>
     <Ellipse Canvas.Left="795.0" Canvas.Top="649.0" Width="64.0" Height="64.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.filter" fp:ControlSurface.Deck="0" Canvas.Left="796.0" Canvas.Top="647.0" Width="62.0" Height="62.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.filter" fp:DeviceLayout.Deck="0" Canvas.Left="796.0" Canvas.Top="647.0" Width="62.0" Height="62.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2120,7 +2120,7 @@
     <Line StartPoint="827.0,674.9" EndPoint="827.0,649.5" Stroke="{StaticResource PointerInk}" StrokeThickness="2.9" StrokeLineCap="Round" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="765.0" Canvas.Top="704.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="LOW"/>
     <TextBlock Canvas.Left="845.0" Canvas.Top="704.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="HI"/>
-    <Border fp:ControlSurface.Id="deck.cue.headphone" fp:ControlSurface.Deck="0" Canvas.Left="802.0" Canvas.Top="747.0" Width="50.0" Height="24.0" CornerRadius="4" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.cue.headphone" fp:DeviceLayout.Deck="0" Canvas.Left="802.0" Canvas.Top="747.0" Width="50.0" Height="24.0" CornerRadius="4" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonFaceColor}"/>
@@ -2150,7 +2150,7 @@
     <Line StartPoint="799.0,959.5" EndPoint="812.0,959.5" Stroke="{StaticResource ScaleTick}" StrokeThickness="1" Opacity="0.45" IsHitTestVisible="False"/>
     <Line StartPoint="799.0,980.0" EndPoint="812.0,980.0" Stroke="{StaticResource ScaleTick}" StrokeThickness="1" Opacity="0.45" IsHitTestVisible="False"/>
     <Rectangle Canvas.Left="798.0" Canvas.Top="883.0" Width="58.0" Height="22.0" RadiusX="4" RadiusY="4" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="mixer.volume" fp:ControlSurface.Deck="0" Canvas.Left="798.0" Canvas.Top="880.0" Width="58.0" Height="22.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
+    <Border fp:DeviceLayout.Id="mixer.volume" fp:DeviceLayout.Deck="0" Canvas.Left="798.0" Canvas.Top="880.0" Width="58.0" Height="22.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="#5A5E65"/>
@@ -2164,7 +2164,7 @@
     <Rectangle Canvas.Left="800.0" Canvas.Top="889.5" Width="54.0" Height="3" Fill="#E4E7EB" Opacity="0.85" IsHitTestVisible="False"/>
     <!-- Channel strip 2 -->
     <TextBlock Canvas.Left="971.0" Canvas.Top="229.4" Width="70.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="LOAD"/>
-    <Border fp:ControlSurface.Id="deck.load" fp:ControlSurface.Deck="1" Canvas.Left="983.0" Canvas.Top="252.0" Width="46.0" Height="26.0" CornerRadius="4" BorderBrush="#0F1013" BorderThickness="1.0">
+    <Border fp:DeviceLayout.Id="deck.load" fp:DeviceLayout.Deck="1" Canvas.Left="983.0" Canvas.Top="252.0" Width="46.0" Height="26.0" CornerRadius="4" BorderBrush="#0F1013" BorderThickness="1.0">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonTopColor}"/>
@@ -2175,7 +2175,7 @@
     </Border>
     <TextBlock Canvas.Left="922.0" Canvas.Top="299.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="TRIM"/>
     <Ellipse Canvas.Left="936.0" Canvas.Top="320.0" Width="52.0" Height="52.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.trim" fp:ControlSurface.Deck="1" Canvas.Left="937.0" Canvas.Top="318.0" Width="50.0" Height="50.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.trim" fp:DeviceLayout.Deck="1" Canvas.Left="937.0" Canvas.Top="318.0" Width="50.0" Height="50.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2208,7 +2208,7 @@
     <TextBlock Canvas.Left="977.0" Canvas.Top="364.8" Width="40.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="+9"/>
     <TextBlock Canvas.Left="922.0" Canvas.Top="376.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="HI"/>
     <Ellipse Canvas.Left="932.0" Canvas.Top="399.0" Width="60.0" Height="60.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.eq.hi" fp:ControlSurface.Deck="1" Canvas.Left="933.0" Canvas.Top="397.0" Width="58.0" Height="58.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.eq.hi" fp:DeviceLayout.Deck="1" Canvas.Left="933.0" Canvas.Top="397.0" Width="58.0" Height="58.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2241,7 +2241,7 @@
     <TextBlock Canvas.Left="978.0" Canvas.Top="450.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="+6"/>
     <TextBlock Canvas.Left="922.0" Canvas.Top="455.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="MID"/>
     <Ellipse Canvas.Left="932.0" Canvas.Top="478.0" Width="60.0" Height="60.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.eq.mid" fp:ControlSurface.Deck="1" Canvas.Left="933.0" Canvas.Top="476.0" Width="58.0" Height="58.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.eq.mid" fp:DeviceLayout.Deck="1" Canvas.Left="933.0" Canvas.Top="476.0" Width="58.0" Height="58.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2274,7 +2274,7 @@
     <TextBlock Canvas.Left="978.0" Canvas.Top="529.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="+6"/>
     <TextBlock Canvas.Left="922.0" Canvas.Top="536.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="LOW"/>
     <Ellipse Canvas.Left="932.0" Canvas.Top="559.0" Width="60.0" Height="60.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.eq.low" fp:ControlSurface.Deck="1" Canvas.Left="933.0" Canvas.Top="557.0" Width="58.0" Height="58.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.eq.low" fp:DeviceLayout.Deck="1" Canvas.Left="933.0" Canvas.Top="557.0" Width="58.0" Height="58.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2307,7 +2307,7 @@
     <TextBlock Canvas.Left="978.0" Canvas.Top="610.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="+6"/>
     <TextBlock Canvas.Left="922.0" Canvas.Top="625.4" Width="80.0" TextAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource LabelInk}" IsHitTestVisible="False" Text="CFX"/>
     <Ellipse Canvas.Left="930.0" Canvas.Top="649.0" Width="64.0" Height="64.0" Fill="{StaticResource Shadow}" Opacity="0.45" IsHitTestVisible="False"/>
-    <Ellipse fp:ControlSurface.Id="mixer.filter" fp:ControlSurface.Deck="1" Canvas.Left="931.0" Canvas.Top="647.0" Width="62.0" Height="62.0">
+    <Ellipse fp:DeviceLayout.Id="mixer.filter" fp:DeviceLayout.Deck="1" Canvas.Left="931.0" Canvas.Top="647.0" Width="62.0" Height="62.0">
       <Ellipse.Fill>
         <RadialGradientBrush GradientOrigin="32%,24%" Center="46%,42%" RadiusX="78%" RadiusY="78%">
           <GradientStop Offset="0.0" Color="{StaticResource KnobSkirtLitColor}"/>
@@ -2338,7 +2338,7 @@
     <Line StartPoint="962.0,674.9" EndPoint="962.0,649.5" Stroke="{StaticResource PointerInk}" StrokeThickness="2.9" StrokeLineCap="Round" IsHitTestVisible="False"/>
     <TextBlock Canvas.Left="900.0" Canvas.Top="704.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="LOW"/>
     <TextBlock Canvas.Left="980.0" Canvas.Top="704.8" Width="44.0" TextAlignment="Center" FontSize="10" FontWeight="Normal" Foreground="{StaticResource LabelInkDim}" IsHitTestVisible="False" Text="HI"/>
-    <Border fp:ControlSurface.Id="deck.cue.headphone" fp:ControlSurface.Deck="1" Canvas.Left="937.0" Canvas.Top="747.0" Width="50.0" Height="24.0" CornerRadius="4" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.cue.headphone" fp:DeviceLayout.Deck="1" Canvas.Left="937.0" Canvas.Top="747.0" Width="50.0" Height="24.0" CornerRadius="4" BorderBrush="{StaticResource AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource ButtonFaceColor}"/>
@@ -2368,7 +2368,7 @@
     <Line StartPoint="934.0,959.5" EndPoint="947.0,959.5" Stroke="{StaticResource ScaleTick}" StrokeThickness="1" Opacity="0.45" IsHitTestVisible="False"/>
     <Line StartPoint="934.0,980.0" EndPoint="947.0,980.0" Stroke="{StaticResource ScaleTick}" StrokeThickness="1" Opacity="0.45" IsHitTestVisible="False"/>
     <Rectangle Canvas.Left="933.0" Canvas.Top="883.0" Width="58.0" Height="22.0" RadiusX="4" RadiusY="4" Fill="{StaticResource Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
-    <Border fp:ControlSurface.Id="mixer.volume" fp:ControlSurface.Deck="1" Canvas.Left="933.0" Canvas.Top="880.0" Width="58.0" Height="22.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
+    <Border fp:DeviceLayout.Id="mixer.volume" fp:DeviceLayout.Deck="1" Canvas.Left="933.0" Canvas.Top="880.0" Width="58.0" Height="22.0" CornerRadius="4" BorderBrush="{StaticResource EdgeDark}" BorderThickness="1">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="#5A5E65"/>

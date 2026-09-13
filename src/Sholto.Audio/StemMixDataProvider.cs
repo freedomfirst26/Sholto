@@ -282,8 +282,6 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         // arm this any more). Applied at end of buffer because Seek happens
         // between buffers, so the fade always lands at the buffer start.
         ApplyFadeIn(buffer[..producedSamples]);
-        // Debug recorder: enabled by env var, no-op when off.
-        LoopDebug.Append(buffer[..producedSamples]);
         return producedSamples;
     }
 

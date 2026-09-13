@@ -119,15 +119,15 @@ public sealed class ControlChip : Border
     {
         _inner.Margin = new Thickness(0, 0, 0, raised ? 2 : 1);
         BorderBrush = raised
-            ? ResourceBrush("SholtoTextBright", Brushes.White)
-            : ResourceBrush("SholtoBorder", Brushes.DimGray);
+            ? this.ResourceBrush("SholtoTextBright", Brushes.White)
+            : this.ResourceBrush("SholtoBorder", Brushes.DimGray);
     }
 
     private void ApplyTheme()
     {
-        var borderBrush = ResourceBrush("SholtoBorder", Brushes.DimGray);
-        var surface = ResourceColor("SholtoSurfaceRaised", Color.FromRgb(0x1F, 0x1A, 0x3D));
-        var textBright = ResourceBrush("SholtoTextBright", Brushes.White);
+        var borderBrush = this.ResourceBrush("SholtoBorder", Brushes.DimGray);
+        var surface = this.ResourceColor("SholtoSurfaceRaised", Color.FromRgb(0x1F, 0x1A, 0x3D));
+        var textBright = this.ResourceBrush("SholtoTextBright", Brushes.White);
 
         BorderBrush = borderBrush;
         // The outer border carries a darkened copy of the card's own surface colour;
@@ -137,30 +137,6 @@ public sealed class ControlChip : Border
         _inner.Background = new SolidColorBrush(Blend(surface, Colors.White, 0.14));
         _text.Foreground = textBright;
     }
-
-    /// <summary>Resolves one of the host's <c>Sholto…</c> theme brushes. The second
-    /// lookup is the one that works: a resource lookup started at this chip returns
-    /// nothing for these keys even when it is attached and painting, while the very
-    /// same keys resolve from the window — Sholto declares its palette in
-    /// <c>Window.Resources</c> and rewrites it there on every theme change. Without
-    /// asking the window directly every chip fell back to the literal below, which is
-    /// why chips came out the same navy in all eleven themes despite the class comment
-    /// above promising the opposite. Same fix as
-    /// <c>FaceplateOverlay.ResourceBrush</c>.</summary>
-    private IBrush ResourceBrush(string key, IBrush fallback)
-    {
-        if (this.TryGetResource(key, ActualThemeVariant, out var value) && value is IBrush brush)
-            return brush;
-        var top = TopLevel.GetTopLevel(this);
-        if (top is not null && top.TryGetResource(key, top.ActualThemeVariant, out var v) && v is IBrush b)
-            return b;
-        return fallback;
-    }
-
-    private Color ResourceColor(string key, Color fallback) =>
-        ResourceBrush(key, new SolidColorBrush(fallback)) is SolidColorBrush solid
-            ? solid.Color
-            : fallback;
 
     private static Color Blend(Color a, Color b, double t) => Color.FromArgb(
         a.A,

@@ -187,7 +187,7 @@
                                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.45" Easing="CubicEaseInOut"/>
                                 </Transitions>
                             </Border.Transitions>
-                            <TextBlock Text="{Binding PitchRangeDisplay}"
+                            <TextBlock Text="{Binding TempoRangeDisplay}"
                                        FontSize="11" FontWeight="Bold"
                                        Foreground="{DynamicResource SholtoAccent}"
                                        HorizontalAlignment="Center"/>

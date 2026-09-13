@@ -55,7 +55,14 @@ public sealed class AnalysisReport : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
     public string FilePath { get; }
-    public AnalysisReport(string filePath) { FilePath = filePath; }
+
+    /// <param name="requiredSteps">Step names whose failure makes
+    /// <see cref="HasRequiredFailure"/> true — see that property.</param>
+    public AnalysisReport(string filePath, IEnumerable<string> requiredSteps)
+    {
+        FilePath = filePath;
+        _requiredSteps = new HashSet<string>(requiredSteps);
+    }
 
     private readonly Dictionary<string, AnalysisStepStatus> _steps = new();
     // Writes (GetOrCreate) happen on whichever analyser thread is reporting;
@@ -121,11 +128,61 @@ public sealed class AnalysisReport : INotifyPropertyChanged
         get { lock (_stepsGate) return _steps.Values.All(s => s.State == AnalysisState.Complete); }
     }
 
+    /// <summary>True if any step of this track ended in <see cref="AnalysisState.Failed"/>.
+    /// Note a failed step makes <see cref="IsBusy"/> go false exactly like a successful
+    /// one, so anything watching only IsBusy cannot tell a failure from a success —
+    /// which is how five days of broken demucs runs went unnoticed.</summary>
+    public bool HasFailure
+    {
+        get { lock (_stepsGate) return _steps.Values.Any(s => s.State == AnalysisState.Failed); }
+    }
+
+    /// <summary>Which step names are required (currently just "beats"/madmom) —
+    /// passed in by the caller (see <see cref="AnalysisReport(string, IEnumerable{string})"/>)
+    /// rather than hardcoded here, since <c>ExternalTools.IToolDefinition.IsRequired</c>
+    /// already owns this fact per tool descriptor.</summary>
+    private readonly HashSet<string> _requiredSteps;
+
+    /// <summary>True if a REQUIRED step ended in <see cref="AnalysisState.Failed"/>.
+    /// Unlike <see cref="HasFailure"/>, this ignores optional-step failures (stems,
+    /// segments) — a track whose demucs run failed but whose beatgrid is fine is
+    /// still genuinely analysed, so its row should keep the green tick; a track
+    /// whose beatgrid failed to (re)compute must not, even if it happens to have
+    /// BPM + stems cached from a previous successful run. See TrackRow.AnalysisState.</summary>
+    public bool HasRequiredFailure
+    {
+        get
+        {
+            lock (_stepsGate)
+                return _steps.Values.Any(s => s.State == AnalysisState.Failed && _requiredSteps.Contains(s.StepName));
+        }
+    }
+
+    /// <summary>Every failed step as "step: message" lines, or null if nothing failed.
+    /// This is what the UI shows in the tooltip behind the failure marker.</summary>
+    public string? FailureMessage
+    {
+        get
+        {
+            lock (_stepsGate)
+            {
+                var failed = _steps.Values
+                    .Where(s => s.State == AnalysisState.Failed)
+                    .Select(s => $"{s.StepName}: {s.Message ?? "failed"}")
+                    .ToArray();
+                return failed.Length == 0 ? null : string.Join("\n", failed);
+            }
+        }
+    }
+
     private void NotifyAggregate()
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Overall)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsBusy)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AllComplete)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasFailure)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasRequiredFailure)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FailureMessage)));
     }
 }
 
@@ -134,10 +191,21 @@ public sealed class AnalysisReport : INotifyPropertyChanged
 /// so anywhere in the app can read or update analysis progress. The same instance
 /// is shared by view models and by the analysis routines that produce the data.
 /// </summary>
-public sealed class AnalysisReporter
+public sealed class AnalysisReporter : IAnalysisReporter
 {
     private readonly Dictionary<string, AnalysisReport> _byPath = new();
     private readonly object _gate = new();
+    private readonly IReadOnlyCollection<string> _requiredSteps;
+
+    /// <param name="requiredSteps">Step names a track cannot be considered analysed
+    /// without (e.g. "beats"/madmom) — handed to every <see cref="AnalysisReport"/>
+    /// this reporter creates. Passed in explicitly rather than hardcoded, since
+    /// <c>ExternalTools.IToolDefinition.IsRequired</c> per tool descriptor is the
+    /// single source of truth for which steps those are.</param>
+    public AnalysisReporter(IReadOnlyCollection<string> requiredSteps)
+    {
+        _requiredSteps = requiredSteps;
+    }
 
     /// <summary>Raised on the analyser thread whenever a report's status flips or progresses.</summary>
     public event Action<AnalysisReport>? Updated;
@@ -148,7 +216,7 @@ public sealed class AnalysisReporter
         {
             if (!_byPath.TryGetValue(filePath, out var r))
             {
-                r = new AnalysisReport(filePath);
+                r = new AnalysisReport(filePath, _requiredSteps);
                 r.PropertyChanged += (_, _) => Updated?.Invoke(r);
                 _byPath[filePath] = r;
             }

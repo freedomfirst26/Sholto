@@ -1,4 +1,5 @@
 using System.Threading;
+using Sholto.Analysis;
 using SoundFlow.Abstracts;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;
@@ -21,11 +22,31 @@ namespace Sholto.Audio;
 /// are designed once at construction so the hot path is just arithmetic — no
 /// allocations, no list mutation.
 /// </summary>
-public sealed class BiquadEq3Band : SoundModifier
+public sealed class BiquadEq3Band : DeckEffect
 {
-    // Crossover points — standard DJ isolator territory.
-    private const float LowMidHz  = 250f;
-    private const float MidHighHz = 4000f;
+    /// <inheritdoc/>
+    public override string EffectId => "eq3";
+
+    // 3 bands, all linear gain (0=mute, 1=unity, 2=+6dB) — matches SetBandGain's
+    // own contract exactly, not the knob-position curve SetEq applies on top.
+    private static readonly EffectParam[] ParamTable =
+    [
+        new(0, "Low",  0.0, 2.0, 1.0, EffectParamCurve.Linear),
+        new(1, "Mid",  0.0, 2.0, 1.0, EffectParamCurve.Linear),
+        new(2, "High", 0.0, 2.0, 1.0, EffectParamCurve.Linear),
+    ];
+
+    /// <inheritdoc/>
+    public override ReadOnlySpan<EffectParam> Params => ParamTable;
+
+    /// <inheritdoc/>
+    public override void SetParam(int paramId, double value) => SetBandGain(paramId, (float)value);
+
+    // Crossover points — standard DJ isolator territory. Defined in
+    // Sholto.Analysis (see WaveformBandFrequencies) so the waveform's 3-band
+    // colouring can never drift from what these knobs actually cut.
+    private const float LowMidHz  = WaveformBandFrequencies.LowMidHz;
+    private const float MidHighHz = WaveformBandFrequencies.MidHighHz;
 
     private readonly int _channels;
 

@@ -4,7 +4,7 @@ namespace Sholto.Controller;
 /// behaviour lives in <see cref="Button"/>; a button that also has an LED is a
 /// <see cref="ButtonWithLight"/>. This is the discrete counterpart of
 /// <see cref="AnalogueControl"/> in the taxonomy; it carries no light itself.</summary>
-public abstract class DigitalControl : Control
+public abstract class DigitalControl : DeviceControl
 {
     protected DigitalControl(string name) : base(name) { }
 }

@@ -19,7 +19,7 @@ public class SettingsRepositoryTests
         var path = NewTempDbPath();
         try
         {
-            var factory = await SholtoStorage.OpenAsync(path);
+            var factory = await new SholtoStorage().OpenAsync(path);
             await using var db = factory.CreateDbContext();
             // A freshly created DB has an empty settings table — no exception means
             // the schema was applied successfully.
@@ -34,7 +34,7 @@ public class SettingsRepositoryTests
         var path = NewTempDbPath();
         try
         {
-            var factory = await SholtoStorage.OpenAsync(path);
+            var factory = await new SholtoStorage().OpenAsync(path);
 
             await using (var db = factory.CreateDbContext())
             {
@@ -59,7 +59,7 @@ public class SettingsRepositoryTests
         var path = NewTempDbPath();
         try
         {
-            var factory = await SholtoStorage.OpenAsync(path);
+            var factory = await new SholtoStorage().OpenAsync(path);
 
             await using (var db = factory.CreateDbContext())
             {
@@ -82,14 +82,14 @@ public class SettingsRepositoryTests
         var path = NewTempDbPath();
         try
         {
-            var factory1 = await SholtoStorage.OpenAsync(path);
+            var factory1 = await new SholtoStorage().OpenAsync(path);
             await using (var db = factory1.CreateDbContext())
             {
                 db.Settings.Add(new Setting { Key = SettingsKeys.MusicDir, Value = "/media/data/music" });
                 await db.SaveChangesAsync();
             }
 
-            var factory2 = await SholtoStorage.OpenAsync(path);
+            var factory2 = await new SholtoStorage().OpenAsync(path);
             await using (var db = factory2.CreateDbContext())
             {
                 Assert.Equal("/media/data/music",
@@ -106,8 +106,8 @@ public class SettingsRepositoryTests
         try
         {
             // Open twice; the second call should not throw and the DB should be usable.
-            await SholtoStorage.OpenAsync(path);
-            var factory2 = await SholtoStorage.OpenAsync(path);
+            await new SholtoStorage().OpenAsync(path);
+            var factory2 = await new SholtoStorage().OpenAsync(path);
             await using var db = factory2.CreateDbContext();
             Assert.Equal(0, await db.Settings.CountAsync());
         }

@@ -17,9 +17,47 @@ namespace Sholto.Audio;
 /// write target state via <see cref="SetEnabled"/> / <see cref="SetTempo"/>; the
 /// audio thread reads it once per buffer. The delay line is a fixed-capacity
 /// ring buffer allocated once at construction — no allocation in the hot path.
+///
+/// <see cref="SetTempo"/> is now called continuously while the echo runs —
+/// <see cref="DeckMixer"/> re-derives BPM×speed on every tempo-fader move and
+/// every analysis update and pushes it here (see DeckMixer.PushEchoTempo) —
+/// not just once on enable. Design call: changing <c>_delaySamples</c> while a
+/// tail is ringing moves the read cursor, which is a discontinuity in the
+/// delayed signal — audibly a click, and a pitch/glitch artefact if the jump
+/// is large. Taking the simple option here rather than building a
+/// crossfading or resampling delay line, because the jumps in practice are
+/// tiny: at 128 BPM a 0.1% tempo-fader nudge shifts a half-beat delay by
+/// ~23 samples (well under a millisecond — inaudible). The one case that
+/// isn't small is a <c>BpmMultiplier</c> half/double click (a full-beat jump
+/// in the delay target), which will be audibly discontinuous; that's accepted
+/// as a rare, momentary artefact rather than a reason to add a resampling
+/// delay line — that would be a feature (smooth tempo-tracking delay), not a
+/// fix for "echo ignores tempo changes".
 /// </summary>
-public sealed class EchoEffect : SoundModifier
+public sealed class EchoEffect : DeckEffect
 {
+    /// <inheritdoc/>
+    public override string EffectId => "echo";
+
+    private static readonly EffectParam[] ParamTable =
+    [
+        new(0, "Enabled", 0.0, 1.0, 0.0, EffectParamCurve.Boolean),
+        new(1, "Beats",   0.125, 4.0, 0.5, EffectParamCurve.Linear),
+    ];
+
+    /// <inheritdoc/>
+    public override ReadOnlySpan<EffectParam> Params => ParamTable;
+
+    /// <inheritdoc/>
+    public override void SetParam(int paramId, double value)
+    {
+        switch (paramId)
+        {
+            case 0: SetEnabled(value != 0); break;
+            case 1: Beats = value; break;
+        }
+    }
+
     // Feedback delay character. Not user-tunable in v1 — see class doc.
     private const float Feedback = 0.55f;
     private const float Wet = 0.5f;
@@ -51,10 +89,22 @@ public sealed class EchoEffect : SoundModifier
     private float _inputGain;
     private readonly float _gainAlpha;
 
+    // The bpm most recently passed to SetTempo (or the 128 default until the
+    // first call) — cached so a Beats change alone can recompute the delay
+    // without waiting for the echo to be re-enabled. See Beats below.
+    private double _lastBpm = DeckMixer.DefaultBpm;
+    private double _beats = 0.5;
+
     /// <summary>Echo repeat time, in fractions of a beat. 0.5 (the default) is
-    /// the classic dub half-beat slap-back. Read by <see cref="SetTempo"/> —
-    /// set this before enabling if a different subdivision is ever wanted.</summary>
-    public double Beats { get; set; } = 0.5;
+    /// the classic dub half-beat slap-back. Setting this recomputes the delay
+    /// immediately from the last tempo passed to <see cref="SetTempo"/> —
+    /// it used to take effect only on the next enable, since only SetTempo
+    /// recomputed the delay length.</summary>
+    public double Beats
+    {
+        get => _beats;
+        set { _beats = value; RecomputeDelay(); }
+    }
 
     public EchoEffect(SfEngine engine, AudioFormat format)
     {
@@ -69,9 +119,9 @@ public sealed class EchoEffect : SoundModifier
         // ~5 ms one-pole ramp for the input-feed gain (same shape as
         // BiquadEq3Band's GainSmoothAlpha, just tau-matched to the spec's
         // "ramp over ~5ms on toggle" instead of that class's slower knob feel).
-        _gainAlpha = 1f - MathF.Exp(-1f / (0.005f * _sampleRate));
+        _gainAlpha = TempoMath.FiveMsGainAlpha(_sampleRate);
 
-        SetTempo(128.0); // sane default so a delay exists even before the first enable
+        SetTempo(DeckMixer.DefaultBpm); // sane default so a delay exists even before the first enable
     }
 
     /// <summary>Feed the delay line (ON) or let it ring out untouched (OFF).
@@ -79,15 +129,39 @@ public sealed class EchoEffect : SoundModifier
     public void SetEnabled(bool on) => Volatile.Write(ref _enabled, on ? 1 : 0);
 
     /// <summary>Recompute the delay time from a BPM: <see cref="Beats"/> ×
-    /// (60/bpm) × sample rate, clamped to the ring buffer's capacity. Call
-    /// whenever the echo is (re)enabled (see Deck.SetEcho) — this does NOT
-    /// chase live tempo changes on its own. Safe to call from any thread.</summary>
+    /// (60/bpm) × sample rate, clamped to the ring buffer's capacity. Called
+    /// on enable and then continuously while the echo runs, from every
+    /// tempo-fader move and every analysis update (see
+    /// <see cref="DeckMixer"/>) — see the class doc for the accepted
+    /// discontinuity this causes when the target moves while a tail is
+    /// ringing. Safe to call from any thread.</summary>
     public void SetTempo(double bpm)
     {
-        if (bpm <= 0) bpm = 128.0;
-        int samples = (int)Math.Round(Beats * (60.0 / bpm) * _sampleRate);
-        samples = Math.Clamp(samples, 1, _capacityFrames - 1);
+        if (bpm <= 0) bpm = DeckMixer.DefaultBpm;
+        _lastBpm = bpm;
+        RecomputeDelay();
+    }
+
+    private void RecomputeDelay()
+    {
+        int samples = TempoMath.BeatsToSamples(_beats, _lastBpm, _sampleRate, _capacityFrames);
         Volatile.Write(ref _delaySamples, samples);
+    }
+
+    /// <summary>Disable the echo and flush its delay line — called by
+    /// <see cref="Deck.ResetControls"/> on track load so the previous track's
+    /// tail can't ring into the new one. Does not reallocate: it zeroes the
+    /// existing ring buffers and resets the write cursor / input-gain ramp to
+    /// their startup values. Called from the UI thread while the audio thread
+    /// may concurrently be inside <see cref="Process"/> — same lock-free
+    /// tolerance as every other control write in this class (worst case one
+    /// buffer reads a half-cleared line, never a torn sample).</summary>
+    public void Reset()
+    {
+        SetEnabled(false);
+        _inputGain = 0f;
+        _writePos = 0;
+        foreach (var line in _delayLine) Array.Clear(line);
     }
 
     public override void Process(Span<float> buffer, int channels)

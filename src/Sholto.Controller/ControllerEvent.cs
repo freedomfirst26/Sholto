@@ -108,9 +108,9 @@ public abstract record ControllerEvent
 
     /// <summary>Shift + BEAT SYNC. The FLX-4 firmware remaps this chord to
     /// its own note (ch=1/2 0x60) with Shift held, so we map it directly —
-    /// no need to track Shift state. Cycles the tempo / pitch-fader range
+    /// no need to track Shift state. Cycles the tempo-fader range
     /// (±6 → ±10 → ±16 → WIDE → ±6) like Rekordbox's TEMPO RANGE.</summary>
-    public record CyclePitchRange(int Deck) : ControllerEvent;
+    public record CycleTempoRange(int Deck) : ControllerEvent;
 
     /// <summary>HOT CUE / PAD FX1 mode-button press on a deck (press edge
     /// only). Consumed by the Controller, which tracks the per-deck page,
@@ -123,6 +123,12 @@ public abstract record ControllerEvent
     /// Pads 2-8 on this page are unmapped for now. Passes straight through
     /// the Controller to the Orchestrator (same as StemToggle).</summary>
     public record EchoToggle(int Deck) : ControllerEvent;
+
+    /// <summary>PAD FX1 page, pad 2 — beat-repeat / roll, held rather than
+    /// toggled: engaged while the pad is down, released the instant it comes
+    /// up (both edges matter, unlike <see cref="EchoToggle"/>). Passes
+    /// straight through the Controller to the Orchestrator.</summary>
+    public record RollHold(int Deck, bool Pressed) : ControllerEvent;
 
     /// <summary>FLX-4 CUE transport button, press edge only. The firmware sends
     /// ch=1/2 0x0C for a plain press and remaps the Shift chord to 0x48 (like

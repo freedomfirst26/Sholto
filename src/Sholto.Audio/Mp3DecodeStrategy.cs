@@ -11,6 +11,6 @@ public sealed class Mp3DecodeStrategy : IAudioDecodeStrategy
     public bool CanDecode(string extension) => extension == ".mp3";
 
     public float[] Decode(string filePath) =>
-        AudioFileDecoder.ReadNAudioToFloats(
+        NAudioDecoding.ReadNAudioToFloats(
             new Mp3FileReaderBase(filePath, fmt => new Mp3FrameDecompressor(fmt)));
 }

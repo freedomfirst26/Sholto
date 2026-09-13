@@ -6,3 +6,11 @@ obj/
 
 # Published binaries from install.sh
 /dist/
+
+# dotnet test artifacts
+TestResults/
+[Tt]est[Rr]esults/
+
+# Editor leftovers
+*.swp
+*~

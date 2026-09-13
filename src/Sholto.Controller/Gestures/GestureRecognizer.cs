@@ -15,7 +15,7 @@ namespace Sholto.Controller.Gestures;
 ///
 /// <para>Not thread-safe. Call it on the UI thread, as the App already does.</para>
 /// </summary>
-public sealed class GestureRecognizer
+public sealed class GestureRecognizer : IGestureRecognizer
 {
     /// <summary>How long the browse knob must be held to mean "re-analyse" rather
     /// than "nothing". Matches the timer this replaces in Orchestrator.</summary>
@@ -85,8 +85,8 @@ public sealed class GestureRecognizer
             case ControllerEvent.BeatSyncPressed bs:
                 return new Gesture(GestureIds.SyncPress, bs.Deck, evt);
 
-            case ControllerEvent.CyclePitchRange cpr:
-                return new Gesture(GestureIds.SyncCyclePitchRange, cpr.Deck, evt);
+            case ControllerEvent.CycleTempoRange cpr:
+                return new Gesture(GestureIds.SyncCycleTempoRange, cpr.Deck, evt);
 
             case ControllerEvent.LoadToDeck l:
                 return new Gesture(GestureIds.LoadPress, l.Deck, evt);
@@ -102,6 +102,9 @@ public sealed class GestureRecognizer
 
             case ControllerEvent.EchoToggle et:
                 return new Gesture(GestureIds.PadEcho, et.Deck, evt);
+
+            case ControllerEvent.RollHold rh:
+                return new Gesture(GestureIds.PadRoll, rh.Deck, evt);
 
             // ---- loops and grid
             case ControllerEvent.BeatLoopToggle bl:

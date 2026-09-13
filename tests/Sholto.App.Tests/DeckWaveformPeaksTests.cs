@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.Audio;
 
@@ -31,10 +32,12 @@ public class DeckWaveformPeaksTests
     // dispatcher).
     private static DeckViewModel MakeLoadedDeck()
     {
-        var player = new Deck { Reporter = new AnalysisReporter() };
+        AvaloniaTestApp.EnsureStarted();
+        var session = new NullExternalTool();
+        var player = new Deck(new AudioFileDecoder([]), new DemucsStemAnalyzer(session), NullLoopDebug.Instance) { Reporter = new AnalysisReporter(Array.Empty<string>()) };
         player.Analysis.Set(MakeBasic());
         player.Analysis.Set(MakeStems());
-        return new DeckViewModel(player);
+        return new DeckViewModel(player, new ThemeContext());
     }
 
     [Fact]

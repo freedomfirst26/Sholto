@@ -4,16 +4,17 @@
     <Project Path="src/Sholto.App/Sholto.App.csproj" />
     <Project Path="src/Sholto.Audio/Sholto.Audio.csproj" />
     <Project Path="src/Sholto.Controller/Sholto.Controller.csproj" />
+    <Project Path="src/Sholto.ExternalTools/Sholto.ExternalTools.csproj" />
     <Project Path="src/Sholto.Faceplate/Sholto.Faceplate.csproj" />
     <Project Path="src/Sholto.Music/Sholto.Music.csproj" />
     <Project Path="src/Sholto.Storage/Sholto.Storage.csproj" />
   </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/Sholto.App.Tests/Sholto.App.Tests.csproj" />
-    <Project Path="tests/Sholto.Audio.Tests/Sholto.Audio.Tests.csproj" />
-    <Project Path="tests/Sholto.Controller.Tests/Sholto.Controller.Tests.csproj" />
-    <Project Path="tests/Sholto.Faceplate.Tests/Sholto.Faceplate.Tests.csproj" />
-    <Project Path="tests/Sholto.Music.Tests/Sholto.Music.Tests.csproj" />
-    <Project Path="tests/Sholto.Storage.Tests/Sholto.Storage.Tests.csproj" />
+  <Folder Name="/tools/">
+    <Project Path="tools/Sholto.Bench/Sholto.Bench.csproj" />
   </Folder>
+  <!-- Test projects detached 2026-09-12 for the ports-and-composition refactor.
+       Files are untouched on disk; re-add a <Project Path="..."/> line per project to
+       restore. Detached: Sholto.Audio.Golden, Sholto.Bench.Tests, Sholto.App.Tests,
+       Sholto.Audio.Tests, Sholto.Controller.Tests, Sholto.Faceplate.Tests,
+       Sholto.Music.Tests, Sholto.Storage.Tests. -->
 </Solution>

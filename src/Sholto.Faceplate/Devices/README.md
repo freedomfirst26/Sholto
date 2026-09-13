@@ -23,12 +23,12 @@ they have repeatedly failed to composite in nested layouts in this app.
 
 ## The two attached properties
 
-Both live in `Sholto.Faceplate.Views.ControlSurface`:
+Both live in `Sholto.Faceplate.Views.DeviceLayout`:
 
 | Property | Meaning |
 |---|---|
-| `fp:ControlSurface.Id` | The control id. Must match an id in the guide JSON. |
-| `fp:ControlSurface.Deck` | `0` or `1` for a per-deck control, `-1` for a global one. |
+| `fp:DeviceLayout.Id` | The control id. Must match an id in the guide JSON. |
+| `fp:DeviceLayout.Deck` | `0` or `1` for a per-deck control, `-1` for a global one. |
 
 Two shapes share one id when the control exists on both decks; the deck tells
 them apart. Generic code walks the tree, finds everything carrying an `Id`, and

@@ -22,7 +22,7 @@ public class TrackScannerTests
             var m4aPath = Path.Combine(dir.FullName, "test.m4a");
             CreateSineM4aFixture(m4aPath);
 
-            var tracks = await TrackScanner.ScanAsync(dir.FullName);
+            var tracks = await new TrackScanner().ScanAsync(dir.FullName);
 
             Assert.Single(tracks);
             Assert.False(string.IsNullOrWhiteSpace(tracks[0].Title));
@@ -86,7 +86,7 @@ public class TrackScannerTests
         var dir = Directory.CreateTempSubdirectory("sholto_test_");
         try
         {
-            var tracks = await TrackScanner.ScanAsync(dir.FullName);
+            var tracks = await new TrackScanner().ScanAsync(dir.FullName);
             Assert.Empty(tracks);
         }
         finally { dir.Delete(true); }
@@ -101,7 +101,7 @@ public class TrackScannerTests
             var wavPath = Path.Combine(dir.FullName, "test.wav");
             WriteMinimalWav(wavPath);
 
-            var tracks = await TrackScanner.ScanAsync(dir.FullName);
+            var tracks = await new TrackScanner().ScanAsync(dir.FullName);
             Assert.Single(tracks);
             Assert.Equal(Path.GetFullPath(wavPath), tracks[0].FilePath);
         }
@@ -111,7 +111,7 @@ public class TrackScannerTests
     [Fact]
     public async Task Scan_NonExistentDirectory_ReturnsEmpty()
     {
-        var tracks = await TrackScanner.ScanAsync("/tmp/sholto_does_not_exist_xyz");
+        var tracks = await new TrackScanner().ScanAsync("/tmp/sholto_does_not_exist_xyz");
         Assert.Empty(tracks);
     }
 
@@ -124,7 +124,7 @@ public class TrackScannerTests
             File.WriteAllText(Path.Combine(dir.FullName, "readme.txt"), "hello");
             File.WriteAllText(Path.Combine(dir.FullName, "image.jpg"), "fake");
 
-            var tracks = await TrackScanner.ScanAsync(dir.FullName);
+            var tracks = await new TrackScanner().ScanAsync(dir.FullName);
             Assert.Empty(tracks);
         }
         finally { dir.Delete(true); }

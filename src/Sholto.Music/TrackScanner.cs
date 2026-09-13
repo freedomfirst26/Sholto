@@ -2,12 +2,12 @@ using ATL;
 
 namespace Sholto.Music;
 
-public static class TrackScanner
+public sealed class TrackScanner : ITrackScanner
 {
     private static readonly HashSet<string> SupportedExtensions =
         [".wav", ".mp3", ".flac", ".aiff", ".aif", ".m4a"];
 
-    public static Task<IReadOnlyList<Track>> ScanAsync(
+    public Task<IReadOnlyList<Track>> ScanAsync(
         string directory,
         CancellationToken cancellationToken = default) =>
         Task.Run(() => Scan(directory, cancellationToken), cancellationToken);
@@ -24,8 +24,6 @@ public static class TrackScanner
                 Path.GetExtension(f).ToLowerInvariant()))
             .Select(ReadTrack)
             .OfType<Track>()
-            .OrderBy(t => t.Artist)
-            .ThenBy(t => t.Title)
             .ToList();
     }
 

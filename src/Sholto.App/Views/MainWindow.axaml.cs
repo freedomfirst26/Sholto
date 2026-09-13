@@ -18,8 +18,16 @@ using Sholto.Music;
 
 namespace Sholto.App.Views;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IKeyboard
 {
+    /// <summary>Raised for the subset of keys that have a DDJ-FLX4 equivalent — see
+    /// <see cref="IKeyboard"/>'s doc for the split test. <see cref="Orchestrator"/>
+    /// subscribes and turns each into the same app call the equivalent controller
+    /// gesture makes. Everything else this window handles (search, dialogs, the
+    /// tag editor, list navigation, …) is UI chrome and stays entirely below,
+    /// never raising this.</summary>
+    public event Action<KeyboardEvent>? Action;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -122,6 +130,11 @@ public partial class MainWindow : Window
         Resources["SholtoChipForeground"] = theme.CamelotPalette.OnChipForeground;
         Resources["SholtoMinimapPalette"] = theme.Minimap;
         Resources["SholtoWaveformPalette"] = theme.Waveform;
+        // Amber warning colour — the "analysis failed" marker in the track list.
+        // Deliberately not the theme accent: a failure must not read as a positive
+        // signal, and amber stays legible on every theme's surface. Fixed for now,
+        // same as the tag brushes below.
+        Resources["SholtoWarning"] = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#E8A33D"));
         // Tag editor + indicator brushes. Fixed for now; if themes ever want to
         // override these, add fields to SholtoTheme and forward them here.
         Resources["TagChipBackground"]     = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#4C5C8A"));
@@ -233,27 +246,33 @@ public partial class MainWindow : Window
             }
         }
 
-        // M — drop a marker on the target deck at its current position.
+        // M — drop a marker on the target deck at its current position. Same
+        // intent as an FLX4 gesture, so it's routed through IKeyboard →
+        // Orchestrator rather than calling the ViewModel directly — see IKeyboard.
         if (e.Key == Key.M)
         {
-            _ = vm.AddMarkerToTargetDeckAsync(shift ? 1 : 0);
+            Action?.Invoke(new KeyboardEvent(KeyboardGesture.AddMarker, shift ? 1 : 0));
             e.Handled = true;
             return;
         }
 
         switch (e.Key)
         {
-            // 1 / 2 — load the highlighted track into Deck 1 / Deck 2.
+            // 1 / 2 — load the highlighted track into Deck 1 / Deck 2. Routed
+            // through IKeyboard → Orchestrator — same target-picking as the
+            // FLX4's LOAD 1/LOAD 2 (GestureIds.LoadPress).
             case Key.D1: case Key.NumPad1:
-                LoadSelectedInto(vm, 0); e.Handled = true; return;
+                Action?.Invoke(new KeyboardEvent(KeyboardGesture.LoadSelected, 0)); e.Handled = true; return;
             case Key.D2: case Key.NumPad2:
-                LoadSelectedInto(vm, 1); e.Handled = true; return;
+                Action?.Invoke(new KeyboardEvent(KeyboardGesture.LoadSelected, 1)); e.Handled = true; return;
 
             // G — accelerator: open the Grid tool on the target deck (same as
             // clicking the BPM then the grid icon). That's the edit mode in which
-            // the ← / → phase and click-two-kicks keys become active.
+            // the ← / → phase and click-two-kicks keys become active. No FLX4
+            // control does this, but it's routed through IKeyboard → Orchestrator
+            // anyway per the keyboard-split decision in ~/Projects/sholto.md.
             case Key.G:
-                GridTarget(vm)?.OpenEdit();
+                Action?.Invoke(new KeyboardEvent(KeyboardGesture.OpenGridEdit, -1));
                 e.Handled = true;
                 return;
             case Key.Escape:
@@ -284,9 +303,10 @@ public partial class MainWindow : Window
         switch (e.Key)
         {
             // P = play/pause on the shift-selected deck. Requires that deck
-            // to actually have a track.
+            // to actually have a track. Routed through IKeyboard → Orchestrator,
+            // which makes the same OnPlayPressed call GestureIds.PlayPress does.
             case Key.P:
-                if (deck.Player.IsLoaded) vm.OnPlayPressed(shift ? 1 : 0);
+                if (deck.Player.IsLoaded) Action?.Invoke(new KeyboardEvent(KeyboardGesture.Play, shift ? 1 : 0));
                 e.Handled = true;
                 break;
             // Beatgrid editing — always active (no loop required), saved to
@@ -349,8 +369,6 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private static void LoadSelectedInto(MainViewModel vm, int deckIndex)
-        => _ = vm.LoadSelectedToDeckAsync(deckIndex);
 
     private void OnTrackSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {

@@ -84,7 +84,7 @@ public sealed class SholtoDbContext : DbContext
         mb.Entity<Tag>(e =>
         {
             e.HasKey(t => t.Id);
-            e.Property(t => t.Name).IsRequired().HasMaxLength(100);
+            e.Property(t => t.Name).IsRequired().HasMaxLength(TagNameNormalizer.MaxLength);
             e.HasIndex(t => t.Name).IsUnique().HasDatabaseName("IX_Tags_Name");
             e.Property(t => t.Name).UseCollation("NOCASE");
         });

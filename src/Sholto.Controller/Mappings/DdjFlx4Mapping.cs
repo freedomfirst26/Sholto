@@ -45,6 +45,16 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Channel == _o.StemLevelModeChannel && msg.Key == _o.StemLevelModeNote)
             return new ControllerEvent.StemLevelMode(Pressed: msg.IsDown);
 
+        // PAD FX1 page, pad 2 — beat-repeat / roll. Held rather than toggled,
+        // so (unlike the echo toggle on pad 1) both edges matter and this
+        // check has to sit above the press-only filter below.
+        if (msg.Channel == _o.PadDeck0Channel || msg.Channel == _o.PadDeck1Channel)
+        {
+            if (msg.Key == _o.PadFx1NoteBase + 1)
+                return new ControllerEvent.RollHold(
+                    Deck: msg.Channel == _o.PadDeck0Channel ? 0 : 1, Pressed: msg.IsDown);
+        }
+
         // Everything else is a press-only action — ignore the release edge so the
         // existing single-shot handlers don't fire twice per tap.
         if (!msg.IsDown) return null;
@@ -102,8 +112,9 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             if (pad == _o.StemVocalsPad) return new ControllerEvent.StemToggle(Deck: deck, Group: 1);
             if (pad == _o.StemInstrumentalPad) return new ControllerEvent.StemToggle(Deck: deck, Group: 2);
 
-            // PAD FX1 page, pad 1 — echo toggle. Pads 2-8 (PadFx1NoteBase+1..7)
-            // intentionally unmapped for now.
+            // PAD FX1 page, pad 1 — echo toggle. Pad 2 (roll) is matched above
+            // this block, since it needs both edges. Pads 3-8
+            // (PadFx1NoteBase+2..7) intentionally unmapped for now.
             if (msg.Key == _o.PadFx1NoteBase) return new ControllerEvent.EchoToggle(Deck: deck);
         }
 
@@ -144,7 +155,7 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             return new ControllerEvent.NudgeGrid(Deck: -1, Beats: +1);
 
         // BEAT SYNC button (plain). BeatSyncNote = no Shift; the FLX-4 firmware
-        // sends a DIFFERENT note (CyclePitchRangeNote) when Shift is held,
+        // sends a DIFFERENT note (CycleTempoRangeNote) when Shift is held,
         // captured separately below — so we don't need to track Shift state
         // for this chord, the controller does it for us.
         if (msg.Channel == _o.Deck0Channel && msg.Key == _o.BeatSyncNote)
@@ -153,10 +164,10 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             return new ControllerEvent.BeatSyncPressed(Deck: 1);
 
         // Shift + BEAT SYNC = cycle tempo range (Rekordbox TEMPO RANGE).
-        if (msg.Channel == _o.Deck0Channel && msg.Key == _o.CyclePitchRangeNote)
-            return new ControllerEvent.CyclePitchRange(Deck: 0);
-        if (msg.Channel == _o.Deck1Channel && msg.Key == _o.CyclePitchRangeNote)
-            return new ControllerEvent.CyclePitchRange(Deck: 1);
+        if (msg.Channel == _o.Deck0Channel && msg.Key == _o.CycleTempoRangeNote)
+            return new ControllerEvent.CycleTempoRange(Deck: 0);
+        if (msg.Channel == _o.Deck1Channel && msg.Key == _o.CycleTempoRangeNote)
+            return new ControllerEvent.CycleTempoRange(Deck: 1);
 
         return null;
     }
@@ -238,6 +249,23 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
         return null;
     }
+
+    /// <summary>Startup MIDI sequence that puts the FLX-4 pads into Hot Cue
+    /// mode on both decks. Captured from the controller itself: pressing the
+    /// HOT CUE button emits NoteOn/NoteOff on ch 1 (deck 1) or ch 2 (deck 2),
+    /// note 0x1B. Sending the same bytes back asks the controller to enter
+    /// that mode. Without this, Rekordbox may have left the pads in a
+    /// layout we don't have mapped.
+    /// Wire channel = displayed channel - 1, so:
+    ///   Deck 1 displayed ch 1 → wire 0 → NoteOn status byte 0x90
+    ///   Deck 2 displayed ch 2 → wire 1 → NoteOn status byte 0x91
+    /// </summary>
+    public byte[]? StartupInit() =>
+        // NoteOn vel 0x7F then NoteOff (vel 0x00) for both decks.
+        [
+            0x90, 0x1B, 0x7F, 0x90, 0x1B, 0x00,  // Deck 1 HOT CUE press+release
+            0x91, 0x1B, 0x7F, 0x91, 0x1B, 0x00,  // Deck 2 HOT CUE press+release
+        ];
 
     // --- Output / LEDs ---------------------------------------------------------
     // The FLX-4 lights a button by echoing its note back with velocity

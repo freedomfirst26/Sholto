@@ -7,6 +7,46 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+### Fixed
+
+- **A broken beat tracker no longer earns a "Done" banner.** The installer
+  used to warn and carry on if any Python tool failed to install — right for stem
+  separation and AI song sections, which are optional, but wrong for the beat
+  tracker: without it, no track gets a beatgrid and nothing plays. Now, if the beat
+  tracker specifically is broken, the installer says so plainly, tells you nothing
+  will play, and exits with an error instead of claiming success. `install.sh`
+  still finishes building Sholto first — so you have a binary to retry against —
+  but reports failure, not "Done", when it's finished.
+
+- **Analysis that fails now says so.** When one of the background tools dies on a
+  track, the library shows an amber **!** where the tick would be instead of leaving
+  the row blank — so a track that broke no longer looks like one nobody has got
+  round to yet. Hover the **!** and you get the tool's own error, word for word,
+  instead of a bare exit code.
+
+- **Stems stop vanishing after a reinstall.** An update to one of the background
+  tools Sholto uses for stem separation had quietly broken it: tracks appeared to
+  analyse normally but produced no drums, vocals or instrumental. The installer now
+  sticks to a set of tool versions that has been tested end to end, and checks the
+  separator really produces four stems — with the exact names Sholto looks for — before
+  declaring itself done. `./install.sh --verify` re-runs that check any time, names the
+  program it actually tested, and says plainly what you lose if one is broken.
+
+- **The installer no longer bails out over an optional tool.** If stem separation or
+  AI song sections failed to install, the whole install used to stop dead — even
+  before Sholto itself got built — so a machine where one optional tool wouldn't
+  build couldn't install Sholto at all. Now a failed optional tool just gets a
+  warning and the install carries on; a genuinely required tool failing still warns
+  clearly instead of dying with a raw Python error.
+
+- **A re-analysed track that fails no longer keeps its green tick.** If you
+  re-analysed a track and the beat detector broke, the track could still show fully
+  analysed (green tick) because it remembered BPM and stems from a previous run —
+  hiding that the beatgrid you were about to mix on never actually got rebuilt. A
+  broken beat detector now shows the failure marker every time, even on a track
+  that looks otherwise complete; a failed *optional* step (AI song sections) still
+  leaves the tick alone.
+
 ## v0.3.0
 
 ### New

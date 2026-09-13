@@ -4,7 +4,7 @@ namespace Sholto.Controller;
 /// its physical position, so <see cref="Reset"/> is a no-op: you never force an
 /// analogue control to a value. Startup safety (staying silent until the position
 /// is known) comes from soft-takeover in the subclass, not from a reset.</summary>
-public abstract class AnalogueControl : Control
+public abstract class AnalogueControl : DeviceControl
 {
     protected AnalogueControl(string name) : base(name) { }
 

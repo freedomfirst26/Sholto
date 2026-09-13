@@ -31,7 +31,7 @@ public class FfmpegDecodeStrategyTests
     [Fact]
     public void CanDecode_M4aTrue_Mp3False()
     {
-        var strategy = new FfmpegDecodeStrategy();
+        var strategy = new FfmpegDecodeStrategy("ffmpeg");
         Assert.True(strategy.CanDecode(".m4a"));
         Assert.False(strategy.CanDecode(".mp3"));
     }
@@ -49,7 +49,7 @@ public class FfmpegDecodeStrategyTests
         string fixturePath = CreateSineM4aFixture();
         try
         {
-            var strategy = new FfmpegDecodeStrategy();
+            var strategy = new FfmpegDecodeStrategy("ffmpeg");
             float[] pcm = strategy.Decode(fixturePath);
 
             // 2 s @ 48000 Hz stereo = 192000 samples, ±10% for AAC encoder
@@ -105,7 +105,8 @@ public class FfmpegDecodeStrategyTests
     [Fact]
     public void Decode_UnsupportedExtension_ThrowsNotSupported()
     {
-        Assert.Throws<NotSupportedException>(() => AudioFileDecoder.Decode("/tmp/made-up-file.xyzzy"));
+        var decoder = new AudioFileDecoder([new FfmpegDecodeStrategy("ffmpeg")]);
+        Assert.Throws<NotSupportedException>(() => decoder.Decode("/tmp/made-up-file.xyzzy"));
     }
 
     [Fact]
@@ -116,8 +117,9 @@ public class FfmpegDecodeStrategyTests
             return;
         }
 
+        var decoder = new AudioFileDecoder([new FfmpegDecodeStrategy("ffmpeg")]);
         var ex = Assert.Throws<InvalidOperationException>(
-            () => AudioFileDecoder.Decode("/tmp/sholto_does_not_exist_xyz.m4a"));
+            () => decoder.Decode("/tmp/sholto_does_not_exist_xyz.m4a"));
         Assert.Contains("ffmpeg", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 

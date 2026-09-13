@@ -113,7 +113,51 @@ On startup Sholto scans your music folder. Click a track to load it onto Deck 1,
 
 **Optional** — Sholto runs fine without these, you just lose that one feature:
 - **demucs** — stem separation (drums / vocals / bass / other). Without it, the stem chips and the hot-cue stem mutes are unavailable.
-- **allin1** — AI song-section detection (intro / build / drop / …). Without it, Sholto falls back to a simpler built-in guess.
+
+**Checking they actually work.** The background tools are ordinary Python programs, and
+an update to one of them can leave it installed but broken. Run `bash install.sh --verify`
+(or `bash install-deps.sh --verify` if you're on the prebuilt binary) and Sholto will
+run each one for real — it separates a test clip and confirms it gets four stems back,
+rather than just checking the program is there. It tells you which one is broken and
+what you lose without it.
+
+### What Sholto is built on
+
+Sholto doesn't try to invent beat detection or stem separation from scratch — those are
+hard research problems, and there are people who have spent careers on them. It stands on
+their work and concentrates on being a good instrument to play.
+
+Two very different kinds of borrowing are going on here, and the difference matters.
+
+**Programs Sholto runs** — separate applications that Sholto starts, hands a file to, and
+waits for. They are installed alongside Sholto rather than inside it. If one is missing or
+broken, Sholto keeps working and you lose only that feature.
+
+| Program | What it does for you | Without it |
+|---|---|---|
+| **madmom** (`madmom-onnx`) | Listens to a track and works out where every beat and every bar starts. This is the foundation everything else stands on — sync, looping, the grid on the waveform, quantised cues. | **Required.** A track can't play without a beatgrid. |
+| **demucs** | Splits a finished track back into four separate recordings — drums, bass, vocals, everything else — so you can drop the vocal out of one track while keeping its drums. | Stem chips and hot-cue stem mutes are unavailable. |
+| **ffmpeg** | The universal audio translator. Converts M4A/AAC files into something Sholto can play, and prepares audio for the beat detector. | M4A/AAC files won't load. |
+
+**Libraries built into Sholto** — code compiled into the app itself. You never install these
+separately; they arrive with it.
+
+| Library | What it does for you |
+|---|---|
+| **Avalonia** | Draws the entire interface — decks, waveforms, library, every control. It's what lets Sholto look the same on any Linux desktop. |
+| **SoundFlow** | Pushes audio out to your speakers, and is what makes the pitch and tempo changes sound right rather than chipmunky. |
+| **NAudio** + **NLayer** | Read WAV, FLAC and MP3 files and turn them into the samples the decks play. |
+| **z440.atl.core** | Reads the artist, title, album and artwork embedded in your files, so the library list isn't just filenames. |
+| **SQLite** + **Entity Framework Core** | Remember everything between sessions — your analysed tracks, cue points, crates, tags and ratings. |
+| **CommunityToolkit.Mvvm** | Internal plumbing that keeps what's on screen in step with what the decks are actually doing. |
+
+**A note for anyone licensing Sholto commercially.** The four programs in the first table are
+deliberately kept at arm's length — Sholto launches them as separate processes and talks to
+them through files and command output. None of their code is linked into Sholto. That
+boundary is intentional, because those programs carry their own licences that differ from
+Sholto's. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — in particular, madmom's
+trained models are non-commercial, and a commercial licence to Sholto does not carry a
+right to use them.
 
 **Your controller** — a **Pioneer DDJ-FLX4** is picked up automatically when you plug it in; a green dot in the top bar means it's connected (red means reconnect the USB), and it reconnects on its own if it drops. You don't need one — everything works from the mouse and keyboard.
 

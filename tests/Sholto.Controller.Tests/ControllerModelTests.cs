@@ -195,7 +195,7 @@ public class ControllerModelTests
     [Fact]
     public void RestoreCueState_brings_back_a_cue_that_was_on_before_Reset()
     {
-        var controller = new Controller();
+        var controller = new Controller(new MidiManager(new MappingRegistry(new DdjFlx4Options())));
         controller.Deck1Cue.Press();               // DJ turns deck 1 cue on
         Assert.True(controller.Deck1Cue.IsLit);
         var snapshot = controller.SnapshotCueState();
@@ -217,7 +217,7 @@ public class ControllerModelTests
         // The restore must not simply turn everything back on: a cue that was
         // genuinely off before Reset must stay off, and nothing should be re-raised
         // for a button that already matches its snapshot.
-        var controller = new Controller();
+        var controller = new Controller(new MidiManager(new MappingRegistry(new DdjFlx4Options())));
         var snapshot = controller.SnapshotCueState();   // nothing pressed — all off
 
         controller.Reset();
@@ -237,7 +237,7 @@ public class ControllerModelTests
     {
         // Deck 1 and master were on, deck 2 was off — the restore must reproduce
         // exactly that mix, not "all on" or "all off".
-        var controller = new Controller();
+        var controller = new Controller(new MidiManager(new MappingRegistry(new DdjFlx4Options())));
         controller.Deck1Cue.Press();
         controller.MasterCue.Press();
         var snapshot = controller.SnapshotCueState();

@@ -10,14 +10,18 @@ namespace Sholto.Analysis;
 ///
 /// This is deliberately cheap and honest — no trained model — so labels are a hint
 /// for the minimap, not ground truth. It reuses peaks that are already computed.
+///
+/// Default <see cref="ISongSegmentAnalyzer"/>. Pure computation — no environment/
+/// filesystem/clock dependency — instance so a test/Bench harness can substitute
+/// a fake; it holds no state of its own.
 /// </summary>
-public static class SongSegmentAnalyzer
+public sealed class SongSegmentAnalyzer : ISongSegmentAnalyzer
 {
     private const int MinBars = 4;              // don't emit sections shorter than this
     private const float LowTier = 0.35f;        // normalised-energy tier cuts
     private const float HighTier = 0.70f;
 
-    public static SongSegments Analyze(WaveformPeaks peaks, double[] downbeats, int sampleRate)
+    public SongSegments Analyze(WaveformPeaks peaks, double[] downbeats, int sampleRate)
     {
         int cols = peaks.Min.Length;
         if (cols == 0 || downbeats is null || downbeats.Length < 3) return SongSegments.Empty;
@@ -98,9 +102,9 @@ public static class SongSegmentAnalyzer
         return new SongSegments(segs);
     }
 
-    private static int Tier(float v) => v < LowTier ? 0 : v < HighTier ? 1 : 2;
+    private int Tier(float v) => v < LowTier ? 0 : v < HighTier ? 1 : 2;
 
-    private static float[] Smooth(float[] a)
+    private float[] Smooth(float[] a)
     {
         if (a.Length < 3) return a;
         var s = new float[a.Length];
@@ -113,14 +117,14 @@ public static class SongSegmentAnalyzer
         return s;
     }
 
-    private static float Avg(float[] a, int start, int end)
+    private float Avg(float[] a, int start, int end)
     {
         if (end <= start) return 0;
         float sum = 0; for (int i = start; i < end && i < a.Length; i++) sum += a[i];
         return sum / (end - start);
     }
 
-    private static float Percentile(float[] a, float p)
+    private float Percentile(float[] a, float p)
     {
         if (a.Length == 0) return 0;
         var copy = (float[])a.Clone();
