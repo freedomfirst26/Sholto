@@ -30,7 +30,7 @@ public class OrchestratorJogRoutingTests
             Options.Create(new FeatureOptions()),
             decoder, stemAnalyzer,
             new Sholto.App.Theming.ThemeContext(), Sholto.Audio.NullLoopDebug.Instance, stemAnalyzer,
-            new Sholto.Music.TrackScanner());
+            new Sholto.Library.TrackScanner());
         return new Orchestrator(vm, vm, vm, vm, () => null,
             Options.Create(new ScratchOptions()), Options.Create(new MagnetismOptions()),
             new GestureRecognizer(), decoder);

@@ -6,7 +6,7 @@ namespace Sholto.Storage;
 
 /// <summary>SQLite-backed store for KeyAnalysis — the system of record, not a
 /// cache; see <see cref="IKeyAnalysisStore"/>. Same shape as
-/// <see cref="BasicAnalysisCache"/>, different codec + table.</summary>
+/// <see cref="BasicAnalysisStore"/>, different codec + table.</summary>
 public sealed class SqliteKeyAnalysisStore : IKeyAnalysisStore
 {
     private readonly IDbContextFactory<SholtoDbContext> _factory;

@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 
 namespace Sholto.ExternalTools;
 
@@ -36,7 +37,8 @@ public sealed class MadmomBeatAnalysisStep : ExternalToolAnalysisStep, IBeatAnal
         // Madmom has no cached output of its own — its "workspace" is just the
         // source file's own directory, which always already exists.
         var workDir = Path.GetDirectoryName(filePath) ?? "";
-        var outcome = await Tool.RunAsync(_tool, filePath, workDir, reporter: NullAnalysisReporter.Instance, ct);
+        var outcome = await Tool.RunAsync(
+            _tool, new ToolInput(filePath, workDir), reporter: NullAnalysisReporter.Instance, ct);
 
         if (!outcome.IsSuccess)
             throw new InvalidOperationException(outcome.Reason);

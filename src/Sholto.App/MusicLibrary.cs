@@ -4,11 +4,11 @@ using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Sholto.Analysis;
 using Sholto.App.ViewModels;
-using Sholto.Music;
+using Sholto.Library;
 using Sholto.Storage;
 using Sholto.Storage.Entities;
 using EfTrack = Sholto.Storage.Entities.Track;
-using LibTrack = Sholto.Music.Track;
+using LibTrack = Sholto.Library.Track;
 
 namespace Sholto.App;
 

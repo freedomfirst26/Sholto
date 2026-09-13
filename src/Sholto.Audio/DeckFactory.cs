@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 using SoundFlow.Abstracts;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;
@@ -20,7 +21,7 @@ namespace Sholto.Audio;
 /// its first frame before App.axaml.cs's InitializeServices opens it. Rather
 /// than closing over nullable fields (the previous, half-fixed shape), the
 /// three DB-backed collaborators below are each a null-object/switchable pair
-/// (<see cref="SwitchableAnalysisCache"/>, <see cref="SwitchableKeyAnalysisStore"/>,
+/// (<see cref="SwitchableBasicAnalysisStore"/>, <see cref="SwitchableKeyAnalysisStore"/>,
 /// <see cref="SwitchableGridAdjustmentStore"/>): every Deck gets a real, non-null
 /// collaborator immediately, it just degrades to memory-only analysis and no
 /// persisted key/grid cache until the composition root calls each switchable's

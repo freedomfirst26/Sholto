@@ -1,3 +1,5 @@
+using Sholto.Analysis.Analyzers;
+
 namespace Sholto.Analysis;
 
 /// <summary>
@@ -248,7 +250,7 @@ public sealed record Beatgrid(
     /// <c>(beats, downbeats)</c> pair — identical to <see cref="Materialise"/>,
     /// and the reason <c>var (beats, downbeats) = fitter.Synthesize…(…)</c>
     /// still reads the way it always did at the array boundary in
-    /// <see cref="BasicAnalysis.ComputeAsync"/>. It ALLOCATES, unlike the
+    /// <see cref="BasicAnalyzer.ComputeAsync"/>. It ALLOCATES, unlike the
     /// four-element deconstruction the record generates for its own components;
     /// prefer naming <see cref="Materialise"/> where that matters.</summary>
     public void Deconstruct(out double[] Beats, out double[] Downbeats)

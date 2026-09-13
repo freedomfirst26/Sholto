@@ -1,4 +1,6 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Processing;
 
 namespace Sholto.Audio;
 
@@ -88,14 +90,15 @@ internal sealed class TrackAnalysisRun : ITrackAnalysisRun
                 // Update the visible sample count now that we have the exact value.
                 _setSampleCount(samples.Length / 2);
 
-                var basicTask = AnalysisProvider.GetAsync(filePath, samples, sampleRate);
-                var keyTask   = ComputeKeyAsync(filePath, samples, sampleRate);
+                var track = new DecodedTrack(filePath, samples, sampleRate, AudioFileDecoder.TargetChannels);
+                var basicTask = AnalysisProvider.GetAsync(track);
+                var keyTask   = ComputeKeyAsync(track);
                 await Task.WhenAll(basicTask, keyTask);
 
-                var (basic, source) = await basicTask;
+                var basic = await basicTask;
                 var key = await keyTask;
 
-                Console.WriteLine($"[Deck] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
+                Console.WriteLine($"[Deck] analysis: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
                 _setDetectedBasic(basic);
                 if (key is not null)
                 {
@@ -117,17 +120,16 @@ internal sealed class TrackAnalysisRun : ITrackAnalysisRun
         });
     }
 
-    private async Task<KeyAnalysis?> ComputeKeyAsync(string filePath, float[] samples, int sampleRate)
+    private async Task<KeyAnalysis?> ComputeKeyAsync(DecodedTrack track)
     {
         try
         {
-            try { var cached = await _keyCache.TryGetAsync(filePath); if (cached is not null) return cached; }
+            try { var cached = await _keyCache.TryGetAsync(track.FilePath); if (cached is not null) return cached; }
             catch (Exception ex) { Console.WriteLine($"[Deck] key cache lookup failed: {ex.Message}"); }
 
-            var key = await _keyAnalyzer.AnalyzeAsync(filePath, samples, channels: 2,
-                sampleRate: sampleRate, reporter: Reporter);
+            var key = await _keyAnalyzer.AnalyzeAsync(track, reporter: Reporter);
 
-            try { await _keyCache.PutAsync(filePath, key); }
+            try { await _keyCache.PutAsync(track.FilePath, key); }
             catch (Exception ex) { Console.WriteLine($"[Deck] key cache write failed: {ex.Message}"); }
 
             return key;
@@ -140,15 +142,15 @@ internal sealed class TrackAnalysisRun : ITrackAnalysisRun
     }
 
     /// <inheritdoc/>
-    public void KickOffBasicAnalysis(string filePath, float[] stereoSamples, int sampleRate)
+    public void KickOffBasicAnalysis(DecodedTrack track)
     {
         // Analysis runs off-thread; deck plays immediately, beat grid appears when ready.
         _ = Task.Run(async () =>
         {
             try
             {
-                var (basic, source) = await AnalysisProvider.GetAsync(filePath, stereoSamples, sampleRate);
-                Console.WriteLine($"[Deck] analysis from {source}: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
+                var basic = await AnalysisProvider.GetAsync(track);
+                Console.WriteLine($"[Deck] analysis: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
                 _setDetectedBasic(basic);
                 AnalysisUpdated?.Invoke();
             }
@@ -160,7 +162,7 @@ internal sealed class TrackAnalysisRun : ITrackAnalysisRun
     }
 
     /// <inheritdoc/>
-    public void KickOffKeyAnalysis(string filePath, float[] stereoSamples, int sampleRate)
+    public void KickOffKeyAnalysis(DecodedTrack track)
     {
         // Key estimation is independent of beats and stems — reads the same decoded
         // buffer the basic analysis used. Goertzel + Krumhansl-Schmuckler in-process,
@@ -171,14 +173,13 @@ internal sealed class TrackAnalysisRun : ITrackAnalysisRun
             try
             {
                 KeyAnalysis? key = null;
-                try { key = await _keyCache.TryGetAsync(filePath); }
+                try { key = await _keyCache.TryGetAsync(track.FilePath); }
                 catch (Exception ex) { Console.WriteLine($"[Deck] key cache lookup failed: {ex.Message}"); }
 
                 if (key is null)
                 {
-                    key = await _keyAnalyzer.AnalyzeAsync(filePath, stereoSamples, channels: 2,
-                        sampleRate: sampleRate, reporter: Reporter);
-                    try { await _keyCache.PutAsync(filePath, key); }
+                    key = await _keyAnalyzer.AnalyzeAsync(track, reporter: Reporter);
+                    try { await _keyCache.PutAsync(track.FilePath, key); }
                     catch (Exception ex) { Console.WriteLine($"[Deck] key cache write failed: {ex.Message}"); }
                 }
                 Console.WriteLine($"[Deck] key: {key.KeyName} ({key.Camelot})");
@@ -221,7 +222,7 @@ internal sealed class TrackAnalysisRun : ITrackAnalysisRun
     }
 
     /// <inheritdoc/>
-    public void KickOffStemPeaksAnalysis(float[] drumsSamples, float[] vocalsSamples, float[] bassSamples, float[] otherSamples)
+    public void KickOffStemPeaksAnalysis(StemSamples stems)
     {
         _ = Task.Run(() =>
         {
@@ -235,10 +236,10 @@ internal sealed class TrackAnalysisRun : ITrackAnalysisRun
                 // follow-up. normalizeBands stays false so, if it is ever revived,
                 // the stems remain comparable to each other (per-stem [0,1]
                 // normalisation would make a quiet vocal look as loud as a kick).
-                var pd = Task.Run(() => _peakAnalyzer.Compute(drumsSamples,  channels: 2, sampleRate: sr, normalizeBands: false));
-                var pv = Task.Run(() => _peakAnalyzer.Compute(vocalsSamples, channels: 2, sampleRate: sr, normalizeBands: false));
-                var pb = Task.Run(() => _peakAnalyzer.Compute(bassSamples,   channels: 2, sampleRate: sr, normalizeBands: false));
-                var po = Task.Run(() => _peakAnalyzer.Compute(otherSamples,  channels: 2, sampleRate: sr, normalizeBands: false));
+                var pd = Task.Run(() => _peakAnalyzer.Compute(stems.Drums,  channels: 2, sampleRate: sr, normalizeBands: false));
+                var pv = Task.Run(() => _peakAnalyzer.Compute(stems.Vocals, channels: 2, sampleRate: sr, normalizeBands: false));
+                var pb = Task.Run(() => _peakAnalyzer.Compute(stems.Bass,   channels: 2, sampleRate: sr, normalizeBands: false));
+                var po = Task.Run(() => _peakAnalyzer.Compute(stems.Other,  channels: 2, sampleRate: sr, normalizeBands: false));
                 Task.WaitAll(pd, pv, pb, po);
                 Analysis.Set(new StemPeaks(pd.Result, pv.Result, pb.Result, po.Result));
                 Console.WriteLine("[Deck] per-stem peaks computed");

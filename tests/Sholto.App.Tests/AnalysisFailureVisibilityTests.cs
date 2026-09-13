@@ -1,7 +1,7 @@
 using Sholto.Analysis;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;
-using Sholto.Music;
+using Sholto.Library;
 
 namespace Sholto.App.Tests;
 

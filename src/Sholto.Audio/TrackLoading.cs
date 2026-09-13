@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 using SoundFlow.Abstracts;
 using SoundFlow.Components;
 using SoundFlow.Enums;
@@ -287,11 +288,12 @@ internal sealed class TrackLoading : ITrackLoading
 
         // Analysis runs off-thread; deck plays immediately, beat grid appears when
         // ready. See TrackAnalysisRun.KickOffBasicAnalysis.
-        _analysisRun.KickOffBasicAnalysis(filePath, stereoSamples, sampleRate);
+        var decodedTrack = new DecodedTrack(filePath, stereoSamples, sampleRate, AudioFileDecoder.TargetChannels);
+        _analysisRun.KickOffBasicAnalysis(decodedTrack);
 
         // Key estimation is independent of beats and stems — reads the same decoded
         // buffer the basic analysis used. See TrackAnalysisRun.KickOffKeyAnalysis.
-        _analysisRun.KickOffKeyAnalysis(filePath, stereoSamples, sampleRate);
+        _analysisRun.KickOffKeyAnalysis(decodedTrack);
 
         // Stems run independently of the BPM pipeline — slower (demucs takes 30-180s
         // on CPU for one track) and isolated from playback. On completion, auto-
@@ -383,7 +385,8 @@ internal sealed class TrackLoading : ITrackLoading
         // StemMixDataProvider below instead of a disposed one.
         _scratchProvider = null;
 
-        var provider = new StemMixDataProvider(drums, vocals, bass, other, sampleRate: AudioFileDecoder.TargetSampleRate);
+        var stemSamples = new StemSamples(drums, vocals, bass, other);
+        var provider = new StemMixDataProvider(stemSamples, sampleRate: AudioFileDecoder.TargetSampleRate);
         _stemProvider = provider;
         _currentDataProvider = provider;
         _player = new SoundPlayer(_engine, _format, provider);
@@ -403,11 +406,7 @@ internal sealed class TrackLoading : ITrackLoading
         // Analysis.Set fires StemPeaksReady → deck VM re-emits Peaks → waveform
         // rebakes against the current active-stem mask. See
         // TrackAnalysisRun.KickOffStemPeaksAnalysis.
-        var drumsSamples  = drums;
-        var vocalsSamples = vocals;
-        var bassSamples   = bass;
-        var otherSamples  = other;
-        _analysisRun.KickOffStemPeaksAnalysis(drumsSamples, vocalsSamples, bassSamples, otherSamples);
+        _analysisRun.KickOffStemPeaksAnalysis(stemSamples);
     }
 
     /// <inheritdoc/>

@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;
 

@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers;
 
 namespace Sholto.Audio;
 

@@ -1,5 +1,6 @@
 using System.Threading;
 using Sholto.Analysis;
+using Sholto.Dsp;
 using SoundFlow.Abstracts;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;

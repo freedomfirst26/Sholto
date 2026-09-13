@@ -11,7 +11,7 @@ public interface IKeyAnalyzer
     /// <summary>Fire-and-await wrapper: runs the heavy chroma + correlation on a
     /// background task and reports progress like the other analyzers.</summary>
     Task<KeyAnalysis> AnalyzeAsync(
-        string filePath, float[] stereoSamples, int channels, int sampleRate,
+        DecodedTrack track,
         IAnalysisReporter reporter, CancellationToken ct = default);
 
     /// <summary>

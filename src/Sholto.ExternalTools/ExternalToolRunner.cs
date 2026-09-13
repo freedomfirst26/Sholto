@@ -27,11 +27,12 @@ public sealed class ExternalToolRunner : IExternalToolRunner
     public async Task<ToolOutcome<TResult>> RunAsync<TResult>(
         IToolDefinition<TResult> tool,
         string? binaryPath,
-        string input,
-        string workDir,
+        ToolInput toolInput,
         IAnalysisReporter reporter,
         CancellationToken ct = default)
     {
+        var input = toolInput.Input;
+
         if (binaryPath is null)
         {
             var reason = $"{tool.BinaryName} not found";
@@ -47,7 +48,7 @@ public sealed class ExternalToolRunner : IExternalToolRunner
             RedirectStandardError = true,
             UseShellExecute = false,
         };
-        foreach (var arg in tool.BuildArgs(input, workDir))
+        foreach (var arg in tool.BuildArgs(toolInput))
             psi.ArgumentList.Add(arg);
 
         using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
@@ -102,7 +103,7 @@ public sealed class ExternalToolRunner : IExternalToolRunner
         string stdout;
         lock (gate) stdout = stdoutBuf.ToString();
 
-        var outcome = tool.Verify(input, workDir, stdout, proc.ExitCode);
+        var outcome = tool.Verify(toolInput, stdout, proc.ExitCode);
         if (outcome.IsSuccess)
         {
             reporter.Complete(input, tool.Name, outcome.Message ?? "ok");

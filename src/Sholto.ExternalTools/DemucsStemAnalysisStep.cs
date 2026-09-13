@@ -1,4 +1,6 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
+using Sholto.Analysis.Reporting;
 
 namespace Sholto.ExternalTools;
 
@@ -6,7 +8,7 @@ namespace Sholto.ExternalTools;
 /// Runs <c>demucs</c> on a track to split it into 4 stems (vocals / drums / bass / other),
 /// UNCONDITIONALLY — every call runs the separator. Caching is not this type's
 /// concern: it moved out to the <see cref="CachingStemAnalysisStep"/> decorator and
-/// the <see cref="DemucsStemCache"/> it queries, which is also the honest place a
+/// the <see cref="DemucsStemPresence"/> it queries, which is also the honest place a
 /// caller asks "is this already done" without triggering a run (see that type's
 /// comment). Composed together at the root, this type is never handed to a caller
 /// undecorated in the real app.
@@ -23,7 +25,7 @@ public sealed class DemucsStemAnalysisStep : ExternalToolAnalysisStep, IStemAnal
     public override string StepName => AnalysisSteps.Stems;
 
     // Where this track's stems get written — the same function the composition
-    // root hands to DemucsStemCache, so a run's output lands exactly where the
+    // root hands to DemucsStemPresence, so a run's output lands exactly where the
     // cache will later look for it. This type owns none of that policy; it only
     // calls the function it was given.
     private readonly Func<string, string> _workspaceFor;
@@ -49,7 +51,8 @@ public sealed class DemucsStemAnalysisStep : ExternalToolAnalysisStep, IStemAnal
         // DemucsTool gets the expected paths by value (computed just above) rather
         // than a back-reference to this analyser. Tool.RunAsync ensures workDir
         // exists before running — filesystem policy for THAT lives there, not here.
-        var outcome = await Tool.RunAsync(new Sholto.ExternalTools.DemucsTool(paths), filePath, workDir, reporter, ct);
+        var outcome = await Tool.RunAsync(
+            new Sholto.ExternalTools.DemucsTool(paths), new ToolInput(filePath, workDir), reporter, ct);
         if (!outcome.IsSuccess)
             throw new InvalidOperationException(outcome.Reason);
 

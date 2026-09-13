@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 
 namespace Sholto.ExternalTools;
 
@@ -30,8 +31,8 @@ internal sealed class DemucsTool(StemPaths expectedPaths) : IToolDefinition<Stem
     // sholto-deps.sh's check_demucs mirrors this exact --out/--filename pair (and the
     // resulting <out>/htdemucs/<stem>.wav layout) when it verifies a demucs install —
     // the two must not drift.
-    public IReadOnlyList<string> BuildArgs(string input, string workDir) =>
-        new[] { "--out", workDir, "--filename", "{stem}.{ext}", input };
+    public IReadOnlyList<string> BuildArgs(ToolInput toolInput) =>
+        new[] { "--out", toolInput.WorkDir, "--filename", "{stem}.{ext}", toolInput.Input };
 
     public bool TryParseProgress(string line, out double progress)
     {
@@ -46,7 +47,7 @@ internal sealed class DemucsTool(StemPaths expectedPaths) : IToolDefinition<Stem
         return false;
     }
 
-    public ToolOutcome<StemPaths> Verify(string input, string workDir, string stdout, int exitCode)
+    public ToolOutcome<StemPaths> Verify(ToolInput toolInput, string stdout, int exitCode)
     {
         if (exitCode != 0)
             return ToolOutcome<StemPaths>.Failure($"demucs exited with code {exitCode}");

@@ -11,11 +11,11 @@ namespace Sholto.ExternalTools;
 /// threaded through here as a <c>(toolName, inputPath) -&gt; workspace directory</c>
 /// function so <see cref="IExternalTool.RunAsync{T}"/> could compute its own work
 /// directory, but <c>Sholto.ExternalTools</c> has zero project references, so it
-/// could never really own that policy (it doesn't know about <c>Sholto.Analysis</c>'s
-/// <c>AnalysisCachePaths</c> encoding). Callers that need a deterministic work
+/// could never really own that policy (it doesn't know about the SHA256-based
+/// directory encoding <c>ExternalToolStack.FromEnvironment</c> uses). Callers that need a deterministic work
 /// directory (the on-disk stem cache) now own that policy directly and pass it to
 /// <see cref="IExternalTool.RunAsync{T}"/> themselves — see
-/// <c>DemucsStemAnalysisStep</c>/<c>DemucsStemCache</c> in <c>Sholto.Analysis</c>.
+/// <c>DemucsStemAnalysisStep</c>/<c>DemucsStemPresence</c> in <c>Sholto.Analysis</c>.
 /// </summary>
 public sealed class ToolSet
 {

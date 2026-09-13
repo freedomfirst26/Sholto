@@ -1,3 +1,5 @@
+using Sholto.Analysis.Analyzers;
+
 namespace Sholto.Analysis;
 
 /// <summary>

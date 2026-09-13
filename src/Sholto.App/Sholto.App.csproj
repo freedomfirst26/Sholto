@@ -18,6 +18,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sholto.App.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
     <!-- Theme JSON + manifest, loaded by SholtoThemeJson via avares:// at startup. -->
@@ -44,7 +50,7 @@
     <ProjectReference Include="..\Sholto.Controller\Sholto.Controller.csproj" />
     <ProjectReference Include="..\Sholto.ExternalTools\Sholto.ExternalTools.csproj" />
     <ProjectReference Include="..\Sholto.Faceplate\Sholto.Faceplate.csproj" />
-    <ProjectReference Include="..\Sholto.Music\Sholto.Music.csproj" />
+    <ProjectReference Include="..\Sholto.Library\Sholto.Library.csproj" />
     <ProjectReference Include="..\Sholto.Storage\Sholto.Storage.csproj" />
   </ItemGroup>
 </Project>

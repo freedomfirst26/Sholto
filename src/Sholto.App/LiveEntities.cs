@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using Sholto.Analysis;
 using Sholto.Audio;
 using Sholto.Controller;
-using Sholto.Music;
+using Sholto.Library;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.App.Views;
@@ -20,7 +20,7 @@ public sealed record ApplicationLeaves(
     IAudioFileDecoder Decoder,
     IDeckFactory Decks,
     IThemeContext Theme,
-    IStemCache StemCache,
+    DemucsStemPresence StemCache,
     IAnalysisReporter Reporter,
     ITrackScanner TrackScanner,
     IHarmonicKeys HarmonicKeys,

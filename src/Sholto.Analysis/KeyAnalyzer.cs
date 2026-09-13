@@ -1,3 +1,5 @@
+using Sholto.Analysis.Processing;
+
 namespace Sholto.Analysis;
 
 /// <summary>
@@ -27,21 +29,21 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
     /// <summary>Fire-and-await wrapper: runs the heavy chroma + correlation on a
     /// background task and reports progress like the other analyzers.</summary>
     public async Task<KeyAnalysis> AnalyzeAsync(
-        string filePath, float[] stereoSamples, int channels, int sampleRate,
+        DecodedTrack track,
         IAnalysisReporter reporter, CancellationToken ct = default)
     {
-        reporter.Running(filePath, AnalysisSteps.Key);
+        reporter.Running(track.FilePath, AnalysisSteps.Key);
         try
         {
             var result = await Task.Run(
-                () => Estimate(stereoSamples, channels, sampleRate), ct);
+                () => Estimate(track.StereoSamples, track.Channels, track.SampleRate), ct);
             var analysis = new KeyAnalysis(result.KeyName, result.Camelot);
-            reporter.Complete(filePath, AnalysisSteps.Key, $"{result.KeyName} ({result.Camelot})");
+            reporter.Complete(track.FilePath, AnalysisSteps.Key, $"{result.KeyName} ({result.Camelot})");
             return analysis;
         }
         catch (Exception ex)
         {
-            reporter.Failed(filePath, AnalysisSteps.Key, ex.Message);
+            reporter.Failed(track.FilePath, AnalysisSteps.Key, ex.Message);
             throw;
         }
     }

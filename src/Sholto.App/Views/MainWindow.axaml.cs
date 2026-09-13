@@ -14,7 +14,7 @@ using Sholto.App.Controls;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.Audio;
-using Sholto.Music;
+using Sholto.Library;
 
 namespace Sholto.App.Views;
 

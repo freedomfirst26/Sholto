@@ -1,7 +1,7 @@
 using Sholto.Analysis;
 using Sholto.Audio;
 using Sholto.ExternalTools;
-using Sholto.Music;
+using Sholto.Library;
 using Sholto.Storage;
 
 namespace Sholto.App;
@@ -68,7 +68,7 @@ public sealed record SholtoStack(
         // Stems: the raw step (runs demucs unconditionally) and the cache
         // (pure filesystem query, same DemucsWorkspaceFor) are separate
         // components on the stack — see ExternalToolStack/DemucsStemAnalysisStep/
-        // DemucsStemCache. Deck gets the CACHING decorator (cache hit -> instant,
+        // DemucsStemPresence. Deck gets the CACHING decorator (cache hit -> instant,
         // miss -> real run) since it's on the "double-click to load" path where a
         // hit should cost nothing; MainViewModel gets the bare cache for
         // HydrateStemStateAsync, which must NEVER trigger analysis for the

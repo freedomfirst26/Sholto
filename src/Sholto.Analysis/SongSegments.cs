@@ -1,3 +1,5 @@
+using Sholto.Analysis.Analyzers;
+
 namespace Sholto.Analysis;
 
 /// <summary>A coarse structural label for a stretch of a track. Derived from the
@@ -21,7 +23,7 @@ public readonly record struct SongSegment(double StartSec, double EndSec, Segmen
 /// <summary>The track's structure: a handful of bar-aligned sections with coarse
 /// labels and a 0..1 energy each. Drives the minimap's colouring so intro / build /
 /// drop / breakdown / outro read at a glance.</summary>
-public sealed record SongSegments(IReadOnlyList<SongSegment> Segments) : IAnalysis
+public sealed record SongSegments(IReadOnlyList<SongSegment> Segments) : IAnalyzer
 {
     public string Name => "SongSegments";
     public static SongSegments Empty { get; } = new(System.Array.Empty<SongSegment>());

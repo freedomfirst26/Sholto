@@ -1,3 +1,5 @@
+using Sholto.Analysis.Reporting;
+
 namespace Sholto.Analysis;
 
 /// <summary>
@@ -28,7 +30,7 @@ public interface IToolDefinition<TResult>
 
     /// <summary>Build argv for the process — never a shell string; filenames are
     /// arbitrary user data.</summary>
-    IReadOnlyList<string> BuildArgs(string input, string workDir);
+    IReadOnlyList<string> BuildArgs(ToolInput toolInput);
 
     /// <summary>
     /// The postcondition check. Called once the process has exited, with its exit
@@ -38,7 +40,7 @@ public interface IToolDefinition<TResult>
     /// but did not actually produce its output" (the distinction the 5 Sep 2026
     /// demucs incident showed matters).
     /// </summary>
-    ToolOutcome<TResult> Verify(string input, string workDir, string stdout, int exitCode);
+    ToolOutcome<TResult> Verify(ToolInput toolInput, string stdout, int exitCode);
 
     /// <summary>
     /// Try to read a progress fraction (0..1) out of one output line. Optional —

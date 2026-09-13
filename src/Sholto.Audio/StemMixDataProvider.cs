@@ -1,4 +1,5 @@
 using System.Threading;
+using Sholto.Analysis;
 using SoundFlow.Enums;
 using SoundFlow.Interfaces;
 using SoundFlow.Metadata.Models;
@@ -166,14 +167,14 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     private int _fadeRemaining;
     private float _lastOutL, _lastOutR;
 
-    public StemMixDataProvider(float[] drums, float[] vocals, float[] bass, float[] other, int sampleRate)
+    public StemMixDataProvider(StemSamples stems, int sampleRate)
     {
-        if (drums is null || vocals is null || bass is null || other is null)
+        if (stems is null || stems.Drums is null || stems.Vocals is null || stems.Bass is null || stems.Other is null)
             throw new ArgumentNullException();
 
-        _stems = new[] { drums, vocals, bass, other };
-        _length = Math.Min(Math.Min(drums.Length, vocals.Length),
-                           Math.Min(bass.Length, other.Length));
+        _stems = new[] { stems.Drums, stems.Vocals, stems.Bass, stems.Other };
+        _length = Math.Min(Math.Min(stems.Drums.Length, stems.Vocals.Length),
+                           Math.Min(stems.Bass.Length, stems.Other.Length));
         SampleRate = sampleRate;
     }
 

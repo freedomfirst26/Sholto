@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 
 namespace Sholto.ExternalTools;
 
@@ -12,11 +13,11 @@ internal sealed class MadmomTool : IToolDefinition<DetectedBeats>
     public string BinaryName => ExternalToolNames.Madmom;
     public bool IsRequired => true;
 
-    public IReadOnlyList<string> BuildArgs(string input, string workDir) =>
-        new[] { "--beats_per_bar", "3,4", "single", input };
+    public IReadOnlyList<string> BuildArgs(ToolInput toolInput) =>
+        new[] { "--beats_per_bar", "3,4", "single", toolInput.Input };
 
     public ToolOutcome<DetectedBeats> Verify(
-        string input, string workDir, string stdout, int exitCode)
+        ToolInput toolInput, string stdout, int exitCode)
     {
         if (exitCode != 0)
             return ToolOutcome<DetectedBeats>.Failure(

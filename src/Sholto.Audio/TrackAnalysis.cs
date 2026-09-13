@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers;
 
 namespace Sholto.Audio;
 
@@ -15,12 +16,12 @@ namespace Sholto.Audio;
 /// </summary>
 public sealed class TrackAnalysis
 {
-    private readonly Dictionary<Type, IAnalysis> _byType = new();
+    private readonly Dictionary<Type, IAnalyzer> _byType = new();
 
     /// <summary>Fires when any analysis is set on this track, after the typed
     /// event for that specific type. Useful for "something landed, re-check
     /// everything" handlers.</summary>
-    public event Action<IAnalysis>? AnyReady;
+    public event Action<IAnalyzer>? AnyReady;
 
     /// <summary>Fires when basic analysis (BPM, beat times, downbeats, waveform
     /// peaks) is set. Listeners can then enable BPM display, beat grid, and
@@ -52,14 +53,14 @@ public sealed class TrackAnalysis
     /// a future analyser can plug into.</summary>
     public event Action<SongSegments>? SongSegmentsReady;
 
-    public IReadOnlyCollection<IAnalysis> All => _byType.Values;
+    public IReadOnlyCollection<IAnalyzer> All => _byType.Values;
 
-    public T? Get<T>() where T : class, IAnalysis =>
+    public T? Get<T>() where T : class, IAnalyzer =>
         _byType.TryGetValue(typeof(T), out var a) ? (T)a : null;
 
-    public bool Has<T>() where T : IAnalysis => _byType.ContainsKey(typeof(T));
+    public bool Has<T>() where T : IAnalyzer => _byType.ContainsKey(typeof(T));
 
-    public void Set<T>(T analysis) where T : class, IAnalysis
+    public void Set<T>(T analysis) where T : class, IAnalyzer
     {
         _byType[typeof(T)] = analysis;
 

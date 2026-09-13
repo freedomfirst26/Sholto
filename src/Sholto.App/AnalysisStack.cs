@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sholto.Analysis;
+using Sholto.Analysis.Analyzers;
+using Sholto.Analysis.Processing;
 using Sholto.Storage;
 
 namespace Sholto.App;
@@ -22,8 +24,8 @@ namespace Sholto.App;
 /// <para><b>RISK — read this before touching call order.</b> If
 /// <see cref="AttachDatabase"/> is never called (composition root reordered, the call
 /// dropped in a refactor, the DB open failing silently upstream), analysis quietly
-/// degrades to memory-only: the in-process <see cref="MemoryAnalysisCache"/> still
-/// works, but nothing persists across restarts. The sharpest edge is
+/// degrades to memory-only: the in-process cache in <see cref="CachingAnalysisProvider"/>
+/// still works, but nothing persists across restarts. The sharpest edge is
 /// <see cref="GridStore"/> — the user's manual beat-grid nudges are the system of
 /// record for a track's grid; nothing recomputes them from scratch. Lose the Sqlite
 /// attach and every nudge silently stops persisting, with no error anywhere: playback
@@ -38,7 +40,7 @@ public sealed class AnalysisStack
     // AttachDatabase, not stored as fields: nothing outside that one call needs to
     // reach them directly, and keeping them as fields was the exact anti-pattern
     // this class replaces (see the class doc above).
-    private readonly SwitchableAnalysisCache _switchableBasicCache = new();
+    private readonly SwitchableBasicAnalysisStore _switchableBasicCache = new();
     private readonly SwitchableKeyAnalysisStore _switchableKeyCache = new();
     private readonly SwitchableGridAdjustmentStore _switchableGridCache = new();
 
@@ -47,8 +49,11 @@ public sealed class AnalysisStack
     /// also read through.</summary>
     public IAnalysisReporter Reporter { get; }
 
-    /// <summary>Cache-aside lookup for BasicAnalysis: memory tier first, then the
-    /// switchable DB tier (see <see cref="AttachDatabase"/>), then compute.</summary>
+    /// <summary>Cache-aside lookup for BasicAnalysis: an in-process memory tier
+    /// (<see cref="CachingAnalysisProvider"/>) wraps a DB tier
+    /// (<see cref="DbAnalysisProvider"/>, over the switchable DB cache — see
+    /// <see cref="AttachDatabase"/>), which wraps compute-only
+    /// <see cref="AnalysisProvider"/>.</summary>
     public IAnalysisProvider Provider { get; }
 
     /// <summary>Switchable key-analysis store — memory-only until
@@ -93,11 +98,13 @@ public sealed class AnalysisStack
         KeyStore = _switchableKeyCache;
         GridStore = _switchableGridCache;
 
-        var memoryCache = new MemoryAnalysisCache();
-        Provider = new AnalysisProvider(
-            caches: new IAnalysisCache[] { memoryCache, _switchableBasicCache },
-            compute: (path, samples, rate, ct) =>
-                BasicAnalysis.ComputeAsync(path, samples, channels: 2, sampleRate: rate, beatAnalyzer: beats, peakAnalyzer: Peaks, beatgridFitter: BeatgridFitter, reporter: Reporter, ct: ct));
+        var basicAnalyzer = new BasicAnalyzer(beatAnalyzer: beats, peakAnalyzer: Peaks, beatgridFitter: BeatgridFitter, reporter: Reporter);
+
+        Provider = new CachingAnalysisProvider(new DbAnalysisProvider(
+            new AnalysisProvider(
+                compute: (track, ct) =>
+                    basicAnalyzer.ComputeAsync(track, ct: ct)),
+            store: _switchableBasicCache));
     }
 
     /// <summary>
@@ -110,7 +117,7 @@ public sealed class AnalysisStack
     /// </summary>
     public void AttachDatabase(IDbContextFactory<SholtoDbContext> factory)
     {
-        _switchableBasicCache.Attach(new BasicAnalysisCache(factory));
+        _switchableBasicCache.Attach(new BasicAnalysisStore(factory));
         _switchableKeyCache.Attach(new SqliteKeyAnalysisStore(factory));
         _switchableGridCache.Attach(new SqliteGridAdjustmentStore(factory));
     }

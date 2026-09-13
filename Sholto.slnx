@@ -4,9 +4,11 @@
     <Project Path="src/Sholto.App/Sholto.App.csproj" />
     <Project Path="src/Sholto.Audio/Sholto.Audio.csproj" />
     <Project Path="src/Sholto.Controller/Sholto.Controller.csproj" />
+    <Project Path="src/Sholto.Core/Sholto.Core.csproj" />
+    <Project Path="src/Sholto.Dsp/Sholto.Dsp.csproj" />
     <Project Path="src/Sholto.ExternalTools/Sholto.ExternalTools.csproj" />
     <Project Path="src/Sholto.Faceplate/Sholto.Faceplate.csproj" />
-    <Project Path="src/Sholto.Music/Sholto.Music.csproj" />
+    <Project Path="src/Sholto.Library/Sholto.Library.csproj" />
     <Project Path="src/Sholto.Storage/Sholto.Storage.csproj" />
   </Folder>
   <Folder Name="/tools/">
@@ -16,5 +18,5 @@
        Files are untouched on disk; re-add a <Project Path="..."/> line per project to
        restore. Detached: Sholto.Audio.Golden, Sholto.Bench.Tests, Sholto.App.Tests,
        Sholto.Audio.Tests, Sholto.Controller.Tests, Sholto.Faceplate.Tests,
-       Sholto.Music.Tests, Sholto.Storage.Tests. -->
+       Sholto.Library.Tests, Sholto.Storage.Tests. -->
 </Solution>

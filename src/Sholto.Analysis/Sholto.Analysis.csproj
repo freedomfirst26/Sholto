@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Sholto.Core\Sholto.Core.csproj" />
+    <ProjectReference Include="..\Sholto.Dsp\Sholto.Dsp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>Sholto.App.Tests</_Parameter1>
     </AssemblyAttribute>

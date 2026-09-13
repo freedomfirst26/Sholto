@@ -12,7 +12,7 @@ using Sholto.Storage.Entities;
 using Sholto.Controller;
 using Sholto.Controller.Gestures;
 using Sholto.Controller.Mappings;
-using Sholto.Music;
+using Sholto.Library;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.App.Views;

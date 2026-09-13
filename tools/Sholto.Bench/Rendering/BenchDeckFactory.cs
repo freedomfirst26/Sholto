@@ -28,8 +28,7 @@ public sealed class BenchDeckFactory : IDeckFactory
     private BenchDeckFactory() { }
 
     private static readonly AnalysisProvider EmptyAnalysisProvider = new(
-        caches: [],
-        compute: (_, _, _, _) => throw new NotSupportedException(
+        compute: (_, _) => throw new NotSupportedException(
             "Sholto.Bench renders via Deck.LoadStreaming, which never reaches AnalysisProvider."));
 
     // Real instances, same reasoning as WaveformPeakAnalyzer just below: these

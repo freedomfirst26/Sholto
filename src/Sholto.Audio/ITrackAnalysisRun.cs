@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 
 namespace Sholto.Audio;
 
@@ -40,11 +41,11 @@ internal interface ITrackAnalysisRun
 
     /// <summary>Basic (BPM/beats) analysis for the in-memory <see cref="TrackLoading.Load"/>
     /// path. Deck plays immediately; the beat grid appears when this lands.</summary>
-    void KickOffBasicAnalysis(string filePath, float[] stereoSamples, int sampleRate);
+    void KickOffBasicAnalysis(DecodedTrack track);
 
     /// <summary>Key estimation for the in-memory <see cref="TrackLoading.Load"/> path.
     /// Independent of beats/stems — reads the same decoded buffer.</summary>
-    void KickOffKeyAnalysis(string filePath, float[] stereoSamples, int sampleRate);
+    void KickOffKeyAnalysis(DecodedTrack track);
 
     /// <summary>Stem separation for the in-memory <see cref="TrackLoading.Load"/> path.
     /// Slower and isolated from playback; on completion, auto-switches the deck to
@@ -55,7 +56,7 @@ internal interface ITrackAnalysisRun
     /// landed and <see cref="TrackLoading.SwitchToStemMode"/> has swapped in the
     /// stem-mix provider. Called by <c>SwitchToStemMode</c> with the four decoded
     /// stem buffers it just built.</summary>
-    void KickOffStemPeaksAnalysis(float[] drumsSamples, float[] vocalsSamples, float[] bassSamples, float[] otherSamples);
+    void KickOffStemPeaksAnalysis(StemSamples stems);
 
     /// <summary>Raised on the analysis thread once an analysis stage completes.
     /// Relayed by <see cref="TrackLoading"/> exactly the way <c>TrackLoading</c>'s

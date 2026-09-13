@@ -7,8 +7,10 @@ using Sholto.App.Controls;
 using Sholto.App.Theming;
 using Sholto.Audio;
 using Sholto.Controller.Gestures;
-using Sholto.Music;
+using Sholto.Library;
 using Microsoft.Extensions.Options;
+using Sholto.Analysis.Reporting;
+using Sholto.Analysis.Processing;
 
 namespace Sholto.App.ViewModels;
 
@@ -401,7 +403,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IApplication
 
     /// <summary>Single reporter instance shared by both decks. Anywhere in the app can
     /// listen to <see cref="IAnalysisReporter.Updated"/> to surface per-track progress.
-    /// "beats" (madmom) is the only required step — see <see cref="Sholto.Analysis.AnalysisSteps.Beats"/>
+    /// "beats" (madmom) is the only required step — see <see cref="AnalysisSteps.Beats"/>
     /// and <see cref="AnalysisReport.HasRequiredFailure"/>. Built by the composition root
     /// (App.axaml.cs) and passed in, rather than constructed here, so the same instance
     /// can also be handed to <see cref="IDeckFactory"/> before MainViewModel exists — see
@@ -449,15 +451,15 @@ public sealed class MainViewModel : INotifyPropertyChanged, IApplication
     private readonly FeatureOptions _features;
     private readonly IAudioFileDecoder _decoder;
     private readonly IThemeContext _themeContext;
-    private readonly IStemCache _stemCache;
+    private readonly DemucsStemPresence _stemCache;
     private readonly Sholto.Analysis.IHarmonicKeys _harmonicKeys;
     private readonly Sholto.Analysis.IKeyAnalyzer _keyAnalyzer;
 
     public MainViewModel(IOptions<FeatureOptions> features,
                          IAudioFileDecoder decoder, IDeckFactory deckFactory,
-                         IThemeContext themeContext, IStemCache stemCache,
+                         IThemeContext themeContext, DemucsStemPresence stemCache,
                          IAnalysisReporter reporter,
-                         Sholto.Music.ITrackScanner trackScanner,
+                         Sholto.Library.ITrackScanner trackScanner,
                          Sholto.Analysis.IHarmonicKeys harmonicKeys,
                          Sholto.Analysis.IKeyAnalyzer keyAnalyzer,
                          Sholto.Analysis.ISongSegmentAnalyzer songSegmentAnalyzer)
@@ -677,9 +679,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IApplication
             var samples = await Task.Run(() => decodeTrack(track));
             int rate = Sholto.Audio.AudioFileDecoder.TargetSampleRate;
 
-            var basicTask = analysisProvider.RecomputeAsync(track.FilePath, samples, rate);
+            var decodedTrack = new Sholto.Analysis.DecodedTrack(track.FilePath, samples, rate, Sholto.Audio.AudioFileDecoder.TargetChannels);
+            var basicTask = analysisProvider.RecomputeAsync(decodedTrack);
             var keyTask = _keyAnalyzer.AnalyzeAsync(
-                track.FilePath, samples, channels: 2, sampleRate: rate, reporter: Reporter);
+                decodedTrack, reporter: Reporter);
 
             var analysis = await basicTask;
             var key = await keyTask;

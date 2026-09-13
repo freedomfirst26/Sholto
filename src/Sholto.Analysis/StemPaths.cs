@@ -1,7 +1,9 @@
+using Sholto.Analysis.Analyzers;
+
 namespace Sholto.Analysis;
 
 /// <summary>Paths to the four stem WAV files for one analysed track.</summary>
-public sealed record StemPaths(string Vocals, string Drums, string Bass, string Other) : IAnalysis
+public sealed record StemPaths(string Vocals, string Drums, string Bass, string Other) : IAnalyzer
 {
     public string Name => "Stems";
     public IEnumerable<string> All { get { yield return Vocals; yield return Drums; yield return Bass; yield return Other; } }
@@ -9,13 +11,13 @@ public sealed record StemPaths(string Vocals, string Drums, string Bass, string 
     /// <summary>The demucs output subfolder demucs itself creates under <c>--out</c>
     /// (named after the separation model, <c>htdemucs</c> by default — pinned, not a
     /// machine fact). This is a real contract: <c>sholto-deps.sh</c> asserts the exact
-    /// same <c>htdemucs/&lt;stem&gt;.wav</c> layout, and <see cref="Sholto.Analysis.DemucsStemCache"/>
+    /// same <c>htdemucs/&lt;stem&gt;.wav</c> layout, and <see cref="Sholto.Analysis.DemucsStemPresence"/>
     /// builds every cached stem path from this value — changing it orphans every
     /// existing user's cache.
     ///
     /// Lives here (not on the <c>Sholto.ExternalTools</c> demucs tool descriptor)
     /// because both <c>Sholto.ExternalTools.DemucsTool</c> (verifying a run's output)
-    /// and <see cref="DemucsStemCache"/>/<c>DemucsStemAnalysisStep</c> in this project
+    /// and <see cref="DemucsStemPresence"/>/<c>DemucsStemAnalysisStep</c> in this project
     /// (deciding where a run should write, and whether it already has) need to agree
     /// on the exact same layout — a helper shared by both sides of that boundary has
     /// to live on the side that doesn't depend on the other, which after the

@@ -2,8 +2,9 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media;
 using Sholto.Analysis;
+using Sholto.Analysis.Reporting;
 using Sholto.App.Theming;
-using Sholto.Music;
+using Sholto.Library;
 
 namespace Sholto.App.ViewModels;
 
@@ -109,7 +110,7 @@ public sealed class TrackRow : INotifyPropertyChanged
     private bool _hasRequiredFailure;
     /// <summary>True when <see cref="AnalysisFailure"/> includes a failure of a
     /// REQUIRED step (currently just beat/BPM detection — see
-    /// <see cref="Sholto.Analysis.AnalysisReport.HasRequiredFailure"/>). Set by
+    /// <see cref="AnalysisReport.HasRequiredFailure"/>). Set by
     /// MainViewModel alongside <see cref="AnalysisFailure"/>. Distinct from a plain
     /// non-empty <see cref="AnalysisFailure"/> because that also covers OPTIONAL
     /// step failures (stems, segments), which must not override a green tick — a

@@ -2,7 +2,7 @@ namespace Sholto.Analysis;
 
 /// <summary>
 /// Port for <see cref="BeatgridFitter"/>. Constructor-injected into
-/// <c>BasicAnalysis.ComputeAsync</c> (via its caller) and <c>DeckBeatgrid</c>
+/// <c>BasicAnalyzer.ComputeAsync</c> (via its caller) and <c>DeckBeatgrid</c>
 /// so a test/Bench harness can substitute a fake instead of the real
 /// constant-spacing grid synthesis / least-squares fit.
 /// </summary>

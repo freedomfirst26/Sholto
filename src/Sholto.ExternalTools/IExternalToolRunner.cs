@@ -17,8 +17,7 @@ public interface IExternalToolRunner
     Task<ToolOutcome<TResult>> RunAsync<TResult>(
         IToolDefinition<TResult> tool,
         string? binaryPath,
-        string input,
-        string workDir,
+        ToolInput toolInput,
         IAnalysisReporter reporter,
         CancellationToken ct = default);
 }

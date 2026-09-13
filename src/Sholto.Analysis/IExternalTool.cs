@@ -21,11 +21,11 @@ public interface IExternalTool
 {
     bool IsAvailable { get; }
 
-    /// <summary>Run <paramref name="tool"/> against <paramref name="input"/> in
-    /// <paramref name="workDir"/>. Ensures <paramref name="workDir"/> exists, then
-    /// delegates to the underlying <see cref="IExternalToolRunner"/> with the
-    /// resolved binary path — the analyser supplies the tool descriptor, the input
-    /// file, and wherever it needs this run's output to land.</summary>
+    /// <summary>Run <paramref name="tool"/> against <paramref name="toolInput"/>.
+    /// Ensures <see cref="ToolInput.WorkDir"/> exists, then delegates to the
+    /// underlying <see cref="IExternalToolRunner"/> with the resolved binary path —
+    /// the analyser supplies the tool descriptor and the input file / work
+    /// directory pair.</summary>
     Task<ToolOutcome<T>> RunAsync<T>(
-        IToolDefinition<T> tool, string input, string workDir, IAnalysisReporter reporter, CancellationToken ct);
+        IToolDefinition<T> tool, ToolInput toolInput, IAnalysisReporter reporter, CancellationToken ct);
 }

@@ -1,3 +1,5 @@
+using Sholto.Dsp;
+
 namespace Sholto.Analysis;
 
 /// <summary>Default <see cref="IWaveformPeakAnalyzer"/>. Pure computation — no

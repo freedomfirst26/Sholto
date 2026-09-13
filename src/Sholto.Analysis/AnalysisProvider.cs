@@ -1,103 +1,33 @@
+using Sholto.Analysis.Analyzers;
+
 namespace Sholto.Analysis;
 
 /// <summary>
-/// Layered cache-aside lookup for BasicAnalysis. Caches are checked
-/// fastest-first; on a miss we fall through to the next tier and finally
-/// to compute. Every hit lower in the stack is back-filled into the tiers
-/// above it so the next lookup is faster.
-///
-/// Typical wiring:
-///   new AnalysisProvider(
-///       caches: [ new MemoryAnalysisCache(), new BasicAnalysisCache(factory) ],
-///       compute: (path, samples, rate) => BasicAnalysis.ComputeAsync(...));
+/// Compute-only <see cref="IAnalysisProvider"/>: runs <c>compute</c> and nothing
+/// else. Every cache tier is a decorator wrapped around this — the in-process tier
+/// is <see cref="CachingAnalysisProvider"/>, the DB tier is
+/// <see cref="DbAnalysisProvider"/>. This class no longer knows caches exist.
 /// </summary>
-/// <summary>
-/// Port for <see cref="AnalysisProvider"/>. Lets a test/Bench harness supply cache
-/// behaviour (always-hit, always-miss, slow compute) without wiring the real cache
-/// stack, decoder and analyser chain just to construct a <c>Deck</c>.
-/// </summary>
-public interface IAnalysisProvider
-{
-    /// <summary>
-    /// Resolve the basic analysis for a track. Returns the cache name where the
-    /// hit occurred (or "computed") so callers can log/observe cache behaviour.
-    /// </summary>
-    Task<(BasicAnalysis Analysis, string Source)> GetAsync(
-        string filePath, float[] stereoSamples, int sampleRate, CancellationToken ct = default);
-
-    /// <summary>
-    /// Force a fresh compute, bypassing every cache, and write the result through
-    /// to every tier (overwriting any stale entry). Used by the "hold song-select
-    /// to re-analyze" gesture when the cached BPM/beats are wrong.
-    /// </summary>
-    Task<BasicAnalysis> RecomputeAsync(
-        string filePath, float[] stereoSamples, int sampleRate, CancellationToken ct = default);
-}
-
 public sealed class AnalysisProvider : IAnalysisProvider
 {
-    private readonly IReadOnlyList<IAnalysisCache> _caches;
-    private readonly Func<string, float[], int, CancellationToken, Task<BasicAnalysis>> _compute;
+    private readonly Func<DecodedTrack, CancellationToken, Task<BasicAnalysis>> _compute;
 
-    public AnalysisProvider(
-        IReadOnlyList<IAnalysisCache> caches,
-        Func<string, float[], int, CancellationToken, Task<BasicAnalysis>> compute)
+    public AnalysisProvider(Func<DecodedTrack, CancellationToken, Task<BasicAnalysis>> compute)
     {
-        _caches = caches;
         _compute = compute;
     }
 
-    /// <summary>
-    /// Resolve the basic analysis for a track. Returns the cache name where the
-    /// hit occurred (or "computed") so callers can log/observe cache behaviour.
-    /// </summary>
-    public async Task<(BasicAnalysis Analysis, string Source)> GetAsync(
-        string filePath, float[] stereoSamples, int sampleRate, CancellationToken ct = default)
-    {
-        // Walk the tiers fastest → slowest, remember the misses so we can back-fill.
-        var misses = new List<IAnalysisCache>();
-        foreach (var cache in _caches)
-        {
-            var hit = await cache.TryGetAsync(filePath);
-            if (hit is not null)
-            {
-                await BackfillAsync(misses, filePath, hit);
-                return (hit, cache.Name);
-            }
-            misses.Add(cache);
-        }
-
-        // Full miss — compute and write through to every tier.
-        var computed = await _compute(filePath, stereoSamples, sampleRate, ct);
-        await BackfillAsync(misses, filePath, computed);
-        return (computed, "computed");
-    }
+    /// <summary>Resolve the basic analysis for a track by computing it.</summary>
+    public Task<BasicAnalysis> GetAsync(DecodedTrack track, CancellationToken ct = default) =>
+        _compute(track, ct);
 
     /// <summary>
-    /// Force a fresh compute, bypassing every cache, and write the result through
-    /// to every tier (overwriting any stale entry). Used by the "hold song-select
-    /// to re-analyze" gesture when the cached BPM/beats are wrong.
+    /// Force a fresh compute. There is nothing to bypass at this layer — every
+    /// cache tier lives above this class now — so this is identical to
+    /// <see cref="GetAsync"/>. Kept as a separate method to satisfy
+    /// <see cref="IAnalysisProvider"/> and to mirror the "recompute" verb the
+    /// decorators above it expose.
     /// </summary>
-    public async Task<BasicAnalysis> RecomputeAsync(
-        string filePath, float[] stereoSamples, int sampleRate, CancellationToken ct = default)
-    {
-        var computed = await _compute(filePath, stereoSamples, sampleRate, ct);
-        await BackfillAsync(_caches, filePath, computed);
-        return computed;
-    }
-
-    private static async Task BackfillAsync(IReadOnlyList<IAnalysisCache> misses, string path, BasicAnalysis analysis)
-    {
-        foreach (var c in misses)
-        {
-            try { await c.PutAsync(path, analysis); }
-            catch (Exception ex)
-            {
-                var chain = ex.Message;
-                for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
-                    chain += $"  ->  {inner.GetType().Name}: {inner.Message}";
-                Console.WriteLine($"[AnalysisProvider] backfill to {c.Name} failed: {chain}");
-            }
-        }
-    }
+    public Task<BasicAnalysis> RecomputeAsync(DecodedTrack track, CancellationToken ct = default) =>
+        _compute(track, ct);
 }

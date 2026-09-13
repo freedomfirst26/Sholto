@@ -37,7 +37,7 @@ public class SholtoStorageTests
                 await db.SaveChangesAsync();
             }
 
-            var cache = new BasicAnalysisCache(factory);
+            var cache = new BasicAnalysisStore(factory);
             Assert.Null(await cache.TryGetAsync(trackFile));   // miss
 
             var analysis = new Sholto.Analysis.BasicAnalysis(

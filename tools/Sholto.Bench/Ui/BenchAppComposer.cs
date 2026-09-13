@@ -1,11 +1,12 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 using Sholto.App;
 using Sholto.App.Theming;
 using Sholto.App.ViewModels;
 using Sholto.App.Views;
 using Sholto.Audio;
 using Sholto.Bench.Rendering;
-using Sholto.Music;
+using Sholto.Library;
 
 namespace Sholto.Bench.Ui;
 
@@ -27,7 +28,10 @@ public static class BenchAppComposer
 
         var engine = BenchDeck.CreateEngine();
         var themeContext = new ThemeContext();
-        var stems = NoOpStemAnalyzer.Instance; // IStemAnalysisStep + IStemCache, same no-op instance for both roles
+        // MainViewModel's stem-presence role wants the real concrete type now that
+        // IStemCache is gone; a filesystem query against a directory that never
+        // exists always answers "not present", same as the old no-op did.
+        var stemPresence = new DemucsStemPresence(_ => Path.Combine(Path.GetTempPath(), "sholto-bench-no-stems"));
 
         // Real instances, same reasoning as WaveformPeakAnalyzer above and in
         // BenchDeckFactory: these are pure compute (no subprocess/DB), so Bench
@@ -39,7 +43,7 @@ public static class BenchAppComposer
             NoOpAudioFileDecoder.Instance,
             BenchDeckFactory.Instance,
             themeContext,
-            stems,
+            stemPresence,
             new AnalysisReporter(new[] { AnalysisSteps.Beats }),
             new TrackScanner(),
             harmonicKeys,

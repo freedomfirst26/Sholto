@@ -2,7 +2,7 @@ namespace Sholto.Analysis;
 
 /// <summary>
 /// Computes <see cref="WaveformPeaks"/> from decoded PCM. Constructor-injected
-/// into <c>Deck</c> (via <c>DeckFactory</c>) and into <c>BasicAnalysis.ComputeAsync</c>'s
+/// into <c>Deck</c> (via <c>DeckFactory</c>) and into <c>BasicAnalyzer.ComputeAsync</c>'s
 /// caller so a test/bench harness can substitute a fast fake — the real
 /// implementation is ~100-200 ms per 4-minute track (see <c>Deck.cs</c>, which calls
 /// it four times per stem load).

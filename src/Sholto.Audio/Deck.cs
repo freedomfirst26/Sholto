@@ -1,4 +1,5 @@
 using Sholto.Analysis;
+using Sholto.Analysis.Processing;
 using SoundFlow.Abstracts;
 using SoundFlow.Enums;
 using SoundFlow.Metadata.Models;

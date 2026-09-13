@@ -3,7 +3,8 @@ using System.Runtime.CompilerServices;
 using Sholto.Audio;
 using Sholto.Analysis;
 using Sholto.App.Theming;
-using Sholto.Music;
+using Sholto.Library;
+using Sholto.Analysis.Analyzers;
 
 namespace Sholto.App.ViewModels;
 

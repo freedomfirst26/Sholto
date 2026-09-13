@@ -1,3 +1,5 @@
+using Sholto.Analysis.Analyzers;
+
 namespace Sholto.Analysis;
 
 /// <summary>
@@ -14,7 +16,7 @@ public sealed record StemPeaks(
     WaveformPeaks Drums,
     WaveformPeaks Vocals,
     WaveformPeaks Bass,
-    WaveformPeaks Other) : IAnalysis
+    WaveformPeaks Other) : IAnalyzer
 {
     public string Name => "StemPeaks";
 }
