@@ -7,7 +7,7 @@ background, primary, accent and mint — so you can tell them apart at a glance.
 Click one and the whole app changes immediately. Your choice is remembered.
 
 Eleven themes ship with Sholto: Classic, Serato, Front Line Assembly, Silence
-Groove, Jeremy Soule, Type O Negative, Birthday Massacre, Pantera, Dimmu
+Groove, Jeremy Soule, Type O Negative, The Birthday Massacre, Pantera, Dimmu
 Borgir, Aphex Twin, and The Prodigy.
 
 ## What a theme controls

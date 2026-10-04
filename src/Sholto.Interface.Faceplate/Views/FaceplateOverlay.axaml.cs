@@ -600,7 +600,7 @@ public partial class FaceplateOverlay : UserControl
     /// <summary>Repaints the backdrop scrim and the feather from the current theme.
     /// <para>The scrim used to be a flat <c>#C4000000</c>, which is 77% pure black and
     /// crushed every theme to the same near-zero luminance: Front Line Assembly's warm
-    /// brown ground and Birthday Massacre's purple both arrived as black, and the guide
+    /// brown ground and The Birthday Massacre's purple both arrived as black, and the guide
     /// was theme-blind by construction. It is now the theme's own <c>bgDeep</c>
     /// darkened, so the field keeps the app's hue while still going darker than any
     /// surface in it — the app behind stays legible as context and stops competing with

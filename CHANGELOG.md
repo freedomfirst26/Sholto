@@ -7,6 +7,10 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+### Improved
+
+- **"Birthday Massacre" is now "The Birthday Massacre".** The theme is called by its proper name in the picker, and if you had it selected it stays selected.
+
 ## v1.0.0
 
 Sholto 1.0 is a rebuild from the inside. The app, the controller and the screen

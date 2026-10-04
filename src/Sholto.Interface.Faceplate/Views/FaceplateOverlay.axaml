@@ -14,7 +14,7 @@
 
          Dimmed SholtoTextBright, NOT SholtoTextMuted. Muted is a per-theme colour
          rather than a per-theme opacity, so its contrast is whatever each theme
-         happened to pick: on Birthday Massacre #836B89 on #1B0D31 measures 3.86:1,
+         happened to pick: on The Birthday Massacre #836B89 on #1B0D31 measures 3.86:1,
          and at 11px bold that is not large text, so it misses AA. These labels are
          the panel's wayfinding and cannot be the first thing to fail. Taking the
          bright text down by opacity instead is theme-proof — every theme sets
