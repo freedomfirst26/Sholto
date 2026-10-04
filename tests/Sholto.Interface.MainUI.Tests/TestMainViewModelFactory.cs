@@ -55,6 +55,7 @@ internal sealed class TestMainViewModelFactory
             appThread,
             new SearchViewModel(rows.Items, new LibrarySearch(), tagRecency, bus, bus, appThread),
             new TrackActionsViewModel(),
+            new OutputPickerViewModel(),
             deckViewModels.Create(0),
             deckViewModels.Create(1));
         return new TestApp(vm, core, bus);

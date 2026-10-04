@@ -136,6 +136,14 @@ public sealed class MainViewModel :
     // ---- Enter-mode: the track action menu + crate picker ----------------------
 
     public TrackActionsViewModel TrackActions { get; }
+    public OutputPickerViewModel OutputPicker { get; }
+
+    private bool _isOutputPickerOpen;
+    public bool IsOutputPickerOpen
+    {
+        get => _isOutputPickerOpen;
+        private set { if (_isOutputPickerOpen == value) return; _isOutputPickerOpen = value; Notify(); }
+    }
     public CratePickerViewModel? CratePicker { get; private set; }
 
     private bool _isTrackActionsOpen;
@@ -229,6 +237,12 @@ public sealed class MainViewModel :
         private set { _toast = value; Notify(); Notify(nameof(HasToast)); }
     }
     public bool HasToast => !string.IsNullOrEmpty(_toast);
+
+    private void WireOutputPicker()
+    {
+        OutputPicker.Opened += () => IsOutputPickerOpen = true;
+        OutputPicker.RequestClose += () => IsOutputPickerOpen = false;
+    }
 
     private void WireTrackActions()
     {
@@ -405,6 +419,7 @@ public sealed class MainViewModel :
                          IAppThread appThread,
                          SearchViewModel search,
                          TrackActionsViewModel trackActions,
+                         OutputPickerViewModel outputPicker,
                          DeckViewModel deck1,
                          DeckViewModel deck2)
     {
@@ -416,6 +431,7 @@ public sealed class MainViewModel :
         _appThread = appThread;
         _rows = rows;
         TrackActions = trackActions;
+        OutputPicker = outputPicker;
 
         // Make the initial theme visible to anything that reads ThemeContext
         // before the user picks a different theme.
@@ -434,6 +450,7 @@ public sealed class MainViewModel :
             IsSearchOpen = false;
         };
         WireTrackActions();
+        WireOutputPicker();
 
         Deck1 = deck1;
         Deck2 = deck2;

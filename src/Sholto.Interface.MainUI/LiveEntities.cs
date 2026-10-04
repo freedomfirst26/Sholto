@@ -107,7 +107,7 @@ public sealed class LiveEntities(
             l.Theme, catalog,
             new OverlayViewModelFactory(l.TagRecency, _asker, _sender, _subscriber, _appThread),
             rows, _sender, _subscriber, _appThread,
-            search, new TrackActionsViewModel(),
+            search, new TrackActionsViewModel(), new OutputPickerViewModel(),
             deckViewModels.Create(0), deckViewModels.Create(1));
     }
 

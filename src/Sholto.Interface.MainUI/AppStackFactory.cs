@@ -42,7 +42,7 @@ public sealed class AppStackFactory : IAppStackFactory
             stack.PipeWireRouter, stack.DeckFormat, masterCueOutput, appThread, bus,
             Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR"));
         return new AppStack(new LiveEntities(bus, bus, bus, bus, frameClock, appThread), stack, options,
-            coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread, new AudioDevicePickerFactory()),
+            coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread),
             new ThemeStackFactory(), new ControllerStackFactory(),
             new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus), new PerformanceFactory(),
                 new ControllerInputFactory(), new KeyboardInputFactory()),

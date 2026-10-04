@@ -462,6 +462,7 @@
 
     <!-- What the amber status dot opens: which external tools are installed. -->
     <v:SystemReportOverlay/>
+    <v:OutputPickerOverlay/>
 
     <!-- Brief bottom-centre toast (e.g. "Added to Warmup Set"). -->
     <Border IsVisible="{Binding HasToast}"

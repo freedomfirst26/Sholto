@@ -39,6 +39,7 @@ public class MainViewModelTests
             appThread,
             search,
             new TrackActionsViewModel(),
+            new OutputPickerViewModel(),
             new DeckViewModel(0, _bus, _bus, themes.Context, new WaveformPeaksFactory()),
             new DeckViewModel(1, _bus, _bus, themes.Context, new WaveformPeaksFactory()));
         _vm.PropertyChanged += (_, e) => _changed.Add(e.PropertyName);
@@ -549,5 +550,18 @@ public class MainViewModelTests
 
         var command = Assert.Single(sent.Received);
         Assert.Equal(InterfaceIds.MainUI, command.Origin.InterfaceId);
+    }
+
+    [Fact]
+    public async Task Output_picker_is_open_while_a_question_is_pending()
+    {
+        Assert.False(_vm.IsOutputPickerOpen);
+
+        var ask = _vm.OutputPicker.AskAsync([new OutputDeviceChoice("Speakers", true)], null);
+        Assert.True(_vm.IsOutputPickerOpen);
+
+        _vm.OutputPicker.Commit();
+        Assert.False(_vm.IsOutputPickerOpen);
+        Assert.Equal("Speakers", await ask);
     }
 }

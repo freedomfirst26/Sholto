@@ -55,6 +55,7 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
             appThread,
             new SearchViewModel(rows.Items, new LibrarySearch(), tagRecency, asker, subscriber, appThread),
             new TrackActionsViewModel(),
+            new OutputPickerViewModel(),
             deckViewModels.Create(0),
             deckViewModels.Create(1));
 

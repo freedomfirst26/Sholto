@@ -202,6 +202,20 @@ public partial class MainWindow : Window, IKeyboard
         if (DataContext is not MainViewModel vm) return;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
 
+        // Output picker open → it owns the keyboard; nothing else may act underneath.
+        if (vm.IsOutputPickerOpen)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:     vm.OutputPicker.Move(-1); break;
+                case Key.Down:   vm.OutputPicker.Move(+1); break;
+                case Key.Enter:  vm.OutputPicker.Commit(); break;
+                case Key.Escape: vm.OutputPicker.Cancel(); break;
+            }
+            e.Handled = true;
+            return;
+        }
+
         // Tag editor open → let it own input. The InputBox handles
         // Tab/Enter/Esc/Backspace/Up/Down via its own KeyDown; we only need to
         // suppress global shortcuts (space, 1, 2, P, etc.) from firing
