@@ -38,7 +38,7 @@ jobs:
 
       - name: Publish self-contained single file
         run: |
-          dotnet publish src/Sholto.App/Sholto.App.csproj \
+          dotnet publish src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj \
             -c Release -r ${{ matrix.rid }} --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \

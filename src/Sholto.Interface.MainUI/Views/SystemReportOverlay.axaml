@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sholto.Interface.MainUI.ViewModels"
+             x:Class="Sholto.Interface.MainUI.Views.SystemReportOverlay"
+             x:DataType="vm:MainViewModel"
+             IsVisible="{Binding IsSystemReportOpen}"
+             Focusable="False">
+
+    <Grid Background="{DynamicResource SholtoScrim}" PointerPressed="OnBackdropPressed">
+        <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                Width="460"
+                Background="{DynamicResource SholtoSurfaceRaised}"
+                BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1"
+                CornerRadius="10" Padding="0"
+                PointerPressed="OnPanelPressed">
+            <StackPanel Margin="0,16,0,14" Spacing="2">
+                <!-- eyebrow: amber, matching the dot that opened this -->
+                <TextBlock Text="●  SYSTEM REPORT"
+                           FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                           Foreground="{DynamicResource SholtoStatusAttention}"
+                           Margin="20,0,20,0"/>
+                <TextBlock Text="{Binding SystemReportHeadline}"
+                           FontSize="14" FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource SholtoTextBright}"
+                           Margin="20,0,20,10"/>
+
+                <ItemsControl ItemsSource="{Binding SystemReport}" Margin="14,0,14,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SystemReportRow">
+                            <Grid ColumnDefinitions="18,*" Margin="6,5">
+                                <TextBlock Grid.Column="0" Text="●" FontSize="11"
+                                           VerticalAlignment="Top" Margin="0,3,0,0"
+                                           Foreground="{DynamicResource SholtoStatusOk}"
+                                           IsVisible="{Binding IsPresent}"/>
+                                <TextBlock Grid.Column="0" Text="●" FontSize="11"
+                                           VerticalAlignment="Top" Margin="0,3,0,0"
+                                           Foreground="{DynamicResource SholtoStatusAttention}"
+                                           IsVisible="{Binding IsMissing}"/>
+                                <StackPanel Grid.Column="1" Spacing="1">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding Capability}"
+                                                   FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SholtoTextBright}"/>
+                                        <TextBlock Text="{Binding ToolName}"
+                                                   FontSize="13"
+                                                   Foreground="{DynamicResource SholtoTextMuted}"/>
+                                        <TextBlock Text="{Binding StatusText}"
+                                                   FontSize="12" FontWeight="Bold"
+                                                   Foreground="{DynamicResource SholtoTextMuted}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Detail}"
+                                               FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource SholtoTextMuted}"/>
+                                    <Border IsVisible="{Binding IsMissing}"
+                                            CornerRadius="4" Padding="7,2" Margin="0,3,0,0"
+                                            HorizontalAlignment="Left"
+                                            Background="{DynamicResource SholtoBgDeep}">
+                                        <TextBlock Text="{Binding Install}"
+                                                   FontFamily="monospace" FontSize="12"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SholtoTextBright}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="Tools are looked up once at startup — restart Sholto after installing.  ·  Esc close"
+                           FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SholtoTextMuted}"
+                           Margin="20,10,20,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

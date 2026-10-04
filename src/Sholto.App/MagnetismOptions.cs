@@ -11,4 +11,13 @@ public sealed class MagnetismOptions
     /// was rarely reachable by hand (~0.9 BPM at 174); 1% covers a real rough
     /// beat-match while keeping the tempo nudge on engage small.</summary>
     public double BpmEligibilityTolerance { get; set; } = 0.01;
+
+    /// <summary>The jog must have been idle this long before auto-quantize reads it as
+    /// "the user let go".</summary>
+    public TimeSpan JogIdleForQuantize { get; set; } = TimeSpan.FromMilliseconds(180);
+
+    /// <summary>Auto-quantize only counts as "user released a jog gesture" if the jog was
+    /// this recent. Without the window, two decks at different tempos would drift into
+    /// alignment and an old jog from minutes ago would trigger a surprise seek.</summary>
+    public TimeSpan JogRecencyForQuantize { get; set; } = TimeSpan.FromSeconds(2);
 }

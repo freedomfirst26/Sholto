@@ -1,0 +1,151 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Pioneer DDJ-FLX4 hardware palette. Fixed, not themed: a graphite deck is graphite
+       in every theme. Each colour appears once; Flx4<Name>Color is the Color (gradient
+       stops), Flx4<Name> the SolidColorBrush (Fill, Stroke, Background). Names marked
+       Tone<hex> paint unrelated parts and are named by value. -->
+
+  <Color x:Key="Flx4ShadowColor">#000000</Color>  <!-- drop shadows and recess wells -->
+  <SolidColorBrush x:Key="Flx4Shadow" Color="{StaticResource Flx4ShadowColor}"/>
+  <Color x:Key="Flx4HighlightColor">#FFFFFF</Color>  <!-- specular lips on dimples and bevels -->
+  <SolidColorBrush x:Key="Flx4Highlight" Color="{StaticResource Flx4HighlightColor}"/>
+  <Color x:Key="Flx4LabelInkColor">#D6DAE0</Color>  <!-- primary silk-screen text -->
+  <SolidColorBrush x:Key="Flx4LabelInk" Color="{StaticResource Flx4LabelInkColor}"/>
+  <Color x:Key="Flx4LabelInkDimColor">#9AA0A8</Color>  <!-- secondary scale text (-26, +6, MIN/MAX) -->
+  <SolidColorBrush x:Key="Flx4LabelInkDim" Color="{StaticResource Flx4LabelInkDimColor}"/>
+  <Color x:Key="Flx4LegendInkColor">#B9BDC4</Color>  <!-- text inside an outlined shift legend -->
+  <SolidColorBrush x:Key="Flx4LegendInk" Color="{StaticResource Flx4LegendInkColor}"/>
+  <Color x:Key="Flx4LegendFillColor">#1A1C1F</Color>  <!-- outlined legend box interior -->
+  <SolidColorBrush x:Key="Flx4LegendFill" Color="{StaticResource Flx4LegendFillColor}"/>
+  <Color x:Key="Flx4LegendEdgeColor">#7B7F86</Color>  <!-- outlined legend box border -->
+  <SolidColorBrush x:Key="Flx4LegendEdge" Color="{StaticResource Flx4LegendEdgeColor}"/>
+  <Color x:Key="Flx4AccentInkColor">#E8963C</Color>  <!-- orange silk-screen text -->
+  <SolidColorBrush x:Key="Flx4AccentInk" Color="{StaticResource Flx4AccentInkColor}"/>
+  <Color x:Key="Flx4AccentLitColor">#F0A24E</Color>  <!-- lit orange button lettering -->
+  <SolidColorBrush x:Key="Flx4AccentLit" Color="{StaticResource Flx4AccentLitColor}"/>
+  <Color x:Key="Flx4AccentEdgeColor">#C2661D</Color>  <!-- lit orange edge on pads and mode buttons -->
+  <SolidColorBrush x:Key="Flx4AccentEdge" Color="{StaticResource Flx4AccentEdgeColor}"/>
+  <Color x:Key="Flx4JogTickColor">#D3D8DE</Color>  <!-- the fine tick ring on the platter -->
+  <SolidColorBrush x:Key="Flx4JogTick" Color="{StaticResource Flx4JogTickColor}"/>
+  <Color x:Key="Flx4ScaleTickColor">#8F949B</Color>  <!-- fader scale ticks -->
+  <SolidColorBrush x:Key="Flx4ScaleTick" Color="{StaticResource Flx4ScaleTickColor}"/>
+  <Color x:Key="Flx4PointerInkColor">#DCE0E6</Color>  <!-- knob pointer line -->
+  <SolidColorBrush x:Key="Flx4PointerInk" Color="{StaticResource Flx4PointerInkColor}"/>
+  <Color x:Key="Flx4EdgeBlackColor">#0C0D0F</Color>  <!-- hardest body seam -->
+  <Color x:Key="Flx4EdgeDarkColor">#0D0E10</Color>  <!-- cap and knob outlines -->
+  <SolidColorBrush x:Key="Flx4EdgeDark" Color="{StaticResource Flx4EdgeDarkColor}"/>
+  <Color x:Key="Flx4EdgeDarkAltColor">#0E0F11</Color>  <!-- knob cap outline -->
+  <SolidColorBrush x:Key="Flx4EdgeDarkAlt" Color="{StaticResource Flx4EdgeDarkAltColor}"/>
+  <Color x:Key="Flx4RimLightColor">#96999F</Color>  <!-- lit side of a knob rim -->
+  <Color x:Key="Flx4RimMidColor">#4A4D53</Color>  <!-- knob rim, mid tone -->
+  <Color x:Key="Flx4RimDarkColor">#17181B</Color>  <!-- knob rim, shaded side -->
+  <Color x:Key="Flx4KnobSkirtLitColor">#63666B</Color>  <!-- knob skirt, lit -->
+  <Color x:Key="Flx4KnobSkirtMidColor">#3A3D42</Color>  <!-- knob skirt, mid -->
+  <Color x:Key="Flx4KnobSkirtDimColor">#212328</Color>  <!-- knob skirt, shaded -->
+  <Color x:Key="Flx4KnobCapLitColor">#5A5D63</Color>  <!-- knob cap, lit -->
+  <Color x:Key="Flx4KnobCapMidColor">#2E3136</Color>  <!-- knob cap, mid -->
+  <Color x:Key="Flx4KnobCapDimColor">#17181C</Color>  <!-- knob cap, shaded -->
+  <Color x:Key="Flx4ButtonTopColor">#4C5057</Color>  <!-- rounded button, lit edge -->
+  <Color x:Key="Flx4ButtonFaceColor">#2A2C30</Color>  <!-- accent button face -->
+  <Color x:Key="Flx4ButtonFaceDimColor">#171A1D</Color>  <!-- accent button face, shaded -->
+  <Color x:Key="Flx4PadWarmColor">#33261B</Color>  <!-- pad rubber, warm lit corner -->
+  <Color x:Key="Flx4PadFillColor">#191A1D</Color>  <!-- pad rubber, body -->
+  <Color x:Key="Flx4CapDarkColor">#141619</Color>  <!-- fader cap, shaded end -->
+  <Color x:Key="Flx4Tone4A4D52Color">#4A4D52</Color>
+  <Color x:Key="Flx4Tone3B3E42Color">#3B3E42</Color>
+  <Color x:Key="Flx4Tone2C2E32Color">#2C2E32</Color>
+  <Color x:Key="Flx4Tone191A1CColor">#191A1C</Color>
+  <SolidColorBrush x:Key="Flx4Tone191A1C" Color="{StaticResource Flx4Tone191A1CColor}"/>
+  <Color x:Key="Flx4Tone4E5156Color">#4E5156</Color>
+  <SolidColorBrush x:Key="Flx4Tone4E5156" Color="{StaticResource Flx4Tone4E5156Color}"/>
+  <Color x:Key="Flx4Tone2B2D31Color">#2B2D31</Color>
+  <Color x:Key="Flx4Tone232529Color">#232529</Color>
+  <Color x:Key="Flx4Tone1B1D20Color">#1B1D20</Color>
+  <Color x:Key="Flx4Tone08090AColor">#08090A</Color>
+  <SolidColorBrush x:Key="Flx4Tone08090A" Color="{StaticResource Flx4Tone08090AColor}"/>
+  <Color x:Key="Flx4Tone7A7E85Color">#7A7E85</Color>
+  <SolidColorBrush x:Key="Flx4Tone7A7E85" Color="{StaticResource Flx4Tone7A7E85Color}"/>
+  <Color x:Key="Flx4Tone101114Color">#101114</Color>
+  <SolidColorBrush x:Key="Flx4Tone101114" Color="{StaticResource Flx4Tone101114Color}"/>
+  <Color x:Key="Flx4Tone7E828AColor">#7E828A</Color>
+  <SolidColorBrush x:Key="Flx4Tone7E828A" Color="{StaticResource Flx4Tone7E828AColor}"/>
+  <Color x:Key="Flx4Tone8A8E95Color">#8A8E95</Color>
+  <Color x:Key="Flx4Tone33363AColor">#33363A</Color>
+  <Color x:Key="Flx4Tone101113Color">#101113</Color>
+  <SolidColorBrush x:Key="Flx4Tone101113" Color="{StaticResource Flx4Tone101113Color}"/>
+  <Color x:Key="Flx4Tone15161AColor">#15161A</Color>
+  <SolidColorBrush x:Key="Flx4Tone15161A" Color="{StaticResource Flx4Tone15161AColor}"/>
+  <Color x:Key="Flx4ToneFFD3A0Color">#FFD3A0</Color>
+  <Color x:Key="Flx4ToneF79A3CColor">#F79A3C</Color>
+  <Color x:Key="Flx4ToneD9701CColor">#D9701C</Color>
+  <Color x:Key="Flx4Tone9C4A0CColor">#9C4A0C</Color>
+  <Color x:Key="Flx4Tone66FFFFFFColor">#66FFFFFF</Color>
+  <Color x:Key="Flx4Tone00FFFFFFColor">#00FFFFFF</Color>
+  <Color x:Key="Flx4ToneB0762FColor">#B0762F</Color>
+  <SolidColorBrush x:Key="Flx4ToneB0762F" Color="{StaticResource Flx4ToneB0762FColor}"/>
+  <Color x:Key="Flx4Tone565A60Color">#565A60</Color>
+  <Color x:Key="Flx4Tone2B2E33Color">#2B2E33</Color>
+  <Color x:Key="Flx4Tone3E4247Color">#3E4247</Color>
+  <Color x:Key="Flx4Tone3C4046Color">#3C4046</Color>
+  <Color x:Key="Flx4Tone1D1F23Color">#1D1F23</Color>
+  <Color x:Key="Flx4ToneC8CCD3Color">#C8CCD3</Color>
+  <SolidColorBrush x:Key="Flx4ToneC8CCD3" Color="{StaticResource Flx4ToneC8CCD3Color}"/>
+  <Color x:Key="Flx4Tone3A1D04Color">#3A1D04</Color>
+  <SolidColorBrush x:Key="Flx4Tone3A1D04" Color="{StaticResource Flx4Tone3A1D04Color}"/>
+  <Color x:Key="Flx4Tone5C6066Color">#5C6066</Color>
+  <Color x:Key="Flx4Tone33363BColor">#33363B</Color>
+  <Color x:Key="Flx4Tone1C1E22Color">#1C1E22</Color>
+  <Color x:Key="Flx4Tone0B0C0EColor">#0B0C0E</Color>
+  <Color x:Key="Flx4Tone4CFFFFFFColor">#4CFFFFFF</Color>
+  <Color x:Key="Flx4Tone14FFFFFFColor">#14FFFFFF</Color>
+  <Color x:Key="Flx4Tone33000000Color">#33000000</Color>
+  <Color x:Key="Flx4Tone66000000Color">#66000000</Color>
+  <Color x:Key="Flx4Tone0A0B0CColor">#0A0B0C</Color>
+  <SolidColorBrush x:Key="Flx4Tone0A0B0C" Color="{StaticResource Flx4Tone0A0B0CColor}"/>
+  <Color x:Key="Flx4Tone4C5056Color">#4C5056</Color>
+  <Color x:Key="Flx4Tone2A2D31Color">#2A2D31</Color>
+  <Color x:Key="Flx4Tone17191CColor">#17191C</Color>
+  <Color x:Key="Flx4Tone9BA1A9Color">#9BA1A9</Color>
+  <SolidColorBrush x:Key="Flx4Tone9BA1A9" Color="{StaticResource Flx4Tone9BA1A9Color}"/>
+  <Color x:Key="Flx4Tone575B61Color">#575B61</Color>
+  <Color x:Key="Flx4Tone2C2F34Color">#2C2F34</Color>
+  <Color x:Key="Flx4Tone3E4248Color">#3E4248</Color>
+  <SolidColorBrush x:Key="Flx4Tone3E4248" Color="{StaticResource Flx4Tone3E4248Color}"/>
+  <Color x:Key="Flx4Tone6B7079Color">#6B7079</Color>
+  <SolidColorBrush x:Key="Flx4Tone6B7079" Color="{StaticResource Flx4Tone6B7079Color}"/>
+  <Color x:Key="Flx4Tone0F1013Color">#0F1013</Color>
+  <SolidColorBrush x:Key="Flx4Tone0F1013" Color="{StaticResource Flx4Tone0F1013Color}"/>
+  <Color x:Key="Flx4Tone22252AColor">#22252A</Color>
+  <Color x:Key="Flx4ToneC4D96BColor">#C4D96B</Color>
+  <SolidColorBrush x:Key="Flx4ToneC4D96B" Color="{StaticResource Flx4ToneC4D96BColor}"/>
+  <Color x:Key="Flx4Tone59FFC98FColor">#59FFC98F</Color>
+  <Color x:Key="Flx4Tone00000000Color">#00000000</Color>
+  <Color x:Key="Flx4Tone1E2024Color">#1E2024</Color>
+  <Color x:Key="Flx4Tone4A4E54Color">#4A4E54</Color>
+  <Color x:Key="Flx4Tone5A5E65Color">#5A5E65</Color>
+  <Color x:Key="Flx4Tone2A2D32Color">#2A2D32</Color>
+  <Color x:Key="Flx4Tone202327Color">#202327</Color>
+  <Color x:Key="Flx4Tone3A3E44Color">#3A3E44</Color>
+  <Color x:Key="Flx4ToneE4E7EBColor">#E4E7EB</Color>
+  <SolidColorBrush x:Key="Flx4ToneE4E7EB" Color="{StaticResource Flx4ToneE4E7EBColor}"/>
+  <Color x:Key="Flx4Tone7A7E84Color">#7A7E84</Color>
+  <Color x:Key="Flx4Tone26292EColor">#26292E</Color>
+  <Color x:Key="Flx4Tone8D9299Color">#8D9299</Color>
+  <SolidColorBrush x:Key="Flx4Tone8D9299" Color="{StaticResource Flx4Tone8D9299Color}"/>
+  <Color x:Key="Flx4ToneD8DCE2Color">#D8DCE2</Color>
+  <SolidColorBrush x:Key="Flx4ToneD8DCE2" Color="{StaticResource Flx4ToneD8DCE2Color}"/>
+  <Color x:Key="Flx4Tone8CD03AColor">#8CD03A</Color>
+  <SolidColorBrush x:Key="Flx4Tone8CD03A" Color="{StaticResource Flx4Tone8CD03AColor}"/>
+  <Color x:Key="Flx4ToneE23B3BColor">#E23B3B</Color>
+  <SolidColorBrush x:Key="Flx4ToneE23B3B" Color="{StaticResource Flx4ToneE23B3BColor}"/>
+  <Color x:Key="Flx4Tone5A5E64Color">#5A5E64</Color>
+  <SolidColorBrush x:Key="Flx4Tone5A5E64" Color="{StaticResource Flx4Tone5A5E64Color}"/>
+  <Color x:Key="Flx4Tone8E939AColor">#8E939A</Color>
+  <Color x:Key="Flx4Tone4A4E55Color">#4A4E55</Color>
+  <Color x:Key="Flx4Tone3B3F45Color">#3B3F45</Color>
+  <Color x:Key="Flx4Tone5E636AColor">#5E636A</Color>
+  <Color x:Key="Flx4Tone23262AColor">#23262A</Color>
+  <Color x:Key="Flx4Tone1A1C20Color">#1A1C20</Color>
+
+</ResourceDictionary>

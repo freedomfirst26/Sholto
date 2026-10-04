@@ -20,8 +20,8 @@ sed -n '/^## Unreleased/,/^## v/p' CHANGELOG.md
 - **Controller behaviour changed without the guide following?**
   ```bash
   LAST=$(git describe --tags --abbrev=0)
-  git diff --name-only $LAST..HEAD -- src/Sholto.Controller/Gestures/ src/Sholto.App/Orchestrator.cs src/Sholto.Controller/Mappings/
-  git diff --name-only $LAST..HEAD -- src/Sholto.Faceplate/Devices/
+  git diff --name-only $LAST..HEAD -- src/Sholto.Interface.Controller/Gestures/ src/Sholto.Interface.MainUI/Orchestrator.cs src/Sholto.Interface.Controller/Mappings/
+  git diff --name-only $LAST..HEAD -- src/Sholto.Interface.Faceplate/Devices/
   ```
   First list non-empty and second empty means a gesture probably changed and the in-app
   guide did not follow. Check the gesture's arm in `Orchestrator.HandleGesture` against its
@@ -33,8 +33,8 @@ sed -n '/^## Unreleased/,/^## v/p' CHANGELOG.md
   line — it is the release notes users read.
 - **Does it build and test?**
   ```bash
-  pkill -9 -f "bin/Debug/net10.0/Sholto.App"
-  dotnet build src/Sholto.App/Sholto.App.csproj -nologo
+  pkill -9 -f "bin/Debug/net10.0/Sholto"
+  dotnet build src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj -nologo
   dotnet test Sholto.slnx -nologo 2>&1 | grep -E "Passed!|Failed!"
   ```
   `DeckFaderInitTests.NewDeck_StartsFaderDown_SoNothingPlaysUntilPickedUp` fails on main

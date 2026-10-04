@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -16,11 +16,15 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <Using Include="Sholto.ExternalTools" />
+    <Using Include="Sholto.App.ExternalTools" />
+    <Using Include="Sholto.TestSupport" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sholto.App\Sholto.App.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Controller\Sholto.Interface.Controller.csproj" />
+    <ProjectReference Include="..\Sholto.TestSupport\Sholto.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>

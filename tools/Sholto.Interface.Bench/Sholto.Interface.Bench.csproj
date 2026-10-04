@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Dev tool only — never shipped. The HEADLESS interface (C55 F11): a scripted scenario
+    becomes Commands on Sholto.Data, and what happened is read back from the headless core.
+    Also renders Sholto's audio output offline (no sound card) and measures it, so bugs that
+    only a human could previously hear (deck audio dropping out, a backspin jolting) become
+    assertable numbers.
+
+    References only Sholto.Data, Sholto.App(+ sub-projects) and the device interfaces it
+    scripts (Controller, Controller.Mappings). No UI toolkit and no MainUI reference —
+    enforced by tests/Sholto.Architecture.Tests. UI capture (ui / screenshot) lives in
+    the MainUI harness tool.
+
+    OutputType Exe (the CLI face) but the library types underneath are public,
+    so a future test project can reference this project and call the same
+    render/measure/state code the CLI shells out to.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Sholto.Interface.Bench</RootNamespace>
+    <AssemblyName>Sholto.Interface.Bench</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App\Sholto.App.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Audio\Sholto.App.Audio.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Analysis\Sholto.App.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Dsp\Sholto.App.Dsp.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Library\Sholto.App.Library.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Controller\Sholto.Interface.Controller.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Controller.Mappings\Sholto.Interface.Controller.Mappings.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Needed directly to construct the SoundFlow engine/format for offline
+         rendering (Bench builds its own deck format in BenchDeckFactory.DeckFormat,
+         so it needs SoundFlow's types directly). Version pinned to match Sholto.App.Audio. -->
+    <PackageReference Include="SoundFlow" Version="1.4.1" />
+  </ItemGroup>
+
+</Project>

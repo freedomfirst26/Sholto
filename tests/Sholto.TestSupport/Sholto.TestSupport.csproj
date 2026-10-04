@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Test doubles and rigs shared by more than one test project (App.Tests, MainUI.Tests). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Sholto.TestSupport</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sholto.App.Tests" />
+    <InternalsVisibleTo Include="Sholto.Interface.MainUI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Sholto.App.ExternalTools" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sholto.App\Sholto.App.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
+  </ItemGroup>
+
+</Project>

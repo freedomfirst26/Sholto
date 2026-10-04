@@ -1,0 +1,64 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>Sholto</AssemblyName>
+    <RootNamespace>Sholto.Interface.MainUI</RootNamespace>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Both GC modes suspend every managed thread (including the audio
+         callback) for gen0/gen1 collections; concurrent GC only avoids
+         suspension for gen2. Workstation GC is chosen over server GC because
+         this is a deadline-driven audio app: a rare long pause (server's
+         larger gen0 budget, up to 12 GC threads on this box) is worse than
+         frequent short ones. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <TieredCompilation>true</TieredCompilation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Sholto.Interface.MainUI.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
+    <AvaloniaResource Include="Assets\**" />
+    <!-- Theme JSON + manifest, loaded by SholtoThemeJson via avares:// at startup. -->
+    <AvaloniaResource Include="Themes\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.15" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.15" />
+    <PackageReference Include="Avalonia.Skia" Version="11.3.15" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.15" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.15" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sholto.Data\Sholto.Data.csproj" />
+    <ProjectReference Include="..\Sholto.App\Sholto.App.csproj" />
+    <ProjectReference Include="..\Sholto.Interface.Keyboard\Sholto.Interface.Keyboard.csproj" />
+    <ProjectReference Include="..\Sholto.App.Analysis\Sholto.App.Analysis.csproj" />
+    <ProjectReference Include="..\Sholto.App.Audio\Sholto.App.Audio.csproj" />
+    <ProjectReference Include="..\Sholto.Interface.Controller\Sholto.Interface.Controller.csproj" />
+    <ProjectReference Include="..\Sholto.Interface.Controller.Mappings\Sholto.Interface.Controller.Mappings.csproj" />
+    <ProjectReference Include="..\Sholto.App.Dsp\Sholto.App.Dsp.csproj" />
+    <ProjectReference Include="..\Sholto.App.ExternalTools\Sholto.App.ExternalTools.csproj" />
+    <ProjectReference Include="..\Sholto.Interface.Faceplate\Sholto.Interface.Faceplate.csproj" />
+    <ProjectReference Include="..\Sholto.Interface.Faceplate.Devices\Sholto.Interface.Faceplate.Devices.csproj" />
+    <ProjectReference Include="..\Sholto.App.Library\Sholto.App.Library.csproj" />
+    <ProjectReference Include="..\Sholto.App.Settings\Sholto.App.Settings.csproj" />
+    <ProjectReference Include="..\Sholto.App.Storage\Sholto.App.Storage.csproj" />
+  </ItemGroup>
+</Project>

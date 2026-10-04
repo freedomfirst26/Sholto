@@ -10,20 +10,25 @@ No `.sln` — build the app project directly; project references pull in the res
 
 | Project | Role |
 |---|---|
-| `src/Sholto.App` | Avalonia UI: `Views/` (`.axaml` + `.axaml.cs`), `ViewModels/`, custom-drawn `Controls/`. Entry point. |
-| `src/Sholto.Audio` | Decoding + playback. NAudio/NLayer/SoundFlow. `AudioFileDecoder.TargetSampleRate = 48000`. |
-| `src/Sholto.Analysis` | Analysis domain + orchestration. `TrackAnalysis` fires per-type events (see below). |
-| `src/Sholto.Storage` | EF Core + SQLite persistence, caches, crates, markers, tags. |
-| `src/Sholto.Controller` | DDJ-FLX4 HID/MIDI mapping. |
-| `src/Sholto.Music` | Library/file metadata (z440.atl.core tag reading). |
+| `src/Sholto.Interface.MainUI` | Avalonia UI: `Views/` (`.axaml` + `.axaml.cs`), `ViewModels/`, custom-drawn `Controls/`. Entry point. |
+| `src/Sholto.App.Audio` | Decoding + playback. NAudio/NLayer/SoundFlow. `AudioFileDecoder.TargetSampleRate = 48000`. Also owns per-deck track-lifetime state such as `TrackAnalysis`, the results bag a deck holds for the life of a loaded track; `TrackAnalysis` fires per-type events (see below). |
+| `src/Sholto.App.Analysis` | Analysis domain + orchestration — the analysers that fill `TrackAnalysis`. |
+| `src/Sholto.App.Storage` | EF Core + SQLite persistence, caches, crates, markers, tags. |
+| `src/Sholto.Interface.Controller` | DDJ-FLX4 HID/MIDI mapping. |
+| `src/Sholto.App.Library` | Library/file metadata (z440.atl.core tag reading). |
+| `src/Sholto.App.Dsp` | Shared DSP primitives: crossover frequencies, crossfade curve. |
+| `src/Sholto.App.ExternalTools` | Boundary to madmom/demucs/ffmpeg subprocesses. |
+| `src/Sholto.Interface.Faceplate` | On-screen controller guide; joined to `Sholto.Interface.Controller` by gesture name only. |
+| `tools/Sholto.Interface.Bench` | Dev-only headless interface (no Avalonia, no MainUI): renders decks to WAV, measures it, runs scripted scan/gesture/midi scenarios as Commands on the bus (`render`, `measure`, `state`, `headless`, `latency`). |
+| `tools/Sholto.Interface.MainUI.Harness` | Dev-only MainUI test harness: drives the real window with no screen via Avalonia.Headless (`ui`, `screenshot`). Run: `dotnet run --project tools/Sholto.Interface.MainUI.Harness -- ui --scenario x.json`. |
 
 ## Build / run / test
 
 ```bash
 cd /home/s/projects/open-dj
-dotnet build src/Sholto.App/Sholto.App.csproj -nologo      # build (also builds refs)
-dotnet run   --project src/Sholto.App/Sholto.App.csproj    # build + run
-dotnet run   --project src/Sholto.App/Sholto.App.csproj --no-build   # run last build
+dotnet build src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj -nologo      # build (also builds refs)
+dotnet run   --project src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj    # build + run
+dotnet run   --project src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj --no-build   # run last build
 ```
 
 ### ⚠️ The dll-not-rebuilding trap (read this before trusting a screenshot)
@@ -39,10 +44,10 @@ The main cause: **an app instance was still running / holding the dll when you b
 **Always do this:**
 
 1. **Kill every running instance before building.** (See kill recipe below — do NOT
-   use `pkill -f Sholto.App`, it self-matches the launch command and exits 144.)
+   use `pkill -f Sholto.Interface.MainUI`, it self-matches the launch command and exits 144.)
 2. **Verify the dll timestamp advanced after every build:**
    ```bash
-   stat -c '%y' src/Sholto.App/bin/Debug/net10.0/Sholto.App.dll
+   stat -c '%y' src/Sholto.Interface.MainUI/bin/Debug/net10.0/Sholto.dll
    ```
    If the timestamp did not move, the build was a no-op — rebuild (run `dotnet build`
    on its own, not buried in a `;`-chain), and if still stale, `touch` the changed
@@ -54,11 +59,11 @@ Do not conclude anything from a screenshot until you've confirmed the dll is fre
 ### Killing instances safely
 
 ```bash
-pkill -9 -f "Sholto.App.dll"        # matches the running app, NOT the build/run command
-pgrep -af "Sholto.App.dll"          # confirm none remain (ignore the pgrep line itself)
+pkill -9 -f "Sholto.dll"        # matches the running app, NOT the build/run command
+pgrep -af "Sholto.dll"          # confirm none remain (ignore the pgrep line itself)
 ```
 `ps` will still show `MSBuild.dll` / `VBCSCompiler` daemons — those are the build
-server, leave them. `pkill -f "Sholto.App"` (no `.dll`) matches `dotnet run …Sholto.App…`
+server, leave them. `pkill -f "Sholto.Interface.MainUI"` (no `.dll`) matches `dotnet run …Sholto.Interface.MainUI…`
 and kills the launcher / returns exit 144 — avoid it.
 
 ## Seeing the app on screen (headless verification)
@@ -76,7 +81,7 @@ X11, `DISPLAY=:0`. To bring the app forward: `wmctrl -i -a <id>` (id from `wmctr
 
 ## Analysis pipeline (event-driven)
 
-`Sholto.Analysis/TrackAnalysis.cs` fires a **typed event per analysis stage**, then a
+`Sholto.Audio/TrackAnalysis.cs` fires a **typed event per analysis stage**, then a
 generic `AnyReady`. UI ViewModels subscribe to only the events they depend on and
 re-notify just the affected bindings (cause→effect is explicit):
 
@@ -128,6 +133,36 @@ Demucs (stems). Absence degrades gracefully.
 - Load a track via keys `1`/`2` (send selected → deck) or the FLX4 LOAD button.
   Double-clicking a track re-runs analysis.
 
+## Code conventions
+
+- No statics except extension methods and what the language or a framework forces (`Main`, `const`, Avalonia property registrations, EF migrations). Collaborators come in through constructors; anything built once comes from an injected factory instance, built at a composition root. Call sites never pass raw recipe arguments; a factory names the recipe (e.g. `BeatgridFactory.None()`).
+- Prefer primary constructors: `public sealed class TagService(IDbContextFactory<SholtoDbContext> factory, TagNameNormalizer normalizer)` with `private readonly IDbContextFactory<SholtoDbContext> _factory = factory;`. Members use the `_field`, never the bare parameter (avoids the CS9124 capture-plus-store shape).
+- Do not use a primary constructor for: constructors with logic beyond assignment, classes with several constructors, private constructors, XAML-created controls, EF `DbContext`/converters.
+- One top-level type per file, named for the type.
+- Analyzers vs analysis stages: an analyzer (`I*Analyzer`, extends the empty marker `IAnalyzer`, in `Sholto.Analysis/Analyzers/<Thing>/`) computes one result itself. An analysis stage (`*AnalysisStage`, extends the empty marker `IAnalysisStage`, in `Sholto.Analysis/Stages/`) is a composite that runs several analyzers and external-tool steps in a fixed order — e.g. `BasicAnalysisStage` (beats + waveform peaks + beatgrid), `StemAnalysisStage` (demucs + stem peaks + vocal regions). A composite of analyzers is always named `...AnalysisStage`, never `...Analyzer`. `IAnalysisStep` is different again: one external-tool process (madmom, demucs).
+
+### Architecture: Interface / Data / App
+
+Target; migration in progress.
+
+- Three layers by package name: `Sholto.Interface.*` (MainUI — the exe and composition root, Controller(+Mappings), Faceplate(+Devices), Keyboard, Bench) · `Sholto.Data` (the bus) · `Sholto.App.*` (headless core; no Avalonia).
+- Dependency rule: `Interface.*` → `Data` only; `App.*` → `Data` + its own sub-projects; `Data` → nothing. Only MainUI's composition root references everything.
+- `Sholto.Data` carries exactly three message kinds, all strongly typed `readonly record struct`s: Commands in ("do this", no result); Queries in ("I want to know", typed result to the caller, never changes state); Events out ("this thing happened"; interfaces subscribe opt-in; state events replay their last value to late subscribers, facts don't).
+- Gestures exist only inside an interface: its mapping from buttons/keys (or on-screen buttons) to the Command intended. Modifiers like Shift and platter-touch stay inside the interface.
+- The App is the only source of truth for domain state (incl. cue, master-cue, pad page, Inspect mode). Interfaces may keep transient caches built from Events. Presentation state (overlay open, typed text, hover) stays in MainUI.
+- Feedback translation (events → LEDs/MIDI) lives in each interface's output side.
+- Threading: one app thread = the UI thread, lent to the App via `IAppThread` and `IFrameClock` (defined in `Sholto.Data`, implemented by MainUI over Avalonia's dispatcher/timer). App code assumes a single thread and takes no locks; each interface marshals its own input onto the app thread; the audio callback stays on its own thread; Bench uses an immediate `IAppThread` and a manual clock.
+
+### Colours and theming
+
+- No colour literals in code or XAML: no `"#RRGGBB"`/`"#AARRGGBB"` strings, no `Color.Parse`, no `Color.FromRgb/FromArgb` with literal values, no hex brushes in `.axaml`. Every colour comes from the theme.
+- Themes are JSON: bundled in `src/Sholto.Interface.MainUI/Themes/*.json` (AvaloniaResource), user themes in `~/.config/sholto/themes/`. `SholtoThemeJson` parses them into `SholtoTheme`; the schema is documented in its doc comment — update that comment when adding a key.
+- Lookup order for a colour: the theme's JSON → the bundled `Themes/defaults.json` (non-derivable defaults) → derivation from the theme's core colours (`WaveformPaletteFactory`, `MinimapPaletteFactory`). New keys are optional and get their default in `defaults.json`, so existing user themes keep working; don't add values to every bundled theme.
+- Named waveform presets live in the fixed catalogue `Themes/waveform-presets.json`; themes refer to a preset by name.
+- In XAML use `{DynamicResource Sholto…}` brushes published from the current theme (MainWindow applies the theme to `Application.Resources`). In controls, take colours from the bound palette (`Palette` StyledProperty); a control created from XAML draws nothing until its palette arrives — no hardcoded fallback palette.
+- Alpha variations of a theme colour are applied in code (`WithAlpha`), not stored as separate keys.
+- Exception: drawings of physical hardware (e.g. `DdjFlx4Layout.axaml`, the Pioneer controller) are not theme data.
+
 ## Git conventions
 
 - Remote `origin` = `git@github-freedomfirst26:freedomfirst26/Sholto.git` (SSH host
@@ -155,7 +190,7 @@ only list formats/features that actually work (e.g. the decoder strategies in
 
 ## Working docs
 
-Living plan/spec for this app: `~/Projects/sholto.md` (single file — append, don't
+Living plan/spec for this app: `~/.claude/plans/sholto.md` (single file — append, don't
 create new dated files). Capture substantive findings there as they surface.
 
 ## Branch docs
@@ -177,7 +212,7 @@ in order:
 Associated artifacts — proof WAVs, before/after measurements, profiling output — are
 listed in the doc with their paths, so the evidence for a claim stays findable.
 
-This is distinct from `~/Projects/sholto.md`, the long-running plan spanning branches,
+This is distinct from `~/.claude/plans/sholto.md`, the long-running plan spanning branches,
 and from `TODO.md`, the product/feature backlog.
 
 Branch names follow `<type>/<short-kebab-topic>`, using the same type prefixes as

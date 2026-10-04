@@ -7,6 +7,19 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+### New
+
+- **The status light tells you when something's missing.** The little dot in the
+  top-right corner turns amber when one of the programs Sholto leans on for
+  analysis isn't installed — click it and you get a plain list of what's there,
+  what isn't, what you lose without it and the one command to fix it. A
+  disconnected controller still wins: the dot stays red and says "Reconnect USB"
+  until the unit is back, because that's the one you can fix in seconds.
+
+- **A track that won't load now says so.** If a song can't be decoded when you
+  load it onto a deck, a short message at the bottom of the screen names the
+  track and the deck; the deck stays usable.
+
 ### Fixed
 
 - **A broken beat tracker no longer earns a "Done" banner.** The installer

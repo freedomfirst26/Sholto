@@ -130,20 +130,20 @@ ok "restored"
 
 # ── 6. Build release binary ───────────────────────────────────────────────────
 # Self-contained single-file publish: bundles the .NET runtime so end users
-# don't need the SDK on PATH. Output goes to ./dist/linux-x64/Sholto.App.
+# don't need the SDK on PATH. Output goes to ./dist/linux-x64/Sholto.
 section "release build"
 DIST="$PWD/dist/linux-x64"
-dotnet publish src/Sholto.App/Sholto.App.csproj \
+dotnet publish src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj \
     -c Release -r linux-x64 --self-contained \
     -p:PublishSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -o "$DIST" >/dev/null
-ok "published → $DIST/Sholto.App"
+ok "published → $DIST/Sholto"
 
 echo ""
 if [ "$MADMOM_BROKEN" = "1" ]; then
     echo "${BOLD}${YELLOW}Built, but not ready.${RESET}"
-    echo "  ${DIM}Binary:${RESET} ${CYAN}$DIST/Sholto.App${RESET} ${DIM}(built successfully)${RESET}"
+    echo "  ${DIM}Binary:${RESET} ${CYAN}$DIST/Sholto${RESET} ${DIM}(built successfully)${RESET}"
     warn "madmom-onnx (beat tracker) is REQUIRED and still not working — no track will"
     warn "get a beatgrid, so nothing will play in the app you just built."
     warn "Check the warning above, fix your network/Python environment, then re-run"
@@ -152,5 +152,5 @@ if [ "$MADMOM_BROKEN" = "1" ]; then
     exit 1
 fi
 echo "${BOLD}${GREEN}Done.${RESET}"
-echo "  ${DIM}Binary:${RESET} ${CYAN}$DIST/Sholto.App${RESET}"
+echo "  ${DIM}Binary:${RESET} ${CYAN}$DIST/Sholto${RESET}"
 echo ""

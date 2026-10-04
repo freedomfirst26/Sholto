@@ -71,6 +71,17 @@ public sealed class ScratchOptions
     /// <summary>Time constant of that dying tail.</summary>
     public double CoastTailTauSec { get; set; } = 0.175;
 
+    // --- Diagnostics and recency ---------------------------------------------------
+
+    /// <summary>SHOLTO_SCRATCH_LOG=1 prints per-frame scratch velocity and play position,
+    /// so the platter's actual motion (and any position jumps) are visible in the log.</summary>
+    public bool Log { get; set; } = Environment.GetEnvironmentVariable("SHOLTO_SCRATCH_LOG") == "1";
+
+    /// <summary>How recently a jog event must have arrived for a deck to count as
+    /// "actively being adjusted right now" (the IsScrubbing window, and the
+    /// both-decks-jogging check the magnet uses).</summary>
+    public TimeSpan ActiveJogWindow { get; set; } = TimeSpan.FromMilliseconds(250);
+
     // --- Brake ----------------------------------------------------------------------
 
     /// <summary>How long the vinyl brake (pause while playing) takes to spin a

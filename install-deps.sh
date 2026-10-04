@@ -99,4 +99,4 @@ if [ "$MADMOM_BROKEN" = "1" ]; then
     warn "./install-deps.sh (or just './install-deps.sh --verify' to recheck)."
     exit 1
 fi
-ok "Done. Ensure ~/.local/bin is on your PATH, then run ./Sholto.App"
+ok "Done. Ensure ~/.local/bin is on your PATH, then run ./Sholto"

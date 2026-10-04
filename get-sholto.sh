@@ -31,7 +31,7 @@ else
   curl -fL --progress-bar -o "$TMP" "$URL"
   tar -xzf "$TMP" -C "$DIR"
   rm -f "$TMP"
-  chmod +x "$DIR/Sholto.App"
+  chmod +x "$DIR/Sholto"
   printf '%s\n' "$TAG" > "$DIR/.version"
   echo "  installing runtime tools (ffmpeg, madmom, libraries) — may ask for your password"
   # When run as `curl ... | bash`, stdin is the script itself, so sudo could not
@@ -39,9 +39,9 @@ else
   if [ -r /dev/tty ]; then bash "$DIR/install-deps.sh" < /dev/tty; else bash "$DIR/install-deps.sh"; fi
 fi
 
-echo "  done: $DIR/Sholto.App"
+echo "  done: $DIR/Sholto"
 if [ "$RUN" = 1 ]; then
   echo "  launching..."
   cd "$DIR"
-  exec ./Sholto.App
+  exec ./Sholto
 fi

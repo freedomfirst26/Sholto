@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Dev tool only — never shipped. The MainUI test harness (C55 F11): drives the REAL
+    Sholto.Interface.MainUI window tree under Avalonia.Headless — keys, clicks, view-model state
+    and screenshots (the `ui` and `screenshot` verbs). It puts a real window over the same headless
+    core tools/Sholto.Interface.Bench builds (HeadlessCoreFactory), so it references MainUI and
+    Avalonia.Headless where Bench references neither.
+
+    OutputType Exe (the CLI face); the library types underneath are public so a future
+    harness test project can reference this one.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Sholto.Interface.MainUI.Harness</RootNamespace>
+    <AssemblyName>Sholto.Interface.MainUI.Harness</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sholto.Interface.Bench\Sholto.Interface.Bench.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.MainUI\Sholto.Interface.MainUI.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App\Sholto.App.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Audio\Sholto.App.Audio.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Analysis\Sholto.App.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Dsp\Sholto.App.Dsp.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Library\Sholto.App.Library.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Controller\Sholto.Interface.Controller.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Controller.Mappings\Sholto.Interface.Controller.Mappings.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Faceplate\Sholto.Interface.Faceplate.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Faceplate.Devices\Sholto.Interface.Faceplate.Devices.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Keyboard\Sholto.Interface.Keyboard.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Drives the real Avalonia UI tree with no display for the `ui` and `screenshot`
+         subcommands. Pinned to match the Avalonia version the app itself uses (11.3.15)
+         rather than floating to latest. -->
+    <PackageReference Include="Avalonia.Headless" Version="11.3.15" />
+  </ItemGroup>
+
+</Project>

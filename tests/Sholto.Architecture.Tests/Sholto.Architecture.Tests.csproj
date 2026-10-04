@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- Every production assembly is referenced so its DLL is copied next to the test and can be loaded by
+       name. The tests read each assembly's references (GetReferencedAssemblies); they never run code in them.
+       MainUI (the exe, assembly "Sholto") is deliberately not referenced: it is the composition root and
+       may reference everything. Sholto.Interface.Bench (the headless interface) is, so its references can be checked. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App\Sholto.App.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Analysis\Sholto.App.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Audio\Sholto.App.Audio.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Dsp\Sholto.App.Dsp.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.ExternalTools\Sholto.App.ExternalTools.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Library\Sholto.App.Library.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Settings\Sholto.App.Settings.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.App.Storage\Sholto.App.Storage.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Controller\Sholto.Interface.Controller.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Controller.Mappings\Sholto.Interface.Controller.Mappings.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Faceplate\Sholto.Interface.Faceplate.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Faceplate.Devices\Sholto.Interface.Faceplate.Devices.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.Keyboard\Sholto.Interface.Keyboard.csproj" />
+    <ProjectReference Include="..\..\tools\Sholto.Interface.Bench\Sholto.Interface.Bench.csproj" />
+  </ItemGroup>
+
+</Project>

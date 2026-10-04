@@ -41,7 +41,7 @@ Themes are small JSON files. Drop yours in:
 (or `$XDG_CONFIG_HOME/sholto/themes/` if you've set that). Sholto picks up every
 `.json` file in there at startup and adds it to the menu alongside the built-in
 ones — no rebuild. The quickest start is to copy a bundled theme out of
-`src/Sholto.App/Themes/`, rename it, and change the colours.
+`src/Sholto.Interface.MainUI/Themes/`, rename it, and change the colours.
 
 Every colour is `#RRGGBB`, or `#AARRGGBB` when it needs transparency.
 

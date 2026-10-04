@@ -230,7 +230,7 @@
       resolver's search order and the `htdemucs/<stem>.wav` layout in bash, and nothing
       keeps the two in step. Lifting these into options makes that drift *easier*, not
       harder — so this task should land together with, or after, the `--self-check` idea in
-      the external-tools plan (end of `~/Projects/sholto.md`), where the app itself becomes
+      the external-tools plan (end of `~/.claude/plans/sholto.md`), where the app itself becomes
       the single definition of "working" and the shell script just calls it.
 
       Benefit beyond Windows: a user whose tools live somewhere unusual (conda, pipx, a
@@ -411,11 +411,11 @@
 
       **Deliverable is a PROPOSAL, not a mass move.** Namespaces follow folders by convention
       in this codebase, so relocating a file is a namespace change and a churn of `using`
-      lines across the tree. The audit writes its recommendation to `~/Projects/sholto.md`;
+      lines across the tree. The audit writes its recommendation to `~/.claude/plans/sholto.md`;
       the user decides what actually moves, and in what order.
 
 - [ ] **Real-time audio performance: measure first, then change GC settings.** Carved out
-      2026-09-12 from a runtime/packaging analysis. Full reasoning in `~/Projects/sholto.md`
+      2026-09-12 from a runtime/packaging analysis. Full reasoning in `~/.claude/plans/sholto.md`
       under "Analysis — .NET runtime & packaging for real-time audio". Do the measurement
       step FIRST — every item below is currently [reasoned], not [measured], and this
       project has not measured its audio path once.

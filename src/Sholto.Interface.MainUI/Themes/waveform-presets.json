@@ -1,0 +1,11 @@
+{
+  "Bands":       { "low": "#2A7FFF", "mid": "#FF8C1A", "high": "#F5F5FF", "downbeat": "#D8E6F0FF" },
+  "Hot":         { "low": "#FF3D3D", "mid": "#3DFF7A", "high": "#3D8BFF", "downbeat": "#C8FFD63D" },
+  "Plasma":      { "low": "#7C5CFF", "mid": "#FF4E9A", "high": "#34F0C6", "downbeat": "#C8FFAA2A" },
+  "Smoke":       { "low": "#5A4636", "mid": "#E0A860", "high": "#F2E9D0", "downbeat": "#D0F2C879" },
+  "Glacier":     { "low": "#4C6B8A", "mid": "#ECF0F6", "high": "#B48EAD", "downbeat": "#D0A3BE8C" },
+  "OctoberRust": { "low": "#2D5512", "mid": "#69BE28", "high": "#DCE6CF", "downbeat": "#D8D8A24F" },
+  "Massacre":    { "low": "#5B4AE0", "mid": "#D45CE0", "high": "#F2DEFF", "downbeat": "#D8FFFAF5" },
+  "Soule":       { "low": "#2E4734", "mid": "#6A8F62", "high": "#E8EDE5", "downbeat": "#D8D4B86A" },
+  "Pantera":     { "low": "#7A3D22", "mid": "#FF6B2C", "high": "#E0D8CC", "downbeat": "#D8C5BFB5" }
+}
