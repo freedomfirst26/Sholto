@@ -23,12 +23,10 @@ Borgir, Aphex Twin, and The Prodigy.
 
 ## What a theme does *not* control
 
-Three things stay the same on every theme, on purpose:
-
-- **The vocal marks** on the waveform are always green (grey when VOX is muted).
-- **The white core** of the waveform — the innermost band — so the vocal marks
-  stay readable on top of it.
-- **The VOX chip** under the disc, which matches that same green.
+The white core of the waveform's inner band is the one thing a theme can only
+change through the optional `"waveform"` keys below; everything else — the stem
+colours, status dot, tags, controller picture, vocal lane and the rest — can
+come from the theme.
 
 ## Writing your own
 
@@ -89,18 +87,26 @@ What those mean, in plain words:
 | `waveformPalette` | A preset name that seeds the downbeat colour — `"Bands"` is the standard three-band look |
 | `camelotPalette` | Rotates and tones the key-chip colour wheel; `onChipForeground` is the text on those chips |
 
-**Two optional sections.** Leave either out entirely, or leave out any single
-key inside it, and Sholto works the colour out from your accent, primary and
-mint — so a short theme file is a perfectly good theme file.
+**Optional sections.** Leave any of them out entirely, or leave out any single
+key inside one, and Sholto works the colour out from your accent, primary and
+mint, or falls back to the standard look — so a short theme file is a perfectly
+good theme file, and every older theme keeps working unchanged.
 
 `"minimap"` colours the section-map strip: `backdrop`, `playhead`, `label`,
 `divider`, and one colour each for `intro`, `buildUp`, `drop`, `breakdown`,
 `verse`, `chorus`, `bridge` and `outro`.
 
-`"waveform"` colours the big waveform: `background`, `low` (the bass band) and
-`mid`, plus `downbeat`, `beatTick`, `playhead`, `marker`, `gain` (the fader
-line) and `loop` (the loop band). There is no `high` — the inner band is always
-white.
+`"waveform"` colours the big waveform: `background`, `low` (the bass band),
+`mid` and `high` (the inner band), plus `downbeat`, `beatTick`, `playhead`,
+`marker`, `gain` (the fader line), `loop` (the loop band), `vocal` and
+`vocalInactive` (the vocal lane, on and muted), `snapGlow` (the beat-snap glow),
+`gridEdit` (the tint once a grid has been nudged) and `edge` (the outline).
+
+The rest of the app has its own optional sections: `"stems"` (`drums`, `vocals`,
+`instrumental`), `"status"` (`ok`, `warn`, `error`, `attention`), `"tags"`
+(`chipBg`, `chipFg`, `indicatorBg`, `indicatorFg`), `"faceplate"` (`rest`,
+`hover`, `selected`, `glow`) and `"ring"` (`start`, `mid`, `late`, `end`), plus
+the single colours `mute`, `scrim`, `shadow` and `iconPlate`.
 
 One rule worth keeping when you pick band colours: no band may be so dark it
 disappears against the background, and neighbouring bands must differ in hue or

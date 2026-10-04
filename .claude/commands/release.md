@@ -20,30 +20,41 @@ sed -n '/^## Unreleased/,/^## v/p' CHANGELOG.md
 - **Controller behaviour changed without the guide following?**
   ```bash
   LAST=$(git describe --tags --abbrev=0)
-  git diff --name-only $LAST..HEAD -- src/Sholto.Interface.Controller/Gestures/ src/Sholto.Interface.MainUI/Orchestrator.cs src/Sholto.Interface.Controller/Mappings/
-  git diff --name-only $LAST..HEAD -- src/Sholto.Interface.Faceplate/Devices/
+  git diff --name-only $LAST..HEAD -- src/Sholto.Interface.Controller/Gestures/ src/Sholto.Interface.Controller.Mappings/ src/Sholto.App/
+  git diff --name-only $LAST..HEAD -- src/Sholto.Interface.Faceplate.Devices/
   ```
   First list non-empty and second empty means a gesture probably changed and the in-app
-  guide did not follow. Check the gesture's arm in `Orchestrator.HandleGesture` against its
-  sentence in `ddj-flx4.guide.json` before continuing — the switch is the only authority on
-  what a gesture does, and comments about it have been stale before.
+  guide did not follow. Gestures are recognised in `GestureRecognizer` and turned into
+  commands in `GestureCommandTranslator` (both in `src/Sholto.Interface.Controller/Gestures/`);
+  the device mappings live in `src/Sholto.Interface.Controller.Mappings/`. Check the
+  gesture's arm in the translator, and the command handlers in `src/Sholto.App` it
+  dispatches to, against its sentence in `ddj-flx4.guide.json` (under
+  `src/Sholto.Interface.Faceplate.Devices/DdjFlx4/`) before continuing — the translator
+  plus those handlers are the only authority on what a gesture does, and comments about
+  it have been stale before.
 - **Does the changelog still tell the truth?** Read every line under `## Unreleased`.
   Each one claims something about the shipped app. Spot-check the doubtful ones against
   the code. A changelog line that was true when written and false now is worse than no
   line — it is the release notes users read.
 - **Does it build and test?**
   ```bash
-  pkill -9 -f "bin/Debug/net10.0/Sholto"
-  dotnet build src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj -nologo
-  dotnet test Sholto.slnx -nologo 2>&1 | grep -E "Passed!|Failed!"
+  pkill -9 -f "[S]holto\.dll"    # bracket keeps the pattern from matching its own shell
+  dotnet build Sholto.slnx -nologo
+  # test projects are detached from the slnx, so run every one
+  for p in tests/*/*.csproj; do dotnet test "$p" -nologo -nodeReuse:false; done
   ```
-  `DeckFaderInitTests.NewDeck_StartsFaderDown_SoNothingPlaysUntilPickedUp` fails on main
-  and is known — any other failure stops the release.
+  Known failures that do not block a release:
+  `GestureRecognizerTests.Every_declared_id_is_reachable_from_some_event` (`pad.padfx1.roll`),
+  `FaceplateDocTests.Every_control_in_the_data_file_has_a_shape_in_the_layout` and
+  `FaceplateDocTests.Every_gesture_the_recognizer_can_emit_has_a_description`.
+  Any other failure stops the release.
 
 ## 3. Decide the version yourself
 
-Pre-1.0 semver, from the last tag:
-- Anything under `### New` → bump the **minor** (`v0.2.0` → `v0.3.0`).
+Semver from `v1.0.0` on, from the last tag (`v1.0.0` was the first major: the
+Interface / Data / App rebuild):
+- A breaking change or major rewrite → bump the **major** (`v1.4.2` → `v2.0.0`).
+- Anything under `### New` → bump the **minor** (`v1.0.0` → `v1.1.0`).
 - Only `### Fixed` / `### Improved` / `### Housekeeping` → bump the **patch**.
 
 State the version and the one-line reason.

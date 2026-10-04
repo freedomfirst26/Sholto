@@ -7,6 +7,16 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+## v1.0.0
+
+Sholto 1.0 is a rebuild from the inside. The app, the controller and the screen
+now talk through one channel instead of three, so at the decks it should feel the
+same as before — just steadier. The controller's lights always match what's
+actually happening, and a replugged FLX4 comes back the way you left it. It also
+means other controllers can be added as nothing more than a new mapping. One
+change you'll notice outside the decks: the program is now called `Sholto` — launch
+it as `Sholto`, and the installer takes care of the rest.
+
 ### New
 
 - **The status light tells you when something's missing.** The little dot in the
@@ -20,7 +30,41 @@ changed at the decks, not which class moved.
   load it onto a deck, a short message at the bottom of the screen names the
   track and the deck; the deck stays usable.
 
+### Improved
+
+- **Replugging the FLX4 puts every light back.** Play, cue, master cue, stems,
+  echo and pad mode all light up as you left them the moment the controller
+  reconnects, without you pressing anything.
+
+- **Stem and echo pad lights follow the screen.** Change a stem or the echo with
+  the mouse and the pad lights on the controller follow, instead of waiting for
+  your next press.
+
+- **Themes can colour everything.** Every colour in the app can now come from a
+  theme file, down to the stem colours, status dot, tags, controller picture and
+  the waveform's vocal lane. Existing themes keep working unchanged — anything a
+  theme leaves out falls back to the standard look. `docs/themes.md` lists the
+  new optional keys.
+
 ### Fixed
+
+- **CUE no longer flips its light in the guide.** Pressing CUE while the
+  controller guide is open no longer flips the CUE light.
+
+- **Pad mode snaps back after the guide.** If you press a pad-mode button while
+  the guide is open, the pad lights go back to the mode you were in when you close it.
+
+- **Search and crate pickers close when you choose.** The search overlay and the
+  crate picker now close as soon as you pick a tag or a crate, instead of staying
+  open over the library.
+
+- **The audio device picker follows your theme,** instead of staying in the
+  default colours.
+
+- **No more purple flash at startup.** The window used to show a purple frame
+  before the theme loaded; it now opens in your theme's colours.
+
+- **Key-chip glow on Classic is a touch off-white.**
 
 - **A broken beat tracker no longer earns a "Done" banner.** The installer
   used to warn and carry on if any Python tool failed to install — right for stem
