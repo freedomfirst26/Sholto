@@ -41,7 +41,8 @@ public sealed class LiveEntities(
     IEventSubscriber subscriber,
     IEventPublisher publisher,
     IFrameClock clock,
-    IAppThread appThread) : ISholtoEntities
+    IAppThread appThread,
+    IAppIconFactory iconFactory) : ISholtoEntities
 {
     private readonly ICommandSender _sender = sender;
     private readonly IQueryAsker _asker = asker;
@@ -49,6 +50,7 @@ public sealed class LiveEntities(
     private readonly IEventPublisher _publisher = publisher;
     private readonly IFrameClock _clock = clock;
     private readonly IAppThread _appThread = appThread;
+    private readonly IAppIconFactory _iconFactory = iconFactory;
     private ViewModelStack? _leaves;
     private IMidiConnection? _midi;
     private IThemeCatalog? _themeCatalog;
@@ -124,7 +126,7 @@ public sealed class LiveEntities(
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), _sender, _subscriber).Create(device);
         var catalog = _themeCatalog ?? throw new InvalidOperationException(
             $"{nameof(UseThemeCatalog)} must be called before the window is created.");
-        return new MainWindow(overlay, catalog) { DataContext = Application };
+        return new MainWindow(overlay, catalog, _iconFactory) { DataContext = Application };
     }
 
     public IControlSurface CreateControlSurface() =>

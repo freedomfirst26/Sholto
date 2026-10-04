@@ -56,6 +56,8 @@ public partial class App : Application
     private readonly IFrameClock _frameClock;
     private readonly IAppThread _appThread;
     private readonly ICommandSender _sender;
+    private readonly ITrayFactory _trayFactory;
+    private IDisposable? _tray;
 
     // Second composition root, kept for the Avalonia designer and for
     // AppBuilder.Configure<App>() (Bench's BenchHeadlessApp), which both need a
@@ -79,6 +81,7 @@ public partial class App : Application
         _frameClock = appStack.FrameClock;
         _appThread = appStack.AppThread;
         _sender = appStack.Sender;
+        _trayFactory = appStack.TrayFactory;
     }
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
@@ -119,6 +122,11 @@ public partial class App : Application
 
             // Let the window paint its first frame, THEN initialize services.
             // Posting at Background priority ensures Render runs before InitializeServices.
+            // Tray icon: same image as the window icon. Classic, like the window icon
+            // (neither follows later theme changes today).
+            _tray = _trayFactory.Create(desktop.MainWindow, _themeCatalog.ByName("Classic"));
+            desktop.Exit += (_, _) => _tray?.Dispose();
+
             desktop.MainWindow.Opened += (_, _) =>
                 Dispatcher.UIThread.Post(() => InitializeServices(vm, core, desktop),
                     DispatcherPriority.Background);

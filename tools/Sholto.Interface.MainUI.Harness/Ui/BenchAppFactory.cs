@@ -61,7 +61,7 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
 
         var device = new DdjFlx4Faceplate();
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), sender, subscriber).Create(device);
-        var window = new MainWindow(overlay, themeCatalog) { DataContext = vm };
+        var window = new MainWindow(overlay, themeCatalog, new AppIconFactory()) { DataContext = vm };
         return new BenchApp(vm, window, headless.Deck1, headless.Deck2, headless.Core);
     }
 }
