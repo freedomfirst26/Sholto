@@ -14,9 +14,9 @@
   "waveformPalette": "Bands",
   "camelotPalette": {
     "hueOffset":        0,
-    "saturation":       0.0,
-    "majorLightness":   0.62,
-    "minorLightness":   0.42,
+    "saturation":       0.60,
+    "majorLightness":   0.29,
+    "minorLightness":   0.23,
     "onChipForeground": "#050505"
   },
   "waveform": {
