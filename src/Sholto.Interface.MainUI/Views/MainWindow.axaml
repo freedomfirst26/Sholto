@@ -313,7 +313,7 @@
                                     </Style>
                                 </Border.Styles>
                                 <TextBlock Text="{Binding Key}"
-                                           Foreground="{DynamicResource SholtoChipForeground}"
+                                           Foreground="{DynamicResource SholtoKeyChipForeground}"
                                            FontWeight="Bold" FontSize="12"/>
                             </Border>
                             <TextBlock Grid.Column="6" Text="{Binding DurationDisplay}"

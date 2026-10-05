@@ -34,7 +34,8 @@ namespace Sholto.Interface.MainUI.Theming;
 ///     "saturation":      0..1,
 ///     "majorLightness":  0..1,
 ///     "minorLightness":  0..1,
-///     "onChipForeground":"#RRGGBB"
+///     "onChipForeground":"#RRGGBB",  // parsed but no longer drawn anywhere; kept so existing themes still load
+///     "keyChipText":     "#RRGGBB"   // OPTIONAL — text on the Camelot key chips (default: defaults.json, white)
 ///   },
 ///   "minimap": {                     // OPTIONAL — see below
 ///     "backdrop":  "#RRGGBB",
@@ -103,7 +104,8 @@ public sealed class SholtoThemeJson(IWaveformPaletteFactory waveformPalettes, IM
             Saturation:       cam.GetProperty("saturation").GetDouble(),
             MajorLightness:   cam.GetProperty("majorLightness").GetDouble(),
             MinorLightness:   cam.GetProperty("minorLightness").GetDouble(),
-            OnChipForeground: Brush(cam, "onChipForeground"));
+            OnChipForeground: Brush(cam, "onChipForeground"),
+            KeyChipForeground: new SolidColorBrush(Lookup(root, "camelotPalette", "keyChipText")));
 
         var bgDeepColor     = ParseColor(root.GetProperty("bgDeep").GetString()!);
         var primaryColor    = ParseColor(root.GetProperty("primary").GetString()!);
@@ -139,7 +141,8 @@ public sealed class SholtoThemeJson(IWaveformPaletteFactory waveformPalettes, IM
             Stems:           new StemPalette(
                 Drums:        Lookup(root, "stems", "drums"),
                 Vocals:       Lookup(root, "stems", "vocals"),
-                Instrumental: Lookup(root, "stems", "instrumental")),
+                Instrumental: Lookup(root, "stems", "instrumental"),
+                ChipText:     Lookup(root, "stems", "chipText")),
             Status:          new StatusPalette(
                 Ok:        Lookup(root, "status", "ok"),
                 Warn:      Lookup(root, "status", "warn"),

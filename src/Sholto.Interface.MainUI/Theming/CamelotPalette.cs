@@ -20,7 +20,8 @@ public sealed record CamelotPalette(
     double Saturation,        // 0..1; how vivid the chips are (lower = more muted)
     double MajorLightness,    // 0..1; B ring (major). 0.55 = standard chip brightness
     double MinorLightness,    // 0..1; A ring (minor). Usually lower than Major so relative pairs read as "same hue, different mood"
-    IBrush OnChipForeground   // text color drawn on the chip
+    IBrush OnChipForeground,  // parsed from the theme but not published to any view (key chips use KeyChipForeground)
+    IBrush KeyChipForeground  // text drawn on the Camelot key chips (deck, library, search); white by default
 )
 {
     /// <summary>

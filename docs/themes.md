@@ -85,7 +85,7 @@ What those mean, in plain words:
 | `textBright`, `textMuted` | Titles, and everything secondary |
 | `playedFadeColor` | The fade over the part of the waveform already played |
 | `waveformPalette` | A preset name that seeds the downbeat colour — `"Bands"` is the standard three-band look |
-| `camelotPalette` | Rotates and tones the key-chip colour wheel; `onChipForeground` is the text on those chips |
+| `camelotPalette` | Rotates and tones the key-chip colour wheel; `keyChipText` (optional, default white `#FFFFFF`) is the text on the key chips. `onChipForeground` is still read (themes set it) but nothing draws with it any more |
 
 **Optional sections.** Leave any of them out entirely, or leave out any single
 key inside one, and Sholto works the colour out from your accent, primary and
@@ -103,7 +103,7 @@ good theme file, and every older theme keeps working unchanged.
 `gridEdit` (the tint once a grid has been nudged) and `edge` (the outline).
 
 The rest of the app has its own optional sections: `"stems"` (`drums`, `vocals`,
-`instrumental`), `"status"` (`ok`, `warn`, `error`, `attention`), `"tags"`
+`instrumental`, and `chipText` — the label colour on a lit stem chip, default black `#000000`; unrelated to `camelotPalette.keyChipText`, which colours the Camelot key chips), `"status"` (`ok`, `warn`, `error`, `attention`), `"tags"`
 (`chipBg`, `chipFg`, `indicatorBg`, `indicatorFg`), `"faceplate"` (`rest`,
 `hover`, `selected`, `glow`) and `"ring"` (`start`, `mid`, `late`, `end`), plus
 the single colours `mute`, `scrim`, `shadow` and `iconPlate`.

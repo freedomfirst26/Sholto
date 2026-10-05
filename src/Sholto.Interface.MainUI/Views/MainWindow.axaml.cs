@@ -87,9 +87,10 @@ public partial class MainWindow : Window, IKeyboard
         Resources["SholtoMint"]          = theme.Mint;
         Resources["SholtoTextBright"]    = theme.TextBright;
         Resources["SholtoTextMuted"]     = theme.TextMuted;
-        // Foreground drawn on top of Camelot key chips. Themes pick this once so
-        // dark/light text stays legible against their tuned chip palette.
-        Resources["SholtoChipForeground"] = theme.CamelotPalette.OnChipForeground;
+        // Label colour on a lit stem chip (DRMS / VOX / INST); independent of the Camelot palette.
+        Resources["SholtoStemChipForeground"] = new SolidColorBrush(theme.Stems.ChipText);
+        // Foreground drawn on the Camelot key chips (white unless the theme sets keyChipText).
+        Resources["SholtoKeyChipForeground"] = theme.CamelotPalette.KeyChipForeground;
         Resources["SholtoMinimapPalette"] = theme.Minimap;
         Resources["SholtoWaveformPalette"] = theme.Waveform;
         Resources["SholtoTextBrightColor"] = ((SolidColorBrush)theme.TextBright).Color;
