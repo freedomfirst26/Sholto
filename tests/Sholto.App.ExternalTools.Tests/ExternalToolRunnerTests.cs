@@ -64,6 +64,29 @@ public class ExternalToolRunnerTests
     }
 
     [Fact]
+    public async Task A_cancelled_run_is_not_reported_Failed()
+    {
+        if (!_shAvailable) return;
+
+        var reporter = new AnalysisReporter(Array.Empty<string>());
+        const string path = "/music/track.mp3";
+        var tool = new ShTool { Script = "sleep 30" };
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _runner.RunAsync(tool, _shPath, new ToolInput(path, "/tmp"), reporter, cts.Token));
+
+        var report = reporter.ReportFor(path);
+        Assert.False(report.HasFailure);
+        Assert.False(report.IsBusy);
+        if (report.Steps.TryGetValue(tool.Name, out var step))
+        {
+            Assert.NotEqual(AnalysisState.Failed, step.State);
+            Assert.NotEqual(AnalysisState.Running, step.State);
+        }
+    }
+
+    [Fact]
     public async Task A_diagnostic_line_containing_percent_still_reaches_the_tail()
     {
         if (!_shAvailable) return;
@@ -142,6 +165,30 @@ public class ExternalToolRunnerTests
             progress = 0;
             return false;
         }
+    }
+
+    [Fact]
+    public async Task Cancelling_the_token_kills_the_process()
+    {
+        if (!_shAvailable) return;
+
+        var pidFile = Path.Combine(Path.GetTempPath(), $"sholto-kill-{Guid.NewGuid():N}.pid");
+        // exec makes the shell's pid the pid of the long-running process itself.
+        var tool = new ShTool { Script = $"echo $$ > '{pidFile}'; exec sleep 60" };
+        using var cts = new CancellationTokenSource();
+
+        var run = _runner.RunAsync(tool, _shPath, new ToolInput("/music/track.mp3", "/tmp"),
+            new AnalysisReporter(Array.Empty<string>()), cts.Token);
+        Assert.True(SpinWait.SpinUntil(() => File.Exists(pidFile) && new FileInfo(pidFile).Length > 0, 5000));
+        var pid = int.Parse(File.ReadAllText(pidFile).Trim());
+        Assert.True(Directory.Exists($"/proc/{pid}"));
+
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        var gone = SpinWait.SpinUntil(() => !Directory.Exists($"/proc/{pid}"), 5000);
+        File.Delete(pidFile);
+        Assert.True(gone, "the process was still running after its token was cancelled");
     }
 
     [Fact]

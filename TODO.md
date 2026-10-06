@@ -117,56 +117,13 @@
       shortcuts stop being duplicated between the key handler and the README.
       Backlog — not part of the current Faceplate work.
 
-- [ ] **A shared modal shell for every overlay.** Sholto has five overlays — search, the tag
-      editor, the track actions menu, the crate picker and now the Faceplate — and each one
-      re-implements its own backdrop, its own click-outside-to-close, its own Esc handling
-      and its own frame. They do not agree: some have a visible close button, some only
-      answer to Esc, and the backdrop scrim differs between them.
-      Build one `ModalShell` control that owns the backdrop, the frame, a visible X in the
-      top right, Esc, click-outside, focus trapping and the open/close transition. Then move
-      the five overlays onto it.
+- [ ] **Move the remaining overlays onto `ModalShell`.** `ModalShell` exists and the crate
+      picker, system report, layout wizard and settings already use it. Not yet on it: the
+      track actions menu, the audio output picker and the tag editor. Each still has its own
+      backdrop, click-outside-to-close, Esc handling and frame, so they disagree on whether
+      there is a visible close button and on the scrim.
       Why it is worth doing: a user should not have to learn a different way out of each
-      overlay, and a visible X should not be something each overlay remembers to add — the
-      Faceplate only got one because the user asked. It also deletes five copies of the same
-      backdrop and key-handling code.
-      Backlog — not part of the Faceplate work.
-
-- [ ] **Dissolve `Orchestrator.HandleGesture`'s switch into the gesture binding table.**
-      `Orchestrator.cs` is ~703 lines doing three jobs: a 34-arm switch turning gestures into
-      app actions (~195 lines), the scratch engine (~276 lines), and the 60 Hz frame pump.
-      The mechanism to fix this already exists — `GestureBindings` takes a
-      `Dictionary<string, Action<Gesture>>`. Today `App.axaml.cs:287` builds it as a
-      placeholder: all 34 ids point at the single `HandleGesture` method.
-      Replace that with one named lambda per gesture, assembled from five small classes
-      grouped by what they actually touch: `TransportBindings` (play, both CUEs, sync),
-      `MixerBindings` (EQ, stem levels, filter, volume, tempo, crossfader), `PadBindings`
-      (stem pads, echo, pad modes), `LoopBindings` (beat loop, grid nudge) and
-      `BrowseBindings` (turn, tap, hold, load). The switch then disappears.
-      **Three things this unlocks, which are the real reason to do it:**
-      1. Coverage becomes a test — `Assert.Empty(GestureIds.All.Except(table.BoundIds))`.
-         Today that is unknowable; a reviewer already found the switch's `default:` arm is
-         unreachable and nobody can currently assert it.
-      2. Each group becomes testable alone with a fake deck. Those 34 cases have no direct
-         tests today.
-      3. The Orchestrator stops being a god object, leaving the scratch engine as an obvious
-         second extraction — 276 self-contained lines that are the riskiest and least tested
-         code in the app, and the only place where a regression is felt rather than caught.
-      Do it on its own branch, after the Faceplate work is committed. It touches the audio
-      path that two Faceplate tasks went out of their way not to disturb, so it must not
-      share a diff with a UI feature.
-
-- [ ] **Beat-based roll on PAD FX1 pad 2.** Sholto already has a beat-based echo on PAD FX1
-      pad 1 (`GestureIds.PadEcho` = `pad.padfx1.echo`, mapped at
-      `DdjFlx4Mapping.cs:107` from `PadFx1NoteBase`). Add a roll in the second pad slot
-      (`PadFx1NoteBase + 1`), sized in beats the same way the echo is.
-      A roll repeats a short slice of the track in time with the beatgrid while the pad is
-      held, then returns the playhead to where it would have been on release. So it needs
-      the beat length from the analysis, a capture buffer, and a "catch up on release"
-      behaviour that the echo does not need.
-      Work to do: a new `ControllerEvent` and gesture id, a mapping arm next to the echo
-      one, a binding in the Orchestrator, a pad LED while held, and a guide entry in
-      `src/Sholto.Faceplate/Devices/DdjFlx4/ddj-flx4.guide.json`.
-      Backlog.
+      overlay, and it deletes the remaining copies of the same backdrop and key-handling code.
 
 - [ ] **Eyes, hands and ears — make Sholto drivable by an agent.** Today an assistant can
       build the app, launch it detached, screenshot the window by geometry
@@ -199,188 +156,15 @@
       Worth building before the next audio-path change, not after: it is the difference
       between a fix that is confirmed and a fix that is hoped for.
 
-- [ ] **Make the external-tool layer `IOptions`-aware, ready for Windows.** The new
-      `src/Sholto.Analysis/ExternalTools/` layer got the *shape* right — one resolver, one
-      runner, a descriptor per tool — but it still hardcodes POSIX facts. Scope this task to
-      the third-party tooling only; the PipeWire/pactl routing in `Sholto.Audio` and the
-      `libpulse.so` work in the installers are a separate, larger job.
-
-      What is currently fixed in code and needs to come from options:
-      - `ExternalToolBinary.cs:25-26` — the search path is literally `~/.local/bin`,
-        `/usr/local/bin`, `/usr/bin`, then `PATH`. On Windows none of those exist; the
-        equivalents are `%LOCALAPPDATA%\uv\tools\...`, `%ProgramFiles%` and `PATH`.
-      - Binary names carry no extension: `DemucsTool.cs:14` `"demucs"`,
-        `MadmomTool.cs:10` `"DBNDownBeatTracker"`,
-        `FfmpegDecodeStrategy.cs:30` `"ffmpeg"`. Windows needs `.exe`.
-      - `DemucsTool` hardcodes the `htdemucs` output-directory name. That is a *model*
-        name, not a platform fact, and it changes if the default model ever changes —
-        worth lifting for the same reason.
-
-      Shape it like the existing options types (`FeatureOptions`, `ScratchOptions`,
-      `MagnetismOptions`): an `ExternalToolOptions` POCO with defaults in code, supplied
-      through the standard `IOptions<T>` pipeline and wired in `App.axaml.cs` next to the
-      others. Defaults must be chosen per-platform at construction
-      (`OperatingSystem.IsWindows()`), not by editing the file. Note the precedent at
-      `App.axaml.cs:272` — `Sholto.Controller` deliberately does not take a
-      `Microsoft.Extensions.Options` dependency and gets a plain POCO handed to it;
-      `Sholto.Analysis` should follow that, so the analysis project stays free of the
-      options package.
-
-      **The constraint that makes this more than a refactor:** `sholto-deps.sh` mirrors the
-      resolver's search order and the `htdemucs/<stem>.wav` layout in bash, and nothing
-      keeps the two in step. Lifting these into options makes that drift *easier*, not
-      harder — so this task should land together with, or after, the `--self-check` idea in
-      the external-tools plan (end of `~/.claude/plans/sholto.md`), where the app itself becomes
-      the single definition of "working" and the shell script just calls it.
-
-      Benefit beyond Windows: a user whose tools live somewhere unusual (conda, pipx, a
-      Nix profile) could point Sholto at them without a rebuild.
-
-- [ ] **Audit the static classes and convert the ones holding state to constructor injection.**
-      There are 35 `public static class` types across `src/`. Most are fine and must be left
-      alone — the point of this task is to apply a test, not to convert everything.
-
-      **The test:** does the type touch the outside world, or hold state that outlives a
-      call? If it reads the environment, the filesystem, a process, a device, a clock or a
-      database — inject it. If it is pure functions over its arguments, or a bag of
-      constants, leave it static.
-
-      **Leave static (pure / constants):** `CamelotKeys`, `Beatgrid`, `KeyAnalyzer`,
-      `SongSegmentAnalyzer`, `VocalRegionAnalyzer`, `SettingsKeys`, `GestureIds`,
-      `ExternalToolNames`, `TagNameNormalizer`, `AnalysisCodec`, `KeyAnalysisCodec`,
-      `LibrarySearch`, `GestureToControl`, `MappingRegistry`.
-
-      **Convert (touches the world):** `ExternalToolBinary`, `ExternalToolRunner`,
-      `MadmomBeatAnalyzer`, `DemucsStemAnalyzer` — covered by the
-      composition-root work, do those first and let them set the pattern. Then:
-      `AudioFileDecoder` (owns the decode-strategy registry), `AudioDevices`,
-      `PipeWireRouter` (shells out to `pactl`/`pw-link`), `DatabaseBridge`, `SholtoStorage`,
-      `ThemeContext`, `ProcessStats`, `FaceplateDocLoader`, `TrackScanner`.
-
-      **Why it is worth doing, concretely — not style:**
-      - `MadmomBeatAnalyzer.BinaryPath` is a static property initialised at *type
-        load*. Install a tool while Sholto is running and it is never seen until
-        restart.
-      - Static state cannot be varied per platform, which is what the Windows options work
-        needs.
-      - It cannot be substituted in a test or in the planned agent harness. The only current
-        seam is `ExternalToolBinary`'s `internal` overload plus `InternalsVisibleTo` — a
-        workaround for exactly this.
-      - Static analysers are why `Deck` reaches directly into `Sholto.Analysis` at
-        `Deck.cs:544,549,562` instead of being handed what it needs.
-
-      **Do NOT add a DI container.** The codebase composes by hand in `App.axaml.cs` and that
-      is the house style; a container is a separate decision to be argued on its own merits.
-
-      Convert incrementally, one type per change, each verified by the suite staying green —
-      not as one sweeping refactor.
-
-- [ ] **Finish decomposing `Deck` (stages 3–5).** Parked 2026-09-12 after two stages, at a
-      deliberate stopping point: the next cluster is scratch, the riskiest code in the app,
-      and it should not start on top of two unverified-by-ear stages.
-
-      **Done so far** — `Deck.cs` 1453 → 994 lines, public surface unchanged, all suites green:
-      - stage 1: `LoopControl`/`ILoopControl`, `BeatgridControl`/`IBeatgridControl`
-      - stage 2: `MixerOutputControl`/`IMixerOutputControl`, `PitchTempoControl`/`IPitchTempoControl`
-
-      **The pattern** (follow it, do not invent a second one): component holds the logic,
-      `Deck` keeps its public surface and delegates one line per member, relaying component
-      events to its own. No component gets a back-reference to `Deck` — pass narrow accessor
-      delegates (`Func<TrackAnalysis>`, `Func<IVarispeedProvider?>`) for state `Deck` replaces
-      on load.
-
-      **Remaining clusters:**
-      - **transport** — `Play`, `Pause`, `TogglePlay`, `SeekRelative`, `SeekToFraction`
-      - **loading** — `BeginLoad`, `LoadStreaming`, `Load`, `Unload`, `AttachEngine`,
-        `SwitchToStemMode`, `TearDownPlayers` (also owns the SoundFlow graph wiring)
-      - **scratch** — `CanScratch`, `ScratchRate`, `EndScratch`, `VarispeedProvider`.
-        RISKIEST: most timing-sensitive code in the app, and the backspin complaint has never
-        been reproduced or ruled out. Do this one alone, with a human listening.
-      - **stems** — `SetStemGroup`, `SetStemGroupLevel`
-      - **analysis orchestration** — `AnalysisProvider`, `Analysis`, `Reporter`,
-        `KeyCacheGet/Put`. NOT a mechanical move: `Deck` orchestrating analysis is a layering
-        fault, and there is no owner to hoist it to — `TrackAnalysis` is a passive typed-event
-        container and `AnalysisProvider` is a cache-aside lookup for `BasicAnalysis` only.
-        Inventing that owner is a design task, on its own branch.
-
-      **Before resuming, two things that would make it materially safer:**
-      1. **Commit first.** Stage 2's before/after audio proof had to hand-reconstruct the
-         pre-edit file because ~100 files were uncommitted and `HEAD` was three stages stale.
-         With a checkpoint commit, every stage's proof becomes `git show HEAD:...` and is
-         rigorous instead of probable.
-      2. **Listen to it.** Neither stage's harness exercised the real four-stem demucs mix
-         (stage 1 pointed all stems at the source file; stage 2 made stems unavailable), and
-         both pulled `Process` synchronously rather than from the real-time audio thread. So
-         nothing has tested ordering, contention, or the background stem-swap race. Worth ten
-         minutes: volume/crossfader for zipper noise, EQ and filter sweeps for clicks, echo
-         tail across a tempo change, cue bus isolation, a loop seam at speed, a backspin.
-
-- [ ] **Make `Orchestrator` the glue between three entities: control surface, keyboard, app.**
-      Deferred 2026-09-12 — the design is agreed and sound, but it should start from a
-      committed, listened-to baseline rather than on top of ~100 uncommitted files. See the
-      note at the end of this entry.
-
-      **The fault it fixes.** `App.axaml.cs` is the glue today, not `Orchestrator`: lines
-      ~375–477 construct the controller, subscribe `.Action`, dispatch into the gesture bus,
-      and relay the Orchestrator's own LED events back to it. Meanwhile the keyboard never
-      touches any of that — `MainWindow.OnGlobalKeyDown` calls the ViewModel directly. So a
-      keyboard Play and an FLX4 Play reach the same outcome by two entirely separate paths.
-      That is two implementations of one intent, free to drift, and it is why Bench driving
-      the UI proved nothing about jog behaviour.
-
-      **Target shape:**
-      ```csharp
-      Orchestrator(IControlSurface surface,   // FLX4 or Bench — exists already
-                   IKeyboard      keyboard,   // new port
-                   IApplication   app,        // composition of the four existing roles
-                   … its own deps: dbFactory, options, recognizer, decoder)
-
-      public interface IApplication : IDecks, ITransport, IMixer, IBrowser { }
-      ```
-      `IApplication` is interface COMPOSITION and must never gain members of its own —
-      the moment it does, it is `IDeckHost` again.
-
-      Signals: `IControlSurface` ⇄ Orchestrator (events up, LEDs back), `IKeyboard` →
-      Orchestrator → `IApplication`. The LED relay moves out of `App.axaml.cs` into the
-      Orchestrator, which already raises those events.
-
-      **Then the factory.** Verified against the Avalonia docs: `AppBuilder` has a
-      `Configure<TApp>(Func<TApp> appFactory)` overload, so `App` CAN take constructor
-      dependencies — `Program.BuildAvaloniaApp()` supplies them. An abstract factory fits,
-      because the three entities must be consistent with each other:
-      ```csharp
-      public interface ISholtoEntities
-      {
-          IControlSurface CreateControlSurface();
-          IKeyboard       CreateKeyboard();
-          IApplication    CreateApplication();
-      }
-      ```
-      `LiveEntities` → real FLX4, real keyboard, real `MainViewModel`.
-      `BenchEntities` → `ScriptedControlSurface`, scripted keyboard, same real ViewModel.
-
-      **Scope boundary — do not breach it.** The factory assembles the THREE ENTITIES only.
-      `InitializeServices` still builds the ~20 leaf collaborators (tool options, finder,
-      `ToolSet`, the three analysers, decoder, storage, theme, loop debug, scanner, MIDI
-      manager, mappings). Migrating those into the factory recreates the god object this
-      whole review dismantled. Three layers: composition root builds leaves → factory
-      assembles entities → Orchestrator binds them.
-
-      **The payoff.** `BenchAppComposer` currently RE-IMPLEMENTS App's wiring by hand, so it
-      can drift and then Bench tests a configuration that does not ship. With the factory it
-      substitutes into the real path instead of duplicating it.
-
-      **The judgement call in it.** Not every keypress is an app gesture. `OnGlobalKeyDown`
-      also handles Escape-closes-the-tag-editor, Enter-commits, Tab, Up/Down through
-      suggestions, Escape-closes-the-faceplate. Those are view-local and MUST stay in the
-      view; `IKeyboard` carries only genuine app shortcuts. That split is the part needing
-      care — everything else is mechanical.
-
-      **Do first:** commit the current tree, and play a track for ten minutes (see the
-      listening checklist in the `Deck` decomposition entry above). This change touches
-      `App.axaml.cs` (666 lines) and `MainWindow.axaml.cs`, the two highest-churn files
-      left; starting it from an unverified baseline means bisecting two large structural
-      changes with no commits to bisect against.
+- [ ] **Scratch stage of the `Deck` decomposition.** The other clusters are out of `Deck.cs`
+      (loop, beatgrid, mixer output, pitch/tempo, transport, loading, stems). What remains is
+      the audio-side scratch cluster in `Deck.cs` — `CanScratch`, `ScratchRate`, `EndScratch`,
+      `VarispeedProvider`. It is the riskiest, most timing-sensitive code in the app and the
+      backspin complaint has never been reproduced or ruled out, so it is held until a human
+      can listen: volume/crossfader for zipper noise, EQ and filter sweeps for clicks, echo
+      tail across a tempo change, cue bus isolation, a loop seam at speed, a backspin.
+      Follow the existing pattern (component holds the logic, `Deck` delegates one line per
+      member, no back-reference to `Deck`). Do it alone, on its own branch.
 
 - [ ] **Audit class cohesion and propose a folder structure (run LAST, after the refactor).**
       Deliberately sequenced at the end: folder structure should follow the boundaries the

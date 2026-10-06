@@ -72,6 +72,36 @@ internal sealed class CrateService(IDbContextFactory<SholtoDbContext> factory) :
         await db.SaveChangesAsync();
     }
 
+    /// <summary>Every crate containing the track (except "All Tracks") and the union of
+    /// their members, from one query.</summary>
+    public async Task<CrateMates> CrateMatesAsync(Guid trackId)
+    {
+        await using var db = _factory.CreateDbContext();
+        var rows = await db.CrateTracks
+            .Where(x => x.Crate.Name != CrateNames.AllTracks
+                        && db.CrateTracks.Any(m => m.CrateId == x.CrateId && m.TrackId == trackId))
+            .Select(x => new { x.Crate.Name, x.TrackId })
+            .ToListAsync();
+        var names = rows.Select(r => r.Name).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();
+        var ids = rows.Select(r => r.TrackId).Where(id => id != Guid.Empty).ToHashSet();
+        return new CrateMates(names, ids);
+    }
+
+    /// <summary>Member ids of every crate except "All Tracks", from one query. Empty
+    /// crates are included with an empty set.</summary>
+    public async Task<CrateMembership> MembershipAsync()
+    {
+        await using var db = _factory.CreateDbContext();
+        var rows = await db.Crates
+            .Select(c => new { c.Id, c.Name, TrackIds = c.CrateTracks.Select(t => t.TrackId).ToList() })
+            .ToListAsync();
+        int? allTracksId = rows.Where(r => r.Name == CrateNames.AllTracks).Select(r => (int?)r.Id).FirstOrDefault();
+        var byCrate = rows
+            .Where(r => r.Name != CrateNames.AllTracks)
+            .ToDictionary(r => r.Id, r => (IReadOnlySet<Guid>)r.TrackIds.Where(id => id != Guid.Empty).ToHashSet());
+        return new CrateMembership(byCrate, allTracksId);
+    }
+
     /// <summary>Track ids in a crate, in stored order.</summary>
     public async Task<IReadOnlyList<Guid>> TrackIdsAsync(int crateId)
     {

@@ -16,9 +16,10 @@ namespace Sholto.App.ExternalTools;
 /// <summary>Takes the expected output paths by value (computed once by the caller)
 /// rather than a back-reference to the analyser that owns them — Verify only ever
 /// needed the paths for this one call, not the whole collaborator.</summary>
-internal sealed class DemucsTool(StemPaths expectedPaths) : IToolDefinition<StemPaths>
+internal sealed class DemucsTool(StemPaths expectedPaths, StemDevice device) : IToolDefinition<StemPaths>
 {
     private readonly StemPaths _expectedPaths = expectedPaths;
+    private readonly StemDevice _device = device;
 
     public string Name => AnalysisSteps.Stems;
     public string BinaryName => ExternalToolNames.Demucs;
@@ -35,8 +36,14 @@ internal sealed class DemucsTool(StemPaths expectedPaths) : IToolDefinition<Stem
     // sholto-deps.sh's check_demucs mirrors this exact --out/--filename pair (and the
     // resulting <out>/htdemucs/<stem>.wav layout) when it verifies a demucs install —
     // the two must not drift.
+    // -d is always explicit: demucs picking its own device is what made the scheduling
+    // assumption (CPU-bound) and the reality (CUDA) drift apart.
     public IReadOnlyList<string> BuildArgs(ToolInput toolInput) =>
-        new[] { "--out", toolInput.WorkDir, "--filename", "{stem}.{ext}", toolInput.Input };
+        new[]
+        {
+            "-d", _device == StemDevice.Cuda ? "cuda" : "cpu",
+            "--out", toolInput.WorkDir, "--filename", "{stem}.{ext}", toolInput.Input,
+        };
 
     public bool TryParseProgress(string line, out double progress)
     {

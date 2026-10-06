@@ -14,18 +14,19 @@ public sealed class ThemeStackFactory : IThemeStackFactory
     public ThemeStack Build()
     {
         IWaveformPresets presets = new WaveformPresets(
-            new WaveformPresetsJson().Parse(ReadAsset("waveform-presets.json")));
+            new WaveformPresetCatalogueFactory().Create(ReadAsset("waveform-presets.json")));
         IThemeDefaults defaults = new ThemeDefaults(
-            new ThemeDefaultsJson().Parse(ReadAsset("defaults.json")));
+            new ThemeDefaultColoursFactory().Create(ReadAsset("defaults.json")));
         var catalog = new ThemeCatalogFactory(
-            new SholtoThemeJson(new WaveformPaletteFactory(presets, defaults), new MinimapPaletteFactory(), defaults)).Build();
+            new SholtoThemeJson(
+                new SholtoThemeFactory(new WaveformPaletteFactory(presets, defaults), new MinimapPaletteFactory(), defaults))).Build();
         var context = new ThemeContext(catalog);
         return new ThemeStack(catalog, context, defaults);
     }
 
     private string ReadAsset(string name)
     {
-        using var s = AssetLoader.Open(new Uri($"avares://Sholto/Themes/{name}"));
+        using var s = AssetLoader.Open(new Uri($"avares://Sholto.Interface.MainUI/Themes/{name}"));
         using var r = new StreamReader(s);
         return r.ReadToEnd();
     }

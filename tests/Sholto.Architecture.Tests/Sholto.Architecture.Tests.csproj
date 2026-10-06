@@ -20,8 +20,8 @@
 
   <!-- Every production assembly is referenced so its DLL is copied next to the test and can be loaded by
        name. The tests read each assembly's references (GetReferencedAssemblies); they never run code in them.
-       MainUI (the exe, assembly "Sholto") is deliberately not referenced: it is the composition root and
-       may reference everything. Sholto.Interface.Bench (the headless interface) is, so its references can be checked. -->
+       Sholto.Host (the exe, assembly "Sholto") is deliberately not referenced: it is the composition root and
+       may reference everything. Sholto.Interface.MainUI and Sholto.Interface.Bench are, so their references can be checked. -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
     <ProjectReference Include="..\..\src\Sholto.App\Sholto.App.csproj" />
@@ -37,6 +37,7 @@
     <ProjectReference Include="..\..\src\Sholto.Interface.Faceplate\Sholto.Interface.Faceplate.csproj" />
     <ProjectReference Include="..\..\src\Sholto.Interface.Faceplate.Devices\Sholto.Interface.Faceplate.Devices.csproj" />
     <ProjectReference Include="..\..\src\Sholto.Interface.Keyboard\Sholto.Interface.Keyboard.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Interface.MainUI\Sholto.Interface.MainUI.csproj" />
     <ProjectReference Include="..\..\tools\Sholto.Interface.Bench\Sholto.Interface.Bench.csproj" />
   </ItemGroup>
 

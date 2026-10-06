@@ -18,17 +18,23 @@ namespace Sholto.Interface.MainUI.Tests;
 /// thread-safety mode blocks concurrent callers until the first one finishes,
 /// so there is no window where a second thread can reach
 /// <c>Themes.Classic</c> before setup completes.
+///
+/// Root cause of past mass failures: Avalonia 11.3 creates <c>Dispatcher.UIThread</c> lazily, and the
+/// first thread to touch it owns it. If setup won that race, every other worker failed with "Call from
+/// invalid thread" then "No themes loaded". <see cref="AvaloniaDispatcherPin"/> reads it at module load;
+/// the first statement of setup reads it again as a guard.
 /// </summary>
 internal static class AvaloniaTestApp
 {
     private static readonly Lazy<bool> Init = new(() =>
     {
+        _ = Avalonia.Threading.Dispatcher.UIThread;
         AppBuilder.Configure<Application>()
             .UsePlatformDetect()
             .SetupWithoutStarting();
         // Avalonia's asset loader fills its assembly cache on first use without a lock, so concurrent first
         // opens from parallel test classes intermittently miss. Open one asset here, inside the lock.
-        Avalonia.Platform.AssetLoader.Open(new Uri("avares://Sholto/Themes/defaults.json")).Dispose();
+        Avalonia.Platform.AssetLoader.Open(new Uri("avares://Sholto.Interface.MainUI/Themes/defaults.json")).Dispose();
         return true;
     });
 

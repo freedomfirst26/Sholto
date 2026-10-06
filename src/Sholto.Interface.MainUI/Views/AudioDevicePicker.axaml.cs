@@ -1,19 +1,19 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Sholto.App.Audio;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Views;
 
 public partial class AudioDevicePicker : Window
 {
-    public AudioDevice? SelectedDevice { get; private set; }
+    public OutputDeviceChoice? SelectedDevice { get; private set; }
 
     public AudioDevicePicker()
     {
         InitializeComponent();
     }
 
-    public AudioDevicePicker(IReadOnlyList<AudioDevice> devices, string? currentName) : this()
+    public AudioDevicePicker(IReadOnlyList<OutputDeviceChoice> devices, string? currentName) : this()
     {
         var listBox = this.FindControl<ListBox>("DeviceList")!;
         listBox.ItemsSource = devices;
@@ -37,7 +37,7 @@ public partial class AudioDevicePicker : Window
     private void OnConfirm(object? sender, RoutedEventArgs e)
     {
         var listBox = this.FindControl<ListBox>("DeviceList")!;
-        SelectedDevice = listBox.SelectedItem as AudioDevice;
+        SelectedDevice = listBox.SelectedItem as OutputDeviceChoice;
         Close();
     }
 

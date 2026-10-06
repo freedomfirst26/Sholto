@@ -1,3 +1,5 @@
+using Sholto.Data;
+
 namespace Sholto.App.ExternalTools;
 
 using System.Linq;
@@ -17,9 +19,9 @@ public sealed class ExternalToolCatalog : IExternalToolCatalog
     /// <summary>(binary name, capability label, required) for every tool this layer resolves.</summary>
     public IReadOnlyList<(string Name, string Capability, bool Required)> Descriptors { get; } =
     [
-        (ExternalToolNames.Madmom, "beats", true),
-        (ExternalToolNames.Demucs, "stems", false),
-        (ExternalToolNames.Ffmpeg, "transcode", false),
+        (ExternalToolNames.Madmom, ToolCapabilities.Beats, true),
+        (ExternalToolNames.Demucs, ToolCapabilities.Stems, false),
+        (ExternalToolNames.Ffmpeg, ToolCapabilities.Transcode, false),
     ];
 
     /// <summary>Every tool name, derived from <see cref="Descriptors"/>.</summary>

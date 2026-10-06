@@ -1,3 +1,6 @@
+using Sholto.Interface.MainUI.Controls.CollapseToIcon;
+using Sholto.Interface.MainUI.Controls.Knob;
+using Sholto.Interface.MainUI.Controls.WaveformStyles;
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Analyzers.Segments;
@@ -12,6 +15,7 @@ using Sholto.App.Decks;
 using Sholto.Interface.MainUI.Models;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
+using Sholto.Interface.MainUI.ViewModels.Glance;
 using Sholto.App.Audio;
 using Sholto.App.Dsp;
 using Sholto.App.Library;
@@ -34,29 +38,49 @@ internal sealed class TestMainViewModelFactory
         var tagRecency = new TagRecency();
         var bus = new DataBus(new ThrowingFailureSink());
         var appThread = new ImmediateAppThread();
+        var clock = new SettableFrameClock();
         var sessions = new DeckSessionFactory(
-            new TestDeckFactory(), new SongSegmentAnalyzer(), new SettableFrameClock(), appThread, bus);
+            new TestDeckFactory(), new PhraseSectionAnalyzer(new BarFeatureExtractor(new PhraseSectionOptions()), new PhraseSectionLabeler(new PhraseSectionOptions()), new PhraseSectionOptions()), clock, appThread, bus);
         var deck1 = sessions.Create(0);
         var deck2 = sessions.Create(1);
         var core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
             new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), decoder,
-            new EqualPowerCrossfade(), appThread, bus).Build(deck1, deck2);
+            new EqualPowerCrossfade(), appThread, bus, clock).Build(deck1, deck2);
         var rows = new LibraryRowsViewModel(bus, new TrackRowFactory(themes.Context));
         var deckViewModels = new DeckViewModelFactory(
-            bus, bus, themes.Context, Options.Create(new FeatureOptions()), new WaveformPeaksFactory());
+            bus, bus, themes.Context, Options.Create(new FeatureOptions()), new NoPeaksFactory(),
+            new DiscBloomFactory(new ManualFrameClock()));
+        var deck1ViewModel = deckViewModels.Create(0);
+        var deck2ViewModel = deckViewModels.Create(1);
+        var clocks = new DeckViewModelClockSource(deck1ViewModel, deck2ViewModel);
+        var glance = new GlanceViewModel(
+            bus, bus, bus, appThread, clock, rows, tagRecency,
+            new GlanceHeaderViewModel(clocks, clock, bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false))),
+            new FixedMotionPreference(false));
+        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory().Create(), bus);
+        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
         var vm = new MainViewModel(
-            themes.Context,
-            themes.Catalog,
+            themeViewModel,
             new OverlayViewModelFactory(tagRecency, bus, bus, bus, appThread),
             rows,
             bus,
             bus,
             appThread,
-            new SearchViewModel(rows.Items, new LibrarySearch(), tagRecency, bus, bus, appThread),
+            glance,
+            new LoadFeedbackViewModel(bus, bus),
             new TrackActionsViewModel(),
-            deckViewModels.Create(0),
-            deckViewModels.Create(1));
+            deck1ViewModel,
+            deck2ViewModel,
+            waveformStyle,
+            new LayoutWizardViewModel(waveformStyle, new WaveformStyleOptionFactory(), new WaveformPreviewRenderer(),
+                new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
+                themeViewModel, new ThemeOptionFactory()),
+            new SettingsViewModel(bus, bus, new KnobScaleFactory()),
+            new SystemReportViewModel(),
+            new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
+                new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
+                new AlwaysHintPolicy()));
         return new TestApp(vm, core, bus);
     }
 }

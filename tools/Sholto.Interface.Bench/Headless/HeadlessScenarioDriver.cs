@@ -1,5 +1,6 @@
 using Sholto.App;
 using Sholto.App.Audio;
+using Sholto.Data;
 using Sholto.Interface.Bench.Behaviour;
 using Sholto.Interface.Bench.Controller;
 using Sholto.Interface.Bench.Scenario;
@@ -19,17 +20,18 @@ namespace Sholto.Interface.Bench.Headless;
 /// <param name="core">The headless core, scanned and read directly.</param>
 /// <param name="gestures">Sends controller events through the real input stack.</param>
 /// <param name="decks">The concrete Deck1 and Deck2 (index 0 and 1), for the internal members the ports do not expose.</param>
-/// <param name="gestureBuilder">Turns a "gesture" step into the <c>ControllerEvent</c> it names.</param>
+/// <param name="gestureFactory">Turns a "gesture" step into the <c>ControllerEvent</c> it names.</param>
 /// <param name="snapshot">Reads the observable fields.</param>
 /// <param name="diff">Finds which of them changed.</param>
 public sealed class HeadlessScenarioDriver(CoreStack core, GestureHost gestures, IReadOnlyList<Deck> decks,
-    IScenarioGestureBuilder gestureBuilder, ICoreSnapshot snapshot, IStateDiff diff)
+    IScenarioGestureFactory gestureFactory, ICoreSnapshot snapshot, IStateDiff diff)
 {
     private readonly CoreStack _core = core;
     private readonly GestureHost _gestures = gestures;
-    private readonly IScenarioGestureBuilder _gestureBuilder = gestureBuilder;
+    private readonly IScenarioGestureFactory _gestureFactory = gestureFactory;
     private readonly ICoreSnapshot _snapshot = snapshot;
     private readonly IStateDiff _diff = diff;
+    private readonly TimeSpan LoadSettleTimeout = TimeSpan.FromSeconds(5);
 
     /// <summary>The concrete Deck1 and Deck2 (index 0 and 1) this driver snapshots.</summary>
     public IReadOnlyList<Deck> Decks { get; } = decks;
@@ -41,6 +43,10 @@ public sealed class HeadlessScenarioDriver(CoreStack core, GestureHost gestures,
     {
         switch (a.Action)
         {
+            case "wait":
+                // The deck position has already been advanced by the runner; let due gestures land.
+                _gestures.Pump();
+                break;
             case "scan":
                 Outcomes.Add(Scan(a));
                 break;
@@ -70,9 +76,10 @@ public sealed class HeadlessScenarioDriver(CoreStack core, GestureHost gestures,
     /// (<see cref="GestureHost.SendGesture"/>), diffing around it.</summary>
     private GestureOutcome Gesture(ScenarioAction a)
     {
-        var evt = _gestureBuilder.Build(a);
+        var evt = _gestureFactory.Create(a);
         var before = _snapshot.Take(_core, Decks);
         _gestures.SendGesture(evt);
+        AwaitLoadsSettled();
         var after = _snapshot.Take(_core, Decks);
         return new GestureOutcome
         {
@@ -81,6 +88,24 @@ public sealed class HeadlessScenarioDriver(CoreStack core, GestureHost gestures,
             ControllerEvent = evt.ToString(),
             Changed = _diff.Between(before, after),
         };
+    }
+
+    /// <summary>A load gesture starts decoding on a pool thread and the deck only flips to loaded when that
+    /// finishes; wait (bounded) for any deck still <see cref="DeckLoadState.Loading"/> so the "after"
+    /// snapshot sees the result.</summary>
+    private void AwaitLoadsSettled()
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            var deck = _core.Decks.DeckFor(i);
+            var deadline = DateTime.UtcNow + LoadSettleTimeout;
+            while (deck.LoadState == DeckLoadState.Loading)
+            {
+                if (DateTime.UtcNow > deadline)
+                    throw new TimeoutException($"deck {i + 1} was still loading after {LoadSettleTimeout.TotalSeconds:0}s");
+                Thread.Sleep(2);
+            }
+        }
     }
 
     /// <summary>Translate the raw note/CC through the FLX-4 mapping — one layer above

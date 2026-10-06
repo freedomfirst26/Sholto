@@ -30,10 +30,16 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
         try
         {
             var key = await Task.Run(
-                () => Estimate(track.StereoSamples, track.Channels, track.SampleRate), ct);
+                () => Estimate(track.StereoSamples, track.Channels, track.SampleRate, ct), ct);
             var analysis = new KeyAnalysis(key);
             reporter.Complete(track.FilePath, AnalysisSteps.Key, key.ToCamelot());
             return analysis;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Superseded by a newer load: not a failure, and not still running either.
+            reporter.Cancelled(track.FilePath, AnalysisSteps.Key);
+            throw;
         }
         catch (Exception ex)
         {
@@ -49,9 +55,9 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
     private readonly double[] MinorProfile =
         { 6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17 };
 
-    private Key Estimate(float[] stereoSamples, int channels, int sampleRate)
+    private Key Estimate(float[] stereoSamples, int channels, int sampleRate, CancellationToken ct)
     {
-        var chroma = ComputeChroma(stereoSamples, channels, sampleRate);
+        var chroma = ComputeChroma(stereoSamples, channels, sampleRate, ct);
 
         // Normalise so dot-product with the profile is rotation-equivalent across tracks.
         double sum = 0;
@@ -86,7 +92,7 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
     /// across its octaves. 4096-sample frames at 48 kHz ≈ 85 ms — short enough
     /// to catch fast chord changes, long enough to give the filter resolution.
     /// </summary>
-    private double[] ComputeChroma(float[] samples, int channels, int sampleRate)
+    private double[] ComputeChroma(float[] samples, int channels, int sampleRate, CancellationToken ct)
     {
         const int frameSize = 4096;
         const int firstMidi = 36;   // C2
@@ -102,40 +108,62 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
         }
 
         int frameCount = samples.Length / channels;
-        var chroma = new double[12];
-        var mono = new float[frameSize];
+        int totalFrames = frameCount / frameSize;
 
-        int frameStart = 0;
-        while (frameStart + frameSize <= frameCount)
+        // Frames are independent, so they are spread over cores in fixed chunks. Each chunk
+        // accumulates its own partial chroma and the partials are summed in chunk order, so
+        // the result is the same however the threads happen to be scheduled. Half the cores
+        // at most: madmom runs beside this and must not be starved (measured: no slowdown).
+        const int framesPerChunk = 32;
+        int chunkCount = (totalFrames + framesPerChunk - 1) / framesPerChunk;
+        var partials = new double[chunkCount][];
+        var options = new ParallelOptions
         {
-            // Stereo → mono mix once per frame, then Goertzel reads from a contiguous buffer.
-            for (int i = 0; i < frameSize; i++)
-            {
-                int idx = (frameStart + i) * channels;
-                float m = 0f;
-                for (int c = 0; c < channels; c++) m += samples[idx + c];
-                mono[i] = m / channels;
-            }
+            MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2),
+            CancellationToken = ct,
+        };
 
-            for (int n = 0; n < numNotes; n++)
+        Parallel.For(0, chunkCount, options, chunk =>
+        {
+            var partial = new double[12];
+            var mono = new float[frameSize];
+            int lastFrame = Math.Min(totalFrames, (chunk + 1) * framesPerChunk);
+            for (int frame = chunk * framesPerChunk; frame < lastFrame; frame++)
             {
-                double s1 = 0, s2 = 0;
-                double coef = coefs[n];
+                int frameStart = frame * frameSize;
+
+                // Stereo → mono mix once per frame, then Goertzel reads from a contiguous buffer.
                 for (int i = 0; i < frameSize; i++)
                 {
-                    double s = mono[i] + coef * s1 - s2;
-                    s2 = s1; s1 = s;
+                    int idx = (frameStart + i) * channels;
+                    float m = 0f;
+                    for (int c = 0; c < channels; c++) m += samples[idx + c];
+                    mono[i] = m / channels;
                 }
-                double power = s1 * s1 + s2 * s2 - coef * s1 * s2;
-                if (power > 0)
+
+                for (int n = 0; n < numNotes; n++)
                 {
-                    int pitchClass = (firstMidi + n) % 12;
-                    chroma[pitchClass] += Math.Sqrt(power);
+                    double s1 = 0, s2 = 0;
+                    double coef = coefs[n];
+                    for (int i = 0; i < frameSize; i++)
+                    {
+                        double s = mono[i] + coef * s1 - s2;
+                        s2 = s1; s1 = s;
+                    }
+                    double power = s1 * s1 + s2 * s2 - coef * s1 * s2;
+                    if (power > 0)
+                    {
+                        int pitchClass = (firstMidi + n) % 12;
+                        partial[pitchClass] += Math.Sqrt(power);
+                    }
                 }
             }
+            partials[chunk] = partial;
+        });
 
-            frameStart += frameSize;
-        }
+        var chroma = new double[12];
+        foreach (var partial in partials)
+            for (int pc = 0; pc < 12; pc++) chroma[pc] += partial[pc];
 
         return chroma;
     }

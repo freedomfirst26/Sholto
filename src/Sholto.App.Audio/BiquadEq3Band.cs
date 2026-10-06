@@ -44,7 +44,7 @@ public sealed class BiquadEq3Band : DeckEffect
     public override void SetParam(int paramId, double value) => SetBandGain(paramId, (float)value);
 
     // Crossover points — standard DJ isolator territory. Defined in
-    // Sholto.App.Analysis (see WaveformBandFrequencies) so the waveform's 3-band
+    // Sholto.App.Dsp (see WaveformBandFrequencies) so the waveform's 3-band
     // colouring can never drift from what these knobs actually cut.
     private const float LowMidHz  = WaveformBandFrequencies.LowMidHz;
     private const float MidHighHz = WaveformBandFrequencies.MidHighHz;

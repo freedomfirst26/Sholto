@@ -1,9 +1,9 @@
-using Sholto.App.Audio;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Views;
 
 public sealed class AudioDevicePickerFactory : IAudioDevicePickerFactory
 {
-    public AudioDevicePicker Create(IReadOnlyList<AudioDevice> devices, string? currentName) =>
+    public AudioDevicePicker Create(IReadOnlyList<OutputDeviceChoice> devices, string? currentName) =>
         new(devices, currentName);
 }

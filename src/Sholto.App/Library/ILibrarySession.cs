@@ -19,6 +19,9 @@ public interface ILibrarySession : ITrackSelection
     /// <summary>The visible rows, in display order (the whole catalog, or the active filter's subset).</summary>
     IReadOnlyList<TrackSummary> Rows { get; }
 
+    /// <summary>The whole catalog in scan order, whatever filter is active. A live list: copy it before using it off the app thread.</summary>
+    IReadOnlyList<TrackSummary> Catalog { get; }
+
     /// <summary>The visible rows were replaced (scan, filter, filter cleared). The payload is a snapshot.</summary>
     event Action<IReadOnlyList<TrackSummary>>? RowsChanged;
 
@@ -76,6 +79,9 @@ public interface ILibrarySession : ITrackSelection
 
     /// <summary>The catalog id of a file, or <see cref="Guid.Empty"/> when it is not in the catalog.</summary>
     Guid TrackIdFor(string filePath);
+
+    /// <summary>The catalog's summary for a file (not limited to the visible rows), or null when it is not in the catalog.</summary>
+    TrackSummary? SummaryFor(string filePath);
 
     /// <summary>Recompute <see cref="HarmonyReferenceKey"/> from the decks and announce a change.</summary>
     void RefreshHarmonyReference();

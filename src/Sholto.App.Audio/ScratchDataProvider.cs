@@ -26,7 +26,15 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
     // the provider itself. Mirrors StemMixDataProvider's Dispose contract.
     private float[]? _buffer;
     private readonly int _length;   // total interleaved-sample length (always even — stereo)
-    private double _position;       // fractional source position in interleaved samples
+    private double _position;       // fractional source position in interleaved samples; written only by the audio thread, inside ReadBytes
+
+    // Seek requests from other threads. Seek never touches _position: it parks
+    // the clamped target here (Interlocked.Exchange) and ReadBytes takes it
+    // once at the top of the next buffer, so a seek can't be overwritten by a
+    // read that was already in flight. NoPendingSeek = nothing requested.
+    // A later Seek before the next buffer simply replaces an earlier one.
+    private const long NoPendingSeek = long.MinValue;
+    private long _pendingSeek = NoPendingSeek;
 
     // Signed playback rate: 1.0 = unity forward, 0 = held, negative = reverse.
     // See StemMixDataProvider's identical field for the full rationale — the
@@ -51,7 +59,16 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
 
     // — ISoundDataProvider —
 
-    public int Position => (int)Volatile.Read(ref _position);
+    // A seek not yet applied by the audio thread is reported as the position,
+    // so a caller reading Position straight after Seek sees its own target.
+    public int Position
+    {
+        get
+        {
+            long pending = Volatile.Read(ref _pendingSeek);
+            return pending != NoPendingSeek ? (int)pending : (int)Volatile.Read(ref _position);
+        }
+    }
     public int Length => _length;
     public bool CanSeek => true;
     public SampleFormat SampleFormat => SampleFormat.F32;
@@ -64,6 +81,16 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
 
     public int ReadBytes(Span<float> buffer)
     {
+        // Apply any seek requested since the last buffer. Taken exactly once;
+        // this is the only place a Seek reaches _position, and it runs on the
+        // audio thread, so _position has a single writer.
+        long pendingSeek = Interlocked.Exchange(ref _pendingSeek, NoPendingSeek);
+        if (pendingSeek != NoPendingSeek)
+        {
+            Volatile.Write(ref _position, (double)pendingSeek);
+            Volatile.Write(ref _fadeRemaining, FadeFrames);
+        }
+
         float speed = Volatile.Read(ref _speed);
         var samples = _buffer;
         if (samples is null) return 0;
@@ -141,8 +168,7 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
     public void Seek(int offset)
     {
         var clamped = Math.Clamp(offset, 0, _length);
-        Volatile.Write(ref _position, (double)clamped);
-        Volatile.Write(ref _fadeRemaining, FadeFrames);
+        Interlocked.Exchange(ref _pendingSeek, clamped);
         PositionChanged?.Invoke(this, new PositionChangedEventArgs(clamped));
     }
 

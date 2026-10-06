@@ -12,11 +12,10 @@ using Avalonia.Controls.Selection;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Sholto.Interface.MainUI.Controls;
+using Sholto.Interface.MainUI.Controls.Modal;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
-using Sholto.App.Audio;
 using Sholto.Interface.Faceplate.Views;
-using Sholto.App.Library;
 
 namespace Sholto.Interface.MainUI.Views;
 
@@ -32,22 +31,25 @@ public partial class MainWindow : Window, IKeyboard
 
     private readonly FaceplateOverlay _faceplateOverlay;
     private readonly IThemeCatalog _themeCatalog;
+    private readonly IModalKeyRouter _modalKeys;
+    private readonly ThemeResourcesApplier _themeResources = new();
 
     /// <summary>The overlay is built by the composition root (it needs a device's guide and
     /// drawing, which XAML cannot supply) and mounted into <c>FaceplateHost</c> here.
     /// Like the tag editor, the overlay binds its OWN IsVisible to the host's so its
     /// code-behind sees the change. It builds and owns its FaceplateViewModel; no
     /// DataContext is set on it from here, or the panel would silently stop opening.</summary>
-    public MainWindow(FaceplateOverlay faceplateOverlay, IThemeCatalog themeCatalog)
+    public MainWindow(FaceplateOverlay faceplateOverlay, IThemeCatalog themeCatalog, IModalKeyRouter modalKeys)
     {
         _faceplateOverlay = faceplateOverlay;
+        _modalKeys = modalKeys;
         _themeCatalog = themeCatalog;
         // Classic is applied before InitializeComponent so every {DynamicResource Sholto…}
         // resolves on first render; the XAML carries no default colours of its own.
         var classic = _themeCatalog.ByName("Classic");
         ApplyThemeToResources(classic);
         InitializeComponent();
-        FaceplateHost.Children.Add(_faceplateOverlay);
+        FaceplateHost.Content = _faceplateOverlay;
         _faceplateOverlay.Bind(IsVisibleProperty, FaceplateHost.GetObservable(IsVisibleProperty));
         Icon = BuildAppIcon(classic);   // tri-colour RGB "S" on a rounded plate — matches the library watermark
         BuildThemesMenu();
@@ -60,6 +62,20 @@ public partial class MainWindow : Window, IKeyboard
         {
             if (DataContext is not MainViewModel vm) return;
             ApplyThemeToResources(vm.Theme);
+            // Any theme the view model wears reaches the {DynamicResource} brushes: a menu pick, the saved
+            // theme restored at startup, or the Layout Wizard's live try-on.
+            vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MainViewModel.Theme)) ApplyThemeToResources(vm.Theme);
+            };
+            // The decks' WaveformControls take their style from this resource, so a preview or a
+            // restore (which never goes through a menu click) still reaches them.
+            Resources["SholtoWaveformStyle"] = vm.WaveformStyle.Shown;
+            vm.WaveformStyle.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(IWaveformStyleViewModel.Shown))
+                    Resources["SholtoWaveformStyle"] = vm.WaveformStyle.Shown;
+            };
             // Hand the view model the SAME FaceplateViewModel the mounted overlay
             // already built for itself (see the constructor) — not a second one, so a future caller
             // driving Faceplate.Select from a live gesture actually reaches the control that's on screen.
@@ -70,7 +86,7 @@ public partial class MainWindow : Window, IKeyboard
     /// <summary>Rasterise the Sholto brand mark for the window / taskbar / alt-tab
     /// icon: a rounded-square plate with three offset "S" glyphs (blue/green/red,
     /// screen-blended) — the same RGB-split S as the Media Library watermark.</summary>
-    private static WindowIcon BuildAppIcon(SholtoTheme theme)
+    private WindowIcon BuildAppIcon(SholtoTheme theme)
     {
         const int size = 256;
         using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul));
@@ -119,75 +135,18 @@ public partial class MainWindow : Window, IKeyboard
         return new WindowIcon(new Bitmap(ms));
     }
 
-    private static SKColor ToSk(Color c) => new SKColor(c.R, c.G, c.B, c.A);
-
-    private static Color WithAlpha(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
-
-    private static SolidColorBrush Solid(Color c) => new SolidColorBrush(c);
+    private SKColor ToSk(Color c) => new SKColor(c.R, c.G, c.B, c.A);
 
     /// <summary>
-    /// Write the theme's colors into Window.Resources keyed under "Sholto…" names.
+    /// Publish the theme's colors in Window.Resources keyed under "Sholto…" names, as one merged dictionary
+    /// swapped in whole.
     /// Every UI element that needs a themed color references these via
     /// {DynamicResource Sholto…}, so the references re-evaluate without going
     /// through visual-tree traversal (which goes stale under Fluent's hover/menu states).
     /// </summary>
     private void ApplyThemeToResources(SholtoTheme theme)
     {
-        Resources["SholtoBgDeep"]        = theme.BgDeep;
-        Resources["SholtoSurface"]       = theme.Surface;
-        Resources["SholtoSurfaceRaised"] = theme.SurfaceRaised;
-        Resources["SholtoBorder"]        = theme.Border;
-        Resources["SholtoPrimary"]       = theme.Primary;
-        Resources["SholtoAccent"]        = theme.Accent;
-        Resources["SholtoAccentBg"]      = theme.AccentBg;
-        Resources["SholtoMint"]          = theme.Mint;
-        Resources["SholtoTextBright"]    = theme.TextBright;
-        Resources["SholtoTextMuted"]     = theme.TextMuted;
-        // Foreground drawn on top of Camelot key chips. Themes pick this once so
-        // dark/light text stays legible against their tuned chip palette.
-        Resources["SholtoChipForeground"] = theme.CamelotPalette.OnChipForeground;
-        Resources["SholtoMinimapPalette"] = theme.Minimap;
-        Resources["SholtoWaveformPalette"] = theme.Waveform;
-        Resources["SholtoTextBrightColor"] = ((SolidColorBrush)theme.TextBright).Color;
-
-        // Stems (window icon, watermark, link icon).
-        Resources["SholtoStemDrums"]        = Solid(theme.Stems.Drums);
-        Resources["SholtoStemVocals"]       = Solid(theme.Stems.Vocals);
-        Resources["SholtoStemInstrumental"] = Solid(theme.Stems.Instrumental);
-
-        // Status. Tint alphas are the ones the status pill used before theming.
-        Resources["SholtoStatusOk"]        = Solid(theme.Status.Ok);
-        Resources["SholtoStatusWarn"]      = Solid(theme.Status.Warn);
-        Resources["SholtoStatusError"]     = Solid(theme.Status.Error);
-        Resources["SholtoStatusAttention"] = Solid(theme.Status.Attention);
-        Resources["SholtoStatusOkTint"]    = Solid(WithAlpha(theme.Status.Ok, 0x1F));
-        Resources["SholtoStatusWarnTint"]  = Solid(WithAlpha(theme.Status.Warn, 0x33));
-        Resources["SholtoStatusErrorTint"] = Solid(WithAlpha(theme.Status.Error, 0x33));
-        // "Analysis failed" marker in the track list; alias of Attention.
-        Resources["SholtoWarning"] = Solid(theme.Status.Attention);
-
-        Resources["SholtoMute"]        = Solid(theme.Mute);
-        Resources["SholtoScrim"]       = Solid(theme.Scrim);
-        Resources["SholtoShadow"]      = Solid(theme.Shadow);
-        Resources["SholtoShadowColor"] = theme.Shadow;
-        Resources["SholtoDeckShadow"]  = new BoxShadows(new BoxShadow
-            { OffsetX = 0, OffsetY = 6, Blur = 20, Spread = 0, Color = WithAlpha(theme.Shadow, 0xA0) });
-        // "This key mixes" glow on eligible Camelot key chips.
-        Resources["SholtoKeyChipGlow"] = new BoxShadows(new BoxShadow
-            { OffsetX = 0, OffsetY = 0, Blur = 6, Spread = 1, Color = WithAlpha(((SolidColorBrush)theme.TextBright).Color, 0xB0) });
-        Resources["SholtoIconPlate"] = Solid(theme.IconPlate);
-
-        // Tag editor chips + track-list tag indicator. The unprefixed keys are kept
-        // because TagEditorView / the track list reference them.
-        Resources["SholtoTagChipBackground"]     = Resources["TagChipBackground"]     = Solid(theme.Tags.ChipBg);
-        Resources["SholtoTagChipForeground"]     = Resources["TagChipForeground"]     = Solid(theme.Tags.ChipFg);
-        Resources["SholtoTagIndicatorBackground"] = Resources["TagIndicatorBackground"] = Solid(theme.Tags.IndicatorBg);
-        Resources["SholtoTagIndicatorForeground"] = Resources["TagIndicatorForeground"] = Solid(theme.Tags.IndicatorFg);
-
-        Resources["SholtoFaceplateRest"]     = Solid(theme.Faceplate.Rest);
-        Resources["SholtoFaceplateHover"]    = Solid(theme.Faceplate.Hover);
-        Resources["SholtoFaceplateSelected"] = Solid(theme.Faceplate.Selected);
-        Resources["SholtoFaceplateGlow"]     = Solid(theme.Faceplate.Glow);
+        _themeResources.Apply(Resources, theme);
     }
 
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
@@ -240,18 +199,13 @@ public partial class MainWindow : Window, IKeyboard
             return;
         }
 
-        // Crate picker owns input via its TextBox; Esc is a global backstop.
-        if (vm.IsCratePickerOpen)
+        // Shell modals, in priority order (crate picker, system report, layout wizard, settings): the first open
+        // one owns the keyboard. Each modal's own keys come from its view model's HandleKey; the router adds
+        // Esc, Enter, Backspace and the swallow-or-pass-through rule for text.
+        foreach (var modal in vm.Modals)
         {
-            if (e.Key == Key.Escape) { vm.CratePicker?.Close(); e.Handled = true; }
-            return;
-        }
-
-        // System report (opened by the amber status dot). Read-only; Esc is its
-        // only key, same as the controller guide.
-        if (vm.IsSystemReportOpen)
-        {
-            if (e.Key == Key.Escape) { vm.CloseSystemReport(); e.Handled = true; }
+            if (!modal.IsOpen) continue;
+            e.Handled = _modalKeys.Route(modal, e.Key, e.KeyModifiers);
             return;
         }
 
@@ -271,8 +225,13 @@ public partial class MainWindow : Window, IKeyboard
             return;
         }
 
-        // Same isolation for the search overlay.
-        if (vm.IsSearchOpen) return;
+        // Same isolation for the search overlay, except Ctrl+Z: undoing the last load works with it open, and
+        // forwarding it here beats the query box's own text undo.
+        if (vm.IsSearchOpen)
+        {
+            if (e.Key == Key.Z && e.KeyModifiers == KeyModifiers.Control) KeyPressed?.Invoke(e);
+            return;
+        }
 
         // Any other focused text input (current or future) gets full keyboard
         // ownership — global shortcuts skip when a TextBox is focused. Without
@@ -283,7 +242,7 @@ public partial class MainWindow : Window, IKeyboard
         // Spacebar opens search (from anywhere outside an input).
         if (e.Key == Key.Space)
         {
-            vm.IsSearchOpen = true;
+            vm.Glance.Open();
             e.Handled = true;
             return;
         }
@@ -424,6 +383,16 @@ public partial class MainWindow : Window, IKeyboard
         if (vm.IsSystemReportOpen) e.Handled = true;
     }
 
+    private void OnLayoutWizardClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.OpenLayoutWizard();
+    }
+
+    private void OnSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.OpenSettings();
+    }
+
     private void OnMusicFolderClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel vm) vm.RequestChangeMusicFolder();
@@ -447,7 +416,7 @@ public partial class MainWindow : Window, IKeyboard
 
     /// <summary>Four 6×14 chips — background, primary, accent, mint — with a 1 px
     /// border so a dark theme's chips still read against the menu.</summary>
-    private static Control ThemeSwatch(SholtoTheme t)
+    private Control ThemeSwatch(SholtoTheme t)
     {
         var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 1 };
         foreach (var brush in new[] { t.BgDeep, t.Primary, t.Accent, t.Mint })
@@ -458,6 +427,5 @@ public partial class MainWindow : Window, IKeyboard
     private void SetTheme(SholtoTheme theme)
     {
         if (DataContext is MainViewModel vm) vm.Theme = theme;
-        ApplyThemeToResources(theme);
     }
 }

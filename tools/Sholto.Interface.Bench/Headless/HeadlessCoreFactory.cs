@@ -26,7 +26,7 @@ namespace Sholto.Interface.Bench.Headless;
 /// </summary>
 /// <param name="benchDeck">Builds the offline engine the decks attach to.</param>
 /// <param name="deckFactory">The factory the deck sessions' decks are built through.</param>
-/// <param name="decoder">The no-op decoder handed to the core's track loader.</param>
+/// <param name="decoder">The decoder handed to the core's track loader (the bench's no-op one, or a real one).</param>
 /// <param name="publisher">The data bus the deck sessions publish their state on.</param>
 /// <param name="clock">The frame clock the deck sessions time the end-of-track flash from.</param>
 /// <param name="appThread">The app thread the deck sessions marshal analysis events onto.</param>
@@ -47,17 +47,20 @@ public sealed class HeadlessCoreFactory(IBenchDeck benchDeck, IBenchDeckFactory 
         var stemPresence = new DemucsStemPresence(_ => Path.Combine(Path.GetTempPath(), "sholto-bench-no-stems"));
 
         var capturingFactory = new CapturingDeckFactory(_deckFactory);
-        var sessions = new DeckSessionFactory(capturingFactory, new SongSegmentAnalyzer(), _clock, _appThread, _publisher);
+        var sectionOptions = new PhraseSectionOptions();
+        var sectionAnalyzer = new PhraseSectionAnalyzer(
+            new BarFeatureExtractor(sectionOptions), new PhraseSectionLabeler(sectionOptions), sectionOptions);
+        var sessions = new DeckSessionFactory(capturingFactory, sectionAnalyzer, _clock, _appThread, _publisher);
         var deck1 = sessions.Create(0);
         var deck2 = sessions.Create(1);
         var core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
             new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), _decoder,
-            new EqualPowerCrossfade(), _appThread, _publisher).Build(deck1, deck2);
+            new EqualPowerCrossfade(), _appThread, _publisher, _clock).Build(deck1, deck2);
 
         var decks = capturingFactory.Created.ToArray();
         decks[0].AttachEngine(engine, _deckFactory.DeckFormat);
         decks[1].AttachEngine(engine, _deckFactory.DeckFormat);
-        return new HeadlessCore(core, decks[0], decks[1]);
+        return new HeadlessCore(core, decks[0], decks[1], engine);
     }
 }

@@ -31,4 +31,8 @@ public interface IAnalysisReporter
 
     /// <summary>The step failed with <paramref name="message"/>.</summary>
     void Failed(string filePath, string stepName, string message);
+
+    /// <summary>The step was cancelled before it finished (a superseded load): it goes back to
+    /// <see cref="Sholto.App.Analysis.Analyzers.AnalysisState.NotStarted"/>, neither Running nor Failed.</summary>
+    void Cancelled(string filePath, string stepName);
 }

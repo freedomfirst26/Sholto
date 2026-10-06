@@ -176,11 +176,11 @@ public class GestureCommandTranslatorTests
     }
 
     [Fact]
-    public void A_short_browse_press_only_reports_on_release()
+    public void A_short_browse_press_opens_search_on_release()
     {
         Assert.Null(Run(new ControllerEvent.BrowsePressed()));
-        var report = Assert.IsType<ReportControl>(Run(new ControllerEvent.BrowseReleased()));
-        Assert.Equal(new Origin(InterfaceIds.Controller, "browse.knob", "browse.press.short"), report.Origin);
+        var open = Assert.IsType<OpenSearch>(Run(new ControllerEvent.BrowseReleased()));
+        Assert.Equal(new Origin(InterfaceIds.Controller, "browse.knob", "browse.press.short"), open.Origin);
     }
 
     [Fact]

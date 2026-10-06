@@ -11,8 +11,9 @@ namespace Sholto.Interface.MainUI.Harness.Ui;
 /// bare <see cref="Application"/>) so <c>App.axaml</c>'s <c>FluentTheme</c> +
 /// dark variant actually load — otherwise <c>ThemeContext</c>'s asset-loader
 /// read and every templated control (ListBox, Button, …) come up unstyled.
-/// <see cref="Sholto.Interface.MainUI.App.OnFrameworkInitializationCompleted"/> — the method
-/// that opens the DB, the audio device, and the MIDI controller — is never
+/// <see cref="Sholto.Interface.MainUI.App.OnFrameworkInitializationCompleted"/> — which
+/// hands off to the host's startup (the code that opens the DB, the audio device, and
+/// the MIDI controller; here the parameterless <c>App()</c> gets a no-op one) — is never
 /// called here; only <c>AppBuilder.SetupWithoutStarting()</c> runs, which
 /// invokes just <c>Initialize()</c> (the XAML load). Bench builds its own
 /// <c>MainViewModel</c>/<c>MainWindow</c> from fakes — see

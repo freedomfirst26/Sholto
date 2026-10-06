@@ -3,13 +3,13 @@ namespace Sholto.Interface.Bench.Scenario;
 /// <summary>
 /// One scripted step. Deliberately a flat bag of optional fields rather than a
 /// discriminated union — keeps the JSON, and this type, dead simple to write by
-/// hand or generate. <see cref="ScenarioParser"/> validates that the fields an
+/// hand or generate. <see cref="ScenarioFactory"/> validates that the fields an
 /// action needs are actually present; a field an action doesn't use is ignored.
 /// </summary>
 public sealed class ScenarioAction
 {
     /// <summary>One of: load, gain, play, crossfader, wait, key, click, screenshot,
-    /// scan, gesture, midi. See <see cref="ScenarioParser"/> for the field each
+    /// scan, gesture, midi, analyse, row, controller, database. See <see cref="ScenarioFactory"/> for the field each
     /// requires.</summary>
     public required string Action { get; init; }
 
@@ -19,7 +19,7 @@ public sealed class ScenarioAction
     /// resolve one), purely descriptive.</summary>
     public int? Deck { get; init; }
 
-    /// <summary>Absolute path to an audio file. Required by load.</summary>
+    /// <summary>Path to an audio file. Required by load and row.</summary>
     public string? Track { get; init; }
 
     /// <summary>load: initial channel gain (0..1, default 1.0). gain: the new
@@ -30,7 +30,9 @@ public sealed class ScenarioAction
     public double? Value { get; init; }
 
     /// <summary>wait: how long to advance, directly. Mutually exclusive with
-    /// Beats/Bpm.</summary>
+    /// Beats/Bpm. analyse: the loaded track's length, which the made-up analysis covers. screenshot
+    /// (ui host): how long to let background work settle first (default 0.4 s; short, to catch a
+    /// state that only lasts a moment).</summary>
     public double? Seconds { get; init; }
 
     /// <summary>wait: how long to advance, in beats. Requires Bpm alongside it —
@@ -39,12 +41,19 @@ public sealed class ScenarioAction
     /// it means.</summary>
     public double? Beats { get; init; }
 
-    /// <summary>wait: the tempo Beats is counted against. See Beats.</summary>
+    /// <summary>wait: the tempo Beats is counted against. See Beats. row: the BPM the library row
+    /// shows.</summary>
     public double? Bpm { get; init; }
 
-    /// <summary>key: a UI key name (UI harness only), e.g. "D1", "Space", "M".
+    /// <summary>key: a UI key name (UI harness only), e.g. "D1", "Space", "M". Held with Shift if <see cref="Shifted"/> and Ctrl if <see cref="Ctrl"/>.
     /// ui-only.</summary>
     public string? Key { get; init; }
+
+    /// <summary>key: hold Ctrl while the key is pressed. ui-only.</summary>
+    public bool? Ctrl { get; init; }
+
+    /// <summary>type: the text sent to the focused element as text input. ui-only.</summary>
+    public string? Text { get; init; }
 
     /// <summary>click: name of the control to click — currently only "TrackList"
     /// is wired. ui-only.</summary>
@@ -64,7 +73,7 @@ public sealed class ScenarioAction
 
     /// <summary>gesture: which <c>ControllerEvent</c> record to build — the record's
     /// type name (e.g. "JogRotated", "PlayPressed", "CueToggle"). See
-    /// <see cref="Sholto.Interface.Bench.Controller.ScenarioGestureBuilder"/> for the full list
+    /// <see cref="Sholto.Interface.Bench.Controller.ScenarioGestureFactory"/> for the full list
     /// and the fields each one reads. ui-only — needs the real gesture recognizer /
     /// command bus / Orchestrator stack, which only the ui host composes.</summary>
     public string? Event { get; init; }
@@ -76,7 +85,8 @@ public sealed class ScenarioAction
     /// <summary>gesture (JogRotated): "top" (TopPlatter) or "ring" (SideRing).</summary>
     public string? JogSource { get; init; }
 
-    /// <summary>gesture: generic boolean payload — JogTouch.Touching,
+    /// <summary>controller: whether the controller is announced as plugged in.
+    /// gesture: generic boolean payload — JogTouch.Touching,
     /// DeckShift.Pressed,
     /// StemLevelMode.Pressed.</summary>
     public bool? On { get; init; }
@@ -90,7 +100,7 @@ public sealed class ScenarioAction
     /// <summary>gesture (BeatLoopToggle): loop length in bars.</summary>
     public int? Bars { get; init; }
 
-    /// <summary>gesture (TransportCuePressed): whether the Shift chord fired.</summary>
+    /// <summary>gesture (TransportCuePressed): whether the Shift chord fired. key: hold Shift.</summary>
     public bool? Shifted { get; init; }
 
     /// <summary>gesture (PadPageSelected): "HotCue" or "PadFx1".</summary>
@@ -118,4 +128,12 @@ public sealed class ScenarioAction
 
     /// <summary>midi (cc): the CC's 0..127 value.</summary>
     public int? CcValue { get; init; }
+
+    /// <summary>analyse / row: a Camelot key code ("8A", "11B") the deck's key chip or the library row
+    /// shows. Optional. ui-only.</summary>
+    public string? Camelot { get; init; }
+
+    /// <summary>screenshot: render scale (2 = twice the window's size in pixels, for crisp images).
+    /// Optional, defaults to the window's own scale. ui-only.</summary>
+    public double? Scale { get; init; }
 }

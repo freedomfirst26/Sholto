@@ -1,4 +1,3 @@
-using Sholto.App.Analysis.Harmony;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
@@ -172,8 +171,8 @@ public class LibraryRowsViewModelBusTests
 
         _bus.Publish(new TrackSummaryChanged(alpha with { MusicalKey = new KeyRef(0, true) }));
 
-        Assert.Equal(new Key(0, true), row.MusicalKey);
-        Assert.Equal(new Key(0, true).ToCamelot(), row.Key);
+        Assert.Equal(new KeyRef(0, true), row.MusicalKey);
+        Assert.Equal(new KeyRef(0, true).ToCamelot(), row.Key);
     }
 
     [Fact]
@@ -181,50 +180,66 @@ public class LibraryRowsViewModelBusTests
     {
         Show(1, Summary("Alpha") with { MusicalKey = new KeyRef(5, false) });
 
-        Assert.Equal(new Key(5, false), _rows.Items.Single().MusicalKey);
+        Assert.Equal(new KeyRef(5, false), _rows.Items.Single().MusicalKey);
     }
 
+    private static HarmonyReferenceChanged Reference(KeyRef key, params KeyRef[] mixable) =>
+        new(key, mixable);
+
     [Fact]
-    public void The_harmony_reference_is_set_on_every_row()
+    public void The_mixable_keys_are_set_on_every_row()
     {
         Show(1, Summary("Alpha"), Summary("Bravo"));
+        var mixable = new[] { new KeyRef(2, true), new KeyRef(7, true) };
 
-        _bus.Publish(new HarmonyReferenceChanged(new KeyRef(2, true)));
+        _bus.Publish(new HarmonyReferenceChanged(new KeyRef(2, true), mixable));
 
-        Assert.All(_rows.Items, r => Assert.Equal(new Key(2, true), r.ReferenceKey));
+        Assert.All(_rows.Items, r => Assert.Equal(mixable, r.MixableKeys));
     }
 
     [Fact]
     public void A_row_created_after_the_reference_carries_it()
     {
-        _bus.Publish(new HarmonyReferenceChanged(new KeyRef(2, true)));
+        _bus.Publish(Reference(new KeyRef(2, true), new KeyRef(2, true)));
 
         Show(1, Summary("Alpha"));
 
-        Assert.Equal(new Key(2, true), _rows.Items.Single().ReferenceKey);
+        Assert.Equal([new KeyRef(2, true)], _rows.Items.Single().MixableKeys);
     }
 
     [Fact]
     public void Clearing_the_harmony_reference_clears_it_on_every_row()
     {
-        _bus.Publish(new HarmonyReferenceChanged(new KeyRef(2, true)));
+        _bus.Publish(Reference(new KeyRef(2, true), new KeyRef(2, true)));
         Show(1, Summary("Alpha"), Summary("Bravo"));
 
-        _bus.Publish(new HarmonyReferenceChanged(null));
+        _bus.Publish(new HarmonyReferenceChanged(null, []));
 
-        Assert.All(_rows.Items, r => Assert.Null(r.ReferenceKey));
+        Assert.All(_rows.Items, r => Assert.Empty(r.MixableKeys));
+    }
+
+    [Fact]
+    public void A_row_is_eligible_only_when_its_key_is_among_the_mixable_keys()
+    {
+        Show(1,
+            Summary("Alpha") with { MusicalKey = new KeyRef(0, true) },   // 8B
+            Summary("Bravo") with { MusicalKey = new KeyRef(7, true) });   // 9B
+        _bus.Publish(Reference(new KeyRef(0, true), new KeyRef(0, true)));
+
+        Assert.True(_rows.Items[0].KeyEligible);
+        Assert.False(_rows.Items[1].KeyEligible);
     }
 
     [Fact]
     public void A_late_subscriber_is_replayed_the_rows_and_the_reference()
     {
-        _bus.Publish(new HarmonyReferenceChanged(new KeyRef(7, false)));
+        _bus.Publish(Reference(new KeyRef(7, false), new KeyRef(7, false)));
         Show(1, Summary("Alpha"), Summary("Bravo"));
 
         var late = NewRows();
 
         Assert.Equal(["Alpha", "Bravo"], late.Items.Select(r => r.Title));
-        Assert.All(late.Items, r => Assert.Equal(new Key(7, false), r.ReferenceKey));
+        Assert.All(late.Items, r => Assert.Equal([new KeyRef(7, false)], r.MixableKeys));
     }
 
     [Fact]
@@ -236,6 +251,17 @@ public class LibraryRowsViewModelBusTests
         var late = NewRows();
 
         Assert.Equal(["Bravo", "Charlie"], late.Items.Select(r => r.Title));
+    }
+
+    [Fact]
+    public void A_rows_summary_is_the_latest_one_announced()
+    {
+        Show(1, Summary("Alpha"));
+        var updated = _rows.Items.Single().Summary with { Bpm = 124.0 };
+
+        _bus.Publish(new TrackSummaryChanged(updated));
+
+        Assert.Same(updated, _rows.Items.Single().Summary);
     }
 
     [Fact]

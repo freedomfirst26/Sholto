@@ -100,7 +100,22 @@ public sealed class ExternalToolRunner : IExternalToolRunner
         proc.BeginOutputReadLine();
         proc.BeginErrorReadLine();
 
-        await proc.WaitForExitAsync(ct);
+        try
+        {
+            await proc.WaitForExitAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // The caller gave up (a newer track superseded this one). Kill the whole tree —
+            // madmom and demucs are wrapper scripts that spawn the real worker — and reap it,
+            // or it keeps burning a core and about a gigabyte after nobody wants its output.
+            try { proc.Kill(entireProcessTree: true); }
+            catch (InvalidOperationException) { /* already exited */ }
+            await proc.WaitForExitAsync(CancellationToken.None);
+            // Cancellation is not a failure, and the step must not stay Running: return it to NotStarted.
+            reporter.Cancelled(input, tool.Name);
+            throw;
+        }
 
         string stdout;
         lock (gate) stdout = stdoutBuf.ToString();

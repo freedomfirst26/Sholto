@@ -1,6 +1,5 @@
 using Avalonia.Media;
-using Sholto.App.Analysis;
-using Sholto.App.Analysis.Harmony;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Theming;
 
@@ -20,7 +19,8 @@ public sealed record CamelotPalette(
     double Saturation,        // 0..1; how vivid the chips are (lower = more muted)
     double MajorLightness,    // 0..1; B ring (major). 0.55 = standard chip brightness
     double MinorLightness,    // 0..1; A ring (minor). Usually lower than Major so relative pairs read as "same hue, different mood"
-    IBrush OnChipForeground   // text color drawn on the chip
+    IBrush OnChipForeground,  // parsed from the theme but not published to any view (key chips use KeyChipForeground)
+    IBrush KeyChipForeground  // text drawn on the Camelot key chips (deck, library, search); white by default
 )
 {
     /// <summary>
@@ -34,7 +34,7 @@ public sealed record CamelotPalette(
     /// the library list fades already-played rows to 30% saturation) without
     /// mutating the theme.
     /// </summary>
-    public IBrush KeyBrush(Key key, double saturationScale = 1.0)
+    public IBrush KeyBrush(KeyRef key, double saturationScale = 1.0)
     {
         int n = key.CamelotNumber;
         double hue = (((n - 8) * 30.0 + HueOffset) % 360.0 + 360.0) % 360.0;
@@ -43,7 +43,7 @@ public sealed record CamelotPalette(
         return new SolidColorBrush(unchecked((uint)0xFF000000 | rgb));
     }
 
-    private static uint HslToRgb(double h, double s, double l)
+    private uint HslToRgb(double h, double s, double l)
     {
         double c = (1 - Math.Abs(2 * l - 1)) * s;
         double hp = h / 60.0;

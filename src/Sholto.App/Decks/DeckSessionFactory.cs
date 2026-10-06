@@ -8,20 +8,21 @@ namespace Sholto.App.Decks;
 /// new deck from <see cref="IDeckFactory"/>.</summary>
 public sealed class DeckSessionFactory(
     IDeckFactory decks,
-    ISongSegmentAnalyzer songSegmentAnalyzer,
+    IPhraseSectionAnalyzer sectionAnalyzer,
     IFrameClock clock,
     IAppThread appThread,
     IEventPublisher publisher) : IDeckSessionFactory
 {
     private readonly IDeckFactory _decks = decks;
-    private readonly ISongSegmentAnalyzer _songSegmentAnalyzer = songSegmentAnalyzer;
+    private readonly ISectionLayoutFactory _sectionLayouts = new SectionLayoutFactory(sectionAnalyzer);
     private readonly IFrameClock _clock = clock;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
 
     public IDeckSession Create(int index)
     {
-        var session = new DeckSession(index, _decks.Create(), _songSegmentAnalyzer, _clock, _appThread, _publisher);
+        var ports = _decks.Create();
+        var session = new DeckSession(index, ports, new DeckGain(ports.Mixer), new DeckStemMix(index, ports.Stems, _publisher), new DeckTuneEditor(ports.Beatgrid), new DeckTempoControl(ports.Loading, ports.Tempo), new DeckPlayPhase(index, _clock, _publisher), _sectionLayouts, _appThread, _publisher);
         // The session publishes the transport phase, stem mutes and echo itself; this publishes the rest of
         // what an interface shows, from the first moment, so a subscriber that joins later is replayed it.
         new DeckEventPublisher(session, _publisher).Start();

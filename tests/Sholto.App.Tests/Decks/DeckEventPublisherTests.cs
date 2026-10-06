@@ -1,8 +1,10 @@
+using Sholto.App.Analysis.Analyzers.Keys;
+using Sholto.App.Analysis.Harmony;
+using Sholto.App.Analysis.Stems;
 using Sholto.App.Audio;
 using Sholto.App.Library;
+using Sholto.App.Tests.Segments;
 using Sholto.Data;
-using DeckContent = Sholto.Data.DeckContentChanged<
-    Sholto.App.Library.Track, Sholto.App.Audio.TrackAnalysis, Sholto.App.Analysis.Analyzers.Segments.SongSegment>;
 
 namespace Sholto.App.Tests;
 
@@ -35,12 +37,14 @@ public class DeckEventPublisherTests
         return handler;
     }
 
+    private static DeckTrack Projected(Track t) => new(t.FilePath, t.Title, t.Artist, t.Duration);
+
     // ---- The starting picture, replayed to a late subscriber ------------------------------------
 
     [Fact]
     public void A_late_subscriber_is_replayed_an_idle_deck_with_no_track()
     {
-        var content = Assert.Single(Replayed<DeckContent>().Received);
+        var content = Assert.Single(Replayed<DeckContentChanged>().Received);
 
         Assert.Equal(0, content.Deck);
         Assert.Null(content.Track);
@@ -112,34 +116,34 @@ public class DeckEventPublisherTests
     [Fact]
     public void Beginning_a_load_publishes_the_track_in_the_loading_state()
     {
-        var content = Watch<DeckContent>();
+        var content = Watch<DeckContentChanged>();
 
         _rig.Session.BeginLoad(_track);
 
         Assert.Contains(content.Received, c => c.LoadState == DeckLoadState.Loading);
-        Assert.Same(_track, content.Received[^1].Track);
+        Assert.Equal(Projected(_track), content.Received[^1].Track);
         Assert.Equal(DeckLoadState.Loading, content.Received[^1].LoadState);
     }
 
     [Fact]
     public void Loading_a_track_publishes_it_as_loaded()
     {
-        var content = Watch<DeckContent>();
+        var content = Watch<DeckContentChanged>();
 
         _rig.Session.LoadTrack(_track, _track.FilePath, [], bpmMultiplier: 1.0);
 
         var last = content.Received[^1];
-        Assert.Same(_track, last.Track);
+        Assert.Equal(Projected(_track), last.Track);
         Assert.Equal(DeckLoadState.Loaded, last.LoadState);
         Assert.True(last.IsLoaded);
-        Assert.Same(_rig.Session.Analysis, last.Analysis);
+        Assert.False(last.Analysis!.HasBasic);
     }
 
     [Fact]
     public void Unloading_publishes_an_idle_deck_with_no_track()
     {
         _rig.Session.LoadTrack(_track, _track.FilePath, [], bpmMultiplier: 1.0);
-        var content = Watch<DeckContent>();
+        var content = Watch<DeckContentChanged>();
 
         _rig.Session.Unload();
 
@@ -153,11 +157,77 @@ public class DeckEventPublisherTests
     public void A_failed_load_publishes_the_failed_state()
     {
         _rig.Session.BeginLoad(_track);
-        var content = Watch<DeckContent>();
+        var content = Watch<DeckContentChanged>();
 
         _rig.Session.LoadFailed();
 
         Assert.Equal(DeckLoadState.Failed, content.Received[^1].LoadState);
+    }
+
+    // ---- Analysis steps republish the content ---------------------------------------------------
+
+    [Fact]
+    public void Basic_analysis_landing_republishes_peaks_tempo_and_grid()
+    {
+        _rig.Session.LoadTrack(_track, _track.FilePath, [], 1.0);
+        var content = Watch<DeckContentChanged>();
+        var basic = new SyntheticTrackBuilder(128).AddStandardStructure().Build().Analysis;
+
+        _rig.Session.Analysis.Set(basic);
+
+        var analysis = content.Received[^1].Analysis!;
+        Assert.True(analysis.HasBasic);
+        Assert.Same(basic.Peaks, analysis.Peaks);
+        Assert.Same(basic.BeatTimes, analysis.BeatTimes);
+        Assert.Same(basic.DownbeatTimes, analysis.DownbeatTimes);
+        Assert.Equal(basic.Bpm, analysis.Bpm);
+    }
+
+    [Fact]
+    public void Key_analysis_landing_republishes_the_key()
+    {
+        _rig.Session.LoadTrack(_track, _track.FilePath, [], 1.0);
+        var content = Watch<DeckContentChanged>();
+
+        _rig.Session.Analysis.Set(new KeyAnalysis(new Key(0, true)));
+
+        Assert.Equal(new KeyRef(0, true), content.Received[^1].Analysis!.Key);
+    }
+
+    [Fact]
+    public void Stems_landing_republishes_HasStems()
+    {
+        _rig.Session.LoadTrack(_track, _track.FilePath, [], 1.0);
+        var content = Watch<DeckContentChanged>();
+
+        _rig.Session.Analysis.Set(new StemPaths("/tmp/stems"));
+
+        Assert.True(content.Received[^1].Analysis!.HasStems);
+    }
+
+    [Fact]
+    public void Vocal_regions_landing_republish_them()
+    {
+        _rig.Session.LoadTrack(_track, _track.FilePath, [], 1.0);
+        var content = Watch<DeckContentChanged>();
+
+        _rig.Session.Analysis.Set<IReadOnlyList<VocalRegion>>([new VocalRegion(1, 2)]);
+
+        Assert.Equal(new[] { new VocalRegion(1, 2) }, content.Received[^1].Analysis!.VocalRegions);
+    }
+
+    [Fact]
+    public void A_published_snapshot_does_not_change_when_a_later_step_lands()
+    {
+        _rig.Session.LoadTrack(_track, _track.FilePath, [], 1.0);
+        var content = Watch<DeckContentChanged>();
+        _rig.Session.Analysis.Set(new StemPaths("/tmp/stems"));
+        var published = content.Received[^1].Analysis!;
+
+        _rig.Session.Analysis.Set(new KeyAnalysis(new Key(0, true)));
+
+        Assert.Null(published.Key);
+        Assert.NotNull(content.Received[^1].Analysis!.Key);
     }
 
     // ---- Markers, edit, loop --------------------------------------------------------------------
@@ -338,5 +408,18 @@ public class DeckEventPublisherTests
 
         Assert.Equal(1_000, frames.Count - countBefore);
         Assert.Equal(0, allocated);
+    }
+
+    [Fact]
+    public void Beginning_a_load_with_a_restored_multiplier_ends_on_its_tempo_and_a_frame_at_the_start()
+    {
+        var tempo = Watch<DeckTempoChanged>();
+        var frames = Watch<DeckFrame>();
+
+        _rig.Session.BeginLoad(_track, 2.0);
+
+        Assert.Equal(2.0, tempo.Received[^1].BpmMultiplier);
+        Assert.Equal(0.0, frames.Received[^1].PlayPosition);
+        Assert.Equal((double)_ports.Tempo.PlaybackSpeed, frames.Received[^1].PlaybackSpeed);
     }
 }

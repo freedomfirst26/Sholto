@@ -43,7 +43,8 @@ public sealed class HeadlessInputStackFactory(
     public PerformanceStack Build(CoreStack core, GestureHost gestures, IAppThread appThread)
     {
         var cueRouting = new CueRouting(core.Decks, _masterCueOutput, _publisher);
-        var performance = _performanceFactory.Build(core.Decks, core.Playback, _scratch, _magnetism, gestures.Clock);
+        var performance = _performanceFactory.Build(core.Decks, core.Playback, _scratch, _magnetism, gestures.Clock,
+            core.BackspinFeel);
 
         // Inspect is App state; Bench commands always run (only Controller/Keyboard are gated), but the
         // handlers are registered through the same gate the app uses.

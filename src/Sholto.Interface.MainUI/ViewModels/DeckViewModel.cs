@@ -1,17 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Sholto.App.Analysis.Analyzers.Keys;
-using Sholto.App.Analysis.Analyzers.Segments;
-using Sholto.App.Analysis.Analyzers.Vocals;
-using Sholto.App.Analysis.Analyzers.Waveform;
-using Sholto.App.Analysis.Harmony;
-using Sholto.App.Analysis.Stems;
-using Sholto.App.Audio;
-using Sholto.App.Library;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Theming;
-using DeckContent = Sholto.Data.DeckContentChanged<
-    Sholto.App.Library.Track, Sholto.App.Audio.TrackAnalysis, Sholto.App.Analysis.Analyzers.Segments.SongSegment>;
 
 namespace Sholto.Interface.MainUI.ViewModels;
 
@@ -26,7 +16,8 @@ namespace Sholto.Interface.MainUI.ViewModels;
 public sealed class DeckViewModel :
     INotifyPropertyChanged,
     IEventHandler<DeckFrame>,
-    IEventHandler<DeckContent>,
+    IEventHandler<DeckContentChanged>,
+    IEventHandler<DeckSectionsChanged>,
     IEventHandler<DeckTempoChanged>,
     IEventHandler<DeckLoopChanged>,
     IEventHandler<DeckEditChanged>,
@@ -49,13 +40,19 @@ public sealed class DeckViewModel :
     // "new" IBrush per frame and invalidating the whole disc.
     private readonly Avalonia.Media.SolidColorBrush _discRingBrush = new();
     private double _lastRingNotifyPos = -1;
+    // The disc bloom's smoothing state; the same instance for the life of the view model.
+    private readonly IDiscBloom _bloom;
 
     // ---- What the App last told us ------------------------------------------------------------
-    private Track? _loadedTrack;
+    private DeckTrack? _loadedTrack;
     private DeckLoadState _loadState = DeckLoadState.Idle;
     private bool _isLoaded;
-    private TrackAnalysis? _analysis;
-    private IReadOnlyList<SongSegment>? _segments;
+    private DeckAnalysis? _analysis;
+    private IReadOnlyList<DeckSection> _sections = [];
+    private DeckPhraseGrid _phraseGrid = new(0, 8);
+    private double _firstDownbeatSec;
+    private double _barPeriodSec;
+    private int _totalBars;
 
     private PlayPhase _playState = PlayPhase.Stopped;
     private bool _endFlashOn;
@@ -96,16 +93,18 @@ public sealed class DeckViewModel :
 
     public DeckViewModel(
         int deck, IEventSubscriber subscriber, ICommandSender sender, IThemeContext theme,
-        IWaveformPeaksFactory peaksFactory)
+        INoPeaksFactory peaksFactory, IDiscBloomFactory bloomFactory)
     {
         _deck = deck;
         _sender = sender;
         _noPeaks = peaksFactory.None();
+        _bloom = bloomFactory.Create();
         _theme = theme;
         RecomputeRingColor();
 
         // Each subscribe replays the current state, so a view model built late shows the real picture.
-        subscriber.Subscribe<DeckContent>(this);
+        subscriber.Subscribe<DeckContentChanged>(this);
+        subscriber.Subscribe<DeckSectionsChanged>(this);
         subscriber.Subscribe<DeckTempoChanged>(this);
         subscriber.Subscribe<DeckLoopChanged>(this);
         subscriber.Subscribe<DeckEditChanged>(this);
@@ -178,6 +177,9 @@ public sealed class DeckViewModel :
             _playbackSeconds = e.PlaybackSeconds;
             OnPlayPositionChanged();
         }
+        // Every frame, not only when the playhead moved: a paused deck's glows settle onto the playhead's
+        // value, and an emptied deck's glows fade out. Allocates nothing (see DiscBloom).
+        _bloom.Advance(EqLow, EqMid, EqHigh);
     }
 
     private void OnPlayPositionChanged()
@@ -195,7 +197,7 @@ public sealed class DeckViewModel :
         }
     }
 
-    void IEventHandler<DeckContent>.Handle(in DeckContent e)
+    void IEventHandler<DeckContentChanged>.Handle(in DeckContentChanged e)
     {
         if (e.Deck != _deck) return;
         var loadStateChanged = e.LoadState != _loadState;
@@ -204,7 +206,6 @@ public sealed class DeckViewModel :
         _loadState = e.LoadState;
         _isLoaded = e.IsLoaded;
         _analysis = e.Analysis;
-        _segments = e.Segments;
 
         // The content event fires for the load itself and for each analysis step that lands, so everything
         // derived from the track or its analysis is re-announced. Cheap: it happens a few times per load.
@@ -227,8 +228,22 @@ public sealed class DeckViewModel :
         Notify(nameof(Camelot));
         Notify(nameof(HasKey));
         Notify(nameof(KeyBrush));
-        Notify(nameof(Segments));
-        Notify(nameof(HasSegments));
+    }
+
+    void IEventHandler<DeckSectionsChanged>.Handle(in DeckSectionsChanged e)
+    {
+        if (e.Deck != _deck) return;
+        _sections = e.Sections;
+        _phraseGrid = e.PhraseGrid;
+        _firstDownbeatSec = e.FirstDownbeatSec;
+        _barPeriodSec = e.BarPeriodSec;
+        _totalBars = e.TotalBars;
+        Notify(nameof(Sections));
+        Notify(nameof(PhraseGrid));
+        Notify(nameof(FirstDownbeatSec));
+        Notify(nameof(BarPeriodSec));
+        Notify(nameof(TotalBars));
+        Notify(nameof(HasSections));
         Notify(nameof(SectionMapVisible));
     }
 
@@ -354,7 +369,7 @@ public sealed class DeckViewModel :
     public double? LoopEndSec => _isLooping ? _loopEndSec : null;
 
     // ---- Transport ----------------------------------------------------------------------------
-    public Track? LoadedTrack => _loadedTrack;
+    public DeckTrack? LoadedTrack => _loadedTrack;
 
     public bool IsPlaying => _playState != PlayPhase.Stopped;
 
@@ -407,39 +422,52 @@ public sealed class DeckViewModel :
     {
         get
         {
-            var basic = Analysis?.Basic;
-            if (basic is null || basic.Bpm <= 0) return 0;
-            double secondsPerBar = 60.0 / basic.Bpm * 4;
+            if (_analysis is not { HasBasic: true, Bpm: > 0 } a) return 0;
+            double secondsPerBar = 60.0 / a.Bpm * 4;
             return (_playbackSeconds / secondsPerBar) * 360.0;
         }
     }
 
     // ---- Analysis-derived display -------------------------------------------------------------
-    /// <summary>The loaded track's analysis, shared by reference with the App (it fills in as steps land);
-    /// null until the first content event.</summary>
-    public TrackAnalysis? Analysis => _analysis;
+    /// <summary>The loaded track's analysis as of the last content event: an immutable snapshot, replaced
+    /// each time an analysis step lands; null until the first content event.</summary>
+    public DeckAnalysis? Analysis => _analysis;
 
     /// <summary>Waveform peaks for rendering: always the mixed frequency-band peaks (low / mid / high) from
     /// basic analysis. The silhouette is the full mix and does NOT change when stems are muted: stem state
     /// is shown by the DRMS / VOX / INST chips and the audio, so the arrangement stays recognizable at a
     /// glance.</summary>
-    public WaveformPeaks Peaks => Analysis?.Basic?.Peaks ?? _noPeaks;
+    public WaveformPeaks Peaks => _analysis?.Peaks ?? _noPeaks;
 
     /// <summary>Always the basic mixed peaks (or none until basic analysis lands). Used by
     /// <see cref="Controls.WaveformControl"/> as the time-mapping reference so the beatgrid keeps scrolling
     /// even when every stem is muted.</summary>
-    public WaveformPeaks GridPeaks => Analysis?.Basic?.Peaks ?? _noPeaks;
+    public WaveformPeaks GridPeaks => _analysis?.Peaks ?? _noPeaks;
 
     /// <summary>Vocal-presence regions derived from the isolated vocal stem, or null until stems land.</summary>
-    public IReadOnlyList<VocalRegion>? VocalRegions => Analysis?.Get<IReadOnlyList<VocalRegion>>();
+    public IReadOnlyList<VocalRegion>? VocalRegions => _analysis?.VocalRegions;
 
     /// <summary>Marker positions on the loaded track, in seconds, rendered as flags on the waveform.</summary>
     public double[] MarkerSecs => _markerSecs;
 
-    /// <summary>Coarse structural sections of the loaded track, or null until basic analysis lands.</summary>
-    public IReadOnlyList<SongSegment>? Segments => _segments;
+    /// <summary>Phrase-aware sections in bars; empty until basic analysis lands. Turn a bar into seconds
+    /// with <see cref="FirstDownbeatSec"/> + bar * <see cref="BarPeriodSec"/>.</summary>
+    public IReadOnlyList<DeckSection> Sections => _sections;
 
-    public bool HasSegments => Segments is { Count: > 0 };
+    /// <summary>Phrase lines every <c>PhraseBars</c> bars from <c>PhaseBar</c>.</summary>
+    public DeckPhraseGrid PhraseGrid => _phraseGrid;
+
+    /// <summary>Time of bar 0.</summary>
+    public double FirstDownbeatSec => _firstDownbeatSec;
+
+    /// <summary>Seconds per bar; 0 when the track has no grid.</summary>
+    public double BarPeriodSec => _barPeriodSec;
+
+    /// <summary>Whole bars in the track.</summary>
+    public int TotalBars => _totalBars;
+
+    /// <summary>Sections exist and there is a bar grid to place them on.</summary>
+    public bool HasSections => _sections.Count > 0 && _barPeriodSec > 0;
 
     /// <summary>Feature-flag gate for the section map (from <c>FeatureOptions</c>). Set once at
     /// construction by the factory.</summary>
@@ -447,17 +475,22 @@ public sealed class DeckViewModel :
 
     /// <summary>The section-map strip is shown only when the feature flag is on AND sections have been
     /// analysed. Bound by the minimap's <c>IsVisible</c>.</summary>
-    public bool SectionMapVisible => SectionMapEnabled && HasSegments;
+    public bool SectionMapVisible => SectionMapEnabled && HasSections;
 
-    // ---- Live EQ meter (shown in the disc when there's no album art) --------------------------
+    // ---- Band energy at the playhead (drives the disc bloom) ----------------------------------
     // Coarse frequency content at the playhead, straight from the band peaks: no FFT, no extra buffers.
+
+    /// <summary>The three glow opacities behind the BPM, smoothed from the band energies at the playhead.
+    /// The same instance always; it raises its own <c>Changed</c> when a glow visibly moves.</summary>
+    public IDiscBloomLevels Bloom => _bloom;
+
     public float EqLow  => BandAt(p => p.Low);
     public float EqMid  => BandAt(p => p.Mid);
     public float EqHigh => BandAt(p => p.High);
 
     private float BandAt(Func<WaveformPeaks, float[]> pick)
     {
-        var pk = Analysis?.Basic?.Peaks;
+        var pk = _analysis?.Peaks;
         if (pk is null || pk.Min.Length == 0) return 0f;
         var arr = pick(pk);
         if (arr.Length != pk.Min.Length) return 0f;
@@ -465,8 +498,8 @@ public sealed class DeckViewModel :
         return arr[col];
     }
 
-    public double[] BeatTimes => Analysis?.Basic?.BeatTimes ?? [];
-    public double[] DownbeatTimes => Analysis?.Basic?.DownbeatTimes ?? [];
+    public double[] BeatTimes => _analysis?.BeatTimes ?? [];
+    public double[] DownbeatTimes => _analysis?.DownbeatTimes ?? [];
 
     // ---- BPM display --------------------------------------------------------------------------
     /// <summary>Source BPM (from analysis), unscaled.</summary>
@@ -489,6 +522,9 @@ public sealed class DeckViewModel :
     /// compresses/stretches with the tempo fader and the half/double button.</summary>
     public double PlaybackSpeed => _playbackSpeed;
 
+    /// <summary>Seconds of the track played so far, as the App last reported (not notified: read it when needed).</summary>
+    public double PlaybackSeconds => _playbackSeconds;
+
     public string BpmDisplay =>
         SourceBpm > 0 ? $"{EffectiveBpm:F1} BPM" : "";
 
@@ -509,12 +545,12 @@ public sealed class DeckViewModel :
     /// <summary>Info opacity while a track is loading/idle (0.3 = 70% transparent).</summary>
     private const double LoadingInfoOpacity = 0.3;
 
-    public bool HasAnalysis => Analysis?.Basic is not null;
+    public bool HasAnalysis => _analysis?.HasBasic == true;
 
     /// <summary>True once Demucs stems have landed; until then the stem chip row hides.</summary>
-    public bool HasStems => Analysis?.Get<StemPaths>() is not null;
+    public bool HasStems => _analysis?.HasStems == true;
 
-    private Key? LoadedKey => Analysis?.Get<KeyAnalysis>()?.Key;
+    private KeyRef? LoadedKey => _analysis?.Key;
 
     /// <summary>Camelot code for the loaded track (e.g. "8B"), or empty if key analysis hasn't completed.</summary>
     public string Camelot => LoadedKey?.ToCamelot() ?? "";

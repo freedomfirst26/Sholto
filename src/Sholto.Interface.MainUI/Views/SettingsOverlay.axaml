@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Sholto.Interface.MainUI.Controls"
+             x:Class="Sholto.Interface.MainUI.Views.SettingsOverlay"
+             Focusable="False">
+
+    <UserControl.Styles>
+        <Style Selector="c|RotaryKnob">
+            <Setter Property="Cursor" Value="SizeNorthSouth"/>
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+        </Style>
+        <Style Selector="Border.card.active">
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoAccent}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <!-- The knob cards only: ModalShell supplies the scrim, panel, title and the Close button. -->
+    <!-- Two cards side by side: label + explanation, the value, the knob. The active card is outlined. -->
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <Border Grid.Column="0" Classes="card" Classes.active="{Binding Time.IsActive}"
+                CornerRadius="10" BorderThickness="2" Padding="14,10"
+                Background="{DynamicResource SholtoSurface}">
+            <StackPanel Spacing="6">
+                <TextBlock Text="Backspin time" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SholtoTextBright}"/>
+                <TextBlock FontSize="12" TextWrapping="Wrap" MinHeight="48"
+                           Foreground="{DynamicResource SholtoTextMuted}"
+                           Text="How long the platter keeps spinning after you let go. 0 stops dead. Forward flings follow it too."/>
+                <TextBlock x:Name="BackspinTimeValue" Text="{Binding Time.Text}"
+                           FontSize="20" FontWeight="SemiBold" FontFamily="monospace"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource SholtoTextBright}"/>
+                <c:RotaryKnob x:Name="BackspinTimeKnob" Width="120" Height="120" HorizontalAlignment="Center"
+                              Value="{Binding Time.Value, Mode=TwoWay}"
+                              DefaultValue="{Binding Time.Default}"
+                              Scale="{Binding Time.Scale}"
+                              Palette="{DynamicResource SholtoKnobPalette}"/>
+            </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Classes="card" Classes.active="{Binding Distance.IsActive}"
+                CornerRadius="10" BorderThickness="2" Padding="14,10"
+                Background="{DynamicResource SholtoSurface}">
+            <StackPanel Spacing="6">
+                <TextBlock Text="Backspin distance" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SholtoTextBright}"/>
+                <TextBlock FontSize="12" TextWrapping="Wrap" MinHeight="48"
+                           Foreground="{DynamicResource SholtoTextMuted}"
+                           Text="How far a firm spin rewinds; harder spins go a little further. 0 stops dead. Forward flings follow it too."/>
+                <TextBlock x:Name="BackspinDistanceValue" Text="{Binding Distance.Text}"
+                           FontSize="20" FontWeight="SemiBold" FontFamily="monospace"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource SholtoTextBright}"/>
+                <c:RotaryKnob x:Name="BackspinDistanceKnob" Width="120" Height="120" HorizontalAlignment="Center"
+                              Value="{Binding Distance.Value, Mode=TwoWay}"
+                              DefaultValue="{Binding Distance.Default}"
+                              Scale="{Binding Distance.Scale}"
+                              Palette="{DynamicResource SholtoKnobPalette}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

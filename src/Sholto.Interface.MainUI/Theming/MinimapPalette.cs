@@ -1,13 +1,12 @@
 using Avalonia.Media;
-using Sholto.App.Analysis;
-using Sholto.App.Analysis.Analyzers.Segments;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Theming;
 
 /// <summary>
 /// Colours for the whole-song section minimap strip (<see cref="Sholto.Interface.MainUI.Controls.MinimapControl"/>).
 /// Every bundled/user theme gets one — either an explicit "minimap" JSON section
-/// (<see cref="SholtoThemeJson"/>) or, when that section (or a given key) is
+/// (<see cref="SholtoThemeFactory"/>) or, when that section (or a given key) is
 /// absent, a palette <see cref="MinimapPaletteFactory"/> computes from the theme's existing
 /// colours so no theme file needs editing to stay valid.
 /// </summary>
@@ -25,16 +24,18 @@ public sealed record MinimapPalette(
     Color Bridge,
     Color Outro)
 {
-    public Color For(SegmentKind kind) => kind switch
+    /// <summary>The colour of a section kind; a neutral <see cref="DeckSectionKind.Section"/> takes the label
+    /// colour, which the minimap bakes as a quiet tint.</summary>
+    public Color For(DeckSectionKind kind) => kind switch
     {
-        SegmentKind.Intro     => Intro,
-        SegmentKind.BuildUp   => BuildUp,
-        SegmentKind.Drop      => Drop,
-        SegmentKind.Breakdown => Breakdown,
-        SegmentKind.Verse     => Verse,
-        SegmentKind.Chorus    => Chorus,
-        SegmentKind.Bridge    => Bridge,
-        SegmentKind.Outro     => Outro,
-        _                     => Intro,
+        DeckSectionKind.Intro     => Intro,
+        DeckSectionKind.Build     => BuildUp,
+        DeckSectionKind.Drop      => Drop,
+        DeckSectionKind.Breakdown => Breakdown,
+        DeckSectionKind.Verse     => Verse,
+        DeckSectionKind.Chorus    => Chorus,
+        DeckSectionKind.Bridge    => Bridge,
+        DeckSectionKind.Outro     => Outro,
+        _                         => Label,
     };
 }

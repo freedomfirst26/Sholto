@@ -1,6 +1,7 @@
 using Sholto.App.Analysis;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Waveform;
+using Sholto.Data;
 
 namespace Sholto.App.Storage;
 
@@ -22,9 +23,11 @@ internal sealed class BasicAnalysisSerializer : IBasicAnalysisSerializer
     //     biased quantized beat times high (174 DnB read 176.5).
     // v3: beatgrid phase anchored to the OPENING downbeats, not a whole-track
     //     average that madmom's wandering beats dragged ~a beat off at the start.
+    // v4: waveform low/mid/high bands were identical for every track (filter state
+    //     never advanced); re-analyse to bake real bands.
     // Bumping invalidates cached basic analyses so tracks re-derive the fixed BPM
     // + grid (and re-bake the calibrated waveform) on next load.
-    public const uint Version = 3;
+    public const uint Version = 4;
 
     public byte[] Encode(BasicAnalysis a)
     {
@@ -60,7 +63,7 @@ internal sealed class BasicAnalysisSerializer : IBasicAnalysisSerializer
         var high = ReadFloats(r);
         var beats = ReadDoubles(r);
         var downs = ReadDoubles(r);
-        var peaks = new WaveformPeaks(min, max, low, mid, high, spp);
+        var peaks = new WaveformPeaks(min, max, low, mid, high, spp, EngineAudio.SampleRate);
         return new BasicAnalysis(peaks, bpm, beats, downs);
     }
 

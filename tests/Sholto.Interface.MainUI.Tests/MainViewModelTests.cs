@@ -1,14 +1,16 @@
+using Sholto.Interface.MainUI.Controls.CollapseToIcon;
+using Sholto.Interface.MainUI.Controls.Knob;
+using Sholto.Interface.MainUI.Controls.Modal;
+using Sholto.Interface.MainUI.Controls.WaveformStyles;
 using Sholto.App.Analysis.Analyzers.Segments;
 using Sholto.App.Analysis.Analyzers.Waveform;
-using Sholto.App.Analysis.Harmony;
 using Sholto.App.Audio;
 using Sholto.App.Library;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Models;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
-using DeckContent = Sholto.Data.DeckContentChanged<
-    Sholto.App.Library.Track, Sholto.App.Audio.TrackAnalysis, Sholto.App.Analysis.Analyzers.Segments.SongSegment>;
+using Sholto.Interface.MainUI.ViewModels.Glance;
 
 namespace Sholto.Interface.MainUI.Tests;
 
@@ -28,19 +30,38 @@ public class MainViewModelTests
         var appThread = new ImmediateAppThread();
         var recency = new TagRecency();
         var rows = new LibraryRowsViewModel(_bus, new TrackRowFactory(themes.Context));
-        var search = new SearchViewModel(rows.Items, new LibrarySearch(), recency, _bus, _bus, appThread);
+        var clock = new FakeFrameClock();
+        var deck1 = new DeckViewModel(0, _bus, _bus, themes.Context, new NoPeaksFactory(),
+            new DiscBloomFactory(new ManualFrameClock()));
+        var deck2 = new DeckViewModel(1, _bus, _bus, themes.Context, new NoPeaksFactory(),
+            new DiscBloomFactory(new ManualFrameClock()));
+        var clocks = new DeckViewModelClockSource(deck1, deck2);
+        var glance = new GlanceViewModel(_bus, _bus, _bus, appThread, clock, rows, recency,
+            new GlanceHeaderViewModel(clocks, clock, _bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false))),
+            new FixedMotionPreference(false));
+        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory().Create(), _bus);
+        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, _bus);
         _vm = new MainViewModel(
-            themes.Context,
-            themes.Catalog,
+            themeViewModel,
             new OverlayViewModelFactory(recency, _bus, _bus, _bus, appThread),
             rows,
             _bus,
             _bus,
             appThread,
-            search,
+            glance,
+            new LoadFeedbackViewModel(_bus, _bus),
             new TrackActionsViewModel(),
-            new DeckViewModel(0, _bus, _bus, themes.Context, new WaveformPeaksFactory()),
-            new DeckViewModel(1, _bus, _bus, themes.Context, new WaveformPeaksFactory()));
+            deck1,
+            deck2,
+            waveformStyle,
+            new LayoutWizardViewModel(waveformStyle, new WaveformStyleOptionFactory(), new WaveformPreviewRenderer(),
+                new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
+                themeViewModel, new ThemeOptionFactory()),
+            new SettingsViewModel(_bus, _bus, new KnobScaleFactory()),
+            new SystemReportViewModel(),
+            new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
+                new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
+                new AlwaysHintPolicy()));
         _vm.PropertyChanged += (_, e) => _changed.Add(e.PropertyName);
 
         // The search overlay and overlay factory ask these once the database is attached.
@@ -56,6 +77,11 @@ public class MainViewModelTests
         _bus.Register<SearchTags, Task<IReadOnlyList<TagHit>>>(
             new F9QueryHandler<SearchTags, Task<IReadOnlyList<TagHit>>>(
                 _ => Task.FromResult<IReadOnlyList<TagHit>>([])));
+        // Opening the Glance overlay asks which deck to aim at and asks for a ranking.
+        _bus.Register<SuggestLoadTarget, int>(new F9QueryHandler<SuggestLoadTarget, int>(_ => 0));
+        _bus.Register<RankTracks, Task<RankedTracks>>(new F9QueryHandler<RankTracks, Task<RankedTracks>>(
+            _ => Task.FromResult(new RankedTracks([], -1, null, null, false, []))));
+        Record<SetSearchPick>();
     }
 
     private F9RecordingCommandHandler<T> Record<T>() where T : struct, ICommand
@@ -75,11 +101,30 @@ public class MainViewModelTests
 
     /// <summary>Put deck <paramref name="deck"/> in the loaded or empty state, the way the App announces it.</summary>
     private void SetLoaded(int deck, bool loaded) =>
-        _bus.Publish(new DeckContent(
-            deck, null, loaded ? DeckLoadState.Loaded : DeckLoadState.Idle, loaded, null, null));
+        _bus.Publish(new DeckContentChanged(
+            deck, null, loaded ? DeckLoadState.Loaded : DeckLoadState.Idle, loaded, null));
 
     private void SetPlaying(int deck, bool playing) =>
         _bus.Publish(new DeckPlayStateChanged(deck, playing ? PlayPhase.Playing : PlayPhase.Stopped, false));
+
+    // ---- Controller guide ------------------------------------------------------------------------
+
+    [Fact]
+    public void Closing_the_guide_turns_inspect_off_at_the_start_of_the_collapse()
+    {
+        var overlay = new Sholto.Interface.Faceplate.ViewModels.FaceplateViewModel(
+            new Sholto.Interface.Faceplate.Model.FaceplateDocLoader().Load(
+                new Sholto.Interface.Faceplate.Devices.DdjFlx4.DdjFlx4Faceplate()), _bus);
+        _vm.AttachFaceplate(overlay);
+        var inspect = Record<SetInspectMode>();
+        _vm.IsFaceplateOpen = true;
+        Assert.Equal(CollapseToIconState.Open, _vm.FaceplateDock.State);
+
+        _vm.IsFaceplateOpen = false;
+
+        Assert.Equal(CollapseToIconState.Collapsing, _vm.FaceplateDock.State);
+        Assert.Equal([true, false], inspect.Received.Select(c => c.On));
+    }
 
     // ---- Selection ------------------------------------------------------------------------------
 
@@ -285,12 +330,12 @@ public class MainViewModelTests
     {
         Assert.Null(_vm.HarmonyReferenceKey);
 
-        _bus.Publish(new HarmonyReferenceChanged(new KeyRef(3, false)));
+        _bus.Publish(new HarmonyReferenceChanged(new KeyRef(3, false), [new KeyRef(3, false)]));
 
-        Assert.Equal(new Key(3, false), _vm.HarmonyReferenceKey);
+        Assert.Equal(new KeyRef(3, false), _vm.HarmonyReferenceKey);
         Assert.Contains(nameof(MainViewModel.HarmonyReferenceKey), _changed);
 
-        _bus.Publish(new HarmonyReferenceChanged(null));
+        _bus.Publish(new HarmonyReferenceChanged(null, []));
 
         Assert.Null(_vm.HarmonyReferenceKey);
     }
@@ -361,6 +406,51 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public async Task IsCratePickerOpen_follows_the_crate_picker_and_announces_each_change()
+    {
+        _bus.Publish(new LibraryDatabaseAttached(true));
+        Assert.False(_vm.IsCratePickerOpen);
+        _changed.Clear();
+
+        _vm.CratePicker!.Close();
+        Assert.False(_vm.IsCratePickerOpen);
+
+        var row = new TrackRowFactory(new ThemeStackFactory().Build().Context).Create(
+            new TrackSummary("/music/a.mp3", "Alpha", "Zed", TimeSpan.FromMinutes(3)) { TrackId = Guid.NewGuid() });
+        await _vm.OpenCratePickerAsync(row);
+        Assert.True(_vm.IsCratePickerOpen);
+        Assert.Contains(nameof(MainViewModel.IsCratePickerOpen), _changed);
+
+        _vm.CratePicker.Close();
+        Assert.False(_vm.IsCratePickerOpen);
+    }
+
+    [Fact]
+    public void Modals_skip_the_crate_picker_until_the_library_is_attached_and_list_it_first_after()
+    {
+        Assert.Equal<IModal>([_vm.SystemReportModal, _vm.LayoutWizard, _vm.Settings], _vm.Modals);
+
+        _bus.Publish(new LibraryDatabaseAttached(true));
+
+        Assert.Equal<IModal>([_vm.CratePicker!, _vm.SystemReportModal, _vm.LayoutWizard, _vm.Settings], _vm.Modals);
+    }
+
+    [Fact]
+    public void Esc_with_two_modals_open_goes_to_the_higher_priority_one()
+    {
+        _vm.Settings.Open();
+        _vm.SystemReportModal.Open();
+        var router = new ModalKeyRouter();
+
+        var first = _vm.Modals.First(m => m.IsOpen);
+        Assert.Same(_vm.SystemReportModal, first);
+        Assert.True(router.Route(first, Avalonia.Input.Key.Escape, Avalonia.Input.KeyModifiers.None));
+
+        Assert.False(_vm.SystemReportModal.IsOpen);
+        Assert.True(_vm.Settings.IsOpen);
+    }
+
+    [Fact]
     public void An_unavailable_database_builds_nothing()
     {
         _bus.Publish(new LibraryDatabaseAttached(false));
@@ -385,35 +475,35 @@ public class MainViewModelTests
     // ---- Search overlay -------------------------------------------------------------------------
 
     [Fact]
-    public void Picking_a_tag_in_the_search_overlay_filters_by_it_and_closes_the_overlay()
+    public void IsSearchOpen_is_the_Glance_overlays_open_state_and_setting_it_opens_and_closes_it()
     {
-        var sent = Record<FilterLibraryByTag>();
+        Assert.False(_vm.IsSearchOpen);
+
         _vm.IsSearchOpen = true;
 
-        _vm.Search.PickTag("peak");
+        Assert.True(_vm.Glance.IsOpen);
+        Assert.True(_vm.IsSearchOpen);
+        Assert.Contains(nameof(MainViewModel.IsSearchOpen), _changed);
 
-        var command = Assert.Single(sent.Received);
-        Assert.Equal("peak", command.Tag);
-        Assert.Equal(InterfaceIds.MainUI, command.Origin.InterfaceId);
-        Assert.False(_vm.IsSearchOpen);
+        _vm.IsSearchOpen = false;
+
+        Assert.False(_vm.Glance.IsOpen);
     }
 
     [Fact]
-    public void Picking_a_crate_in_the_search_overlay_filters_by_it_and_closes_the_overlay()
+    public void The_load_warning_shows_on_the_main_window_only_while_the_overlay_is_closed()
     {
-        var sent = Record<FilterLibraryByCrate>();
+        _bus.Publish(new LoadConfirmPending(true, 1, "Incoming", "Playing", 120));
+        Assert.True(_vm.LoadFeedback.HasWarning);
+        Assert.True(_vm.ShowLoadWarning);
+
         _vm.IsSearchOpen = true;
 
-        _vm.Search.PickCrate(new CrateRef(7, "Warmup", 3));
-
-        var command = Assert.Single(sent.Received);
-        Assert.Equal(7, command.CrateId);
-        Assert.Equal("Warmup", command.Name);
-        Assert.Equal(InterfaceIds.MainUI, command.Origin.InterfaceId);
-        Assert.False(_vm.IsSearchOpen);
+        Assert.True(_vm.LoadFeedback.HasWarning);
+        Assert.False(_vm.ShowLoadWarning);
     }
 
-    // ---- Load target ----------------------------------------------------------------------------
+    // ---- Load ------------------------------------------------------------------------------------
 
     [Fact]
     public void LoadSelectedToDeck_sends_LoadSelectedIntoDeck_for_that_deck()
@@ -425,88 +515,6 @@ public class MainViewModelTests
         var command = Assert.Single(sent.Received);
         Assert.Equal(1, command.Deck);
         Assert.Equal(InterfaceIds.MainUI, command.Origin.InterfaceId);
-    }
-
-    [Fact]
-    public void With_both_decks_empty_the_load_target_is_deck_1()
-    {
-        _vm.LoadTargetDeck = 1;
-
-        _vm.PickDefaultLoadTarget();
-
-        Assert.Equal(0, _vm.LoadTargetDeck);
-        Assert.True(_vm.IsLoadTargetDeck1);
-        Assert.False(_vm.IsLoadTargetDeck2);
-    }
-
-    [Fact]
-    public void The_empty_deck_is_the_load_target_when_only_deck_1_is_loaded()
-    {
-        SetLoaded(0, true);
-        SetLoaded(1, false);
-
-        _vm.PickDefaultLoadTarget();
-
-        Assert.Equal(1, _vm.LoadTargetDeck);
-        Assert.True(_vm.IsLoadTargetDeck2);
-    }
-
-    [Fact]
-    public void The_empty_deck_is_the_load_target_when_only_deck_2_is_loaded()
-    {
-        _vm.LoadTargetDeck = 1;
-        SetLoaded(0, false);
-        SetLoaded(1, true);
-
-        _vm.PickDefaultLoadTarget();
-
-        Assert.Equal(0, _vm.LoadTargetDeck);
-    }
-
-    [Fact]
-    public void With_both_loaded_the_load_target_is_the_deck_that_is_not_playing()
-    {
-        SetLoaded(0, true);
-        SetLoaded(1, true);
-        SetPlaying(0, true);
-
-        _vm.PickDefaultLoadTarget();
-        Assert.Equal(1, _vm.LoadTargetDeck);
-
-        SetPlaying(0, false);
-        SetPlaying(1, true);
-
-        _vm.PickDefaultLoadTarget();
-        Assert.Equal(0, _vm.LoadTargetDeck);
-    }
-
-    [Fact]
-    public void With_both_loaded_and_both_or_neither_playing_the_load_target_is_deck_1()
-    {
-        _vm.LoadTargetDeck = 1;
-        SetLoaded(0, true);
-        SetLoaded(1, true);
-
-        _vm.PickDefaultLoadTarget();
-        Assert.Equal(0, _vm.LoadTargetDeck);
-
-        _vm.LoadTargetDeck = 1;
-        SetPlaying(0, true);
-        SetPlaying(1, true);
-
-        _vm.PickDefaultLoadTarget();
-        Assert.Equal(0, _vm.LoadTargetDeck);
-    }
-
-    [Fact]
-    public void Opening_the_search_overlay_picks_the_default_load_target()
-    {
-        SetLoaded(0, true);
-        SetLoaded(1, false);
-
-        _vm.IsSearchOpen = true;
-
-        Assert.Equal(1, _vm.LoadTargetDeck);
     }
 
     // ---- Decks ----------------------------------------------------------------------------------
@@ -536,6 +544,58 @@ public class MainViewModelTests
         _bus.Publish(new DeckEditChanged(0, false, false, false));
         _bus.Publish(new DeckEditChanged(1, false, false, false));
         Assert.Null(_vm.EditingDeck);
+    }
+
+    // ---- System report (amber dot) ---------------------------------------------------------------
+
+    private static SystemCheckReported MissingTool() =>
+        new([new ToolStatus("demucs", ToolCapabilities.Stems, false, null, null)], SystemHealth.Degraded);
+
+    [Fact]
+    public void The_amber_dot_opens_the_system_report_and_IsSystemReportOpen_follows_it()
+    {
+        _bus.Publish(new DeviceConnectionChanged(true));
+        _bus.Publish(MissingTool());
+
+        _vm.OpenSystemReport();
+
+        Assert.True(_vm.IsSystemReportOpen);
+        Assert.True(_vm.SystemReportModal.IsOpen);
+        Assert.Contains(nameof(MainViewModel.IsSystemReportOpen), _changed);
+        _vm.CloseSystemReport();
+        Assert.False(_vm.IsSystemReportOpen);
+    }
+
+    [Fact]
+    public void A_published_system_check_sets_SystemDegraded_and_a_healthy_one_clears_it()
+    {
+        _bus.Publish(new DeviceConnectionChanged(true));
+        Assert.False(_vm.SystemDegraded);
+        _changed.Clear();
+
+        _bus.Publish(MissingTool());
+        Assert.True(_vm.SystemDegraded);
+        Assert.Contains(nameof(MainViewModel.SystemDegraded), _changed);
+        Assert.Single(_vm.SystemReportModal.Rows);
+
+        _changed.Clear();
+        _bus.Publish(new SystemCheckReported([], SystemHealth.Healthy));
+        Assert.False(_vm.SystemDegraded);
+        Assert.Contains(nameof(MainViewModel.SystemDegraded), _changed);
+    }
+
+    [Fact]
+    public void A_healthy_or_red_dot_does_not_open_the_system_report()
+    {
+        _bus.Publish(new DeviceConnectionChanged(true));
+        _bus.Publish(new SystemCheckReported([], SystemHealth.Healthy));
+        _vm.OpenSystemReport();
+        Assert.False(_vm.IsSystemReportOpen);
+
+        _bus.Publish(MissingTool());
+        _bus.Publish(new DeviceConnectionChanged(false));
+        _vm.OpenSystemReport();
+        Assert.False(_vm.IsSystemReportOpen);
     }
 
     // ---- Other actions --------------------------------------------------------------------------

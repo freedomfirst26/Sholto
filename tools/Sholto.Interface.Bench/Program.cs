@@ -28,43 +28,24 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
-        var decoder = new NoOpAudioFileDecoder();
+        // Real MP3/WAV decode (resampled to 48 kHz): Deck.LoadStreaming falls back to it for files whose
+        // rate differs from the engine's, which the streaming provider cannot resample. No ffmpeg/FLAC.
+        var naudioDecoding = new NAudioDecoding();
+        var decoder = new AudioFileDecoder([new Mp3DecodeStrategy(naudioDecoding), new WavDecodeStrategy(naudioDecoding)]);
         var stemStep = new NoOpStemAnalysisStep();
         var analysisProvider = new AnalysisProvider(
             compute: (_, _) => throw new NotSupportedException(
                 "Sholto.Interface.Bench renders via Deck.LoadStreaming, which never reaches AnalysisProvider."));
-        var deckFactory = new BenchDeckFactory(decoder, stemStep, analysisProvider, Options.Create(new WaveformBandOptions()));
+        var appThread = new ImmediateAppThread();
+        var deckFactory = new BenchDeckFactory(decoder, stemStep, analysisProvider, Options.Create(new WaveformBandOptions()), appThread);
         var benchDeck = new BenchDeck(deckFactory);
         var crossfade = new EqualPowerCrossfade();
         var deckAdvance = new DeckAdvance(deckFactory);
 
-        // The one bus, as in the app: the deck sessions publish, the controller adapter subscribes,
-        // and the command handlers register. Everything runs on the caller's thread.
-        var bus = new DataBus(new BenchHandlerFailureSink());
-        var appThread = new ImmediateAppThread();
-        var coreFactory = new HeadlessCoreFactory(benchDeck, deckFactory, decoder, bus, new ManualFrameClock(), appThread);
-        var stackFactory = new HeadlessInputStackFactory(
-            bus, bus, bus, bus, bus,
-            new CommandHandlersFactory(appThread, bus),
-            new PerformanceFactory(),
-            new ControllerInputFactory(),
-            Options.Create(new ScratchOptions()),
-            Options.Create(new MagnetismOptions()),
-            new MasterCueOutput(),
-            new NullAppLifecycle());
-        var headlessHost = new HeadlessHost(
-            coreFactory,
-            new GestureHostFactory(Options.Create(new ControllerMappingsOptions())),
-            stackFactory,
-            appThread,
-            deckAdvance,
-            new ScenarioGestureBuilder(),
-            new CoreSnapshot(),
-            new StateDiff(),
-            crossfade);
+        var headlessHost = new HeadlessHostFactory(benchDeck, deckFactory, decoder, deckAdvance, appThread, crossfade).Create();
 
         return new BenchCli(
-            new ScenarioParser(),
+            new ScenarioFactory(),
             new OfflineRenderer(benchDeck, crossfade, new CueOutputRouterFactory()),
             new FfmpegSoundMeter(),
             benchDeck,

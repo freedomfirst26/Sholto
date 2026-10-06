@@ -45,7 +45,6 @@ buying a commercial license, raise this first: <freedomfirst26@proton.me>.
 | NAudio | WAV / MP3 decoding | MIT |
 | NLayer.NAudioSupport | MP3 decoding | MIT |
 | z440.atl.core | audio tag reading | MIT |
-| CommunityToolkit.Mvvm | MVVM helpers | MIT |
 | Microsoft.Extensions.Options | configuration | MIT |
 | Microsoft.Data.Sqlite | storage | MIT |
 | Microsoft.EntityFrameworkCore.Sqlite | storage | MIT |

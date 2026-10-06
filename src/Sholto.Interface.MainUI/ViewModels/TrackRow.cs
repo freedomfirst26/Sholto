@@ -1,12 +1,8 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media;
-using Sholto.App.Analysis;
-using Sholto.App.Analysis.Harmony;
-using Sholto.App.Analysis.Reporting;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Theming;
-using Sholto.App.Library;
 
 namespace Sholto.Interface.MainUI.ViewModels;
 
@@ -19,19 +15,23 @@ public sealed class TrackRow : INotifyPropertyChanged
 {
     public TrackRow(TrackSummary summary, IThemeContext theme)
     {
-        Track = new Track(summary.FilePath, summary.Title, summary.Artist, summary.Duration);
+        _summary = summary;
         _theme = theme;
         Apply(summary);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public Track Track { get; }
+    private TrackSummary _summary;
+
+    /// <summary>The summary this row currently shows — the latest one applied.</summary>
+    public TrackSummary Summary => _summary;
 
     /// <summary>Bring every field to <paramref name="summary"/>'s values; each setter notifies only when
     /// its value actually changes.</summary>
     public void Apply(TrackSummary summary)
     {
+        _summary = summary;
         TrackId = summary.TrackId;
         Bpm = summary.Bpm;
         BpmMultiplier = summary.BpmMultiplier;
@@ -39,15 +39,15 @@ public sealed class TrackRow : INotifyPropertyChanged
         IsAnalyzing = summary.IsAnalyzing;
         AnalysisFailure = summary.AnalysisFailure;
         HasRequiredFailure = summary.HasRequiredFailure;
-        MusicalKey = summary.MusicalKey is { } k ? new Key(k.PitchClass, k.IsMajor) : null;
+        MusicalKey = summary.MusicalKey;
         IsPlayed = summary.IsPlayed;
         if (!ReferenceEquals(_tags, summary.Tags)) Tags = summary.Tags;
     }
 
-    public string FilePath => Track.FilePath;
-    public string Title => Track.Title;
-    public string Artist => Track.Artist;
-    public TimeSpan Duration => Track.Duration;
+    public string FilePath => _summary.FilePath;
+    public string Title => _summary.Title;
+    public string Artist => _summary.Artist;
+    public TimeSpan Duration => _summary.Duration;
 
     private readonly IThemeContext _theme;
 
@@ -92,7 +92,7 @@ public sealed class TrackRow : INotifyPropertyChanged
     private string? _analysisFailure;
     /// <summary>The failure text from the reporter (step name + the analyser's own
     /// output tail), or null if nothing has failed. Applied from the library session's summary, which takes it from
-    /// <see cref="AnalysisReport.FailureMessage"/>.</summary>
+    /// <c>AnalysisReport.FailureMessage</c>.</summary>
     public string? AnalysisFailure
     {
         get => _analysisFailure;
@@ -113,7 +113,7 @@ public sealed class TrackRow : INotifyPropertyChanged
     private bool _hasRequiredFailure;
     /// <summary>True when <see cref="AnalysisFailure"/> includes a failure of a
     /// REQUIRED step (currently just beat/BPM detection — see
-    /// <see cref="AnalysisReport.HasRequiredFailure"/>). Applied alongside <see cref="AnalysisFailure"/>. Distinct from a plain
+    /// <c>AnalysisReport.HasRequiredFailure</c>). Applied alongside <see cref="AnalysisFailure"/>. Distinct from a plain
     /// non-empty <see cref="AnalysisFailure"/> because that also covers OPTIONAL
     /// step failures (stems, segments), which must not override a green tick — a
     /// required failure must.</summary>
@@ -165,10 +165,10 @@ public sealed class TrackRow : INotifyPropertyChanged
     public bool ShowAnalyzedCheck    => AnalysisState == TrackAnalysisState.Analyzed;
     public bool ShowAnalysisFailed   => AnalysisState == TrackAnalysisState.Failed;
 
-    private Key? _musicalKey;
+    private KeyRef? _musicalKey;
     /// <summary>The track's detected key, typed. Source of truth for <see cref="Key"/>,
-    /// <see cref="KeyBrush"/>, <see cref="HarmonyOpacity"/> and <see cref="KeyEligible"/>.</summary>
-    public Key? MusicalKey
+    /// <see cref="KeyBrush"/> and <see cref="KeyEligible"/>.</summary>
+    public KeyRef? MusicalKey
     {
         get => _musicalKey;
         set
@@ -177,7 +177,6 @@ public sealed class TrackRow : INotifyPropertyChanged
             _musicalKey = value;
             Notify();
             Notify(nameof(Key));
-            Notify(nameof(HarmonyOpacity));
             Notify(nameof(KeyBrush));
             Notify(nameof(KeyEligible));
         }
@@ -210,54 +209,28 @@ public sealed class TrackRow : INotifyPropertyChanged
     /// to subscribe to a static event (which would pin TrackRow instances).</summary>
     public void RefreshThemeBindings() => Notify(nameof(KeyBrush));
 
-    private Key? _referenceKey;
-    /// <summary>The active deck's key (or null). When set, every
-    /// row recomputes <see cref="HarmonyOpacity"/> so the library lights up the
-    /// tracks that mix harmonically with what's currently playing.</summary>
-    public Key? ReferenceKey
+    private IReadOnlyList<KeyRef> _mixableKeys = [];
+    /// <summary>The keys that mix with the active deck's key, as the App published them (empty when no deck
+    /// has a key). Setting it recomputes <see cref="KeyEligible"/> so the library outlines the tracks that mix
+    /// harmonically with what is playing.</summary>
+    public IReadOnlyList<KeyRef> MixableKeys
     {
-        get => _referenceKey;
+        get => _mixableKeys;
         set
         {
-            if (_referenceKey == value) return;
-            _referenceKey = value;
+            value ??= [];
+            if (ReferenceEquals(_mixableKeys, value)) return;
+            _mixableKeys = value;
             Notify();
-            Notify(nameof(HarmonyOpacity));
             Notify(nameof(KeyEligible));
         }
     }
 
-    /// <summary>Opacity to apply to the whole row based on Camelot compatibility
-    /// with <see cref="ReferenceKey"/>. Kept for any callers that still want a
-    /// fade-style signal; the library list now uses <see cref="KeyEligible"/>
-    /// to highlight eligible chips with an outline instead of fading the rest.</summary>
-    public double HarmonyOpacity
-    {
-        get
-        {
-            if (_referenceKey is not { } refKey || _musicalKey is not { } key) return 1.0;
-            return refKey.Compatibility(key) switch
-            {
-                HarmonicMatchResult.Perfect     => 1.00,
-                HarmonicMatchResult.Close       => 0.85,
-                HarmonicMatchResult.EnergyBoost => 0.65,
-                _                         => 0.30,
-            };
-        }
-    }
-
-    /// <summary>True when this track's key mixes harmonically with the active
-    /// deck's key (Perfect / Close / EnergyBoost — anything but Far). Used to
-    /// draw a primary-colour outline around eligible key chips so the user can
-    /// scan the list for mix candidates without dimming everything else.</summary>
-    public bool KeyEligible
-    {
-        get
-        {
-            if (_referenceKey is not { } refKey || _musicalKey is not { } key) return false;
-            return refKey.Compatibility(key) !=HarmonicMatchResult.Far;
-        }
-    }
+    /// <summary>True when this track's key is one of <see cref="MixableKeys"/> (Perfect / Close / EnergyBoost,
+    /// anything but Far). Used to draw a primary-colour outline around eligible key chips so the user can
+    /// scan the list for mix candidates without dimming everything else.
+    /// Note: the Glance FitScorer scores the diagonal (e.g. 8B to 9A) as 0 while this outlines it.</summary>
+    public bool KeyEligible => _musicalKey is { } k && _mixableKeys.Contains(k);
 
     public string DurationDisplay => $"{(int)Duration.TotalMinutes:00}:{Duration.Seconds:00}";
 

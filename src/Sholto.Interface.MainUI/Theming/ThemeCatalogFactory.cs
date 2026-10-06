@@ -6,5 +6,5 @@ namespace Sholto.Interface.MainUI.Theming;
 /// application.</summary>
 public sealed class ThemeCatalogFactory(ISholtoThemeJson themeJson)
 {
-    public ThemeCatalog Build() => new(themeJson.LoadAll());
+    public ThemeCatalog Build() => new(themeJson.LoadAll(), themeJson.UserThemesDir());
 }

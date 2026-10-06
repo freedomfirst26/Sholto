@@ -51,6 +51,9 @@ public sealed class OfflineRenderer(IBenchDeck benchDeck, ICrossfadeCurve crossf
         {
             int frames = (int)Math.Min(FramesPerBuffer, frameCount - framesWritten);
             var span = buffer.AsSpan(0, frames * channels);
+            // The router ADDS its mix into the span, so a reused buffer must be
+            // zeroed first or every buffer is a running sum of all before it.
+            span.Clear();
             router.Process(span, channels);
             writer.WriteInterleaved(span);
             framesWritten += frames;

@@ -166,7 +166,7 @@
           "id": "load.press",
           "verb": "press",
           "layer": "plain",
-          "result": "Loads the highlighted track from your library onto this deck, ready to play."
+          "result": "Loads the highlighted track from your library onto this deck, ready to play. If that deck is playing, press again within 3 seconds to replace it."
         }
       ]
     },
@@ -194,7 +194,7 @@
           "id": "padmode.padfx1.press",
           "verb": "press",
           "layer": "plain",
-          "result": "Switches this deck's pads to the PAD FX1 page. On this page, only [[deck.pad.1]] does anything \u2014 it toggles an echo effect; pads 2-8 do nothing."
+          "result": "Switches this deck's pads to the PAD FX1 page. On this page, [[deck.pad.1]] toggles an echo effect and [[deck.pad.2]] rolls while held; pads 3-8 do nothing."
         }
       ]
     },
@@ -228,7 +228,7 @@
       "id": "deck.pad.2",
       "label": "Pad 2",
       "scope": "per-deck",
-      "summary": "The second performance pad. Only does something on the HOT CUE page.",
+      "summary": "The second performance pad. Mutes vocals on the HOT CUE page; rolls on the PAD FX1 page.",
       "gestures": [
         {
           "id": "pad.hotcue.vocals",
@@ -238,6 +238,15 @@
             "deck.padmode.hotcue"
           ],
           "result": "Mutes or brings back the vocals for this deck, once its stems are ready."
+        },
+        {
+          "id": "pad.padfx1.roll",
+          "verb": "press and hold",
+          "layer": "page.padfx1",
+          "with": [
+            "deck.padmode.padfx1"
+          ],
+          "result": "Repeats a short beat-synced slice of this deck for as long as you hold it. Let go and the track comes back in where it would have been \u2014 it kept playing underneath."
         }
       ]
     },
@@ -513,26 +522,25 @@
       "id": "browse.knob",
       "label": "Browse",
       "scope": "global",
-      "summary": "The rotary knob for moving through your library. Turn it to scroll, press it to load or re-analyse.",
+      "summary": "The rotary knob for moving through your library. Turn it to scroll, press it to open search, or hold it to re-analyse.",
       "gestures": [
         {
           "id": "browse.turn",
           "verb": "turn",
           "layer": "plain",
-          "result": "Scrolls up or down your library list."
+          "result": "Scrolls up or down your library list, or the search list while search is open."
         },
         {
           "id": "browse.press.short",
           "verb": "press briefly",
           "layer": "plain",
-          "used": false,
-          "result": "Does nothing on its own. Use LOAD 1 or LOAD 2 to send the highlighted track to a deck."
+          "result": "Opens search. Press again to switch between the list and the shortlist/crates rail."
         },
         {
           "id": "browse.press.hold",
           "verb": "press and hold",
           "layer": "plain",
-          "result": "Re-analyses the highlighted track \u2014 hold for about a second to trigger it."
+          "result": "Re-analyses the highlighted track (the search's highlight while search is open) \u2014 hold for about a second to trigger it."
         }
       ]
     },

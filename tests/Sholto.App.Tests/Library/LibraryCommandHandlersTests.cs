@@ -1,3 +1,4 @@
+using Sholto.App.Glance;
 using Sholto.App.Library.Tags;
 using Sholto.Data;
 using Sholto.App.Library;
@@ -20,7 +21,7 @@ public class LibraryCommandHandlersTests
 
     public LibraryCommandHandlersTests()
     {
-        _handlers = new LibraryCommandHandlers(_rig.Library, new ImmediateAppThread(), _rig.Bus);
+        _handlers = new LibraryCommandHandlers(_rig.Library, new ImmediateAppThread(), _rig.Bus, new CrateMembershipCache(_rig.Library));
         _alphaId = _rig.Catalog.Assign(LibrarySessionRig.Alpha.FilePath);
         _bravoId = _rig.Catalog.Assign(LibrarySessionRig.Bravo.FilePath);
         _charlieId = _rig.Catalog.Assign(LibrarySessionRig.Charlie.FilePath);

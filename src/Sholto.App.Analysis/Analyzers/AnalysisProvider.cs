@@ -16,6 +16,10 @@ public sealed class AnalysisProvider(Func<DecodedTrack, CancellationToken, Task<
     public Task<BasicAnalysis> GetAsync(DecodedTrack track, CancellationToken ct = default) =>
         _compute(track, ct);
 
+    /// <summary>Defers all work to <c>CompleteAsync</c>; <c>compute</c> is not called here.</summary>
+    public IBasicAnalysisRequest Begin(string filePath, CancellationToken ct = default) =>
+        new BasicAnalysisRequest(track => _compute(track, ct));
+
     /// <summary>
     /// Force a fresh compute. There is nothing to bypass at this layer — every
     /// cache tier lives above this class now — so this is identical to

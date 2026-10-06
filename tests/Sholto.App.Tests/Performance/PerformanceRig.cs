@@ -10,6 +10,7 @@ namespace Sholto.App.Tests;
 internal sealed class PerformanceRig
 {
     public CoreStack Core { get; }
+    public DataBus Bus { get; }
     public ManualFrameClock Clock { get; } = new();
     public JogRecency Recency { get; }
     public JogSeek Seek { get; }
@@ -20,11 +21,13 @@ internal sealed class PerformanceRig
 
     public PerformanceRig()
     {
-        Core = new HeadlessCore().Core;
+        var headless = new HeadlessCore();
+        Core = headless.Core;
+        Bus = headless.Bus;
         var scratchOptions = Options.Create(new ScratchOptions());
         Recency = new JogRecency(Clock, scratchOptions);
         Seek = new JogSeek(Core.Decks, Recency);
-        Scratch = new ScratchEngine(Core.Decks, Core.Playback, Recency, Clock, scratchOptions);
+        Scratch = new ScratchEngine(Core.Decks, Core.Playback, Recency, Clock, scratchOptions, Core.BackspinFeel);
         Magnet = new MagnetSnap(Core.Decks, Recency, Clock, Options.Create(new MagnetismOptions()));
         Platter = new Platter(Core.Decks, Scratch, Seek, Recency, scratchOptions);
         Tick = new PerformanceTick(Clock, Core.Decks, Magnet, Seek, Scratch);

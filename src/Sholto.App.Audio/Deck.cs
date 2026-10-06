@@ -6,6 +6,7 @@ using Sholto.App.Analysis.Stages;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.Stores;
+using Sholto.Data;
 using SoundFlow.Abstracts;
 using SoundFlow.Enums;
 using SoundFlow.Metadata.Models;
@@ -49,7 +50,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
 
     public Deck(
         IAudioFileDecoder decoder,
-        IAnalysisStage<StemAnalysis> stemStage,
+        IStemStage stemStage,
         IAnalysisReporter reporter,
         IAnalysisProvider analysisProvider,
         IKeyAnalysisStore keyCache,
@@ -57,7 +58,8 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
         IKeyAnalyzer keyAnalyzer,
         IBeatgridFactory beatgrids,
         IReadOnlyList<Func<SfEngine, AudioFormat, SoundModifier>> effectFactories,
-        IPlaybackProviderFactory playbackProviders)
+        IPlaybackProviderFactory playbackProviders,
+        IAppThread appThread)
     {
         _loops = new DeckLooping(
             stemProvider: () => _loading.StemProvider,
@@ -117,6 +119,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
             stems: stemStage,
             reporter: reporter,
             decoder: decoder,
+            appThread: appThread,
             setDetectedBasic: _grid.SetDetectedBasic,
             setSampleCount: count => _loading.SetSampleCount(count),
             onStemsReady: samples => _loading.SwitchToStemMode(samples));
@@ -324,7 +327,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
 
     /// <summary>Announce "a new track is about to load". See
     /// <see cref="TrackLoading.BeginLoad"/>.</summary>
-    public void BeginLoad() => _loading.BeginLoad();
+    public void BeginLoad(string filePath) => _loading.BeginLoad(filePath);
 
     /// <summary>Reset every audio-side control to its neutral state — EQ
     /// bands to unity, filter to bypass, stems to full volume, active

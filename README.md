@@ -4,91 +4,36 @@
 
 DJ software for mixing your own music — a free alternative to Rekordbox and Serato.
 
-**Status:** runs on **Linux** with the **Pioneer DDJ-FLX4** controller today. Windows, macOS, and more controllers are on the way.
+[![Download the latest release](https://img.shields.io/github/v/release/freedomfirst26/Sholto?label=Download&style=for-the-badge)](https://github.com/freedomfirst26/Sholto/releases/latest)
 
-![Sholto — library on top, two decks below with section maps, live waveforms, and spinning discs](pictures/sholto-ui.png)
+![Sholto in The Birthday Massacre theme — library on top, two decks below with section maps, waveforms and spinning discs](pictures/sholto-hero.webp)
 
-![The controller guide — the DDJ-FLX4 drawn on screen with the jog wheel selected, and a panel explaining every way of using it](pictures/sholto-faceplate.png)
+## Install
 
-*Your controller, drawn on screen. Click anything to learn what it does — or press it on
-the real thing and watch it light up here, without touching your decks. Controls Sholto
-doesn't use are left uncoloured, so you can see at a glance what's live.*
+**You need:** 64-bit Linux — Ubuntu, Mint, Pop!_OS or Debian. A Pioneer DDJ-FLX4 is
+optional; everything works from the mouse and keyboard.
 
-Full guide: [docs/README.md](docs/README.md) — everything on screen. Your controller is documented inside the app.
-
-## What it does
-
-### Your library
-- Finds every track in your music folder — **mp3, FLAC, WAV, AIFF, and M4A/AAC** — and reads the artist, title, and other tags automatically.
-- Shows everything in a sortable list: **Artist · Track · BPM · Key · Time**.
-- Analyses each track once and remembers the result, so it's instant every time after.
-
-### Finding and organising
-- **Search** — press the spacebar and type. Sholto searches your **tracks, crates, and tags** all at once and shows the top few matches of each, so you can see everything you can jump to.
-- **Tags** — label any track with words that matter to you ("peak time", "vocal", "drum & bass"), then filter the whole library down to a tag in one click.
-- **Crates** — group tracks into crates (like playlists or record boxes) and jump to a crate's contents instantly. An **All Tracks** crate always holds everything; press **Esc** to get back to it.
-
-### Reading your tracks
-- **Automatic beat and tempo detection** — Sholto finds the BPM and marks the downbeats so your beatgrid lines up.
-- **Key detection** — every track gets its musical key (with the Camelot code) so you can mix in harmony.
-- **Stem separation** — splits a track into its parts (vocals, drums, bass, and the rest) so you can drop out the vocal or bring back the beat, live.
-- A small progress bar shows a track being analysed, and a check mark when it's ready.
-
-### Playing and mixing
-- **Two decks** you can play, scrub, and mix independently.
-- **3-band EQ** on each deck (highs, mids, lows) — cut a band all the way to silence, like a hardware isolator.
-- **Filter knob** per deck — sweep from a low-pass to a high-pass for that classic build-up-and-drop feel.
-- **Headphone cue** — pre-listen a track in your headphones while the crowd still hears the other deck.
-- **Beat loops** — set a loop on the beat and halve or double its length on the fly.
-- **Magnetic beat-snap** — when both decks are playing and the beats drift close together, the jog wheel gently "holds" on the beat and both waveforms glow green; let go and the deck locks to the other one's grid. No button to arm — it just happens.
-- Pick which speakers or headphones Sholto plays to, and it remembers your choice.
-
-### Seeing your tracks
-- **Waveforms coloured by frequency** — deep bass, mids, and highs each get their own colour, and the height shows how intense each moment is, so you can spot the intro, the build-up, the drop, and the breakdown at a glance.
-- **Beat-grid markers** along the top, with the downbeats highlighted.
-- **A spinning vinyl disc** per deck that turns in time with the track, its ring shading from green to red as the track plays out and flashing near the end.
-- **Stem chips** under each disc (drums / vocals / instrumental) — lit when you can hear that part, hollow when it's muted.
-- The deck dims red when its volume is all the way down.
-- **A range of colour themes** to switch between in Settings.
-
-## Your DDJ-FLX4
-Plug it in and it works. Click the controller icon in the top bar for a picture of your
-DDJ-FLX4 with every knob, pad and button explained, including the Shift combinations.
-
-Adding support for another controller is straightforward — Sholto keeps each device's button layout in one place.
-
-### Keyboard
-- **Space** — open search (type to find tracks, crates, and tags).
-- **↑ / ↓** — move up and down the track list.
-- **1 / 2** — load the highlighted track onto Deck 1 or Deck 2.
-- **Enter** — open the actions menu for the highlighted track (add it to a crate, or tag it).
-- **P** — play / pause Deck 1; hold **Shift** for Deck 2.
-- **G** — open the beatgrid / tempo tuner on the playing deck; then **↑ / ↓** change the tempo and **← / →** nudge the grid.
-- **M** — drop a marker on the playing deck.
-- **Esc** — close a menu, or clear a tag/crate filter to go back to **All Tracks**.
-- **F11** — toggle fullscreen.
-
-## Install and run
-
-Two ways to get Sholto — grab a ready-made binary, or build it yourself.
-
-### Option 1 — one command (easiest)
+**One command** — downloads the latest release into `~/sholto`, installs the tools it
+needs (asks for your password once) and starts Sholto. Run it again to update.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash
 ```
 
-That downloads the latest release into `~/sholto`, installs the runtime tools it needs (ffmpeg, madmom, and a couple of system libraries — it will ask for your password once), and launches Sholto. Run the same command again later to update. Set `SHOLTO_DIR=/somewhere` to install elsewhere, or add `--no-run` to install without launching:
+**Or by hand** — download `sholto-vX.Y.Z-linux-x64.tar.gz` from the
+[latest release](https://github.com/freedomfirst26/Sholto/releases/latest), then:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash -s -- --no-run
+mkdir -p ~/sholto
+tar -xzf ~/Downloads/sholto-*-linux-x64.tar.gz -C ~/sholto
+cd ~/sholto
+bash install-deps.sh
+./Sholto
 ```
 
-Prefer to see what you're running first? Download the script, read it, then `bash get-sholto.sh`.
+No .NET needed — the download is self-contained.
 
-The binary is **self-contained — you don't need .NET installed.** If you'd rather do it by hand, grab `sholto-*-linux-x64.tar.gz` from the [**Releases**](https://github.com/freedomfirst26/Sholto/releases) page, `tar -xzf` it, run `bash install-deps.sh` once, then `./Sholto`.
-
-### Option 2 — build from source
+**Or build from source:**
 
 ```bash
 git clone https://github.com/freedomfirst26/Sholto.git
@@ -97,130 +42,64 @@ bash install.sh
 dotnet run -c Release --project src/Sholto.Interface.MainUI
 ```
 
-`install.sh` sets up everything Sholto needs — including .NET and all the tools below — and is safe to re-run. It works on modern Ubuntu, Mint, Pop!_OS, and Debian.
+More options, what gets installed, and how to check it all works: [docs/install.md](docs/install.md).
 
-On startup Sholto scans your music folder. Click a track to load it onto Deck 1, or press LOAD 2 on the controller to load it onto Deck 2.
+## Make it yours
 
-### What it needs
+![The same two decks in four themes: The Birthday Massacre, Classic, Aphex Twin and Type O Negative](pictures/themes-montage.webp)
 
-`install.sh` installs all of this for you on Ubuntu / Mint / Pop!_OS / Debian. On another distro, install the equivalents:
+Eleven themes recolour everything — library, key chips, section map and waveforms. Or [write your own](docs/themes.md).
 
-**Required**
-- **.NET 10** — to build and run Sholto.
-- **ffmpeg** — decodes your audio for the beat detector, and also decodes M4A/AAC files for playback.
-- **madmom** (the `madmom-onnx` build) — finds the beats and tempo. Sholto can't play a track until it has a beatgrid, so this one isn't optional.
-- A normal **Linux desktop** (X11 or Wayland) and a working **sound system** (PipeWire, PulseAudio, or ALSA).
+![The Layout Wizard trying themes on, one after another, while the app behind it changes colour](pictures/theme-tryon.webp)
 
-**Optional** — Sholto runs fine without these, you just lose that one feature:
-- **demucs** — stem separation (drums / vocals / bass / other). Without it, the stem chips and the hot-cue stem mutes are unavailable.
+Try every theme on the whole app before you keep it: **Settings ▸ Layout Wizard…**
 
-**Checking they actually work.** The background tools are ordinary Python programs, and
-an update to one of them can leave it installed but broken. Run `bash install.sh --verify`
-(or `bash install-deps.sh --verify` if you're on the prebuilt binary) and Sholto will
-run each one for real — it separates a test clip and confirms it gets four stems back,
-rather than just checking the program is there. It tells you which one is broken and
-what you lose without it.
+## Two waveform styles
 
-### What Sholto is built on
+![The same drop drawn as 3-BAND layers and as RGB stripes](pictures/waveform-styles.webp)
 
-Sholto doesn't try to invent beat detection or stem separation from scratch — those are
-hard research problems, and there are people who have spent careers on them. It stands on
-their work and concentrates on being a good instrument to play.
+**3-BAND** stacks bass, mids and highs as layers. **RGB** colours each fine stripe by what is playing at that instant. [More](docs/waveforms.md).
 
-Two very different kinds of borrowing are going on here, and the difference matters.
+![The Layout Wizard's waveform step: 3-BAND and RGB previews side by side](pictures/wizard-waveform-closeup.webp)
 
-**Programs Sholto runs** — separate applications that Sholto starts, hands a file to, and
-waits for. They are installed alongside Sholto rather than inside it. If one is missing or
-broken, Sholto keeps working and you lose only that feature.
+Both previews play the same demo track in your theme, so you pick by eye.
 
-| Program | What it does for you | Without it |
-|---|---|---|
-| **madmom** (`madmom-onnx`) | Listens to a track and works out where every beat and every bar starts. This is the foundation everything else stands on — sync, looping, the grid on the waveform, quantised cues. | **Required.** A track can't play without a beatgrid. |
-| **demucs** | Splits a finished track back into four separate recordings — drums, bass, vocals, everything else — so you can drop the vocal out of one track while keeping its drums. | Stem chips and hot-cue stem mutes are unavailable. |
-| **ffmpeg** | The universal audio translator. Converts M4A/AAC files into something Sholto can play, and prepares audio for the beat detector. | M4A/AAC files won't load. |
+## Beats that snap together
 
-**Libraries built into Sholto** — code compiled into the app itself. You never install these
-separately; they arrive with it.
+![Two decks on the same downbeat: green glow marks on the beat and a chain-link icon between the discs](pictures/magnet-snap.webp)
 
-| Library | What it does for you |
-|---|---|
-| **Avalonia** | Draws the entire interface — decks, waveforms, library, every control. It's what lets Sholto look the same on any Linux desktop. |
-| **SoundFlow** | Pushes audio out to your speakers, and is what makes the pitch and tempo changes sound right rather than chipmunky. |
-| **NAudio** + **NLayer** | Read WAV, FLAC and MP3 files and turn them into the samples the decks play. |
-| **z440.atl.core** | Reads the artist, title, album and artwork embedded in your files, so the library list isn't just filenames. |
-| **SQLite** + **Entity Framework Core** | Remember everything between sessions — your analysed tracks, cue points, crates, tags and ratings. |
-| **CommunityToolkit.Mvvm** | Internal plumbing that keeps what's on screen in step with what the decks are actually doing. |
+Bring two tracks close and the jog wheel holds on the beat; let go and they lock. Nothing to arm. [How it works](docs/deck.md#magnetic-beat-snap).
 
-**A note for anyone licensing Sholto commercially.** The four programs in the first table are
-deliberately kept at arm's length — Sholto launches them as separate processes and talks to
-them through files and command output. None of their code is linked into Sholto. That
-boundary is intentional, because those programs carry their own licences that differ from
-Sholto's. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — in particular, madmom's
-trained models are non-commercial, and a commercial licence to Sholto does not carry a
-right to use them.
+## Your controller, drawn on screen
 
-**Your controller** — a **Pioneer DDJ-FLX4** is picked up automatically when you plug it in; a green dot in the top bar means it's connected (red means reconnect the USB), and it reconnects on its own if it drops. You don't need one — everything works from the mouse and keyboard.
+![The controller guide — the DDJ-FLX4 drawn on screen with the jog wheel selected, and a panel explaining every way of using it](pictures/sholto-faceplate.webp)
 
-## How the code is laid out
+Plug in a **Pioneer DDJ-FLX4** and it just works. Click any control, or press it on the real thing, to see what it does.
 
-Only useful if you're reading or building the source. Sholto is one app split into
-ten projects, and the split is deliberate: the projects at the bottom of the list
-know nothing about the ones above them, so you can change the look of the app without
-touching how it sounds, and change how it sounds without touching what it knows about
-a track.
+## And the rest
 
-The direction dependencies run — each project only sees the ones to its right:
+Beat, tempo and key detection · stem separation (drop the vocal, keep the drums) ·
+[search](docs/search.md) by name, initials, BPM, key, tag or crate · loops, EQ, filter, headphone cue · mp3, FLAC,
+WAV, AIFF and M4A. **[Everything Sholto does →](docs/features.md)**
 
-```
-Sholto.App  ->  Analysis, Audio, Controller, ExternalTools, Faceplate, Library, Storage
-Sholto.Audio      ->  Analysis, Dsp
-Sholto.Storage    ->  Analysis
-Sholto.ExternalTools -> Analysis
-Sholto.Analysis   ->  Dsp
-Sholto.Faceplate  ->  Controller
-Sholto.Dsp, Sholto.Controller, Sholto.Library  ->  nothing
-```
+Runs on **Linux** with the **DDJ-FLX4** today. Windows, macOS, and more controllers are on the way.
 
-| Project | What lives there |
-|---|---|
-| `src/Sholto.Interface.MainUI` | Everything you see, and the one place everything is wired together. Views and view models, the custom-drawn waveform and minimap, themes, keyboard handling, and the routing that turns a gesture into a deck action. It is the only composition root — every other project is constructed here and handed its collaborators; none of them reach for each other. No audio processing and no analysis maths lives here. |
-| `src/Sholto.App.Audio` | Everything you hear. The decks, the mixer, EQ, filter, echo and beat-repeat, loops, tempo and pitch, stem muting, headphone cue routing, and the file decoders that turn mp3/FLAC/WAV/AIFF/M4A into 48 kHz stereo samples. It owns the audio engine and the audio thread, and knows nothing about windows, view models or themes. |
-| `src/Sholto.App.Analysis` | What a track *is*: waveform peaks, beatgrid and BPM, musical key, song sections, vocal regions, stem descriptions — plus the interfaces through which those results get cached, stored and computed. Pure computation and plain types. It never plays audio, never draws, and never opens the database itself. |
-| `src/Sholto.App.Storage` | The database. SQLite and EF Core: the schema, its migrations, and the tables behind analysed tracks, crates, tags, markers, BPM and grid overrides, and settings. This is the disk — the saved copy of everything — not the music collection. |
-| `src/Sholto.App.Library` | The music collection on your filesystem. Walking your music folder, reading the artist and title tags out of each file, and free-text search across the result. It never touches the database; a scan produces tracks, and the App decides what to persist. |
-| `src/Sholto.Interface.Controller` | The physical controller. MIDI in and out over ALSA, the DDJ-FLX4 button and knob mapping, the LEDs, and the recognizer that turns a raw press into a named gesture like "hold shift and turn the jog". The rest of the app talks to it in gesture names and never sees a note number. |
-| `src/Sholto.Interface.Faceplate` | The controller guide drawn on screen — the picture of the device, the chips, and the JSON that describes what every control does. It describes; it never decides. Pressing something on the real unit is resolved by `Sholto.Interface.Controller`, and the two are joined only by the gesture's name. |
-| `src/Sholto.App.Dsp` | Signal-processing primitives shared by analysis and playback: the low/mid/high crossover frequencies, and the constant-power crossfade curve used when mixing between decks. The crossover frequencies live here so the colours on the waveform can never drift away from what the EQ knobs actually cut. |
-| `src/Sholto.App.ExternalTools` | The arm's-length boundary to the separate programs — finding madmom, demucs and ffmpeg on your PATH, starting them, reading their output, following their progress, and reporting what came back. It is the only place in Sholto that starts another process. |
-| `tools/Sholto.Interface.Bench` | **A development tool, not part of the app you install.** It renders the decks to a WAV file with no sound card and scripts a controller with no window, so things you could previously only judge by ear — audio dropping out, a backspin jolting — become numbers a test can check. |
-| `tools/Sholto.Interface.MainUI.Harness` | **A development tool, not part of the app you install.** It drives the real window with no screen (keys, clicks, screenshots), so things you could previously only judge by eye become something a test can check. |
+## Documentation
 
-The line between `Sholto.App` and `Sholto.Audio` is the one worth remembering: if it
-makes a sound, it belongs in `Sholto.Audio`; if it shows you something, responds to you,
-or decides which objects get built and plugged into each other, it belongs in
-`Sholto.App`.
+[The guide](docs/README.md) — every part of the screen and every key ·
+[Features](docs/features.md) · [Install](docs/install.md) · [Themes](docs/themes.md) ·
+[Waveforms](docs/waveforms.md) · [Decks](docs/deck.md) · [Library](docs/library.md) ·
+[What's new](CHANGELOG.md)
 
-## License
+## Licence
 
-Sholto is under the [Business Source License 1.1](LICENSE) — source-available,
-and free for the people it is built for.
+Sholto is under the [Business Source License 1.1](LICENSE): **free for individuals,
+including paid gigs**; any use by or for an organization needs a commercial licence
+(<freedomfirst26@proton.me>). Each release becomes Apache-2.0 on its Change Date
+(2030-09-07). In plain words: [docs/license.md](docs/license.md). Third-party
+components and their licences — including madmom's non-commercial beat-detection
+models: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-- **Individuals — free, including paid gigs.** If you are a person (or a sole
-  trader / single-member company you run yourself), you can use, modify, fork,
-  and perform with Sholto for any purpose, at no cost. Forks you publish must
-  keep the copyright notice and credit Sholto in their README.
-- **Organizations — paid.** Any use by or on behalf of a company or other
-  organization, and any bundling of Sholto into a product or hosted service,
-  needs a commercial licence — any size. Email <freedomfirst26@proton.me>.
-- **It becomes Apache-2.0 on 2030-09-07.** Each released version converts to the
-  Apache License 2.0 on its Change Date, so nothing is locked away forever.
+---
 
-> **Buying a commercial licence?** Read the non-commercial dependency warning in
-> [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) first — madmom's beat-detection
-> models are CC BY-NC-SA and need separate permission. Get in touch and we will
-> sort it out.
-
-"Sholto" and its logo are trademarks of the copyright holder and are not covered
-by the licence. Forks are welcome under a different name.
-
-Contributions are welcome under the DCO — see [CONTRIBUTING.md](CONTRIBUTING.md).
+For developers: [code layout, building and contributing](docs/developers.md).

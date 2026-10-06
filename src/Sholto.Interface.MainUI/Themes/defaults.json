@@ -6,15 +6,20 @@
     "vocalInactive": "#60646B",
     "snapGlow": "#34F06F",
     "gridEdit": "#E53935",
-    "edge": "#000000"
+    "edge": "#000000",
+    "rgbLow": "#FF3A5C",
+    "rgbMid": "#3CE870",
+    "rgbHigh": "#38C6FF"
   },
-  "stems": { "drums": "#3D8BFF", "vocals": "#34F06F", "instrumental": "#FF4E5E" },
+  "stems": { "drums": "#3D8BFF", "vocals": "#34F06F", "instrumental": "#FF4E5E", "chipText": "#000000" },
   "status": { "ok": "#3DDC84", "warn": "#FFC107", "error": "#FF5252", "attention": "#E8A33D" },
+  "camelotPalette": { "keyChipText": "#FFFFFF" },
   "mute": "#FF3D4E",
   "ring": { "start": "#34F06F", "mid": "#FFD63D", "late": "#FF8C2A", "end": "#FF3D4E" },
   "tags": { "chipBg": "#4C5C8A", "chipFg": "#FFFFFF", "indicatorBg": "#33000000", "indicatorFg": "#C0C7D6" },
   "faceplate": { "rest": "#FFCE7A", "hover": "#FFD284", "selected": "#FFDC96", "glow": "#FFB040" },
   "scrim": "#A0000000",
   "shadow": "#B0000000",
-  "iconPlate": "#0F172A"
+  "iconPlate": "#0F172A",
+  "knob": { "arc": "#3DDC84" }
 }

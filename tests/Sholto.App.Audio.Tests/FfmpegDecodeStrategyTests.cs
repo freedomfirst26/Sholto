@@ -29,11 +29,11 @@ public class FfmpegDecodeStrategyTests
     }
 
     [Fact]
-    public void CanDecode_M4aTrue_Mp3False()
+    public void CanDecode_M4aTrue_Mp3True()
     {
         var strategy = new FfmpegDecodeStrategy("ffmpeg");
         Assert.True(strategy.CanDecode(".m4a"));
-        Assert.False(strategy.CanDecode(".mp3"));
+        Assert.True(strategy.CanDecode(".mp3"));
     }
 
     [Fact]

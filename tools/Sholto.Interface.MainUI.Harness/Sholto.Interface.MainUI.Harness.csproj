@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Sholto.Interface.Bench\Sholto.Interface.Bench.csproj" />
     <ProjectReference Include="..\..\src\Sholto.Interface.MainUI\Sholto.Interface.MainUI.csproj" />
+    <ProjectReference Include="..\..\src\Sholto.Host\Sholto.Host.csproj" />
     <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
     <ProjectReference Include="..\..\src\Sholto.App\Sholto.App.csproj" />
     <ProjectReference Include="..\..\src\Sholto.App.Audio\Sholto.App.Audio.csproj" />

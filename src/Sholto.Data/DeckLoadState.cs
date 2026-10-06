@@ -1,7 +1,7 @@
 namespace Sholto.Data;
 
 /// <summary>Lifecycle states for a deck's currently-loading-or-loaded track. Carried by
-/// <see cref="DeckContentChanged{TTrack, TAnalysis, TSegment}"/>.</summary>
+/// <see cref="DeckContentChanged"/>.</summary>
 public enum DeckLoadState
 {
     /// <summary>No track on this deck.</summary>

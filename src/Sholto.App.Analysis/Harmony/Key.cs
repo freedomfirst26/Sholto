@@ -1,3 +1,5 @@
+using Sholto.Data;
+
 namespace Sholto.App.Analysis.Harmony;
 
 /// <summary>
@@ -11,25 +13,15 @@ namespace Sholto.App.Analysis.Harmony;
 /// </summary>
 public readonly record struct Key(int PitchClass, bool IsMajor)
 {
-    // Indexed by pitch class (0=C, 1=C#, …, 11=B). Major = "B" ring.
-    private static readonly int[] MajorCamelotNumber = { 8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6, 1 };
-    // Minor = "A" ring.
-    private static readonly int[] MinorCamelotNumber = { 5, 12, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10 };
-
     /// <summary>Format this key's Camelot code, e.g. (PitchClass=0, IsMajor=true) → "8B".</summary>
-    public string ToCamelot() => $"{CamelotNumber}{(IsMajor ? "B" : "A")}";
+    public string ToCamelot() => new KeyRef(PitchClass, IsMajor).ToCamelot();
 
     /// <summary>This key's Camelot wheel position, 1-12 (the numeric part of <see cref="ToCamelot"/>).</summary>
-    public int CamelotNumber =>
-        (IsMajor ? MajorCamelotNumber : MinorCamelotNumber)[((PitchClass % 12) + 12) % 12];
+    public int CamelotNumber => new KeyRef(PitchClass, IsMajor).CamelotNumber;
 
     /// <summary>
     /// Harmonic compatibility class between two keys, judged on the Camelot wheel —
-    /// mirroring how Rekordbox / Mixed In Key visualise it:
-    ///   Perfect     — same key (also the relative major/minor): seamless mix
-    ///   Close       — ±1 step on the wheel, same mode: classic perfect-4th / 5th move
-    ///   EnergyBoost — diagonal +7 on the same mode (energy lift)
-    ///   Far         — everything else: probably clashes
+    /// mirroring how Rekordbox / Mixed In Key visualise it. See <see cref="HarmonicMatchResult"/>.
     /// The relation is symmetric in every branch, so <c>a.Compatibility(b)</c> equals
     /// <c>b.Compatibility(a)</c>.
     /// </summary>
@@ -39,15 +31,31 @@ public readonly record struct Key(int PitchClass, bool IsMajor)
         int na = CamelotNumber;
         int nb = other.CamelotNumber;
 
-        if (na == nb && IsMajor == other.IsMajor) return HarmonicMatchResult.Perfect; // identical
-        if (na == nb && IsMajor != other.IsMajor) return HarmonicMatchResult.Perfect; // relative maj/min
+        if (na == nb) return HarmonicMatchResult.Perfect; // identical, or relative maj/min
 
         int diff = Math.Abs(na - nb);
         // Distance is around a 12-position ring, so 11 apart actually = 1 step.
         if (diff > 6) diff = 12 - diff;
 
-        if (diff == 1 && IsMajor == other.IsMajor) return HarmonicMatchResult.Close;       // ±1 on same ring
-        if (diff == 1 && IsMajor != other.IsMajor) return HarmonicMatchResult.EnergyBoost; // diagonal step
+        if (diff == 1) return IsMajor == other.IsMajor ? HarmonicMatchResult.Close : HarmonicMatchResult.EnergyBoost;
         return HarmonicMatchResult.Far;
+    }
+
+    /// <summary>Every key that mixes with this one: all 24 keys whose <see cref="Compatibility"/> is not
+    /// <see cref="HarmonicMatchResult.Far"/> (this key included). For 8B that is 8B, 8A, 7B, 9B, 7A, 9A.
+    /// Note: the Glance FitScorer scores the diagonal (e.g. 8B to 9A) as 0 while this set, and so the
+    /// library's eligibility outline, includes it.</summary>
+    public IReadOnlyList<Key> MixableKeys()
+    {
+        var mixable = new List<Key>();
+        for (int pitchClass = 0; pitchClass < 12; pitchClass++)
+        {
+            foreach (var isMajor in new[] { true, false })
+            {
+                var candidate = new Key(pitchClass, isMajor);
+                if (Compatibility(candidate) != HarmonicMatchResult.Far) mixable.Add(candidate);
+            }
+        }
+        return mixable;
     }
 }

@@ -59,4 +59,12 @@ public sealed class AnalysisReporter(IReadOnlyCollection<string> requiredSteps) 
         step.State = AnalysisState.Failed;
         step.Message = message;
     }
+
+    public void Cancelled(string filePath, string stepName)
+    {
+        var step = ReportFor(filePath).GetOrCreate(stepName);
+        step.State = AnalysisState.NotStarted;
+        step.Progress = 0;
+        step.Message = null;
+    }
 }

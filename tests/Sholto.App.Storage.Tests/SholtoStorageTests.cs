@@ -3,6 +3,7 @@ using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.App.Storage;
 using Sholto.Storage.Entities;
+using Sholto.Data;
 
 namespace Sholto.App.Storage.Tests;
 
@@ -54,5 +55,19 @@ public class SholtoStorageTests
             if (File.Exists(p)) File.Delete(p);
             if (File.Exists(trackFile)) File.Delete(trackFile);
         }
+    }
+
+    [Fact]
+    public void Serializer_Decode_PreviousVersionBlob_ReturnsNullNotThrow()
+    {
+        var ser = new BasicAnalysisSerializer();
+        var analysis = new BasicAnalysis(
+            new WaveformPeaksFactory().None(), 128.0, new double[] { 0.0 }, new double[] { 0.0 });
+        byte[] blob = ser.Encode(analysis);
+        Assert.NotNull(ser.Decode(blob));
+
+        // Rewrite the version header to v3, as a pre-fix cached blob would carry.
+        BitConverter.GetBytes(BasicAnalysisSerializer.Version - 1).CopyTo(blob, 0);
+        Assert.Null(ser.Decode(blob));
     }
 }

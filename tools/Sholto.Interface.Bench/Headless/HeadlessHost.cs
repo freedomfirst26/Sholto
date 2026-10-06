@@ -20,30 +20,39 @@ namespace Sholto.Interface.Bench.Headless;
 /// <param name="stackFactory">Builds the input stack over the core.</param>
 /// <param name="appThread">The immediate app thread the controller input is posted on.</param>
 /// <param name="deckAdvance">Moves deck position on a "wait" step.</param>
-/// <param name="gestureBuilder">Handed to each <see cref="HeadlessScenarioDriver"/>.</param>
+/// <param name="gestureFactory">Handed to each <see cref="HeadlessScenarioDriver"/>.</param>
 /// <param name="snapshot">Handed to each driver.</param>
 /// <param name="diff">Handed to each driver.</param>
 /// <param name="crossfade">The crossfade curve the scenario runner applies.</param>
+/// <param name="renderer">Pulls frames through the router into the WAV for a headless render.</param>
+/// <param name="routers">Builds the router a render session pulls the decks' mix through.</param>
+/// <param name="deckFactory">Supplies the device format the render session writes in.</param>
 public sealed class HeadlessHost(
     IHeadlessCoreFactory coreFactory,
     IGestureHostFactory gestureHostFactory,
     IHeadlessInputStackFactory stackFactory,
     IAppThread appThread,
     IDeckAdvance deckAdvance,
-    IScenarioGestureBuilder gestureBuilder,
+    IScenarioGestureFactory gestureFactory,
     ICoreSnapshot snapshot,
     IStateDiff diff,
-    ICrossfadeCurve crossfade) : IHeadlessHost
+    ICrossfadeCurve crossfade,
+    IOfflineRenderer renderer,
+    ICueOutputRouterFactory routers,
+    IBenchDeckFactory deckFactory) : IHeadlessHost
 {
     private readonly IHeadlessCoreFactory _coreFactory = coreFactory;
     private readonly IGestureHostFactory _gestureHostFactory = gestureHostFactory;
     private readonly IHeadlessInputStackFactory _stackFactory = stackFactory;
     private readonly IAppThread _appThread = appThread;
     private readonly IDeckAdvance _deckAdvance = deckAdvance;
-    private readonly IScenarioGestureBuilder _gestureBuilder = gestureBuilder;
+    private readonly IScenarioGestureFactory _gestureFactory = gestureFactory;
     private readonly ICoreSnapshot _snapshot = snapshot;
     private readonly IStateDiff _diff = diff;
     private readonly ICrossfadeCurve _crossfade = crossfade;
+    private readonly IOfflineRenderer _renderer = renderer;
+    private readonly ICueOutputRouterFactory _routers = routers;
+    private readonly IBenchDeckFactory _deckFactory = deckFactory;
 
     public HeadlessSession RunScenario(Scenario.Scenario scenario)
     {
@@ -59,13 +68,30 @@ public sealed class HeadlessHost(
         return session;
     }
 
-    public HeadlessSession Open()
+    public HeadlessSession RunScenario(Scenario.Scenario scenario, string outWavPath)
+    {
+        var (headless, session) = OpenCore();
+
+        using var render = new RenderSession(_renderer, _routers, [headless.Deck1, headless.Deck2], headless.Engine, _deckFactory.DeckFormat, outWavPath);
+        var decks = new Dictionary<int, Deck> { [1] = session.Deck1, [2] = session.Deck2 };
+        var runner = new ScenarioRunner(decks, advance: render.Advance, _crossfade)
+        {
+            OnUiAction = session.Driver.Handle,
+        };
+        runner.Run(scenario);
+
+        return session;
+    }
+
+    public HeadlessSession Open() => OpenCore().Session;
+
+    private (HeadlessCore Core, HeadlessSession Session) OpenCore()
     {
         var headless = _coreFactory.Build();
         var gestures = _gestureHostFactory.Create();
         _stackFactory.Build(headless.Core, gestures, _appThread);
         var driver = new HeadlessScenarioDriver(
-            headless.Core, gestures, [headless.Deck1, headless.Deck2], _gestureBuilder, _snapshot, _diff);
-        return new HeadlessSession(headless.Core, headless.Deck1, headless.Deck2, gestures, driver);
+            headless.Core, gestures, [headless.Deck1, headless.Deck2], _gestureFactory, _snapshot, _diff);
+        return (headless, new HeadlessSession(headless.Core, headless.Deck1, headless.Deck2, gestures, driver));
     }
 }

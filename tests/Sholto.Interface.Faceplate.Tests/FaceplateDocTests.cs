@@ -107,14 +107,14 @@ public class FaceplateDocTests
         }
     }
 
-    /// <summary>Every ControlSurface.Id in the layout XAML, read as plain XML.</summary>
+    /// <summary>Every DeviceLayout.Id in the layout XAML, read as plain XML.</summary>
     private static HashSet<string> LayoutIds()
     {
         var path = Path.Combine(RepoRoot(), "src/Sholto.Interface.Faceplate.Devices/DdjFlx4/DdjFlx4Layout.axaml");
         var doc = XDocument.Load(path);
         return doc.Descendants()
                   .SelectMany(e => e.Attributes())
-                  .Where(a => a.Name.LocalName == "ControlSurface.Id")
+                  .Where(a => a.Name.LocalName == "DeviceLayout.Id")
                   .Select(a => a.Value)
                   .ToHashSet();
     }

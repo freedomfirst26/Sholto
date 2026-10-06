@@ -133,7 +133,7 @@ ok "restored"
 # don't need the SDK on PATH. Output goes to ./dist/linux-x64/Sholto.
 section "release build"
 DIST="$PWD/dist/linux-x64"
-dotnet publish src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj \
+dotnet publish src/Sholto.Host/Sholto.Host.csproj \
     -c Release -r linux-x64 --self-contained \
     -p:PublishSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \

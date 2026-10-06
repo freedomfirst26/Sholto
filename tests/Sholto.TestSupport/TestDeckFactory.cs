@@ -1,3 +1,4 @@
+using Sholto.App.Analysis.Stems;
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Beats;
@@ -8,6 +9,7 @@ using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stages;
 using Sholto.App.Analysis.Stores;
 using Sholto.App.Audio;
+using Sholto.Data;
 
 namespace Sholto.TestSupport;
 
@@ -26,14 +28,16 @@ internal sealed class TestDeckFactory : IDeckFactory
             new WaveformBandSplitterFactory(new BiquadFactory(), Options.Create(new WaveformBandOptions())),
             new WaveformPeaksFactory());
         var stemStage = new StemAnalysisStage(
-            new DemucsStemAnalysisStep(new NullExternalTool(), _ => Path.GetTempPath()),
-            new StemDecoder(decoder), peaks, new VocalRegionAnalyzer(), reporter);
+            new DemucsStemAnalysisStep(new NullExternalTool(), _ => Path.GetTempPath(), new FixedStemDevice(StemDevice.Cpu)),
+            new StemDecoder(decoder), peaks, new VocalRegionAnalyzer(), reporter,
+            new FixedStemDevice(StemDevice.Cpu), new SemaphoreStemGate());
         var decks = new DeckFactory(
             decoder, stemStage, reporter,
             new AnalysisProvider((_, _) =>
                 throw new NotImplementedException("TestDeckFactory decks never run basic analysis.")),
             new NullKeyAnalysisStore(), new NullGridAdjustmentStore(), new KeyAnalyzer(), new BeatgridFactory(),
-            new DeckEffectFactory(new TempoMath()).Chain, new PlaybackProviderFactory());
+            new DeckEffectFactory(new TempoMath()).Chain, new PlaybackProviderFactory(),
+            new ImmediateAppThread());
         return decks.Create();
     }
 }

@@ -22,12 +22,13 @@ internal sealed class HeadlessCore
         var bus = new DataBus(new ThrowingFailureSink());
         var appThread = new ImmediateAppThread();
         var stemPresence = new DemucsStemPresence(_ => Path.Combine(Path.GetTempPath(), "sholto-tests-no-stems"));
+        var clock = new SettableFrameClock();
         var sessions = new DeckSessionFactory(
-            new TestDeckFactory(), new SongSegmentAnalyzer(), new SettableFrameClock(), appThread, bus);
+            new TestDeckFactory(), new PhraseSectionAnalyzer(new BarFeatureExtractor(new PhraseSectionOptions()), new PhraseSectionLabeler(new PhraseSectionOptions()), new PhraseSectionOptions()), clock, appThread, bus);
         Core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
             new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), new AudioFileDecoder([]),
-            new EqualPowerCrossfade(), appThread, bus).Build(sessions.Create(0), sessions.Create(1));
+            new EqualPowerCrossfade(), appThread, bus, clock).Build(sessions.Create(0), sessions.Create(1));
         Bus = bus;
     }
 

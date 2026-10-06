@@ -34,6 +34,9 @@ public sealed class WaveformPaletteFactory(IWaveformPresets presets, IThemeDefau
             VocalInactive: Default("vocalInactive"),
             SnapGlow:      Default("snapGlow"),
             GridEdit:      Default("gridEdit"),
-            Edge:          Default("edge"));
+            Edge:          Default("edge"),
+            RgbLow:        Default("rgbLow"),
+            RgbMid:        Default("rgbMid"),
+            RgbHigh:       Default("rgbHigh"));
     }
 }

@@ -1,4 +1,6 @@
+using Sholto.Data;
 using Sholto.App.Analysis;
+using Sholto.App.Analysis.Stems;
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Beats;
@@ -40,7 +42,7 @@ namespace Sholto.Interface.Bench.Rendering;
 /// <param name="analysisProvider">The empty analysis provider every deck is built with.</param>
 /// <param name="waveformBands">The waveform band options the peak analyzer is built with.</param>
 public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisStep stemStep, IAnalysisProvider analysisProvider,
-    IOptions<WaveformBandOptions> waveformBands) : IBenchDeckFactory
+    IOptions<WaveformBandOptions> waveformBands, IAppThread appThread) : IBenchDeckFactory
 {
     private readonly BeatgridFactory _beatgrids = new();
     private readonly PlaybackProviderFactory _playbackProviders = new();
@@ -78,7 +80,9 @@ public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisSte
             new StemDecoder(decoder),
             new WaveformPeakAnalyzer(new WaveformBandSplitterFactory(new BiquadFactory(), waveformBands), new WaveformPeaksFactory()),
             new VocalRegionAnalyzer(),
-            new AnalysisReporter(Array.Empty<string>())),
+            new AnalysisReporter(Array.Empty<string>()),
+            new FixedStemDevice(StemDevice.Cpu),
+            new SemaphoreStemGate()),
         reporter: new AnalysisReporter(Array.Empty<string>()),
         analysisProvider: analysisProvider,
         keyCache: new NullKeyAnalysisStore(),
@@ -86,5 +90,6 @@ public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisSte
         keyAnalyzer: new KeyAnalyzer(),
         beatgrids: _beatgrids,
         effectFactories: _effects.Chain,
-        playbackProviders: _playbackProviders);
+        playbackProviders: _playbackProviders,
+        appThread: appThread);
 }

@@ -15,7 +15,21 @@ public sealed class CachingAnalysisProvider(IAnalysisProvider inner) : IAnalysis
     private readonly MemoryCache<string, BasicAnalysis> _cache = new();
 
     public Task<BasicAnalysis> GetAsync(DecodedTrack track, CancellationToken ct = default) =>
-        _cache.GetOrComputeAsync(track.FilePath, () => _inner.GetAsync(track, ct));
+        Begin(track.FilePath, ct).CompleteAsync(track);
+
+    public IBasicAnalysisRequest Begin(string filePath, CancellationToken ct = default)
+    {
+        if (_cache.TryGet(filePath) is { } cached)
+            return new BasicAnalysisRequest(_ => Task.FromResult(cached));
+
+        var inner = _inner.Begin(filePath, ct);
+        return new BasicAnalysisRequest(async track =>
+        {
+            var computed = await inner.CompleteAsync(track);
+            _cache.Set(filePath, computed);
+            return computed;
+        });
+    }
 
     /// <summary>
     /// Force a fresh compute, bypassing every cache (this one included), and

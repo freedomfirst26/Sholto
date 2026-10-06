@@ -3,6 +3,8 @@
         xmlns:controls="using:Sholto.Interface.MainUI.Controls"
         xmlns:v="using:Sholto.Interface.MainUI.Views"
         xmlns:fp="using:Sholto.Interface.Faceplate.Views"
+        xmlns:cti="using:Sholto.Interface.MainUI.Controls.CollapseToIcon"
+        xmlns:modal="using:Sholto.Interface.MainUI.Controls.Modal"
         xmlns:media="using:Avalonia.Media"
         x:Class="Sholto.Interface.MainUI.Views.MainWindow"
         Title="Sholto"
@@ -80,26 +82,37 @@
              deliberately no keyboard shortcut. A mini controller, white outline (a
              stroke, no fill) so it reads as chrome rather than competing with the
              amber the guide itself uses. -->
-        <Button x:Name="FaceplateButton" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,12,0"
+        <Button x:Name="FaceplateButton" ClipToBounds="False" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,12,0"
                 Background="Transparent" BorderThickness="0" Padding="0"
                 Cursor="Hand" ToolTip.Tip="Controller guide"
                 Click="OnFaceplateButtonClick">
+            <Button.Styles>
+                <!-- The icon's strokes come from here, not from the shapes themselves, so ":hinting" can retint them.
+                     Selected by the "pulse" class, not by type: IconHintPulse borrows ContentControl's style key. -->
+                <Style Selector="Button#FaceplateButton :is(Shape).glyph">
+                    <Setter Property="Stroke" Value="{DynamicResource SholtoTextBright}"/>
+                </Style>
+                <Style Selector="Button#FaceplateButton .pulse:hinting :is(Shape).glyph">
+                    <Setter Property="Stroke" Value="{DynamicResource SholtoAccent}"/>
+                </Style>
+            </Button.Styles>
+            <!-- Padding with the matching negative Margin: the pulse rings draw wider than the icon, and a
+                 control only paints inside its own bounds. Layout size stays the icon's. -->
+            <cti:IconHintPulse x:Name="FaceplateIcon" Classes="pulse" Sequence="{Binding FaceplateDock}"
+                               RingBrush="{DynamicResource SholtoAccent}" Padding="20" Margin="-20">
             <Viewbox Width="22" Height="16" Stretch="Uniform">
                 <Canvas Width="30" Height="22">
                     <!-- Body -->
-                    <Rectangle Canvas.Left="1" Canvas.Top="3" Width="28" Height="16"
-                               RadiusX="2" RadiusY="2"
-                               Stroke="{DynamicResource SholtoTextBright}" StrokeThickness="1.4" Fill="Transparent"/>
+                    <Rectangle Classes="glyph" Canvas.Left="1" Canvas.Top="3" Width="28" Height="16"
+                               RadiusX="2" RadiusY="2" StrokeThickness="1.4" Fill="Transparent"/>
                     <!-- Two jog-wheel circles -->
-                    <Ellipse Canvas.Left="4" Canvas.Top="6" Width="10" Height="10"
-                             Stroke="{DynamicResource SholtoTextBright}" StrokeThickness="1.2" Fill="Transparent"/>
-                    <Ellipse Canvas.Left="16" Canvas.Top="6" Width="10" Height="10"
-                             Stroke="{DynamicResource SholtoTextBright}" StrokeThickness="1.2" Fill="Transparent"/>
+                    <Ellipse Classes="glyph" Canvas.Left="4" Canvas.Top="6" Width="10" Height="10" StrokeThickness="1.2" Fill="Transparent"/>
+                    <Ellipse Classes="glyph" Canvas.Left="16" Canvas.Top="6" Width="10" Height="10" StrokeThickness="1.2" Fill="Transparent"/>
                     <!-- Crossfader nub -->
-                    <Rectangle Canvas.Left="12" Canvas.Top="16" Width="6" Height="2"
-                               Stroke="{DynamicResource SholtoTextBright}" StrokeThickness="0.8" Fill="Transparent"/>
+                    <Rectangle Classes="glyph" Canvas.Left="12" Canvas.Top="16" Width="6" Height="2" StrokeThickness="0.8" Fill="Transparent"/>
                 </Canvas>
             </Viewbox>
+            </cti:IconHintPulse>
         </Button>
         <Menu Background="Transparent"
               Foreground="{DynamicResource SholtoTextBright}">
@@ -107,13 +120,15 @@
                 <MenuItem Header="Theme" x:Name="ThemesMenu"/>
                 <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
+                <MenuItem Header="Layout Wizard…" Click="OnLayoutWizardClick"/>
+                <MenuItem Header="Settings…" Click="OnSettingsClick"/>
             </MenuItem>
         </Menu>
         </DockPanel>
 
-    <!-- Decks get a 42px section-map row + 200px of waveform/disc/chips = 242 each,
-         so the map never eats into the deck content. -->
-    <Grid RowDefinitions="*,8,242,242">
+    <!-- Decks get a 64px section-map strip (14 label row + 50 whole-track waveform) + 218px of
+         scrolling waveform/disc/chips = 282 each, so the map never eats into the deck content. -->
+    <Grid RowDefinitions="*,8,282,282">
 
         <!-- Track library, rendered as a fixed-column table. -->
         <Grid Grid.Row="0" RowDefinitions="32,*" Background="{DynamicResource SholtoSurface}">
@@ -313,7 +328,7 @@
                                     </Style>
                                 </Border.Styles>
                                 <TextBlock Text="{Binding Key}"
-                                           Foreground="{DynamicResource SholtoChipForeground}"
+                                           Foreground="{DynamicResource SholtoKeyChipForeground}"
                                            FontWeight="Bold" FontSize="12"/>
                             </Border>
                             <TextBlock Grid.Column="6" Text="{Binding DurationDisplay}"
@@ -451,17 +466,44 @@
     <!-- Controller guide overlay. Same hidden-parent trap as the tag editor above:
          the child binds its OWN IsVisible to the host rather than relying on the
          parent Panel's, so its code-behind actually sees the change. -->
-    <Panel x:Name="FaceplateHost" IsVisible="{Binding IsFaceplateOpen}">
+    <cti:IconDockedContainer x:Name="FaceplateHost" Sequence="{Binding FaceplateDock}" Target="{Binding #FaceplateIcon}">
         <!-- Empty on purpose: the FaceplateOverlay needs a doc and a device layout, which
              XAML cannot supply, so the composition root builds it and MainWindow's
-             constructor adds it here and binds its IsVisible to this Panel's. -->
-    </Panel>
+             constructor sets it as this container's content and binds its IsVisible to the
+             container's. The container shows itself while the guide is open or shrinking
+             into the top-bar icon. -->
+    </cti:IconDockedContainer>
     <!-- Enter-mode action menu + add-to-crate picker. Above everything. -->
     <v:TrackActionsOverlay/>
-    <v:CratePickerOverlay/>
+    <modal:ModalShell Modal="{Binding CratePicker}" IsBodyFlush="True">
+        <modal:ModalShell.Body><v:CratePickerOverlay/></modal:ModalShell.Body>
+    </modal:ModalShell>
 
     <!-- What the amber status dot opens: which external tools are installed. -->
-    <v:SystemReportOverlay/>
+    <modal:ModalShell Modal="{Binding SystemReportModal}">
+        <modal:ModalShell.Body><v:SystemReportOverlay/></modal:ModalShell.Body>
+    </modal:ModalShell>
+
+    <!-- Settings ▸ Layout Wizard…: step 1 picks the waveform style, previewed live on the decks. -->
+    <modal:ModalShell Modal="{Binding LayoutWizard}">
+        <modal:ModalShell.HeaderAccessory><v:LayoutWizardStepper/></modal:ModalShell.HeaderAccessory>
+        <modal:ModalShell.Body><v:LayoutWizardOverlay/></modal:ModalShell.Body>
+    </modal:ModalShell>
+    <!-- Settings ▸ Settings…: the backspin time and distance knobs, applied live and saved by the App. -->
+    <modal:ModalShell Modal="{Binding Settings}">
+        <modal:ModalShell.Body><v:SettingsOverlay/></modal:ModalShell.Body>
+    </modal:ModalShell>
+
+    <!-- The load warning outside the overlay, so a controller LOAD onto a playing deck still shows it. -->
+    <Border IsVisible="{Binding ShowLoadWarning}"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom"
+            Margin="24,0,24,90" Padding="16,10"
+            Background="{DynamicResource SholtoStatusWarnTint}"
+            BorderBrush="{DynamicResource SholtoStatusWarn}" BorderThickness="1"
+            CornerRadius="6" IsHitTestVisible="False">
+        <TextBlock Text="{Binding LoadFeedback.WarningText}" FontSize="14" TextWrapping="Wrap"
+                   Foreground="{DynamicResource SholtoStatusWarn}"/>
+    </Border>
 
     <!-- Brief bottom-centre toast (e.g. "Added to Warmup Set"). -->
     <Border IsVisible="{Binding HasToast}"

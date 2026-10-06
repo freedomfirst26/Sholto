@@ -32,28 +32,12 @@ public sealed record SholtoTheme(
     FaceplatePalette Faceplate,
     Color Scrim,             // overlay backdrop (alpha included)
     Color Shadow,            // deck shadow / vignette (alpha included)
-    Color IconPlate          // window icon background plate
+    Color IconPlate,         // window icon background plate
+    KnobPalette Knob         // Settings knobs (value arc from "knob.arc", the rest from the core colours)
 )
 {
-    /// <summary>Album-art radial gradient using the theme's primary + accent.</summary>
-    public IBrush AlbumArtBrush
-    {
-        get
-        {
-            var brush = new RadialGradientBrush
-            {
-                Center = new RelativePoint(0.35, 0.35, RelativeUnit.Relative),
-                GradientOrigin = new RelativePoint(0.35, 0.35, RelativeUnit.Relative),
-                RadiusX = new RelativeScalar(0.65, RelativeUnit.Relative),
-                RadiusY = new RelativeScalar(0.65, RelativeUnit.Relative),
-            };
-            var accentColor = (Accent as SolidColorBrush)?.Color ?? Colors.Magenta;
-            var primaryColor = (Primary as SolidColorBrush)?.Color ?? Colors.BlueViolet;
-            brush.GradientStops.Add(new GradientStop(accentColor, 0.0));
-            brush.GradientStops.Add(new GradientStop(primaryColor, 1.0));
-            return brush;
-        }
-    }
+    /// <summary>True for a theme loaded from the user themes folder (not one of the bundled themes).</summary>
+    public bool IsUser { get; init; }
 
     /// <summary>Horizontal gradient fading from PlayedFadeColor on the left to transparent.</summary>
     public IBrush PlayedFadeGradient

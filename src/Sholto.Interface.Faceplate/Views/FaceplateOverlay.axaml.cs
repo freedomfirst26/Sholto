@@ -47,7 +47,8 @@ public partial class FaceplateOverlay : UserControl
 
     private readonly FaceplateViewModel _vm;
     private readonly FaceplateBoard _board;
-    private readonly ProseWithChips _prose;
+    private readonly IProseInlinesFactory _prose;
+    private readonly IComboMarkerFormatter _comboMarkers;
     private readonly FaceplateBrushes _brushes;
 
     // Marks which ROW of the panel a live gesture just fired — as opposed to the
@@ -60,8 +61,8 @@ public partial class FaceplateOverlay : UserControl
     /// <summary>The device drawing, view model, prose builder and brushes are handed in,
     /// already built, so this control names no hardware and builds none of its
     /// collaborators; <c>FaceplateOverlayFactory</c> pairs a doc with its layout. The
-    /// collaborators are concrete classes: none has an interface.</summary>
-    public FaceplateOverlay(FaceplateViewModel viewModel, ProseWithChips prose, FaceplateBrushes brushes, Control layout)
+    /// view model and brushes are concrete classes; the prose factory and combo formatter are interfaces.</summary>
+    public FaceplateOverlay(FaceplateViewModel viewModel, IProseInlinesFactory prose, IComboMarkerFormatter comboMarkers, FaceplateBrushes brushes, Control layout)
     {
         AvaloniaXamlLoader.Load(this);
         _stage = this.GetControl<Grid>("Stage");
@@ -80,6 +81,7 @@ public partial class FaceplateOverlay : UserControl
         _layerBadgeText = this.GetControl<TextBlock>("LayerBadgeText");
         _vm = viewModel;
         _prose = prose;
+        _comboMarkers = comboMarkers;
         _brushes = brushes;
         _brushes.Attach(this);
         _board = new FaceplateBoard(_stage, _layoutHost, _overlayCanvas,
@@ -365,12 +367,12 @@ public partial class FaceplateOverlay : UserControl
         // control with a plain "+" between them, so the reader never has to guess
         // which control this bullet is really about, whether it is this control's own
         // gesture or one it merely takes part in. Built from the gesture's own With
-        // list plus its owner (ComboMarkers), never by splitting a rendered string on
+        // list plus its owner (IComboMarkerFormatter.Format), never by splitting a rendered string on
         // "+". A plain gesture (no partner) falls back to verb + part, as before —
         // that phrase names no control, so it stays plain text.
         var nameForeground = this.ResourceBrush("SholtoTextBright", Brushes.White);
         Control nameControl = row.Partners.Count > 0
-            ? BuildProseText(_prose.ComboMarkers(row.Partners, row.OwnerControlId),
+            ? BuildProseText(_comboMarkers.Format(row.Partners, row.OwnerControlId),
                               13, FontWeight.SemiBold, nameForeground, lineHeight: 18)
             : new TextBlock
               {
@@ -507,7 +509,7 @@ public partial class FaceplateOverlay : UserControl
             TextWrapping = TextWrapping.Wrap,
             Foreground = foreground,
         };
-        tb.Inlines = _prose.Build(markerText, _vm.Doc, ChipDeck,
+        tb.Inlines = _prose.Create(markerText, _vm.Doc, ChipDeck,
                                           ChipHoverOn, ChipHoverOff, ChipActivate);
         // A chip is a bordered, padded box roughly 19px tall, so a line height chosen
         // for 13px or 16px TEXT is shorter than the line it now has to hold. Avalonia

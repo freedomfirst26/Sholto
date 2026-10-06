@@ -1,3 +1,5 @@
+using Sholto.Data;
+
 namespace Sholto.App.Analysis.Analyzers.Waveform;
 
 /// <summary>Owns the named <see cref="WaveformPeaks"/> recipes, so no call site spells
@@ -5,7 +7,7 @@ namespace Sholto.App.Analysis.Analyzers.Waveform;
 /// mutable state.</summary>
 public sealed class WaveformPeaksFactory : IWaveformPeaksFactory
 {
-    private readonly WaveformPeaks _none = new([], [], [], [], [], 512);
+    private readonly WaveformPeaks _none = new([], [], [], [], [], 512, EngineAudio.SampleRate);
 
     /// <summary>Peaks for a track with no samples. The same instance every call.</summary>
     public WaveformPeaks None() => _none;

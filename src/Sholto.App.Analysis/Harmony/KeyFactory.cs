@@ -4,7 +4,7 @@ namespace Sholto.App.Analysis.Harmony;
 /// Builds <see cref="Key"/> values from their Camelot rendering ("8B", "11A").
 /// The Camelot-number to pitch-class lookups are derived at construction by
 /// enumerating all 24 keys and reading each one's <see cref="Key.CamelotNumber"/>,
-/// so the mapping stays written down in exactly one place (Key's forward tables).
+/// so the mapping stays written down in exactly one place (the forward tables in <c>KeyRef.CamelotNumber</c>, which Key delegates to).
 /// </summary>
 public sealed class KeyFactory : IKeyFactory
 {

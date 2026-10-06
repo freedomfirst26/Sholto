@@ -6,7 +6,7 @@ analysis, no cloud.
 
 ## Repository layout
 
-No `.sln` — build the app project directly; project references pull in the rest.
+`Sholto.slnx` builds src and tools; the app project also builds standalone.
 
 | Project | Role |
 |---|---|
@@ -86,12 +86,16 @@ generic `AnyReady`. UI ViewModels subscribe to only the events they depend on an
 re-notify just the affected bindings (cause→effect is explicit):
 
 `BasicReady` (peaks, BPM, downbeats) · `KeyReady` · `StemsReady` / `StemPeaksReady`
-(Demucs) · `VocalRegionsReady` · `SongSegmentsReady` (song structure).
+(Demucs) · `VocalRegionsReady`.
 
-Song sections: `SongSegmentAnalyzer` produces the section labels on `BasicReady`
-(energy envelope + beatgrid → intro/build/drop/…) — an instant heuristic, and
-currently the only song-section source (see `TODO.md` for a removed optional
-model-based analyser that used to replace it via `SongSegmentsReady`).
+Song sections: madmom beats/downbeats → `BasicReady` → `DeckSession` runs
+`PhraseSectionAnalyzer` (`Sholto.App.Analysis/Analyzers/Segments/`, an in-house
+heuristic) → `PhraseGrid` + `SongSection` list → `DeckSectionsChanged` (`Sholto.Data`)
+→ minimap. `SongSegmentsReady` / `SongSegmentAnalyzer` no longer exist.
+
+Glossary: **beat** = one pulse; **bar** = 4 beats; **downbeat** = beat 1 of a bar;
+**phrase** = 8/16/32 bars (grid offset by a per-track `PhaseBar`, 0–7 bars after the first downbeat, estimated by `PhraseSectionAnalyzer`); **section** =
+a labelled run of whole bars (intro/build/drop/…).
 
 External analyzers are subprocesses expected on `PATH`: madmom-onnx (beats/downbeats),
 Demucs (stems). Absence degrades gracefully.
@@ -171,22 +175,44 @@ Target; migration in progress.
 - **Do NOT `git push`** unless explicitly told to in the current turn. Commit only when
   asked.
 
-## Keep the README in sync
+## Keep the README and docs in sync
 
-`README.md` is the user-facing feature list and dependency list, written for a
-**non-technical Linux user**. Treat it as part of the change, not an afterthought:
+`README.md` is a short landing page that sells Sholto to a **non-technical Linux user**:
+hero image, install steps, feature pictures with one-line captions, licence, links. The
+detail lives in `docs/`: the full feature list in `docs/features.md`, install and
+dependencies in `docs/install.md`, the on-screen guide and keyboard table in
+`docs/README.md`, developer material in `docs/developers.md`. Treat them as part of
+the change, not an afterthought:
 
 - **Added or changed a user-facing feature?** Add/adjust its bullet in the right
-  "What it does" subsection (and the **Keyboard** / **Your DDJ-FLX4** lists if it
-  has a shortcut or control), in plain language a layman understands.
+  section of `docs/features.md` (and the **Keyboard** / **Your DDJ-FLX4** lists there,
+  and the guide's keyboard table, if it has a shortcut or control), in plain language
+  a layman understands. Only touch `README.md` if it changes a headline feature or
+  its picture.
 - **Added a new external dependency** — a system package, a CLI tool the app shells
-  out to, or a runtime the user must install? Add it to the README's
-  **What it needs** list, marked **required** or **optional** (state what's lost
+  out to, or a runtime the user must install? Add it to **What it needs** in
+  `docs/install.md`, marked **required** or **optional** (state what's lost
   without it), *and* to `install.sh`.
 
 Do it in the same commit that adds the feature/dependency. Don't overclaim —
 only list formats/features that actually work (e.g. the decoder strategies in
 `Sholto.Audio` define which audio formats are really supported).
+
+README/docs screenshots (`pictures/*.webp`) are captured with the MainUI harness, not
+by hand — see "Documentation screenshots" in `docs/developers.md`.
+
+**New or changed feature with a visual element** (a control, overlay, view or visible
+style change)? Screenshot it in the same change:
+
+- Add or extend a scenario in `tools/Sholto.Interface.MainUI.Harness/DocScreenshots/`
+  (`scenarios.py`, `compose.py`) and run `capture.sh`, so the shot can be re-taken after
+  theme changes. Never capture by hand; use the made-up demo library, never the real
+  music library or real file paths.
+- 2× scale, cropped to the element, plus one in-context shot if it helps. Save as WebP
+  in `pictures/`.
+- Reference it from the relevant `docs/*.md` page with a one-line caption; add it to
+  `README.md` only if it's a headline feature.
+- Look at every image before using it.
 
 ## Working docs
 

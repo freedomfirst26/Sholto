@@ -36,7 +36,15 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     // been Disposed first — see Deck.TearDownPlayers.
     private float[][]? _stems;
     private readonly int _length;            // total interleaved-sample length per stem (always even — stereo)
-    private double _position;                // fractional source position in interleaved samples (sub-sample precision for vinyl-mode speed)
+    private double _position;                // fractional source position in interleaved samples (sub-sample precision for vinyl-mode speed); written only by the audio thread, inside ReadBytes
+
+    // Seek requests from other threads. Seek never touches _position: it parks
+    // the clamped target here (Interlocked.Exchange) and ReadBytes takes it
+    // once at the top of the next buffer, so a seek can't be overwritten by a
+    // read that was already in flight. NoPendingSeek = nothing requested.
+    // A later Seek before the next buffer simply replaces an earlier one.
+    private const long NoPendingSeek = long.MinValue;
+    private long _pendingSeek = NoPendingSeek;
 
     // Per-stem gain. Set via SetGain from UI/MIDI threads; read once per buffer
     // by the audio thread. Volatile keeps the read/write safe across cores
@@ -51,34 +59,29 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     private float _speed = 1f;
     public void SetSpeed(float speed) => Volatile.Write(ref _speed, speed);
 
-    // Active loop region in interleaved-sample units. Read lock-free per buffer
-    // by the audio thread (one volatile pair, no allocation). null on the
-    // managed side maps to long.MinValue here so we can encode "no loop" without
-    // boxing a Nullable struct.
-    private long _loopStart = long.MinValue;
-    private long _loopEnd   = long.MinValue;
+    // Active loop region in interleaved-sample units. Published as one
+    // immutable reference (same pattern as LoopTail) so the audio thread can
+    // never see a start from one region paired with an end from another.
+    // The holder is allocated on the control thread in SetLoop; the audio
+    // thread only reads it, once per buffer. null = no loop.
+    private sealed class LoopBounds(long start, long end)
+    {
+        public readonly long Start = start;
+        public readonly long End = end;
+    }
+
+    private LoopBounds? _loopBounds;      // published by control thread (Volatile)
     public void SetLoop(LoopRegion? loop)
     {
-        if (loop is null)
-        {
-            Volatile.Write(ref _loopEnd, long.MinValue);
-            Volatile.Write(ref _loopStart, long.MinValue);
-            return;
-        }
-        // Order matters: clear End first when disabling so the audio thread
-        // never sees a half-updated region. When enabling, write Start first
-        // for the same reason — the read side checks End != MinValue last.
-        var r = loop.Value;
-        Volatile.Write(ref _loopStart, r.StartSample);
-        Volatile.Write(ref _loopEnd,   r.EndSample);
+        Volatile.Write(ref _loopBounds,
+            loop is { } r ? new LoopBounds(r.StartSample, r.EndSample) : null);
     }
     public LoopRegion? ActiveLoop
     {
         get
         {
-            long end = Volatile.Read(ref _loopEnd);
-            if (end == long.MinValue) return null;
-            return new LoopRegion(Volatile.Read(ref _loopStart), end);
+            var bounds = Volatile.Read(ref _loopBounds);
+            return bounds is null ? null : new LoopRegion(bounds.Start, bounds.End);
         }
     }
 
@@ -192,7 +195,16 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
 
     // — ISoundDataProvider —
 
-    public int Position => (int)Volatile.Read(ref _position);
+    // A seek not yet applied by the audio thread is reported as the position,
+    // so a caller reading Position straight after Seek sees its own target.
+    public int Position
+    {
+        get
+        {
+            long pending = Volatile.Read(ref _pendingSeek);
+            return pending != NoPendingSeek ? (int)pending : (int)Volatile.Read(ref _position);
+        }
+    }
     public int Length => _length;
     public bool CanSeek => true;
     public SampleFormat SampleFormat => SampleFormat.F32;
@@ -205,15 +217,26 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
 
     public int ReadBytes(Span<float> buffer)
     {
+        // Apply any seek requested since the last buffer. Taken exactly once;
+        // this is the only place a Seek reaches _position, and it runs on the
+        // audio thread, so _position has a single writer.
+        long pendingSeek = Interlocked.Exchange(ref _pendingSeek, NoPendingSeek);
+        if (pendingSeek != NoPendingSeek)
+        {
+            Volatile.Write(ref _position, (double)pendingSeek);
+            Volatile.Write(ref _fadeRemaining, FadeFrames);
+        }
+
         // Snapshot speed + gains + loop once per buffer.
         float speed = Volatile.Read(ref _speed);
         float g0 = Volatile.Read(ref _g0);
         float g1 = Volatile.Read(ref _g1);
         float g2 = Volatile.Read(ref _g2);
         float g3 = Volatile.Read(ref _g3);
-        long loopEndSnap   = Volatile.Read(ref _loopEnd);
-        long loopStartSnap = Volatile.Read(ref _loopStart);
-        bool looping = loopEndSnap != long.MinValue && loopEndSnap > loopStartSnap;
+        var loopBoundsSnap = Volatile.Read(ref _loopBounds);
+        long loopStartSnap = loopBoundsSnap?.Start ?? long.MinValue;
+        long loopEndSnap   = loopBoundsSnap?.End ?? long.MinValue;
+        bool looping = loopBoundsSnap is not null && loopEndSnap > loopStartSnap;
         // Latest tail published by UI thread; used to ARM a new fade. The
         // audio thread, once a fade is in flight, holds the chosen tail in
         // `_activeFadeTail` so a concurrent BuildLoopTail can't shift the
@@ -476,8 +499,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     public void Seek(int offset)
     {
         var clamped = Math.Clamp(offset, 0, _length);
-        Volatile.Write(ref _position, (double)clamped);
-        Volatile.Write(ref _fadeRemaining, FadeFrames);
+        Interlocked.Exchange(ref _pendingSeek, clamped);
         PositionChanged?.Invoke(this, new PositionChangedEventArgs(clamped));
     }
 

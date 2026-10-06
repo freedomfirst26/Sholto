@@ -1,3 +1,4 @@
+using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Analysis.Processing;
 using Sholto.App.Library.Crates;
@@ -425,5 +426,23 @@ public class LibrarySessionTests
 
         rig.Library.ReportReanalysisFailure(path, "IOException: no such file");
         Assert.Equal("IOException: no such file", rig.Row(LibrarySessionRig.Alpha).AnalysisFailure);
+    }
+
+    [Fact]
+    public void Loading_a_key_into_deck_1_publishes_the_keys_that_mix_with_it()
+    {
+        var rig = new LibrarySessionRig();
+        var published = new RecordingHandler<HarmonyReferenceChanged>();
+        rig.Bus.Subscribe(published);
+        published.Received.Clear();
+
+        rig.Deck1.Analysis.Set(new KeyAnalysis(new Key(PitchClass: 0, IsMajor: true)));   // 8B
+        rig.Library.RefreshHarmonyReference();
+
+        var e = published.Received[^1];
+        Assert.Equal(new KeyRef(0, true), e.Key);
+        Assert.Equal(
+            new[] { "7A", "7B", "8A", "8B", "9A", "9B" },
+            e.MixableKeys.Select(k => k.ToCamelot()).OrderBy(c => c).ToArray());
     }
 }

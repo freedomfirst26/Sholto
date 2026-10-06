@@ -7,9 +7,41 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+### New
+
+- **Search ranks tracks by how well they fit your mix.** Press Space (or give the browse knob a short press) and the list is sorted against the deck you're not loading into: green for a good key and tempo match, amber for usable, grey for a clash. Find tracks by initials, `bpm:128`, `key:8a` or `#tag`; press Q to shortlist a track, and see your recent loads beside your crates and tags. Shift+1 / Shift+2 load straight onto a deck, and on the controller the browse knob moves through the search list and LOAD loads the pick.
+- **Click a crate or tag in search to narrow the list to it, ranked by what fits the playing track.** Picks become chips in the search box and stack; Backspace or the × takes one off, and Ctrl+Enter shows the pick in the library instead.
+- **The search header shows both decks.** The two LOAD TO slots now carry a platter that spins with the music and rings the time left, the title, key, BPM and time, FIT on the reference deck, an amber warning when the deck you would load onto is playing, and red "again to replace" after the first press.
+- **Undo a load.** Ctrl+Z within 10 seconds of loading puts the previous track back on that deck, paused where you replaced it.
+- **The section map shows the whole track.** The strip above each waveform is taller: section names over a coloured underline, and below them the entire song drawn in your waveform style (3-BAND or RGB) with the played part dimmed, and your cues and loop marked on it.
+- **An empty deck shows a ghost vinyl.** With no track loaded, the platter is drawn as a faint outline of a record, so you can see at a glance which deck is waiting for a load.
+- **The deck disc glows with the music.** Behind the BPM, soft bass, mid and high glows in your theme's waveform colours swell and fade with what is playing; the disc goes dark when the deck is empty.
+- **Choose how your waveforms look.** Settings ▸ Layout Wizard… lets you pick the deck waveform style:
+  **3-BAND** (bass, mids and highs as layers, as before) or the new **RGB** (Rekordbox-style fine stripes, each
+  coloured by what is playing at that instant). The decks change as you pick; Esc
+  puts them back. Sholto remembers your choice.
+- **Try themes on in the Layout Wizard.** The wizard now starts with a theme step: every theme is a small preview card
+  (your own themes from the themes folder get their own group). Pick one and the whole app changes to it straight
+  away; the waveform step then shows both styles in that theme. Nothing is kept until you press Apply, and Cancel
+  or Esc puts back what you had.
+
+- **Set how long and how far a backspin goes.** Settings ▸ Settings… has two Platter feel knobs. Backspin time is how long the platter keeps spinning after you let go (0.6 seconds to start). Backspin distance is how far a firm spin rewinds, in beats (2 to start), and harder spins go a little further. Turn either to 0 and the platter stops dead. Forward flings follow both knobs. Changes apply to the next fling and Sholto remembers them. Your old single release setting is replaced by these two, which start at their defaults.
+
+  ![Settings, Platter feel: the Backspin time and Backspin distance knobs](pictures/settings-platter-feel.webp)
+
+
 ### Improved
 
+- **Empty LOAD TO slots in search are clearer.** A deck with no track now shows as an empty slot, so you can see which deck a load will go to and which is waiting.
+
+- **Loading onto a playing deck now asks for a second press.** The first press shows a warning; press again within 3 seconds to replace the track. This covers the keyboard, the screen and the controller's LOAD buttons, so a stray press can't cut your music.
 - **"Birthday Massacre" is now "The Birthday Massacre".** The theme is called by its proper name in the picker, and if you had it selected it stays selected.
+- **Song sections now line up with the music's phrases.** Each section on the map shows its length in bars (like DROP 16), builds are no longer mistaken for drops, and loud pop tracks aren't all labelled DROP.
+- **Closing the controller guide now shrinks it into its button.** The guide folds into the controller icon in the top bar, which pulses for a moment so you know where to reopen it. If your desktop has animations turned off, it simply fades.
+
+### Fixed
+
+- **Waveform bands are no longer identical.** Since 1.0 the bass, mid and high bands came out the same, so 3-BAND looked like nested copies and RGB was a single colour. Fixed; each track is re-analysed once the first time you load it.
 
 ## v1.0.0
 
@@ -51,6 +83,8 @@ it as `Sholto`, and the installer takes care of the rest.
   new optional keys.
 
 ### Fixed
+
+- **Waveform bass, mid and high colours now show the real music.** Since 1.0 all three layers were drawn from the same signal, so every track looked alike. Each track re-analyses once the next time you load it.
 
 - **CUE no longer flips its light in the guide.** Pressing CUE while the
   controller guide is open no longer flips the CUE light.

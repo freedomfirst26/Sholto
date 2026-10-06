@@ -1,0 +1,254 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:Sholto.Interface.MainUI.Controls"
+             xmlns:vm="using:Sholto.Interface.MainUI.ViewModels"
+             x:Class="Sholto.Interface.MainUI.Views.LayoutWizardOverlay"
+             Focusable="False">
+
+    <UserControl.Resources>
+        <!-- One theme card: a miniature in the theme's OWN colours (library rows with key chips over a deck
+             strip with a static waveform), then its name, check and CURRENT tag. The card chrome around it
+             follows the live app theme, which is whatever is being tried on. -->
+        <DataTemplate x:Key="ThemeCardTemplate">
+            <Border Classes="card tcard" Classes.selected="{Binding IsSelected}" Margin="0,0,10,10"
+                    PointerPressed="OnThemeCardPressed">
+                <StackPanel Spacing="6">
+                    <Border Height="84" CornerRadius="6" ClipToBounds="True" BorderThickness="1"
+                            Background="{Binding Theme.BgDeep}" BorderBrush="{Binding Theme.Border}">
+                        <Grid RowDefinitions="*,3,40">
+                            <StackPanel Grid.Row="0" Spacing="3" Margin="0" Background="{Binding Theme.Surface}">
+                                <StackPanel.Styles>
+                                    <Style Selector="Grid.mr"><Setter Property="Height" Value="9"/></Style>
+                                </StackPanel.Styles>
+                                <Grid Classes="mr" Margin="6,4,6,0" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="5">
+                                    <Border Grid.Column="0" Width="34" Height="3" CornerRadius="2" Opacity="0.6" Background="{Binding Theme.TextBright}"/>
+                                    <Border Grid.Column="1" Width="18" Height="3" CornerRadius="2" Opacity="0.6" Background="{Binding Theme.TextMuted}"/>
+                                    <Border Grid.Column="3" Width="14" Height="7" CornerRadius="2" Background="{Binding KeyChips[0]}"/>
+                                </Grid>
+                                <Grid Classes="mr" Margin="6,0,6,0" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="5"
+                                      Background="{Binding Theme.AccentBg}">
+                                    <Border Grid.Column="0" Width="44" Height="3" CornerRadius="2" Opacity="0.6" Background="{Binding Theme.TextBright}"/>
+                                    <Border Grid.Column="1" Width="16" Height="3" CornerRadius="2" Opacity="0.6" Background="{Binding Theme.TextMuted}"/>
+                                    <Border Grid.Column="3" Width="14" Height="7" CornerRadius="2" Background="{Binding KeyChips[1]}"/>
+                                </Grid>
+                                <Grid Classes="mr" Margin="6,0,6,0" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="5">
+                                    <Border Grid.Column="0" Width="30" Height="3" CornerRadius="2" Opacity="0.6" Background="{Binding Theme.TextBright}"/>
+                                    <Border Grid.Column="1" Width="22" Height="3" CornerRadius="2" Opacity="0.6" Background="{Binding Theme.TextMuted}"/>
+                                    <Border Grid.Column="3" Width="14" Height="7" CornerRadius="2" Background="{Binding KeyChips[2]}"/>
+                                </Grid>
+                            </StackPanel>
+                            <Border Grid.Row="1" Background="{Binding Theme.SurfaceRaised}"/>
+                            <Grid Grid.Row="2" Background="{Binding Theme.SurfaceRaised}" ColumnDefinitions="Auto,*">
+                                <Ellipse Grid.Column="0" Width="26" Height="26" Margin="5,0,5,0" StrokeThickness="2"
+                                         Stroke="{Binding Theme.Mint}" Fill="{Binding Theme.BgDeep}"/>
+                                <c:ThemeMiniatureWaveform Grid.Column="1" Margin="0,4,4,4" Palette="{Binding Theme.Waveform}"
+                                                          IsHitTestVisible="False"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                        <Border Grid.Column="0" Classes="check"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource SholtoTextBright}"/>
+                        <Border Grid.Column="2" Classes="tag" IsVisible="{Binding IsCurrent}">
+                            <TextBlock Text="CURRENT"/>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.kbd">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="5,0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource SholtoBgDeep}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+        </Style>
+        <Style Selector="Border.kbd TextBlock">
+            <Setter Property="FontFamily" Value="monospace"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+        </Style>
+
+        <!-- Style cards -->
+        <Style Selector="Border.card">
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource SholtoSurface}"/>
+        </Style>
+        <Style Selector="Border.card:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoTextMuted}"/>
+        </Style>
+        <Style Selector="Border.card.selected">
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Padding" Value="9"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoAccent}"/>
+            <Setter Property="Background" Value="{DynamicResource SholtoAccentBg}"/>
+        </Style>
+        <Style Selector="Border.check">
+            <Setter Property="Width" Value="14"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+        </Style>
+        <Style Selector="Border.card.selected Border.check">
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoAccent}"/>
+            <Setter Property="Background" Value="{DynamicResource SholtoAccent}"/>
+        </Style>
+        <Style Selector="Border.tag">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource SholtoPrimaryTint}"/>
+        </Style>
+        <Style Selector="Border.tag TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="0.8"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoPrimary}"/>
+        </Style>
+        <Style Selector="Border.tag.current">
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource SholtoBgDeep}"/>
+        </Style>
+        <Style Selector="Border.tag.current TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
+        </Style>
+
+        <!-- Theme cards -->
+        <Style Selector="Border.tcard">
+            <Setter Property="Padding" Value="6"/>
+        </Style>
+        <Style Selector="Border.tcard.selected">
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+        <Style Selector="TextBlock.group">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1.2"/>
+            <Setter Property="Margin" Value="2,6,0,0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
+        </Style>
+
+    </UserControl.Styles>
+
+    <!-- The step bodies only: ModalShell supplies the scrim, panel, eyebrow, per-step title and subtitle, the
+         button bar and the key hint; the stepper is its header accessory (LayoutWizardStepper). -->
+    <StackPanel>
+                <!-- Step 1: theme gallery -->
+                <StackPanel Spacing="4" IsVisible="{Binding IsThemeStep}">
+                <ScrollViewer x:Name="ThemeScroll" Height="372" HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="8" Margin="2,0,8,4">
+                        <TextBlock Classes="group" Text="{Binding BuiltInHeading}" Margin="2,0,0,0"/>
+                        <ItemsControl x:Name="BuiltInList" ItemsSource="{Binding BuiltInThemes}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="4"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <StaticResource ResourceKey="ThemeCardTemplate"/>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Classes="group" Text="{Binding UserHeading}" IsVisible="{Binding HasUserThemes}"/>
+                        <ItemsControl x:Name="UserList" ItemsSource="{Binding UserThemes}" IsVisible="{Binding HasUserThemes}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="4"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <StaticResource ResourceKey="ThemeCardTemplate"/>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- No user themes yet: say where they go. -->
+                        <Grid IsVisible="{Binding !HasUserThemes}" Height="64" Margin="0,4,0,0">
+                            <Rectangle RadiusX="10" RadiusY="10" StrokeThickness="1" StrokeDashArray="4,3"
+                                       Stroke="{DynamicResource SholtoBorder}"/>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
+                                <TextBlock Text="YOUR THEMES · 0" FontSize="10" FontWeight="Bold" LetterSpacing="1.2"
+                                           HorizontalAlignment="Center" Foreground="{DynamicResource SholtoTextMuted}"/>
+                                <TextBlock FontSize="12" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource SholtoTextMuted}"
+                                           Text="{Binding UserThemesDirectory, StringFormat='Drop a theme .json into {0}'}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+                </StackPanel>
+
+                <!-- Step 2: waveform style -->
+                <StackPanel Spacing="4" IsVisible="{Binding IsWaveformStep}">
+                <ItemsControl ItemsSource="{Binding Options}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1" ColumnSpacing="12"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="card" Classes.selected="{Binding IsSelected}"
+                                    PointerPressed="OnCardPressed">
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+                                        <Border Grid.Column="0" Classes="check"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13"
+                                                   FontWeight="Bold" LetterSpacing="0.8" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource SholtoTextBright}"/>
+                                        <Border Grid.Column="2" Classes="tag" Classes.current="{Binding IsCurrent}"
+                                                IsVisible="{Binding HasTag}">
+                                            <TextBlock Text="{Binding Tag}"/>
+                                        </Border>
+                                        <Border Grid.Column="4" Classes="kbd">
+                                            <TextBlock Text="{Binding Key}"/>
+                                        </Border>
+                                    </Grid>
+                                    <Border Height="150" CornerRadius="6" ClipToBounds="True"
+                                            Background="{DynamicResource SholtoBgDeep}">
+                                        <c:WaveformPreviewControl Source="{Binding Preview}"
+                                                                  Scroll="{Binding Scroll}"
+                                                                  Palette="{DynamicResource SholtoWaveformPalette}"
+                                                                  IsHitTestVisible="False"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource SholtoTextMuted}"/>
+                                    <ItemsControl ItemsSource="{Binding Legend}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="12"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <Border Width="10" Height="10" CornerRadius="2"
+                                                            VerticalAlignment="Center"
+                                                            Background="{Binding Swatch}"/>
+                                                    <TextBlock Text="{Binding Label}" FontSize="11"
+                                                               Foreground="{DynamicResource SholtoTextMuted}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                </StackPanel>
+    </StackPanel>
+</UserControl>

@@ -39,36 +39,38 @@ public sealed class ScratchOptions
     // --- Release: resume vs fling -------------------------------------------------
 
     /// <summary>The line between "scrubbing" and "spun it". Peak |rate| during the
-    /// gesture at or above this = a fling: the deck coasts on with momentum (the
-    /// backspin effect). Below it the deck resumes instantly from exactly where
+    /// gesture at or above this = a fling: the deck coasts on for the backspin
+    /// time and distance (the backspin effect). Below it the deck resumes instantly from exactly where
     /// the hand let go. Raise if fast rewinds coast when they shouldn't; lower
     /// if real spins die on release.</summary>
     public double FlingThreshold { get; set; } = 3.0;
 
-    /// <summary>Multiplier on the release velocity of a fling. The FLX4's platter
-    /// has no flywheel — it stops almost the instant the hand leaves — so a
-    /// physical rip reads weak; this projects the momentum a weighted platter
-    /// would carry. 1.0 = none. (4.0 was hilariously too much.)</summary>
-    public double FlingBoost { get; set; } = 1.5;
+    /// <summary>Exponent p of the fling's timed ease-out, <c>v(t) = R + G·(1 − t/T)^p</c>. 2 = fast whoosh at
+    /// release and a soft landing; higher is a sharper lurch then a longer crawl.</summary>
+    public double CoastShape { get; set; } = 2.0;
 
-    /// <summary>How much faster a spinback (a fling in reverse) dies out than a
-    /// forward fling. Scales the friction up and the dying tail down, so the
-    /// same spin comes to rest in 1/this of the time and covers 1/this of the
-    /// track. 2.0 = the spinback completes twice as fast.</summary>
-    public double SpinbackSpeedup { get; set; } = 2.0;
+    /// <summary>Peak |rate| at which fling strength is 1. Strength g = sqrt(|peak| / this), clamped, scales the
+    /// backspin distance, so a harder fling goes further in the same time.</summary>
+    public double FlingReferencePeak { get; set; } = 10.0;
 
-    /// <summary>Constant deceleration of a fling, in rate-units per second — like
-    /// a real platter under friction. Lower = longer coast. A hard backspin
-    /// (|rate| ~ 20) covers bars before settling; a small one is back at speed
-    /// in ~0.1 s.</summary>
-    public double DecelPerSec { get; set; } = 12.0;
+    /// <summary>Lowest fling strength g (a fling just over the threshold).</summary>
+    public double FlingStrengthMin { get; set; } = 0.5;
 
-    /// <summary>Below this speed-gap to the resting rate, a fling switches from
-    /// constant friction to an exponential glide — the drawn-out dying tail of
-    /// a backspin instead of stopping on a dime.</summary>
+    /// <summary>Highest fling strength g (the cap on how much harder flings add).</summary>
+    public double FlingStrengthMax { get; set; } = 2.0;
+
+    /// <summary>Cap on the launch rate above rest, so short times with long distances cannot ask for silly
+    /// rates; when it bites the spin keeps its time but falls short of its distance.</summary>
+    public double MaxLaunchRate { get; set; } = 40.0;
+
+    /// <summary>Tempo used to turn beats into seconds when the track has no analysed BPM.</summary>
+    public double FallbackBpm { get; set; } = 120.0;
+
+    /// <summary>Vinyl brake only: below this speed-gap to rest, the brake switches from
+    /// constant friction to an exponential glide, so it draws out instead of stopping on a dime.</summary>
     public double CoastKnee { get; set; } = 2.0;
 
-    /// <summary>Time constant of that dying tail.</summary>
+    /// <summary>Time constant of the vinyl brake's dying tail.</summary>
     public double CoastTailTauSec { get; set; } = 0.175;
 
     // --- Diagnostics and recency ---------------------------------------------------

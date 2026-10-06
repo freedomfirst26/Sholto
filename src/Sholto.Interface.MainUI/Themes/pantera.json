@@ -5,11 +5,11 @@
   "surfaceRaised": "#1A1612",
   "border":        "#3A3328",
   "primary":       "#C5BFB5",
-  "accent":        "#E84C1B",
-  "accentBg":      "#33E84C1B",
-  "mint":          "#FF8E3C",
+  "accent":        "#FF4A1C",
+  "accentBg":      "#33FF4A1C",
+  "mint":          "#FFB02E",
   "textBright":    "#F0EAE0",
-  "textMuted":     "#6E6258",
+  "textMuted":     "#9A8C80",
   "playedFadeColor": "#0A0908",
   "waveformPalette": "Pantera",
   "camelotPalette": {
@@ -20,8 +20,16 @@
     "onChipForeground": "#0A0908"
   },
   "waveform": {
-    "low": "#7A3D22",
-    "mid": "#FF6B2C",
-    "downbeat": "#D8C5BFB5"
+    "low": "#E01E1E",
+    "mid": "#FF7A1A",
+    "high": "#FFD23F",
+    "downbeat": "#D868B8FF",
+    "rgbLow": "#FF2D2D",
+    "rgbMid": "#FFC41F",
+    "rgbHigh": "#3FA8FF",
+    "playhead": "#00FF00"
+  },
+  "minimap": {
+    "playhead": "#00FF00"
   }
 }

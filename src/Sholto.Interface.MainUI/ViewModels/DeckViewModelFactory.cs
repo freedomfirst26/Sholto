@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Options;
-using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Theming;
 
@@ -12,16 +11,18 @@ public sealed class DeckViewModelFactory(
     ICommandSender sender,
     IThemeContext theme,
     IOptions<FeatureOptions> features,
-    IWaveformPeaksFactory peaksFactory) : IDeckViewModelFactory
+    INoPeaksFactory peaksFactory,
+    IDiscBloomFactory bloomFactory) : IDeckViewModelFactory
 {
     private readonly IEventSubscriber _subscriber = subscriber;
     private readonly ICommandSender _sender = sender;
     private readonly IThemeContext _theme = theme;
     private readonly IOptions<FeatureOptions> _features = features;
-    private readonly IWaveformPeaksFactory _peaksFactory = peaksFactory;
+    private readonly INoPeaksFactory _peaksFactory = peaksFactory;
+    private readonly IDiscBloomFactory _bloomFactory = bloomFactory;
 
     public DeckViewModel Create(int deck) =>
-        new(deck, _subscriber, _sender, _theme, _peaksFactory)
+        new(deck, _subscriber, _sender, _theme, _peaksFactory, _bloomFactory)
         {
             SectionMapEnabled = _features.Value.ShowSectionMap
         };

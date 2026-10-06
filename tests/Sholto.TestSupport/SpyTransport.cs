@@ -24,7 +24,8 @@ internal sealed class SpyTransport(ScriptedLoading loading) : ITransportControl
     {
     }
 
-    public void SeekToFraction(double fraction)
-    {
-    }
+    /// <summary>The fraction of the last seek, or null if none.</summary>
+    public double? LastSeekFraction { get; private set; }
+
+    public void SeekToFraction(double fraction) => LastSeekFraction = fraction;
 }

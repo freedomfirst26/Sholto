@@ -5,9 +5,9 @@ namespace Sholto.Interface.MainUI.Tests;
 
 public class MinimapPaletteTests
 {
-    private readonly SholtoThemeJson _themeJson = new(new WaveformPaletteFactory(new TestWaveformPresets().Create(), new TestThemeDefaults().Create()), new MinimapPaletteFactory(), new TestThemeDefaults().Create());
+    private readonly SholtoThemeFactory _themeFactory = new(new WaveformPaletteFactory(new TestWaveformPresets().Create(), new TestThemeDefaults().Create()), new MinimapPaletteFactory(), new TestThemeDefaults().Create());
 
-    // Minimal but complete theme JSON — every field SholtoThemeJson.Parse requires,
+    // Minimal but complete theme JSON — every field SholtoThemeFactory.Create requires,
     // with the "minimap" section supplied by the caller (or omitted).
     private static string ThemeJson(string? minimapSection) => $$"""
     {
@@ -52,7 +52,7 @@ public class MinimapPaletteTests
             }
             """);
 
-        var theme = _themeJson.Parse(json);
+        var theme = _themeFactory.Create(json);
         var m = theme.Minimap;
 
         Assert.Equal(Color.Parse("#010203"), m.Backdrop);
@@ -72,7 +72,7 @@ public class MinimapPaletteTests
     [Fact]
     public void MissingMinimapSection_YieldsDerivedPalette()
     {
-        var theme = _themeJson.Parse(ThemeJson(minimapSection: null));
+        var theme = _themeFactory.Create(ThemeJson(minimapSection: null));
         var m = theme.Minimap;
 
         // Core anchors from the derivation rules.
@@ -91,8 +91,8 @@ public class MinimapPaletteTests
         var explicitJson = ThemeJson("""
             "minimap": { "drop": "#FF0000" }
             """);
-        var withPartial = _themeJson.Parse(explicitJson);
-        var withNone = _themeJson.Parse(ThemeJson(minimapSection: null));
+        var withPartial = _themeFactory.Create(explicitJson);
+        var withNone = _themeFactory.Create(ThemeJson(minimapSection: null));
 
         // The explicit key wins...
         Assert.Equal(Color.Parse("#FF0000"), withPartial.Minimap.Drop);

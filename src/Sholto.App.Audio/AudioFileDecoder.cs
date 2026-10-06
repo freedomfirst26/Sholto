@@ -1,3 +1,6 @@
+using Sholto.App.Analysis;
+using Sholto.Data;
+
 namespace Sholto.App.Audio;
 
 /// <summary>
@@ -21,7 +24,7 @@ public sealed class AudioFileDecoder(IAudioDecodeStrategy[] strategies) : IAudio
     // Match AudioEngine output rate so SoundFlow doesn't have to resample on
     // playback — a rate mismatch here makes the audio play at engineRate/sourceRate
     // speed (e.g. 48000/44100 = 8.8% too fast).
-    public const int TargetSampleRate = 48000;
+    public const int TargetSampleRate = EngineAudio.SampleRate;
     public const int TargetChannels = 2;
 
     private readonly IAudioDecodeStrategy[] _strategies = strategies;

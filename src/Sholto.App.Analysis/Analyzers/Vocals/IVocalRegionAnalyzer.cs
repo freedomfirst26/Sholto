@@ -1,5 +1,6 @@
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Waveform;
+using Sholto.Data;
 
 namespace Sholto.App.Analysis.Analyzers.Vocals;
 

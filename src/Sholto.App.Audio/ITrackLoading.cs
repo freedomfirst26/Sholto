@@ -19,8 +19,10 @@ public interface ITrackLoading
     /// analysis so stale waveform/BPM/key bindings clear right away, without
     /// waiting for <see cref="Load"/> (which can't run until samples are decoded).
     /// Audio for the previous track keeps playing until Load lands; this is purely
-    /// a visual reset so the deck UI matches the new track immediately on click.</summary>
-    void BeginLoad();
+    /// a visual reset so the deck UI matches the new track immediately on click.
+    /// Also pre-starts the path-only analysis (cache lookups, beat tracker, and stems when they
+    /// may overlap) so it runs while the file decodes.</summary>
+    void BeginLoad(string filePath);
 
     /// <summary>
     /// Start playback from <paramref name="filePath"/> via SoundFlow's

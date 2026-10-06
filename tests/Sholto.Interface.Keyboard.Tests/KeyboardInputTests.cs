@@ -38,6 +38,28 @@ public class KeyboardInputTests
     }
 
     [Fact]
+    public void Shift_and_the_number_keys_load_directly_into_deck_one_or_two()
+    {
+        _keyboard.Press(Key.D1, KeyModifiers.Shift);
+        _keyboard.Press(Key.NumPad2, KeyModifiers.Shift);
+        Assert.Equal([0, 1], _sender.Sent.Cast<LoadSelectedIntoDeck>().Select(c => c.Deck));
+    }
+
+    [Fact]
+    public void Ctrl_Z_undoes_the_last_load_and_nothing_else_with_Z_does()
+    {
+        var args = _keyboard.Press(Key.Z, KeyModifiers.Control);
+
+        var undo = Assert.IsType<UndoLastLoad>(Assert.Single(_sender.Sent));
+        Assert.Equal(new Origin(InterfaceIds.Keyboard, "key.ctrl+z", "load.undo"), undo.Origin);
+        Assert.True(args.Handled);
+
+        _keyboard.Press(Key.Z);
+        _keyboard.Press(Key.Z, KeyModifiers.Control | KeyModifiers.Shift);
+        Assert.Single(_sender.Sent);
+    }
+
+    [Fact]
     public void M_adds_a_marker_and_G_opens_the_grid_editor()
     {
         _keyboard.Press(Key.M, KeyModifiers.Shift);

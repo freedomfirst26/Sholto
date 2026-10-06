@@ -1,3 +1,4 @@
+using Sholto.App.Analysis.Stems;
 using System.Diagnostics;
 using Sholto.App.Analysis.Reporting;
 
@@ -70,7 +71,7 @@ public class RealToolIntegrationTests
 
         var cacheRoot = Path.Combine(Path.GetTempPath(), $"sholto_test_stems_{Guid.NewGuid():N}");
         var demucsSession = new ConfiguredTool(_runner, demucsPath);
-        var demucs = new DemucsStemAnalysisStep(demucsSession, _ => cacheRoot);
+        var demucs = new DemucsStemAnalysisStep(demucsSession, _ => cacheRoot, new FixedStemDevice(StemDevice.Cpu));
         var fixture = CreateSineWavFixture(3.0);
         try
         {

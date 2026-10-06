@@ -1,12 +1,13 @@
+using Sholto.App.Analysis.Analyzers.Keys;
+using Sholto.App.Analysis.Stems;
 using Sholto.App.Audio;
+using Sholto.App.Library;
 using Sholto.Data;
-using DeckContent = Sholto.Data.DeckContentChanged<
-    Sholto.App.Library.Track, Sholto.App.Audio.TrackAnalysis, Sholto.App.Analysis.Analyzers.Segments.SongSegment>;
 
 namespace Sholto.App.Decks;
 
 /// <summary>Turns one deck session's <see cref="IDeckSession.Changed"/> into the state events an interface
-/// follows: content (<see cref="DeckContentChanged{TTrack, TAnalysis, TSegment}"/>), tempo, loop, editing,
+/// follows: content (<see cref="DeckContentChanged"/>), tempo, loop, editing,
 /// markers, volume and the per-frame <see cref="DeckFrame"/>. The session already publishes the transport
 /// phase, the stem mutes and the echo itself; cue routing publishes the headphone cue. Everything here runs
 /// on the app thread (the session raises <c>Changed</c> there), and the per-frame path allocates nothing:
@@ -21,6 +22,7 @@ public sealed class DeckEventPublisher(IDeckSession session, IEventPublisher pub
     public void Start()
     {
         PublishContent();
+        PublishSections();
         PublishTempo();
         PublishLoop();
         PublishEdit();
@@ -46,8 +48,9 @@ public sealed class DeckEventPublisher(IDeckSession session, IEventPublisher pub
             case DeckChange.KeyReady:
             case DeckChange.StemsReady:
             case DeckChange.VocalRegionsReady:
-            case DeckChange.Segments:
+            case DeckChange.Sections:
                 PublishContent();
+                PublishSections();
                 break;
             case DeckChange.AnalysisReset:
                 PublishContent();
@@ -90,8 +93,36 @@ public sealed class DeckEventPublisher(IDeckSession session, IEventPublisher pub
             _session.IsScrubbing, _session.IsScratching, _session.MagneticGlowSec));
 
     private void PublishContent() =>
-        _publisher.Publish(new DeckContent(
-            _session.Index, _session.LoadedTrack, _session.LoadState, _session.IsLoaded, _session.Analysis, _session.Segments));
+        _publisher.Publish(new DeckContentChanged(
+            _session.Index, Project(_session.LoadedTrack), _session.LoadState, _session.IsLoaded,
+            Project(_session.Analysis)));
+
+    private DeckTrack? Project(Track? t) =>
+        t is null ? null : new DeckTrack(t.FilePath, t.Title, t.Artist, t.Duration);
+
+    /// <summary>A snapshot of what has landed so far; the bag itself keeps filling, the snapshot does not.</summary>
+    private DeckAnalysis Project(TrackAnalysis a)
+    {
+        var basic = a.Basic;
+        return new DeckAnalysis(
+            basic?.Peaks, basic?.Bpm ?? 0, basic?.BeatTimes ?? [], basic?.DownbeatTimes ?? [],
+            a.Get<IReadOnlyList<VocalRegion>>(), a.Has<StemPaths>(), a.Get<KeyAnalysis>()?.Key.ToRef());
+    }
+
+    private void PublishSections()
+    {
+        var grid = _session.SectionGrid;
+        var sections = new DeckSection[_session.Sections.Count];
+        for (int i = 0; i < sections.Length; i++)
+        {
+            var s = _session.Sections[i];
+            sections[i] = new DeckSection(Enum.Parse<DeckSectionKind>(s.Kind.ToString()), s.StartBar, s.Bars);
+        }
+        int totalBars = grid.IsEmpty ? 0 : (int)(grid.DurationSec / grid.BarPeriodSec);
+        _publisher.Publish(new DeckSectionsChanged(
+            _session.Index, sections, new DeckPhraseGrid(_session.PhraseGrid.PhaseBar, _session.PhraseGrid.PhraseBars),
+            grid.FirstDownbeatSec, grid.BarPeriodSec, totalBars));
+    }
 
     private void PublishTempo() =>
         _publisher.Publish(new DeckTempoChanged(

@@ -1,16 +1,16 @@
 {
   "name": "Jeremy Soule",
-  "bgDeep":        "#0D1310",
-  "surface":       "#161D19",
-  "surfaceRaised": "#1D2622",
-  "border":        "#2E3B33",
-  "primary":       "#4A7A52",
-  "accent":        "#8FAA88",
-  "accentBg":      "#338FAA88",
-  "mint":          "#C5D4BE",
-  "textBright":    "#E8EDE5",
-  "textMuted":     "#7A8479",
-  "playedFadeColor": "#0D1310",
+  "bgDeep":        "#0A0B0D",
+  "surface":       "#141619",
+  "surfaceRaised": "#1B1E22",
+  "border":        "#34383E",
+  "primary":       "#E0A030",
+  "accent":        "#FFC247",
+  "accentBg":      "#33FFC247",
+  "mint":          "#9CC8FF",
+  "textBright":    "#ECEAE4",
+  "textMuted":     "#8A8F96",
+  "playedFadeColor": "#0A0B0D",
   "waveformPalette": "Soule",
   "camelotPalette": {
     "hueOffset":        0,
@@ -20,8 +20,16 @@
     "onChipForeground": "#0D1310"
   },
   "waveform": {
-    "low": "#2E4734",
-    "mid": "#6A8F62",
-    "downbeat": "#D8D4B86A"
+    "low": "#3B82F0",
+    "mid": "#FF9F1C",
+    "high": "#FFE07A",
+    "downbeat": "#D8C9CDD3",
+    "rgbLow": "#3C8CFF",
+    "rgbMid": "#FFB81F",
+    "rgbHigh": "#FF4040",
+    "playhead": "#00FF00"
+  },
+  "minimap": {
+    "playhead": "#00FF00"
   }
 }

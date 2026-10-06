@@ -25,7 +25,7 @@ public class DeckTuningCommandHandlersTests
     }
 
     private BasicAnalysis MakeBasic(double bpm) => new(
-        new WaveformPeaks(Min: [-0.5f], Max: [0.5f], Low: [0.1f], Mid: [0.2f], High: [0.3f], SamplesPerPeak: 1024),
+        new WaveformPeaks(Min: [-0.5f], Max: [0.5f], Low: [0.1f], Mid: [0.2f], High: [0.3f], SamplesPerPeak: 1024, SampleRate: 48000),
         Bpm: bpm,
         BeatTimes: [],
         DownbeatTimes: []);
@@ -187,6 +187,35 @@ public class DeckTuningCommandHandlersTests
 
         Assert.Equal([(5.0, 9.0)], _beatgrid1.TwoPointGrids);
         Assert.False(_deck1.GridEditActive);
+    }
+
+    [Fact]
+    public void Leaving_grid_edit_discards_a_pending_first_click()
+    {
+        _deck1.ToggleGridEdit();
+        _handlers.Handle(new ClickGrid(0, 5.0, _from));
+        _deck1.ToggleGridEdit();
+        _deck1.ToggleGridEdit();
+
+        _handlers.Handle(new ClickGrid(0, 9.0, _from));
+        Assert.Empty(_beatgrid1.TwoPointGrids);   // 9.0 is a fresh first click, not the second of 5.0
+
+        _handlers.Handle(new ClickGrid(0, 12.0, _from));
+
+        Assert.Equal([(9.0, 12.0)], _beatgrid1.TwoPointGrids);
+        Assert.False(_deck1.GridEditActive);
+    }
+
+    [Fact]
+    public void Opening_an_open_editor_raises_nothing()
+    {
+        var changes = new List<DeckChange>();
+        _deck1.Changed += changes.Add;
+
+        _deck1.OpenEdit();
+        _deck1.OpenEdit();
+
+        Assert.Equal([DeckChange.EditOpen], changes);
     }
 
     // ---- Through the bus ------------------------------------------------------------------------

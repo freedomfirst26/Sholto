@@ -1,3 +1,5 @@
+using Sholto.Data;
+
 namespace Sholto.App.Analysis.Analyzers.Waveform;
 
 public interface IWaveformPeaksFactory

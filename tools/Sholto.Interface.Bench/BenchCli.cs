@@ -23,7 +23,7 @@ namespace Sholto.Interface.Bench;
 /// <para>Instance, not static: every collaborator is handed in. <c>Program.Main</c>
 /// (the one forced static) composes them and runs <c>new BenchCli(...).Run(args)</c>.</para>
 /// </summary>
-/// <param name="scenarioParser">Loads and validates scenario files.</param>
+/// <param name="scenarioFactory">Creates validated scenarios from scenario files.</param>
 /// <param name="offlineRenderer">Renders decks to a WAV.</param>
 /// <param name="soundMeter">Measures a WAV through ffmpeg.</param>
 /// <param name="benchDeck">Builds the offline engine and decks.</param>
@@ -31,7 +31,7 @@ namespace Sholto.Interface.Bench;
 /// <param name="headlessHost">Builds the headless graph and runs scenarios against it.</param>
 /// <param name="crossfade">The crossfade curve the scenario runner applies.</param>
 internal sealed class BenchCli(
-    IScenarioParser scenarioParser,
+    IScenarioFactory scenarioFactory,
     IOfflineRenderer offlineRenderer,
     ISoundMeter soundMeter,
     IBenchDeck benchDeck,
@@ -86,9 +86,9 @@ internal sealed class BenchCli(
               state      --track <path> [--track2 <path>] [--gain1 <0..1>] [--gain2 <0..1>]
                           [--seconds <n>]   (loads + runs the scenario for <n> seconds, then dumps state)
                        or --scenario <json>
-              headless   --scenario <json>   (builds the headless core + controller input stack, no window;
+              headless   --scenario <json> [--out <wav-path>]   (builds the headless core + controller input stack, no window;
                           runs the scenario and prints deck state + what each scan/gesture/midi step
-                          actually changed)
+                          actually changed; --out also renders the mix to a WAV)
               latency    (10,000 jog turns controller -> command -> platter accumulation + per-frame
                           flush, and app event -> controller LED; prints ns/op and bytes/op)
 
@@ -97,7 +97,7 @@ internal sealed class BenchCli(
             Scenario JSON: { "actions": [ { "action": "load"|"gain"|"play"|"crossfader"|"wait"|
               "scan"|"gesture"|"midi", ... } ] }. (key / click / screenshot are harness-only.)
               "gesture" drives the real controller input/command bus/performance stack —
-              see Scenario.cs and Sholto.Interface.Bench/Controller/ScenarioGestureBuilder.cs for the
+              see Scenario.cs and Sholto.Interface.Bench/Controller/ScenarioGestureFactory.cs for the
               field each ControllerEvent needs. "midi" translates a raw NoteEvent/CcEvent
               through the FLX-4 mapping first, one layer above "gesture". Both, and "scan",
               are headless-only (they need the core + input stack, which only the headless
@@ -116,7 +116,7 @@ internal sealed class BenchCli(
 
         if (opt.TryGetValue("scenario", out var scenarioPath))
         {
-            var scenario = scenarioParser.LoadFile(scenarioPath);
+            var scenario = scenarioFactory.CreateFromFile(scenarioPath);
             offlineRenderer.RenderScenario(scenario, deviceFormat, outPath);
             Console.WriteLine(JsonSerializer.Serialize(new { wav = outPath, channels, scenario = scenarioPath, actions = scenario.Actions.Count }, _jsonOptions));
             return 0;
@@ -166,7 +166,7 @@ internal sealed class BenchCli(
 
         if (opt.TryGetValue("scenario", out var scenarioPath))
         {
-            var scenario = scenarioParser.LoadFile(scenarioPath);
+            var scenario = scenarioFactory.CreateFromFile(scenarioPath);
             var engine = benchDeck.CreateEngine();
             var deck1 = benchDeck.Create(engine);
             var deck2 = benchDeck.Create(engine);
@@ -213,9 +213,11 @@ internal sealed class BenchCli(
     {
         var opt = ParseFlags(args);
         string scenarioPath = Require(opt, "scenario");
-        var scenario = scenarioParser.LoadFile(scenarioPath);
+        var scenario = scenarioFactory.CreateFromFile(scenarioPath);
 
-        var session = headlessHost.RunScenario(scenario);
+        var session = opt.TryGetValue("out", out var outWav)
+            ? headlessHost.RunScenario(scenario, outWav)
+            : headlessHost.RunScenario(scenario);
 
         Console.WriteLine(JsonSerializer.Serialize(new
         {

@@ -161,8 +161,8 @@ internal sealed class DeckLooping(
 
         // Build the wrap-crossfade tail BEFORE publishing the loop region, so
         // the audio thread can't see a loop active without a tail to fade
-        // with. (SetLoop's Volatile ordering writes loopEnd last; this
-        // BuildLoopTail call's Volatile.Write completes happens-before.)
+        // with. (SetLoop publishes the region as one immutable snapshot, and
+        // BuildLoopTail's Volatile.Write completes before that publish.)
         stemProvider.BuildLoopTail(outSample);
 
         var region = new LoopRegion(inSample, outSample);

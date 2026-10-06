@@ -134,10 +134,12 @@ public class FactPublishingTests
     private async Task<(LibrarySessionRig Rig, TrackLoader Loader)> NewLoaderAsync(FakeAudioFileDecoder decoder)
     {
         var rig = new LibrarySessionRig();
+        var clock = new SettableFrameClock();
         await rig.Library.ScanAsync("/music", null);
         var loader = new TrackLoader(
             rig.Library, new DeckPair(rig.Deck1, rig.Deck2), decoder, new RecordingKeyAnalysisStore(),
-            new FakeKeyAnalyzer(null), rig.Reporter, new ImmediateAppThread(), rig.Bus);
+            new FakeKeyAnalyzer(null), rig.Reporter, new ImmediateAppThread(), rig.Bus, new Sholto.App.Loading.SearchPick(rig.Library),
+            new Sholto.App.Loading.LoadGuard(clock, rig.Bus), new Sholto.App.Loading.LoadUndo(clock, rig.Bus));
         return (rig, loader);
     }
 

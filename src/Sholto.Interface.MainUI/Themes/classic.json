@@ -21,7 +21,7 @@
   },
   "minimap": {
     "backdrop":  "#0D0D0D",
-    "playhead":  "#FFFFFF",
+    "playhead":  "#FFFF00",
     "label":     "#EEEEEE",
     "divider":   "#B0000000",
     "intro":     "#3A3A3A",
@@ -36,6 +36,7 @@
   "waveform": {
     "low": "#2A7FFF",
     "mid": "#FF8C1A",
-    "downbeat": "#D8E6F0FF"
+    "downbeat": "#D8E6F0FF",
+    "playhead": "#FFFF00"
   }
 }

@@ -4,11 +4,13 @@ using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.Stores;
 using Sholto.App.Audio;
 using Sholto.App.Dsp;
+using Sholto.App.Glance;
 using Sholto.App.Library;
 using Sholto.Data;
 using Sholto.App.Decks;
 using Sholto.App.Loading;
 using Sholto.App.Mixer;
+using Sholto.App.Performance;
 
 namespace Sholto.App;
 
@@ -22,7 +24,8 @@ public sealed class CoreFactory(
     IAudioFileDecoder decoder,
     ICrossfadeCurve crossfade,
     IAppThread appThread,
-    IEventPublisher publisher) : ICoreFactory
+    IEventPublisher publisher,
+    IFrameClock frameClock) : ICoreFactory
 {
     private readonly ITrackScanner _trackScanner = trackScanner;
     // The switchable store: a no-op until the database attaches.
@@ -34,6 +37,7 @@ public sealed class CoreFactory(
     private readonly ICrossfadeCurve _crossfade = crossfade;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
+    private readonly IFrameClock _frameClock = frameClock;
 
     public CoreStack Build(IDeckSession deck1, IDeckSession deck2)
     {
@@ -41,7 +45,10 @@ public sealed class CoreFactory(
         var library = new LibrarySession(
             _trackScanner, _keyStore, _stemPresence, _reporter, decks, new Session(), _appThread, _publisher);
         var markers = new DeckMarkers(decks, library, _appThread, _publisher);
-        var loader = new TrackLoader(library, decks, _decoder, _keyStore, _keyAnalyzer, _reporter, _appThread, _publisher);
-        return new CoreStack(decks, new PlaybackRequests(decks), new MixerSession(decks, _crossfade, _publisher), library, markers, loader);
+        var searchPick = new SearchPick(library);
+        var loader = new TrackLoader(library, decks, _decoder, _keyStore, _keyAnalyzer, _reporter, _appThread, _publisher, searchPick,
+            new LoadGuard(_frameClock, _publisher), new LoadUndo(_frameClock, _publisher));
+        return new CoreStack(decks, new PlaybackRequests(decks), new MixerSession(decks, _crossfade, _publisher), library, markers, loader,
+            new BackspinFeel(_publisher), searchPick, new Shortlist(library, _publisher), new RecentLoads(loader, library, _publisher));
     }
 }

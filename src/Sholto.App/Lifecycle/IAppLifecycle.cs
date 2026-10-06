@@ -6,13 +6,14 @@ namespace Sholto.App.Lifecycle;
 /// user (the music folder, the output device) it publishes <c>MusicFolderNeeded</c> /
 /// <c>OutputDeviceNeeded</c> and waits for the answer command; the interface shows its picker and replies
 /// with <c>ChooseMusicFolder</c> / <c>ChooseOutputDevice</c> (a null answer means the picker was
-/// cancelled). It also handles the menu's change requests and persists the chosen theme.</summary>
+/// cancelled). It also handles the menu's change requests and persists the chosen theme and waveform style.</summary>
 public interface IAppLifecycle :
     ICommandHandler<ChooseMusicFolder>,
     ICommandHandler<ChooseOutputDevice>,
     ICommandHandler<ChangeMusicFolder>,
     ICommandHandler<ChangeOutputDevice>,
-    ICommandHandler<ChooseTheme>
+    ICommandHandler<ChooseTheme>,
+    ICommandHandler<ChooseWaveformStyle>
 {
     /// <summary>Begin the sequence. Call once, after the first paint, on the app thread. Opens the database
     /// off the app thread, restores the saved theme, resolves and scans the music folder, and starts audio

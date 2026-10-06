@@ -88,6 +88,8 @@ public sealed class LibrarySession : ILibrarySession
 
     public IReadOnlyList<TrackSummary> Rows => _visible;
 
+    public IReadOnlyList<TrackSummary> Catalog => _all;
+
     public ITagService? Tags => _tags;
 
     public ICrateService? Crates => _crates;
@@ -208,7 +210,7 @@ public sealed class LibrarySession : ILibrarySession
     private async Task FileIntoAllTracksAsync(ICrateService crates, IReadOnlyCollection<Guid> ids)
     {
         if (ids.Count == 0) return;
-        int crateId = await crates.CreateAsync("All Tracks");
+        int crateId = await crates.CreateAsync(CrateNames.AllTracks);
         foreach (var id in ids) await crates.AddTrackAsync(crateId, id);
     }
 
@@ -263,6 +265,9 @@ public sealed class LibrarySession : ILibrarySession
         summary = null!;
         return false;
     }
+
+    public TrackSummary? SummaryFor(string filePath) =>
+        TryFind(filePath, out _, out var summary) ? summary : null;
 
     public double GetBpmMultiplierFor(string filePath) =>
         TryFind(filePath, out _, out var summary) ? summary.BpmMultiplier : 1.0;
@@ -456,7 +461,9 @@ public sealed class LibrarySession : ILibrarySession
         if (anchor == HarmonyReferenceKey) return;
         HarmonyReferenceKey = anchor;
         HarmonyReferenceChanged?.Invoke(anchor);
-        _publisher.Publish(new Sholto.Data.HarmonyReferenceChanged(anchor.ToRef()));
+        _publisher.Publish(new Sholto.Data.HarmonyReferenceChanged(
+            anchor.ToRef(),
+            anchor is { } a ? a.MixableKeys().Select(k => k.ToRef()).ToList() : []));
     }
 
     // ---- Database services ---------------------------------------------------------------------

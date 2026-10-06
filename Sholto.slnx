@@ -3,6 +3,7 @@
     <Project Path="src/Sholto.App/Sholto.App.csproj" />
     <Project Path="src/Sholto.App.Analysis/Sholto.App.Analysis.csproj" />
     <Project Path="src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj" />
+    <Project Path="src/Sholto.Host/Sholto.Host.csproj" />
     <Project Path="src/Sholto.App.Audio/Sholto.App.Audio.csproj" />
     <Project Path="src/Sholto.Interface.Controller/Sholto.Interface.Controller.csproj" />
     <Project Path="src/Sholto.Interface.Controller.Mappings/Sholto.Interface.Controller.Mappings.csproj" />

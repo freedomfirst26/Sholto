@@ -11,7 +11,7 @@ namespace Sholto.Interface.Bench.Scenario;
 /// drives the same type behind the core's deck sessions (backed by the same Deck class, different owner). This runner never knows
 /// which.
 ///
-/// The host-driven actions (scan, key, click, screenshot, gesture, midi) are NOT
+/// The host-driven actions (scan, key, click, screenshot, gesture, midi, analyse, row, controller) are NOT
 /// interpreted here — they need the real controller input stack and command bus (scan / gesture /
 /// midi: the headless host), or a real window (key / click / screenshot: the MainUI harness),
 /// which render/state never have. <see cref="OnUiAction"/> is invoked for them; hosts that can't act on
@@ -81,24 +81,31 @@ public sealed class ScenarioRunner(IReadOnlyDictionary<int, Deck> decks, Scenari
                     ? TimeSpan.FromSeconds(s)
                     : TimeSpan.FromSeconds(a.Beats!.Value * 60.0 / a.Bpm!.Value);
                 _advance(span);
+                // The ui host also lets posted work land and ticks its clock; render/state have no host.
+                OnUiAction?.Invoke(a);
                 break;
             }
             case "scan":
             case "key":
+            case "type":
             case "click":
             case "screenshot":
             case "gesture":
             case "midi":
+            case "analyse":
+            case "row":
+            case "controller":
+            case "database":
                 if (OnUiAction is null)
                     throw new NotSupportedException(
                         $"scenario action \"{a.Action}\" needs a host that drives the app — render/state cannot; use the headless verb (scan/gesture/midi) or the MainUI harness (key/click/screenshot).");
                 OnUiAction(a);
                 break;
             default:
-                // ScenarioParser already rejects unknown actions before Run is
+                // ScenarioFactory already rejects unknown actions before Run is
                 // ever called, so reaching this is a parser/runner mismatch bug,
                 // not a bad scenario file.
-                throw new InvalidOperationException($"unhandled scenario action \"{a.Action}\" — ScenarioParser should have rejected this");
+                throw new InvalidOperationException($"unhandled scenario action \"{a.Action}\" — ScenarioFactory should have rejected this");
         }
     }
 

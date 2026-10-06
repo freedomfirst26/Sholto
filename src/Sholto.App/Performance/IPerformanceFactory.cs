@@ -8,5 +8,6 @@ namespace Sholto.App.Performance;
 public interface IPerformanceFactory
 {
     PerformanceStack Build(IDecks decks, IPlaybackRequests playback,
-        IOptions<ScratchOptions> scratchOptions, IOptions<MagnetismOptions> magnetismOptions, IFrameClock clock);
+        IOptions<ScratchOptions> scratchOptions, IOptions<MagnetismOptions> magnetismOptions, IFrameClock clock,
+        IBackspinFeel backspinFeel);
 }

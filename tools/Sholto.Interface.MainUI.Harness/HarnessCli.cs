@@ -14,9 +14,9 @@ namespace Sholto.Interface.MainUI.Harness;
 /// <para>Instance, not static: every collaborator is handed in. <c>Program.Main</c>
 /// (the one forced static) composes them and runs <c>new HarnessCli(...).Run(args)</c>.</para>
 /// </summary>
-/// <param name="scenarioParser">Loads and validates scenario files.</param>
+/// <param name="scenarioFactory">Creates validated scenarios from scenario files.</param>
 /// <param name="uiHost">Mounts the headless UI and runs scenarios against it.</param>
-internal sealed class HarnessCli(IScenarioParser scenarioParser, IUiHost uiHost)
+internal sealed class HarnessCli(IScenarioFactory scenarioFactory, IUiHost uiHost)
 {
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
@@ -66,7 +66,7 @@ internal sealed class HarnessCli(IScenarioParser scenarioParser, IUiHost uiHost)
               "scan"|"key"|"click"|"screenshot"|"gesture"|"midi", ... } ] }.
               "gesture" drives the real controller input/command bus/performance stack with the real
               window as the keyboard — see Scenario.cs and
-              Sholto.Interface.Bench/Controller/ScenarioGestureBuilder.cs for the field each
+              Sholto.Interface.Bench/Controller/ScenarioGestureFactory.cs for the field each
               ControllerEvent needs. "midi" translates a raw NoteEvent/CcEvent through the FLX-4
               mapping first, one layer above "gesture".
             """);
@@ -78,7 +78,7 @@ internal sealed class HarnessCli(IScenarioParser scenarioParser, IUiHost uiHost)
     {
         var opt = ParseFlags(args);
         string scenarioPath = Require(opt, "scenario");
-        var scenario = scenarioParser.LoadFile(scenarioPath);
+        var scenario = scenarioFactory.CreateFromFile(scenarioPath);
 
         var (vm, _, driver) = uiHost.RunScenario(scenario);
 
@@ -102,7 +102,7 @@ internal sealed class HarnessCli(IScenarioParser scenarioParser, IUiHost uiHost)
         UiScenarioDriver driver;
         if (opt.TryGetValue("scenario", out var scenarioPath))
         {
-            var scenario = scenarioParser.LoadFile(scenarioPath);
+            var scenario = scenarioFactory.CreateFromFile(scenarioPath);
             (_, _, driver) = uiHost.RunScenario(scenario);
         }
         else

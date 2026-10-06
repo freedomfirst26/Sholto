@@ -1,4 +1,6 @@
+using Avalonia.Input;
 using Sholto.Data;
+using Sholto.Interface.MainUI.Controls.Modal;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
 
@@ -201,5 +203,99 @@ public class CratePickerViewModelTests
 
         Assert.Equal("", _picker.Query);
         Assert.DoesNotContain(_picker.Options, o => o.IsCreate);
+    }
+
+    [Fact]
+    public async Task Opening_sets_IsOpen_and_Close_and_Dismiss_clear_it()
+    {
+        Assert.False(_picker.IsOpen);
+        await _picker.OpenAsync(_row);
+        Assert.True(_picker.IsOpen);
+
+        _picker.Dismiss();
+
+        Assert.False(_picker.IsOpen);
+    }
+
+    [Fact]
+    public async Task Committing_clears_IsOpen()
+    {
+        await _picker.OpenAsync(_row);
+
+        await _picker.CommitAsync();
+
+        Assert.False(_picker.IsOpen);
+    }
+
+    [Fact]
+    public void The_modal_captures_text_is_narrow_and_labelled_for_crates()
+    {
+        Assert.True(_picker.CapturesText);
+        Assert.Equal(ModalWidth.Narrow, _picker.Width);
+        Assert.Equal("📦  ADD TO CRATE", _picker.Eyebrow);
+        Assert.False(_picker.CanGoBack);
+    }
+
+    [Fact]
+    public async Task Buttons_read_Add_on_a_crate_and_Create_on_the_create_row()
+    {
+        await _picker.OpenAsync(_row);
+        Assert.Equal(new ModalButtons("Cancel", null, "Add"), _picker.Buttons);
+
+        _picker.Query = "Fresh";
+
+        Assert.Equal(new ModalButtons("Cancel", null, "Create"), _picker.Buttons);
+    }
+
+    [Fact]
+    public async Task The_Buttons_change_is_announced_when_the_highlight_moves_onto_the_create_row()
+    {
+        await _picker.OpenAsync(_row);
+        _picker.Query = "a";
+        _picker.Move(1);
+        var changed = new List<string?>();
+        _picker.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        _picker.Move(-1);
+
+        Assert.Contains(nameof(CratePickerViewModel.Buttons), changed);
+    }
+
+    [Fact]
+    public async Task CanConfirm_is_true_only_while_there_are_options()
+    {
+        _crates.Clear();
+        await _picker.OpenAsync(_row);
+        Assert.False(_picker.CanConfirm);
+
+        _picker.Query = "Fresh";
+
+        Assert.True(_picker.CanConfirm);
+    }
+
+    [Fact]
+    public async Task Confirm_adds_the_highlighted_crate()
+    {
+        await _picker.OpenAsync(_row);
+        _picker.Move(2);
+
+        _picker.Confirm();
+
+        var command = Assert.Single(_added.Received);
+        Assert.Equal(3, command.CrateId);
+        Assert.False(_picker.IsOpen);
+    }
+
+    [Fact]
+    public async Task Arrow_keys_move_the_highlight_and_other_keys_are_left_to_the_text_box()
+    {
+        await _picker.OpenAsync(_row);
+
+        Assert.True(_picker.HandleKey(Key.Down, KeyModifiers.None));
+        Assert.Equal(1, _picker.SelectedIndex);
+        Assert.True(_picker.HandleKey(Key.Up, KeyModifiers.None));
+        Assert.Equal(0, _picker.SelectedIndex);
+        Assert.False(_picker.HandleKey(Key.A, KeyModifiers.None));
+        Assert.False(_picker.HandleKey(Key.Back, KeyModifiers.None));
     }
 }

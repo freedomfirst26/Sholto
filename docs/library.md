@@ -35,20 +35,14 @@ It won't play until the beat detection has finished — usually a second or two.
 
 ## Search
 
-**Keyboard:** **Space** opens search from anywhere.
+**Keyboard:** **Space** opens search from anywhere. **Controller:** a short press of the browse knob.
 
-Type and Sholto searches your **crates**, **tracks** and **tags** at once,
-showing the best three of each under 📦 CRATES, 🎵 TRACKS and 🏷 TAGS.
+Type part of a name, the initials (`iltwykm` finds "I Like The Way You Kiss Me"),
+`bpm:128`, `key:8A` or `#tag`. Search covers your whole library and ranks the
+tracks that fit the other deck first: green is a good fit, amber usable, grey a
+clash. **Enter** loads the highlighted track, and **Esc** closes.
 
-| Key | In search |
-|---|---|
-| **↑ / ↓** | Move through the results |
-| **← / →** | Switch which deck **Enter** will load into |
-| **Enter** | Load the track, open the crate, or filter by the tag |
-| **1** / **2** | Load the highlighted track straight onto that deck |
-| **Esc** | Close |
-
-Clicking the dark backdrop closes search too.
+Everything you can type, how the list is ordered, and every key: [search.md](search.md).
 
 ## The actions menu
 
@@ -72,8 +66,10 @@ keeps typing), **↑ / ↓** picks from the suggestions, **Backspace** on an emp
 removes the last tag, and **Esc** closes. Existing tags are listed under
 **TAGGED** with an **×** to remove each one.
 
-To see everything with a tag: press **Space**, type the tag, and press **Enter**
-on it under 🏷 TAGS. The list filters down to that tag.
+To see everything with a tag: press **Space**, type the tag, and press
+**Ctrl + Enter** on it under 🏷 TAGS. The library filters down to that tag.
+(**Enter** instead narrows the search results to it; see
+[search.md](search.md#narrowing-to-a-crate-or-tag).)
 
 ## Crates
 
@@ -84,7 +80,7 @@ everything.
 The picker lists your crates — type to filter, **Enter** adds to the highlighted
 crate or creates one with the name you typed, **Esc** closes.
 
-To open a crate: **Space**, type its name, **Enter** on it under 📦 CRATES.
+To open a crate: **Space**, type its name, **Ctrl + Enter** on it under 📦 CRATES.
 
 **Esc** clears an active crate or tag filter and puts the whole library back.
 

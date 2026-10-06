@@ -18,6 +18,9 @@ public sealed class CoreSnapshot : ICoreSnapshot
         ["Deck1.Volume"] = core.Decks.Deck1.Mixer.Volume,
         ["Deck1.TempoPosition"] = core.Decks.Deck1.Tempo.TempoPosition,
         ["Deck1.CueActive"] = core.Decks.Deck1.Mixer.CueActive,
+        ["Deck1.EchoActive"] = core.Decks.Deck1.EchoActive,
+        ["Deck1.Loop"] = core.Decks.Deck1.Looping.ActiveLoop,
+        ["Deck1.TempoRange"] = core.Decks.Deck1.Tempo.TempoRange,
         ["Deck2.IsLoaded"] = core.Decks.Deck2.Loading.IsLoaded,
         ["Deck2.IsPlaying"] = core.Decks.Deck2.Loading.IsPlaying,
         ["Deck2.FilePath"] = decks[1].CurrentFilePath,
@@ -26,5 +29,10 @@ public sealed class CoreSnapshot : ICoreSnapshot
         ["Deck2.Volume"] = core.Decks.Deck2.Mixer.Volume,
         ["Deck2.TempoPosition"] = core.Decks.Deck2.Tempo.TempoPosition,
         ["Deck2.CueActive"] = core.Decks.Deck2.Mixer.CueActive,
+        ["Deck2.EchoActive"] = core.Decks.Deck2.EchoActive,
+        ["Deck2.Loop"] = core.Decks.Deck2.Looping.ActiveLoop,
+        ["Deck2.TempoRange"] = core.Decks.Deck2.Tempo.TempoRange,
+        ["Library.SelectedIndex"] = core.Library.SelectedIndex,
+        ["Library.Rows"] = core.Library.Rows.Count,
     };
 }

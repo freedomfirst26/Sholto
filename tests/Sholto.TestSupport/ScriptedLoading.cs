@@ -30,7 +30,7 @@ internal sealed class ScriptedLoading(ITrackLoading inner, IAnalysisProvider? an
         remove { }
     }
 
-    public void BeginLoad()
+    public void BeginLoad(string filePath)
     {
     }
 

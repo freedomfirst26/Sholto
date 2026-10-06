@@ -4,8 +4,10 @@ namespace Sholto.App.Analysis.Analyzers.Waveform;
 /// defined as the complement. Holds filter state — one instance per signal.</summary>
 public sealed class WaveformBandSplitter(Biquad lowPass, Biquad highPass) : IWaveformBandSplitter
 {
-    private readonly Biquad _lowPass = lowPass;
-    private readonly Biquad _highPass = highPass;
+    // Not readonly: Biquad is a mutable struct; readonly would make Process run on a
+    // defensive copy and the filter state would never advance.
+    private Biquad _lowPass = lowPass;
+    private Biquad _highPass = highPass;
 
     public void Split(float mono, out float low, out float mid, out float high)
     {

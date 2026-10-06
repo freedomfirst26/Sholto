@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Sholto.Interface.MainUI.Controls.Modal.ModalShell"
+             Focusable="False">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.eyebrow">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1.5"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoAccent}"/>
+        </Style>
+        <Style Selector="TextBlock.eyebrow.attention">
+            <Setter Property="Foreground" Value="{DynamicResource SholtoStatusAttention}"/>
+        </Style>
+
+        <!-- The one button style set for every modal. -->
+        <Style Selector="Button.modalbtn">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource SholtoSurfaceRaised}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+        </Style>
+        <Style Selector="Button.modalbtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SholtoAccentBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+        </Style>
+        <Style Selector="Button.modalbtn:disabled">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
+        <Style Selector="Button.modalbtn:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SholtoSurfaceRaised}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+        </Style>
+
+        <Style Selector="Button.modalbtn.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
+        </Style>
+        <Style Selector="Button.modalbtn.ghost:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+        </Style>
+        <Style Selector="Button.modalbtn.ghost:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
+        </Style>
+
+        <Style Selector="Button.modalbtn.primary">
+            <Setter Property="Background" Value="{DynamicResource SholtoAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoAccent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoBgDeep}"/>
+        </Style>
+        <Style Selector="Button.modalbtn.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SholtoAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoTextBright}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoBgDeep}"/>
+        </Style>
+        <Style Selector="Button.modalbtn.primary:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SholtoAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoAccent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoBgDeep}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid x:Name="Scrim" Background="{DynamicResource SholtoScrim}" PointerPressed="OnScrimPressed">
+        <Border x:Name="Panel" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Margin="20"
+                Background="{DynamicResource SholtoSurfaceRaised}"
+                BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1"
+                CornerRadius="10" ClipToBounds="True"
+                BoxShadow="{DynamicResource SholtoDeckShadow}"
+                PointerPressed="OnPanelPressed">
+            <Grid x:Name="Inner" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="22,18,22,14">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                    <TextBlock x:Name="EyebrowText" Grid.Column="0" Classes="eyebrow" VerticalAlignment="Center"
+                               Text="{Binding Eyebrow}"/>
+                    <ContentPresenter x:Name="AccessoryPresenter" Grid.Column="1"/>
+                </Grid>
+                <TextBlock x:Name="TitleText" Grid.Row="1" Margin="0,4,0,0" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"
+                           TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SholtoTextBright}"
+                           Text="{Binding Title}"/>
+                <TextBlock x:Name="SubtitleText" Grid.Row="2" Margin="0,4,0,10" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SholtoTextMuted}" Text="{Binding Subtitle}"/>
+                <ContentPresenter x:Name="BodyPresenter" Grid.Row="3"/>
+
+                <Border Grid.Row="4" BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="0,1,0,0"
+                        Margin="0,12,0,0" Padding="0,12,0,0">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                        <Button x:Name="DismissButton" Grid.Column="0" Classes="modalbtn ghost" Click="OnDismissClick"/>
+                        <Button x:Name="BackButton" Grid.Column="2" Classes="modalbtn secondary" Click="OnBackClick"/>
+                        <Button x:Name="PrimaryButton" Grid.Column="3" Classes="modalbtn primary" Click="OnPrimaryClick"/>
+                    </Grid>
+                </Border>
+                <TextBlock x:Name="HintText" Grid.Row="5" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource SholtoTextMuted}" Text="{Binding KeyHint}"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

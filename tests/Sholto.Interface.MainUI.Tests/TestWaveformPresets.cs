@@ -13,6 +13,6 @@ internal sealed class TestWaveformPresets
         while (!File.Exists(Path.Combine(dir, "src", "Sholto.Interface.MainUI", "Themes", "waveform-presets.json")))
             dir = Path.GetDirectoryName(dir) ?? throw new FileNotFoundException("waveform-presets.json");
         var json = File.ReadAllText(Path.Combine(dir, "src", "Sholto.Interface.MainUI", "Themes", "waveform-presets.json"));
-        return new WaveformPresets(new WaveformPresetsJson().Parse(json));
+        return new WaveformPresets(new WaveformPresetCatalogueFactory().Create(json));
     }
 }

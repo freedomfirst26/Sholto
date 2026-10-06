@@ -84,6 +84,19 @@ public class ControllerInputTests
     }
 
     [Fact]
+    public void A_short_browse_press_sends_one_open_search_on_release()
+    {
+        _surface.Emit(new ControllerEvent.BrowsePressed());
+        _thread.RunPosted();
+        _clock.Tick();
+        _surface.Emit(new ControllerEvent.BrowseReleased());
+        _thread.RunPosted();
+
+        var open = Assert.IsType<OpenSearch>(Assert.Single(_sender.Sent));
+        Assert.Equal(new Origin(InterfaceIds.Controller, "browse.knob", "browse.press.short"), open.Origin);
+    }
+
+    [Fact]
     public void The_hold_sends_once_and_releasing_it_sends_nothing_more()
     {
         _surface.Emit(new ControllerEvent.BrowsePressed());

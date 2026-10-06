@@ -5,6 +5,9 @@ public interface IThemeCatalog
 {
     IReadOnlyList<SholtoTheme> All { get; }
 
+    /// <summary>The folder user themes are read from (it may not exist).</summary>
+    string UserThemesDirectory { get; }
+
     /// <summary>The theme with this name (case-insensitive). If it is missing — for
     /// instance a user deleted its JSON — falls back to the first available theme so
     /// the UI never crashes; throws only if no theme loaded at all.</summary>

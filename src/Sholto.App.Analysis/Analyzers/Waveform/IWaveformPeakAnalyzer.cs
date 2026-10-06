@@ -1,4 +1,5 @@
 using Sholto.App.Analysis.Analyzers;
+using Sholto.Data;
 
 namespace Sholto.App.Analysis.Analyzers.Waveform;
 
@@ -17,6 +18,6 @@ public interface IWaveformPeakAnalyzer : IAnalyzer
     /// normalization breaks cross-stem comparison; normalize the merged result instead.
     /// </summary>
     WaveformPeaks Compute(
-        float[] samples, int channels, int sampleRate = WaveformDefaults.SampleRate,
+        float[] samples, int channels, int sampleRate,
         int samplesPerPeak = WaveformDefaults.SamplesPerPeak, bool normalizeBands = true);
 }

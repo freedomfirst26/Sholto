@@ -1,14 +1,18 @@
+using Microsoft.Extensions.Options;
 using Sholto.Data;
 using Sholto.App;
 using Sholto.App.Decks;
+using Sholto.App.Glance;
 using Sholto.App.Lifecycle;
 using Sholto.App.Library;
 using Sholto.App.Performance;
 
 namespace Sholto.App;
 
-public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher publisher) : ICommandHandlersFactory
+public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher publisher, IHintCounter hintCounter, IOptions<GlanceOptions> glanceOptions) : ICommandHandlersFactory
 {
+    private readonly IHintCounter _hintCounter = hintCounter;
+    private readonly IOptions<GlanceOptions> _glanceOptions = glanceOptions;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
 
@@ -44,12 +48,16 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<AddMarker>(loops);
         registry.Register<OpenGridEditor>(loops);
 
-        var browse = new BrowseCommandHandlers(core.Library);
+        var browse = new BrowseCommandHandlers(core.Library, core.SearchPick, _publisher);
         registry.Register<RotateBrowse>(browse);
+        registry.Register<OpenSearch>(browse);
+        registry.Register<SetSearchPick>(core.SearchPick);
         registry.Register<LoadSelectedIntoDeck>(core.Loader);
+        registry.Register<UndoLastLoad>(core.Loader);
 
         // The library commands and queries (selection, filters, tags, crates) and the on-screen deck tuning.
-        var library = new LibraryCommandHandlers(core.Library, _appThread, _publisher);
+        var membership = new CrateMembershipCache(core.Library);
+        var library = new LibraryCommandHandlers(core.Library, _appThread, _publisher, membership);
         registry.Register<SelectTrack>(library);
         registry.Register<FilterLibraryByTag>(library);
         registry.Register<FilterLibraryByCrate>(library);
@@ -64,6 +72,13 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         queries.Register<TopTags, Task<IReadOnlyList<TagHit>>>(libraryQueries);
         queries.Register<TagsByName, Task<IReadOnlyList<TagHit>>>(libraryQueries);
         queries.Register<SearchCrates, Task<IReadOnlyList<CrateRef>>>(libraryQueries);
+
+        // Glance: rank the whole catalogue, narrowed by the chips, against the other deck, suggest the load target, and the shortlist.
+        queries.Register<RankTracks, Task<RankedTracks>>(
+            new RankTracksHandler(core.Library, core.Decks, new GlanceRanker(new FitScorer(), new GlanceQueryFactory(), new GlanceMatcher()),
+                new GlanceScope(), membership, _glanceOptions));
+        queries.Register<SuggestLoadTarget, int>(new SuggestLoadTargetHandler(core.Decks));
+        registry.Register<ToggleShortlist>(core.Shortlist);
 
         var tuning = new DeckTuningCommandHandlers(core.Decks);
         registry.Register<ChangeBpmMultiplier>(tuning);
@@ -82,13 +97,21 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
 
         registry.Register<TouchPlatter>(platter);
         registry.Register<TurnPlatter>(platter);
+        // How long a flung platter coasts after release (Settings ▸ Backspin release); the lifecycle saves it.
+        registry.Register<SetBackspinTime>(core.BackspinFeel);
+        registry.Register<SetBackspinDistance>(core.BackspinFeel);
         registry.Register<ReanalyzeSelected>(core.Loader);
 
-        // The startup questions and their answers, the menu's change requests, and the saved theme.
+        // The startup questions and their answers, the menu's change requests, the saved theme and waveform style.
         registry.Register<ChooseMusicFolder>(lifecycle);
         registry.Register<ChooseOutputDevice>(lifecycle);
         registry.Register<ChangeMusicFolder>(lifecycle);
         registry.Register<ChangeOutputDevice>(lifecycle);
         registry.Register<ChooseTheme>(lifecycle);
+        registry.Register<ChooseWaveformStyle>(lifecycle);
+
+        // How often each one-time hint has been shown, saved across launches.
+        registry.Register<RecordHintShown>(_hintCounter);
+        queries.Register<GetHintShownCount, Task<int>>(_hintCounter);
     }
 }

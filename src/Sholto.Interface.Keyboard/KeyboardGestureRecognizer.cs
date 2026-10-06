@@ -9,7 +9,10 @@ internal sealed class KeyboardGestureRecognizer : IKeyboardGestureRecognizer
 {
     public KeyboardGesture? Recognize(KeyboardEvent key)
     {
-        var shiftDeck = (key.Modifiers & KeyModifiers.Shift) != 0 ? 1 : 0;
+        var ctrl = (key.Modifiers & KeyModifiers.Control) != 0;
+        var shift = (key.Modifiers & KeyModifiers.Shift) != 0;
+        if (key.Key == Key.Z) return ctrl && !shift ? new KeyboardGesture(KeyboardGestureIds.LoadUndo, -1, "key.ctrl+z") : null;
+        var shiftDeck = shift ? 1 : 0;
         return key.Key switch
         {
             Key.D1 or Key.NumPad1 => new KeyboardGesture(KeyboardGestureIds.LoadPress, 0, "key.1"),

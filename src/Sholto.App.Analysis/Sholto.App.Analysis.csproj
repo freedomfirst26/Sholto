@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sholto.App.Dsp\Sholto.App.Dsp.csproj" />
+    <ProjectReference Include="..\Sholto.Data\Sholto.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

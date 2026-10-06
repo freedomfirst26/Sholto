@@ -20,15 +20,21 @@
     "onChipForeground": "#050505"
   },
   "waveform": {
-    "low":         "#1F6B2A",
-    "mid":         "#FF5A1F",
-    "downbeat":    "#D839FF14",
-    "marker":      "#FF5A1F",
-    "loop":        "#8039FF14"
+    "low": "#14C21E",
+    "mid": "#FF8A1A",
+    "high": "#7FE0FF",
+    "downbeat": "#D8FFF03A",
+    "marker": "#FF5A1F",
+    "loop": "#8039FF14",
+    "rgbLow": "#14C21E",
+    "rgbMid": "#FF8A1A",
+    "rgbHigh": "#2EC4FF",
+    "playhead": "#FF66FF"
   },
   "minimap": {
     "drop":      "#FF5A1F",
     "buildUp":   "#39FF14",
-    "breakdown": "#2A2A2A"
+    "breakdown": "#2A2A2A",
+    "playhead": "#FF66FF"
   }
 }

@@ -4,7 +4,8 @@ using System.Runtime.InteropServices;
 
 namespace Sholto.App.Audio;
 
-/// <summary>M4A/AAC via an external ffmpeg process. No in-process decoder in the
+/// <summary>M4A/AAC (and, as a faster alternative to NLayer, MP3 — see
+/// <see cref="FallbackDecodeStrategy"/>) via an external ffmpeg process. No in-process decoder in the
 /// current dependency set handles AAC on Linux: NAudio's AAC path needs
 /// MediaFoundation (Windows-only), and SoundFlow/miniaudio has no AAC decoder either.
 /// ffmpeg is already a required runtime dependency (installed by install.sh for the
@@ -24,7 +25,7 @@ public sealed class FfmpegDecodeStrategy(string ffmpegPath) : IAudioDecodeStrate
     private readonly string _ffmpegPath = ffmpegPath;
 
     public bool CanDecode(string extension) =>
-        extension is ".m4a" or ".aac" or ".mp4";
+        extension is ".m4a" or ".aac" or ".mp4" or ".mp3";
 
     public float[] Decode(string filePath)
     {
@@ -57,7 +58,7 @@ public sealed class FfmpegDecodeStrategy(string ffmpegPath) : IAudioDecodeStrate
         catch (Win32Exception ex)
         {
             throw new InvalidOperationException(
-                "Couldn't launch ffmpeg to decode this M4A/AAC file. Install ffmpeg " +
+                "Couldn't launch ffmpeg to decode this file. Install ffmpeg " +
                 "(run install.sh, or `sudo apt install ffmpeg`) and try again.", ex);
         }
 

@@ -9,11 +9,12 @@ namespace Sholto.App.Performance;
 public sealed class PerformanceFactory : IPerformanceFactory
 {
     public PerformanceStack Build(IDecks decks, IPlaybackRequests playback,
-        IOptions<ScratchOptions> scratchOptions, IOptions<MagnetismOptions> magnetismOptions, IFrameClock clock)
+        IOptions<ScratchOptions> scratchOptions, IOptions<MagnetismOptions> magnetismOptions, IFrameClock clock,
+        IBackspinFeel backspinFeel)
     {
         var recency = new JogRecency(clock, scratchOptions);
         var seek = new JogSeek(decks, recency);
-        var scratch = new ScratchEngine(decks, playback, recency, clock, scratchOptions);
+        var scratch = new ScratchEngine(decks, playback, recency, clock, scratchOptions, backspinFeel);
         var magnet = new MagnetSnap(decks, recency, clock, magnetismOptions);
         var platter = new Platter(decks, scratch, seek, recency, scratchOptions);
         var tick = new PerformanceTick(clock, decks, magnet, seek, scratch);

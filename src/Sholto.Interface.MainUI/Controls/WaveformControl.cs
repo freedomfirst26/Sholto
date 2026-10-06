@@ -4,13 +4,10 @@ using Avalonia.Media;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Avalonia.Threading;
+using Sholto.Interface.MainUI.Controls.WaveformStyles;
 using Sholto.Interface.MainUI.Theming;
-using Sholto.App.Audio;
-using Sholto.App.Analysis;
-using Sholto.App.Analysis.Analyzers.Beats;
-using Sholto.App.Analysis.Analyzers.Vocals;
-using Sholto.App.Analysis.Analyzers.Waveform;
 using SkiaSharp;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Controls;
 
@@ -21,20 +18,10 @@ namespace Sholto.Interface.MainUI.Controls;
 /// </summary>
 public sealed class WaveformControl : Control
 {
-    private const int BakedHeight = 256;
-
-    // Avalonia constructs this control from XAML with no constructor
-    // arguments, so there's no composition-root seam to inject through (unlike
-    // Deck/DeckFactory) — an instance field is the "remove statics" fix here:
-    // no more static type-name call, same substitutability if this control is
-    // ever driven from a test/Bench harness.
-    private readonly IWaveformBandScaler _bandScaler = new WaveformBandScaler();
-
-    // Innermost (High) waveform band: fixed white on every theme so the vocal-
-    // presence overlay (drawn on top of it) stays readable (owner decision).
-
     // Render-thread paint cache, one per control (see WaveformPaints).
     private readonly WaveformPaints _paints = new();
+    // Whole-device-pixel scroll snapping, so the baked body does not flicker as it scrolls (see the class).
+    private readonly WaveformScrollSnap _snap = new();
 
     public static readonly StyledProperty<WaveformPeaks?> PeaksProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(Peaks));
@@ -45,7 +32,7 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<WaveformPeaks?> GridPeaksProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPeaks?>(nameof(GridPeaks));
 
-    /// <summary>Vocal-presence regions (from <see cref="VocalRegionAnalyzer"/>). Not a
+    /// <summary>Vocal-presence regions (from <c>VocalRegionAnalyzer</c>). Not a
     /// waveform — the control paints one solid green rectangle per span on top of the
     /// band waveform, so you can see where the vocals sit at a glance. Null until
     /// stems land.</summary>
@@ -99,6 +86,14 @@ public sealed class WaveformControl : Control
     public static readonly StyledProperty<WaveformPalette?> PaletteProperty =
         AvaloniaProperty.Register<WaveformControl, WaveformPalette?>(nameof(Palette));
     public WaveformPalette? Palette { get => GetValue(PaletteProperty); set => SetValue(PaletteProperty, value); }
+
+    /// <summary>How the waveform body is drawn (3-BAND, RGB, …), bound via DynamicResource
+    /// SholtoWaveformStyle, which MainWindow publishes from the view model's chosen style. Null until it
+    /// arrives; the control bakes nothing while null. Changing it rebakes; the live overlays are the same
+    /// for every style.</summary>
+    public static readonly StyledProperty<IWaveformStyleStrategy?> StyleStrategyProperty =
+        AvaloniaProperty.Register<WaveformControl, IWaveformStyleStrategy?>(nameof(StyleStrategy));
+    public IWaveformStyleStrategy? StyleStrategy { get => GetValue(StyleStrategyProperty); set => SetValue(StyleStrategyProperty, value); }
 
     /// <summary>True once the user has nudged this deck's beatgrid; the loop band
     /// turns red so the grid edit is visible. Replaces LoopColorConverter.</summary>
@@ -157,6 +152,7 @@ public sealed class WaveformControl : Control
         AffectsRender<WaveformControl>(IsScrubbingProperty);
         PeaksProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         PaletteProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.OnPaletteChanged());
+        StyleStrategyProperty.Changed.AddClassHandler<WaveformControl>((c, _) => c.Rebake());
         AffectsRender<WaveformControl>(IsGridNudgedProperty);
         // Vocal overlay is drawn live (not baked); cache the incoming spans then
         // invalidate so the next frame paints the green rectangles.
@@ -172,15 +168,14 @@ public sealed class WaveformControl : Control
         AffectsRender<WaveformControl>(LoopEndSecProperty);
     }
 
-    // Only the baked image depends on Background/Low/Mid (High included);
-    // everything else is drawn live. Rebake only when one of
-    // those four actually changed so a theme switch that keeps the 3-band
-    // scheme doesn't redo the whole bake.
-    private (Avalonia.Media.Color Bg, Avalonia.Media.Color Lo, Avalonia.Media.Color Mid, Avalonia.Media.Color High) _bakedColours;
+    // Only the baked image depends on the colours the active style bakes;
+    // everything else is drawn live. Rebake only when one of those actually
+    // changed, so a theme switch that keeps them doesn't redo the whole bake.
+    private WaveformPalette? _bakedPalette;
     private void OnPaletteChanged()
     {
         if (Palette is not { } p) { InvalidateVisual(); return; }
-        if ((p.Background, p.Low, p.Mid, p.High) != _bakedColours) Rebake();
+        if (_bakedPalette is null || StyleStrategy is not { } style || !style.BakesSameColours(_bakedPalette, p)) Rebake();
         else InvalidateVisual();
     }
 
@@ -278,7 +273,7 @@ public sealed class WaveformControl : Control
     }
 
     /// <summary>Cache the analyzer's spans in render-friendly form. The presence
-    /// detection itself lives in <see cref="VocalRegionAnalyzer"/> — here we just
+    /// detection itself lives in <c>VocalRegionAnalyzer</c> — here we just
     /// project to (start, end) seconds and invalidate.</summary>
     private void OnVocalRegionsChanged()
     {
@@ -305,193 +300,20 @@ public sealed class WaveformControl : Control
         _bakeCts = cts;
         var snapshot = peaks;
         if (Palette is not { } p) return;
-        var (bg, lo, mid, hi) = (p.Background, p.Low, p.Mid, p.High);
+        if (StyleStrategy is not { } style) return;
         Task.Run(() =>
         {
-            var img = BakeWaveform(snapshot, Sk(bg), Sk(lo), Sk(mid), Sk(hi), cts.Token);
+            var img = style.Bake(snapshot, p, cts.Token);
             if (cts.IsCancellationRequested || img is null) { img?.Dispose(); return; }
             Dispatcher.UIThread.Post(() =>
             {
                 if (cts.IsCancellationRequested) { img.Dispose(); return; }
                 _baked = img;
                 _bakedFor = snapshot;
-                _bakedColours = (bg, lo, mid, hi);
+                _bakedPalette = p;
                 InvalidateVisual();
             });
         });
-    }
-
-    /// <summary>Attack/release envelope follower over a bin-height array: the value
-    /// jumps up instantly when the signal rises (a sharp leading face at each kick)
-    /// then decays geometrically by <paramref name="release"/> per bin (the bell's
-    /// tail). This is what gives the Rekordbox "sideways bell where the flat face is
-    /// the beat" — a symmetric blur would round the attack away instead.</summary>
-    private void AttackRelease(float[] h, float release)
-    {
-        float env = 0f;
-        for (int i = 0; i < h.Length; i++)
-        {
-            float s = h[i];
-            env = s > env ? s : env * release;   // instant attack, slow release
-            h[i] = env;
-        }
-    }
-
-    /// <summary>Fill one band's envelope as a single closed path, mirrored above and
-    /// below the centerline. Rises are drawn as a VERTICAL leading face (a flat-faced
-    /// bell whose flat front sits on the beat), while falls ramp smoothly to the bin
-    /// centre so the tail stays a graceful bell rather than a staircase.</summary>
-    private void FillEnvelope(SKCanvas canvas, float[] h, int binPx, int width, float midY, SKPaint paint)
-    {
-        int n = h.Length;
-        if (n == 0) return;
-        float X(int b) => MathF.Min(width, b * binPx + binPx * 0.5f);
-
-        // Build the top silhouette once, then mirror it exactly for the bottom so the
-        // two faces are guaranteed symmetric.
-        var xs = new List<float>(n + 4);
-        var hs = new List<float>(n + 4);
-        void P(float x, float ht) { xs.Add(x); hs.Add(ht); }
-
-        P(0, h[0]);
-        for (int b = 1; b < n; b++)
-        {
-            if (h[b] > h[b - 1])
-            {
-                // Rising into a beat: hold the old height to this bin's left edge,
-                // then jump straight up — a flat vertical front on the kick.
-                float xl = MathF.Min(width, b * binPx);
-                P(xl, h[b - 1]);
-                P(xl, h[b]);
-            }
-            else
-            {
-                // Decaying: ramp to the bin centre for the smooth bell tail.
-                P(X(b), h[b]);
-            }
-        }
-        P(width, h[n - 1]);
-
-        using var path = new SKPath();
-        path.MoveTo(xs[0], midY - hs[0]);
-        for (int i = 1; i < xs.Count; i++) path.LineTo(xs[i], midY - hs[i]);
-        for (int i = xs.Count - 1; i >= 0; i--) path.LineTo(xs[i], midY + hs[i]);
-        path.Close();
-        canvas.DrawPath(path, paint);
-    }
-
-    private SKImage? BakeWaveform(WaveformPeaks peaks, SKColor bg, SKColor low, SKColor mid, SKColor high, CancellationToken ct)
-    {
-        int width = peaks.Min.Length;
-        if (width == 0) return null;
-        int height = BakedHeight;
-        float midY = height / 2f;
-
-        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        using var surface = SKSurface.Create(info);
-        var canvas = surface.Canvas;
-        canvas.Clear(bg);
-
-        // The three colours map to the three frequency band fields in
-        // WaveformPeaks: Low (bass, innermost) / Mid / High (transients,
-        // outermost). Contrast rule for every theme: no band may be so dark it
-        // vanishes against the near-black background (the bass especially), and
-        // adjacent bands must be separable by hue or luminance — otherwise the
-        // waveform reads as one flat blob and you can't eyeball the arrangement.
-        // Low/Mid/High come from the active theme's WaveformPalette rather than a
-        // hard-coded per-preset table.
-        using var lowPaint  = new SKPaint { Color = low,  Style = SKPaintStyle.Fill, IsAntialias = true };
-        using var midPaint  = new SKPaint { Color = mid,  Style = SKPaintStyle.Fill, IsAntialias = true };
-        using var highPaint = new SKPaint { Color = high, Style = SKPaintStyle.Fill, IsAntialias = true };
-
-        bool hasBands = peaks.Low.Length == width;
-
-        // Shared-reference calibration: all bands divide by ONE broadband reference,
-        // so the silhouette height tracks absolute loudness (quiet intro reads short,
-        // drop reads tall) instead of every busy section maxing out. The band split
-        // still colours the shape; bass dominates the height, highs a thin crest.
-        var scaling = hasBands
-            ? _bandScaler.CalibrateShared(peaks.Low, peaks.Mid, peaks.High)
-            : default;
-        // Nested stack (Rekordbox 3-band): the bands are drawn CUMULATIVELY — white
-        // innermost, orange around it, blue outermost — so blue always CONTAINS
-        // orange contains white; a loud mid/high can never paint over the bass.
-        // Scale the summed height (low+mid+high) so the track's fullest column nearly
-        // fills the half-height.
-        float scale = hasBands ? midY * 0.95f / MathF.Max(scaling.MaxTotal, 1e-3f) : midY * 0.95f;
-
-        // Coarse, smooth "sideways bell" envelope: peak-hold the columns into bins,
-        // run an attack/release follower (sharp face on the beat, graceful decay),
-        // then fill each band's cumulative envelope as a single anti-aliased path.
-        // Bigger binPx = coarser / less detail.
-        const int binPx = 3;             // bar width
-        const float releaseCoef = 0.88f; // slow release → the tail decays over many bins = a long, curved bell fall-off
-        const float gate = 0.06f;        // drop bins quieter than this (kills between-kick fuzz)
-        int bins = (width + binPx - 1) / binPx;
-
-        if (!hasBands)
-        {
-            var amp = new float[bins];
-            for (int b = 0; b < bins; b++)
-            {
-                if (ct.IsCancellationRequested) return null;
-                int x0 = b * binPx, x1 = Math.Min(width, x0 + binPx);
-                float a = 0f;
-                for (int x = x0; x < x1; x++)
-                    a = MathF.Max(a, MathF.Max(MathF.Abs(peaks.Max[x]), MathF.Abs(peaks.Min[x])));
-                amp[b] = a * midY;
-            }
-            AttackRelease(amp, releaseCoef);
-            FillEnvelope(canvas, amp, binPx, width, midY, lowPaint);
-            return surface.Snapshot();
-        }
-
-        var lowH = new float[bins];
-        var midH = new float[bins];
-        var highH = new float[bins];
-        for (int b = 0; b < bins; b++)
-        {
-            if (ct.IsCancellationRequested) return null;
-            int x0 = b * binPx, x1 = Math.Min(width, x0 + binPx);
-            float ml = 0f, mm = 0f, mh = 0f;
-            for (int x = x0; x < x1; x++)
-            {
-                var (nl, nm, nh) = scaling.NormalizeAbsolute(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
-                if (nl > ml) ml = nl;
-                if (nm > mm) mm = nm;
-                if (nh > mh) mh = nh;
-            }
-            // Gate the quiet stuff so only real transients survive (less clutter,
-            // sharper kicks) — then scale. Clamp the white core to the deck since
-            // absolute normalization lets a loud transient exceed unity.
-            lowH[b]  = ml < gate ? 0f : ml * scale;
-            midH[b]  = mm < gate ? 0f : mm * scale;
-            highH[b] = mh < gate ? 0f : MathF.Min(midY, mh * scale);
-        }
-
-        AttackRelease(lowH,  releaseCoef);
-        AttackRelease(midH,  releaseCoef);
-        AttackRelease(highH, releaseCoef);
-
-        // Cumulative edges: white core [0..high], orange out to [+mid], blue out to
-        // [+low]. Draw outermost (blue) first so each inner band paints over the
-        // centre and the outer bands survive as rings — blue ⊃ orange ⊃ white.
-        var midE = new float[bins];
-        var lowE = new float[bins];
-        for (int b = 0; b < bins; b++)
-        {
-            midE[b] = MathF.Min(midY, highH[b] + midH[b]);
-            lowE[b] = MathF.Min(midY, highH[b] + midH[b] + lowH[b]);
-        }
-
-        FillEnvelope(canvas, lowE,  binPx, width, midY, lowPaint);   // blue  — outer ring
-        FillEnvelope(canvas, midE,  binPx, width, midY, midPaint);   // orange — middle ring
-        FillEnvelope(canvas, highH, binPx, width, midY, highPaint);  // white — core
-
-        // Beat ticks + downbeat grid are drawn live in BlitOperation so they
-        // keep scrolling even when this baked body is empty (all stems muted).
-
-        return surface.Snapshot();
     }
 
     public override void Render(DrawingContext context)
@@ -503,7 +325,7 @@ public sealed class WaveformControl : Control
         var loopColor     = IsGridNudged ? Sk(p.GridEdit).WithAlpha(0xA0) : Sk(p.Loop);   // red once the grid was nudged
         var live = new LiveColours(Sk(p.Playhead), Sk(p.BeatTick), Sk(p.Marker),
             Sk(p.Vocal).WithAlpha(0xD0), Sk(p.VocalInactive).WithAlpha(0xB0), Sk(p.SnapGlow).WithAlpha(0xF0), Sk(p.Edge).WithAlpha(0x99));
-        context.Custom(new BlitOperation(_paints, new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor, _vocalRegions, VocalsActive, MarkerSecs, bgColor, live));
+        context.Custom(new BlitOperation(_paints, _snap, new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor, _vocalRegions, VocalsActive, MarkerSecs, bgColor, live));
 
         // Grid-edit mode: red border tint so the user knows clicks set anchors.
         if (GridEditMode)
@@ -529,7 +351,7 @@ public sealed class WaveformControl : Control
                      : null;
         if (refPeaks is null) return;
 
-        double secondsPerPeak = refPeaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
+        double secondsPerPeak = refPeaks.SecondsPerPeak;
         int total = refPeaks.Min.Length;
         double centerPeak = PlayPosition * total;
         double speed = PlaybackSpeed > 0.01 ? PlaybackSpeed : 1.0;
@@ -550,6 +372,7 @@ public sealed class WaveformControl : Control
         // Paints come from the control's WaveformPaints (per-thread cached, no per-frame allocation).
 
         private readonly WaveformPaints _paints;
+        private readonly WaveformScrollSnap _snap;
         private readonly SKImage? _image;
         private readonly WaveformPeaks? _peaks;
         private readonly WaveformPeaks? _gridPeaks;
@@ -572,9 +395,10 @@ public sealed class WaveformControl : Control
         private readonly SKColor _bgColor;
         private readonly LiveColours _live;
 
-        public BlitOperation(WaveformPaints paints, Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor, (double Start, double End)[]? vocalRegions, bool vocalsActive, double[]? markerSecs, SKColor bgColor, LiveColours live)
+        public BlitOperation(WaveformPaints paints, WaveformScrollSnap snap, Rect bounds, SKImage? image, WaveformPeaks? peaks, WaveformPeaks? gridPeaks, double playPosition, double playbackSpeed, double gain, bool gainKnown, double magneticGlowSec, bool isScrubbing, double[]? beats, double[]? downbeats, double? loopStartSec, double? loopEndSec, SKColor downbeatColor, SKColor gainColor, SKColor loopColor, (double Start, double End)[]? vocalRegions, bool vocalsActive, double[]? markerSecs, SKColor bgColor, LiveColours live)
         {
             _paints = paints;
+            _snap = snap;
             Bounds = bounds;
             _image = image;
             _peaks = peaks;
@@ -616,10 +440,19 @@ public sealed class WaveformControl : Control
             int dstH = (int)Bounds.Height;
             canvas.Clear(_bgColor);
 
+            // Snap the scroll to whole device pixels (see WaveformScrollSnap) and draw EVERYTHING —
+            // body and overlays — from the snapped position, so they stay locked together.
+            double playPosition = _playPosition;
+            if (_image is not null && _peaks is not null && _peaks.Min.Length > 0)
+            {
+                var device = canvas.TotalMatrix;
+                playPosition = _snap.SnapPosition(_playPosition, _peaks.Min.Length, dstW, _playbackSpeed, device.ScaleX, device.TransX);
+            }
+
             if (_image is not null && _peaks is not null && _peaks.Min.Length > 0)
             {
                 int totalPeaks = _peaks.Min.Length;
-                float centerPeak = (float)(_playPosition * totalPeaks); // keep sub-pixel precision
+                float centerPeak = (float)(playPosition * totalPeaks); // keep sub-pixel precision
                 // PlaybackSpeed > 1 → show MORE source peaks per pixel (compressed look).
                 // PlaybackSpeed < 1 → show fewer (stretched). Mirrors how the beat grid is
                 // drawn below so visuals stay locked together at any tempo.
@@ -662,8 +495,8 @@ public sealed class WaveformControl : Control
                 if (vref is not null)
                 {
                     int vtotal = vref.Min.Length;
-                    float vcenter = (float)(_playPosition * vtotal);
-                    double vspp = vref.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
+                    float vcenter = (float)(playPosition * vtotal);
+                    double vspp = vref.SecondsPerPeak;
                     // Green when the vocal stem is audible, grey when it's muted — so
                     // muting VOX greys out the sections where the vocals are.
                     _paints.Vocal.Color = _vocalsActive ? _live.VocalActive : _live.VocalInactive;
@@ -693,9 +526,9 @@ public sealed class WaveformControl : Control
             if (_loopStartSec is double loopS && _loopEndSec is double loopE
                 && loopE > loopS && loopTimeRef is not null)
             {
-                double lpSpp = loopTimeRef.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
+                double lpSpp = loopTimeRef.SecondsPerPeak;
                 int totalPeaks = loopTimeRef.Min.Length;
-                float lpCenter = (float)(_playPosition * totalPeaks);
+                float lpCenter = (float)(playPosition * totalPeaks);
                 float xStart = (float)(((loopS / lpSpp) - lpCenter) / _playbackSpeed) + dstW / 2f;
                 float xEnd   = (float)(((loopE / lpSpp) - lpCenter) / _playbackSpeed) + dstW / 2f;
                 if (xEnd > 0 && xStart < dstW)
@@ -719,9 +552,13 @@ public sealed class WaveformControl : Control
                 }
             }
 
+            // Dark halo (5 px, background colour) under the 3 px playhead: a 1 px outline each side.
+            // Odd widths centred on the middle pixel's centre keep both edges on whole device pixels.
+            _paints.HeadHalo.Color = _bgColor;
             _paints.Head.Color = _live.Playhead;
-            int halfX = dstW / 2;
-            canvas.DrawLine(halfX, 0, halfX, dstH, _paints.Head);
+            float headX = dstW / 2 + 0.5f;
+            canvas.DrawLine(headX, 0, headX, dstH, _paints.HeadHalo);
+            canvas.DrawLine(headX, 0, headX, dstH, _paints.Head);
 
             // Gain overlay: a thin horizontal line where Y = 0 means 100% (top) and
             // Y = dstH means 0%. So gain=1 → top, gain=0 → bottom. Drawn only once the
@@ -741,9 +578,9 @@ public sealed class WaveformControl : Control
                          : (_peaks is { Min.Length: > 0 })     ? _peaks
                          : null;
             double? refSecondsPerPeak = refPeaks is null ? null
-                : refPeaks.SamplesPerPeak / (double)AudioFileDecoder.TargetSampleRate;
+                : refPeaks.SecondsPerPeak;
             int refTotalPeaks = refPeaks?.Min.Length ?? 0;
-            float refCenterPeak = (float)(_playPosition * refTotalPeaks);
+            float refCenterPeak = (float)(playPosition * refTotalPeaks);
 
             // Full-height downbeat guides — always on. Acts as a fixed yellow grid
             // so the user can eyeball alignment between decks at a glance.

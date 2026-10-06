@@ -1,10 +1,28 @@
 # Themes
 
+![The same two decks in four themes: The Birthday Massacre, Classic, Aphex Twin and Type O Negative](../pictures/themes-montage.webp)
+
 ## Picking one
 
-**Settings → Theme.** Each entry shows its name and four little colour chips —
-background, primary, accent and mint — so you can tell them apart at a glance.
-Click one and the whole app changes immediately. Your choice is remembered.
+**Settings ▸ Layout Wizard…** opens on a gallery of every theme, each drawn as a
+small preview card with its own waveform colours. Pick one and the whole app
+changes to it straight away, so you can try them all on. Nothing is kept until you
+press **Apply** on the next step; **Cancel** or **Esc** puts back what you had.
+Your own themes get their own group under the built-in ones.
+
+![The Layout Wizard's theme step: a four-column gallery of theme cards](../pictures/wizard-theme.webp)
+
+| Key | What it does |
+|---|---|
+| **← → ↑ ↓** | Move around the gallery (each theme is tried on as you land on it) |
+| **Home / End** | First / last theme |
+| **Enter** | Next — on to the [waveform style](waveforms.md) |
+| **Esc** | Cancel |
+
+**Settings → Theme** is the quick way. Each entry shows its name and four little
+colour chips — background, primary, accent and mint — so you can tell them apart at
+a glance. Click one and the whole app changes immediately. Your choice is
+remembered.
 
 Eleven themes ship with Sholto: Classic, Serato, Front Line Assembly, Silence
 Groove, Jeremy Soule, Type O Negative, The Birthday Massacre, Pantera, Dimmu
@@ -85,7 +103,7 @@ What those mean, in plain words:
 | `textBright`, `textMuted` | Titles, and everything secondary |
 | `playedFadeColor` | The fade over the part of the waveform already played |
 | `waveformPalette` | A preset name that seeds the downbeat colour — `"Bands"` is the standard three-band look |
-| `camelotPalette` | Rotates and tones the key-chip colour wheel; `onChipForeground` is the text on those chips |
+| `camelotPalette` | Rotates and tones the key-chip colour wheel; `keyChipText` (optional, default white `#FFFFFF`) is the text on the key chips. `onChipForeground` is still read (themes set it) but nothing draws with it any more |
 
 **Optional sections.** Leave any of them out entirely, or leave out any single
 key inside one, and Sholto works the colour out from your accent, primary and
@@ -103,9 +121,10 @@ good theme file, and every older theme keeps working unchanged.
 `gridEdit` (the tint once a grid has been nudged) and `edge` (the outline).
 
 The rest of the app has its own optional sections: `"stems"` (`drums`, `vocals`,
-`instrumental`), `"status"` (`ok`, `warn`, `error`, `attention`), `"tags"`
+`instrumental`, and `chipText` — the label colour on a lit stem chip, default black `#000000`; unrelated to `camelotPalette.keyChipText`, which colours the Camelot key chips), `"status"` (`ok`, `warn`, `error`, `attention`), `"tags"`
 (`chipBg`, `chipFg`, `indicatorBg`, `indicatorFg`), `"faceplate"` (`rest`,
-`hover`, `selected`, `glow`) and `"ring"` (`start`, `mid`, `late`, `end`), plus
+`hover`, `selected`, `glow`), `"ring"` (`start`, `mid`, `late`, `end`) and
+`"knob"` (`arc` — the glowing ring on the Settings knobs, green by default), plus
 the single colours `mute`, `scrim`, `shadow` and `iconPlate`.
 
 One rule worth keeping when you pick band colours: no band may be so dark it

@@ -16,16 +16,31 @@ public sealed class DbAnalysisProvider(IAnalysisProvider inner, IBasicAnalysisSt
     private readonly IAnalysisProvider _inner = inner;
     private readonly IBasicAnalysisStore _store = store;
 
-    public async Task<BasicAnalysis> GetAsync(DecodedTrack track, CancellationToken ct = default)
-    {
-        var hit = await _store.TryGetAsync(track.FilePath);
-        if (hit is not null)
-            return hit;
+    public Task<BasicAnalysis> GetAsync(DecodedTrack track, CancellationToken ct = default) =>
+        Begin(track.FilePath, ct).CompleteAsync(track);
 
-        var computed = await _inner.GetAsync(track, ct);
-        await WriteBackAsync(track.FilePath, computed);
-        return computed;
+    public IBasicAnalysisRequest Begin(string filePath, CancellationToken ct = default)
+    {
+        var lookup = LookupAsync(filePath);
+        var onMiss = BeginOnMissAsync(lookup, filePath, ct);
+        return new BasicAnalysisRequest(async track =>
+        {
+            var hit = await lookup;
+            if (hit is not null)
+                return hit;
+
+            var computed = await (await onMiss)!.CompleteAsync(track);
+            await WriteBackAsync(filePath, computed);
+            return computed;
+        });
     }
+
+    private async Task<BasicAnalysis?> LookupAsync(string filePath) =>
+        await _store.TryGetAsync(filePath);
+
+    private async Task<IBasicAnalysisRequest?> BeginOnMissAsync(
+        Task<BasicAnalysis?> lookup, string filePath, CancellationToken ct) =>
+        await lookup is null ? _inner.Begin(filePath, ct) : null;
 
     /// <summary>
     /// Force a fresh compute, bypassing every cache (this one included), and

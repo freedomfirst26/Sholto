@@ -13,6 +13,6 @@ internal sealed class TestThemeDefaults
         while (!File.Exists(Path.Combine(dir, "src", "Sholto.Interface.MainUI", "Themes", "defaults.json")))
             dir = Path.GetDirectoryName(dir) ?? throw new FileNotFoundException("defaults.json");
         var json = File.ReadAllText(Path.Combine(dir, "src", "Sholto.Interface.MainUI", "Themes", "defaults.json"));
-        return new ThemeDefaults(new ThemeDefaultsJson().Parse(json));
+        return new ThemeDefaults(new ThemeDefaultColoursFactory().Create(json));
     }
 }

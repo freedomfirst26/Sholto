@@ -10,7 +10,7 @@ public class WaveformPaletteTests
     // Concrete: Bands is not on IWaveformPresets.
     private readonly WaveformPresets _presets = new TestWaveformPresets().Create();
     private readonly IWaveformPaletteFactory _palettes = new WaveformPaletteFactory(new TestWaveformPresets().Create(), new TestThemeDefaults().Create());
-    private readonly SholtoThemeJson _themeJson = new(new WaveformPaletteFactory(new TestWaveformPresets().Create(), new TestThemeDefaults().Create()), new MinimapPaletteFactory(), new TestThemeDefaults().Create());
+    private readonly SholtoThemeFactory _themeFactory = new(new WaveformPaletteFactory(new TestWaveformPresets().Create(), new TestThemeDefaults().Create()), new MinimapPaletteFactory(), new TestThemeDefaults().Create());
 
     private static readonly Color BgDeep     = Color.Parse("#101010");
     private static readonly Color Accent     = Color.Parse("#FF4E9A");
@@ -87,7 +87,7 @@ public class WaveformPaletteTests
     [Fact]
     public void Parse_ExplicitWaveformSection_YieldsExactColours()
     {
-        var theme = _themeJson.Parse(ThemeJson("Bands", """
+        var theme = _themeFactory.Create(ThemeJson("Bands", """
             "waveform": {
               "background": "#010203", "low": "#111111", "mid": "#222222",
               "downbeat": "#C8444444", "beatTick": "#C0555555", "playhead": "#666666",
@@ -109,7 +109,7 @@ public class WaveformPaletteTests
     [Fact]
     public void Parse_NoWaveformSection_DerivesFromPresetAndTheme()
     {
-        var theme = _themeJson.Parse(ThemeJson("Hot", null));
+        var theme = _themeFactory.Create(ThemeJson("Hot", null));
         Assert.Equal(WaveformPreset.Hot, theme.WaveformPreset);
         Assert.Equal(Color.FromArgb(0xC8, 0xFF, 0xD6, 0x3D), theme.Waveform.Downbeat);
         Assert.Equal(Color.Parse("#2A7FFF"), theme.Waveform.Low);
@@ -120,7 +120,7 @@ public class WaveformPaletteTests
     [Fact]
     public void Parse_PartialSection_KeepsExplicitAndDerivesRest()
     {
-        var theme = _themeJson.Parse(ThemeJson("Bands", """
+        var theme = _themeFactory.Create(ThemeJson("Bands", """
             "waveform": { "marker": "#123456" }
             """));
         Assert.Equal(Color.Parse("#123456"), theme.Waveform.Marker);
@@ -128,9 +128,25 @@ public class WaveformPaletteTests
     }
 
     [Fact]
+    public void RgbBandColours_DefaultFromDefaultsJson_AndCanBeOverridden()
+    {
+        var derived = _themeFactory.Create(ThemeJson("Bands", null)).Waveform;
+        Assert.Equal(Color.Parse("#FF3A5C"), derived.RgbLow);
+        Assert.Equal(Color.Parse("#3CE870"), derived.RgbMid);
+        Assert.Equal(Color.Parse("#38C6FF"), derived.RgbHigh);
+
+        var themed = _themeFactory.Create(ThemeJson("Bands", """
+            "waveform": { "rgbLow": "#AA0011", "rgbHigh": "#2299FF" }
+            """)).Waveform;
+        Assert.Equal(Color.Parse("#AA0011"), themed.RgbLow);
+        Assert.Equal(Color.Parse("#3CE870"), themed.RgbMid);
+        Assert.Equal(Color.Parse("#2299FF"), themed.RgbHigh);
+    }
+
+    [Fact]
     public void Parse_UnknownPresetName_FallsBackToBands()
     {
-        var theme = _themeJson.Parse(ThemeJson("NoSuchPreset", null));
+        var theme = _themeFactory.Create(ThemeJson("NoSuchPreset", null));
         Assert.Equal(WaveformPreset.Bands, theme.WaveformPreset);
     }
 
@@ -154,7 +170,7 @@ public class WaveformPaletteTests
         {
             var name = line.Trim();
             if (name.Length == 0 || name.StartsWith('#')) continue;
-            yield return (name, _themeJson.Parse(File.ReadAllText(Path.Combine(dir, name))));
+            yield return (name, _themeFactory.Create(File.ReadAllText(Path.Combine(dir, name))));
         }
     }
 
@@ -170,7 +186,8 @@ public class WaveformPaletteTests
             Assert.True(wf.TryGetProperty("low", out var low), $"{file}: missing waveform.low");
             Assert.True(wf.TryGetProperty("mid", out var mid), $"{file}: missing waveform.mid");
             Assert.True(wf.TryGetProperty("downbeat", out var downbeat), $"{file}: missing waveform.downbeat");
-            Assert.False(wf.TryGetProperty("high", out _), $"{file}: waveform.high should not exist — the inner band is fixed white");
+            if (wf.TryGetProperty("high", out var high))
+                Assert.Equal(Color.Parse(high.GetString()!), t.Waveform.High);
 
             Assert.Equal(Color.Parse(low.GetString()!), t.Waveform.Low);
             Assert.Equal(Color.Parse(mid.GetString()!), t.Waveform.Mid);

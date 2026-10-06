@@ -28,7 +28,9 @@ internal interface ITrackAnalysisRun
     /// <summary>The current track's live analysis (peaks, BPM, key, stems, …).
     /// Settable so <see cref="TrackLoading"/> can reassign a fresh instance on
     /// every <c>BeginLoad</c>/<c>Load</c>/<c>LoadStreaming</c>/<c>Unload</c> —
-    /// exactly as it did when this field lived directly on <c>TrackLoading</c>.</summary>
+    /// exactly as it did when this field lived directly on <c>TrackLoading</c>.
+    /// Assigning it supersedes the run in flight: that run is cancelled (its madmom/demucs
+    /// process is killed) and any result it still delivers is dropped.</summary>
     TrackAnalysis Analysis { get; set; }
 
     /// <summary>Run BPM + key analysis on this track in the background. Decodes
@@ -37,17 +39,25 @@ internal interface ITrackAnalysisRun
     /// repeatedly (each invocation gets its own captured filePath).</summary>
     void KickOffAnalysisFor(string filePath);
 
+    /// <summary>Start the path-only part of analysis while the file is still decoding: the basic
+    /// cache lookup (and, on a miss, the beat tracker) and, when stems may overlap basic analysis,
+    /// the stem run. The prestart belongs to the current generation; the next <see cref="Analysis"/>
+    /// assignment cancels it. Nothing it produces is applied until <see cref="KickOffAnalysis"/>
+    /// for the same path adopts it. App thread.</summary>
+    void Prestart(string filePath);
+
+    /// <summary>Whether a live prestart for <paramref name="filePath"/> is waiting to be adopted.</summary>
+    bool HasPrestartFor(string filePath);
+
     /// <summary>Run the full analysis pipeline for the in-memory <see cref="TrackLoading.Load"/>
-    /// path: basic (BPM/beats) and key analysis concurrently, deck plays immediately and the
-    /// beat grid/key appear when that lands; only THEN does stem separation start. The stems
-    /// phase is sequenced after, not because it depends on the basic/key results (it doesn't —
-    /// demucs opens the file itself), but because demucs saturates every core for 30-180s and
-    /// would otherwise compete with madmom/key analysis exactly while the user is waiting for
-    /// a beatgrid. See <c>TrackAnalysisRun.KickOffAnalysis</c> for the deliberate-scheduling
-    /// comment — do not reorder this back to parallel.</summary>
+    /// path. Adopts the prestart for the same path if one is waiting. Basic (BPM/beats) and key
+    /// analysis run concurrently, so the deck plays immediately and the beat grid/key appear when
+    /// that lands. Stems overlap them on CUDA and otherwise follow basic, because demucs on the CPU
+    /// saturates every core for 30-180s and would starve madmom while the user waits for a
+    /// beatgrid. See <c>TrackAnalysisRun.KickOffAnalysis</c>.</summary>
     void KickOffAnalysis(DecodedTrack track);
 
-    /// <summary>Raised on the analysis thread once an analysis stage completes.
+    /// <summary>Raised on the app thread once an analysis stage completes.
     /// Relayed by <see cref="TrackLoading"/> exactly the way <c>TrackLoading</c>'s
     /// own <c>AnalysisUpdated</c> is relayed by <see cref="Deck"/>.</summary>
     event Action? AnalysisUpdated;

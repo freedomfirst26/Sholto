@@ -7,7 +7,7 @@ namespace Sholto.Interface.Controller.Gestures;
 /// delta, fader position, stem, bars) is read off the raw event here, so the App never sees a
 /// <see cref="ControllerEvent"/>. Device state the App used to read (Shift) is resolved here too and
 /// travels on the command.
-/// <para>Gestures that mean nothing to the App (plain CUE, plain SYNC, a short browse press, and the two
+/// <para>Gestures that mean nothing to the App (plain CUE, plain SYNC, and the two
 /// modifier holds, Shift and stem-level, which the recognizer keeps for itself) send a
 /// <see cref="ReportControl"/>: it does nothing in the App, but while the guide is open it is echoed like any
 /// other command, so the guide can explain the control.</para>
@@ -133,6 +133,9 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
             case GestureIds.BrowsePressHold:
                 _sender.Send(new ReanalyzeSelected(By("browse.knob", g.Id)));
                 break;
+            case GestureIds.BrowsePressShort:
+                _sender.Send(new OpenSearch(By("browse.knob", g.Id)));
+                break;
 
             // No effect on the App: reported only, for the guide. The modifiers (Shift, stem-level) are
             // held state the recognizer keeps; their release carries its own gesture name because the
@@ -142,9 +145,6 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
                 break;
             case GestureIds.SyncPress:
                 _sender.Send(new ReportControl(deck, true, By("deck.sync", g.Id)));
-                break;
-            case GestureIds.BrowsePressShort:
-                _sender.Send(new ReportControl(deck, true, By("browse.knob", g.Id)));
                 break;
             case GestureIds.ShiftHold:
                 var shift = ((ControllerEvent.DeckShift)g.Source).Pressed;

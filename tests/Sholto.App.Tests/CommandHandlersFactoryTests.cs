@@ -14,13 +14,13 @@ public class CommandHandlersFactoryTests
         var cue = new CueRouting(rig.Core.Decks, new RecordingMasterCueOutput(), bus);
         var registry = new RecordingCommandRegistry();
 
-        new CommandHandlersFactory(new ImmediateAppThread(), bus).Register(
+        new CommandHandlersFactory(new ImmediateAppThread(), bus, new Sholto.App.Lifecycle.NullHintCounter(), Microsoft.Extensions.Options.Options.Create(new GlanceOptions())).Register(
             registry, bus, rig.Core, cue, new InspectMode(bus), rig.Platter, new Sholto.App.Lifecycle.NullAppLifecycle());
 
         var commands = typeof(ICommand).Assembly.GetTypes()
             .Where(t => t.IsValueType && typeof(ICommand).IsAssignableFrom(t))
             .ToHashSet();
-        Assert.Equal(48, commands.Count);
+        Assert.Equal(56, commands.Count);
         Assert.Equal(commands, registry.Registered);
     }
 

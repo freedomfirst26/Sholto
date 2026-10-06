@@ -19,4 +19,6 @@ public sealed class NullAppLifecycle : IAppLifecycle
     public void Handle(in ChangeOutputDevice command) { }
 
     public void Handle(in ChooseTheme command) { }
+
+    public void Handle(in ChooseWaveformStyle command) { }
 }

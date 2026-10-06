@@ -2,9 +2,11 @@ namespace Sholto.Interface.MainUI.Theming;
 
 /// <summary>An already-loaded list of themes. Built once at startup by
 /// <see cref="ThemeCatalogFactory"/>, after Avalonia is up.</summary>
-public sealed class ThemeCatalog(IReadOnlyList<SholtoTheme> themes) : IThemeCatalog
+public sealed class ThemeCatalog(IReadOnlyList<SholtoTheme> themes, string userThemesDirectory) : IThemeCatalog
 {
     public IReadOnlyList<SholtoTheme> All { get; } = themes;
+
+    public string UserThemesDirectory { get; } = userThemesDirectory;
 
     public SholtoTheme ByName(string name)
     {

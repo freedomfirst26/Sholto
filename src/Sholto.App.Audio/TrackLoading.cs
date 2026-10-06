@@ -208,9 +208,10 @@ internal sealed class TrackLoading : ITrackLoading
     }
 
     /// <inheritdoc/>
-    public void BeginLoad()
+    public void BeginLoad(string filePath)
     {
         _analysisRun.Analysis = new TrackAnalysis();
+        _analysisRun.Prestart(filePath);
         // Fresh track: drop the previous track's detection + adjustment so a
         // late-arriving regen can't apply the old offset to the new grid. The
         // new track's saved adjustment (if any) is re-applied by the load path
@@ -237,11 +238,31 @@ internal sealed class TrackLoading : ITrackLoading
             new ReadOptions { ReadTags = false, ReadAlbumArt = false },
             chunkSize: 32768);
 
-        _currentDataProvider = provider;
-        _sampleRate = provider.SampleRate;
-        _sampleCount = provider.Length > 0 ? provider.Length / 2 : 0;
+        SoundFlow.Interfaces.ISoundDataProvider playable = provider;
+        if (provider.SampleRate != _format.SampleRate)
+        {
+            // SoundPlayer does not resample: a 44.1 kHz stream on a 48 kHz engine
+            // plays 48000/44100 (8.8%) fast. Hand the file to the injected decoder
+            // instead — the same resampling decode the in-memory Load path uses —
+            // and play the resampled buffer. Costs the full-file decode up front.
+            provider.Dispose();
+            var samples = _decoder.Decode(filePath);
+            var resampled = _providers.Scratch(samples, AudioFileDecoder.TargetSampleRate);
+            resampled.SetSpeed(_playbackSpeed());
+            _scratchProvider = resampled;
+            playable = resampled;
+            _currentDataProvider = resampled;
+            _sampleRate = AudioFileDecoder.TargetSampleRate;
+            _sampleCount = samples.Length / 2;
+        }
+        else
+        {
+            _currentDataProvider = provider;
+            _sampleRate = provider.SampleRate;
+            _sampleCount = provider.Length > 0 ? provider.Length / 2 : 0;
+        }
 
-        _player = new SoundPlayer(_engine, _format, provider);
+        _player = new SoundPlayer(_engine, _format, playable);
         _deckMixer.AddComponent(_player);
         // Carry the channel fader's current attenuation forward — otherwise
         // SoundPlayer defaults to 1.0 and a deck loaded with the fader down
@@ -263,7 +284,9 @@ internal sealed class TrackLoading : ITrackLoading
         if (_engine is null || _deckMixer is null)
             throw new InvalidOperationException("AttachEngine must be called first.");
 
-        _analysisRun.Analysis = new TrackAnalysis();
+        // BeginLoad already gave this track a fresh Analysis and pre-started its analysis; superseding
+        // here would kill that work. Nothing has been applied to that Analysis yet.
+        if (!_analysisRun.HasPrestartFor(filePath)) _analysisRun.Analysis = new TrackAnalysis();
         _sampleRate = sampleRate;
         _sampleCount = stereoSamples.Length / 2;
 

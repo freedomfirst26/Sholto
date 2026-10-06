@@ -2,11 +2,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using Sholto.App.Analysis.Harmony;
-using Sholto.App.ExternalTools;
-using Sholto.App.Library;
 using Sholto.Data;
+using Sholto.Interface.MainUI.Controls.CollapseToIcon;
+using Sholto.Interface.MainUI.Controls.Modal;
 using Sholto.Interface.MainUI.Theming;
+using Sholto.Interface.MainUI.ViewModels.Glance;
 
 namespace Sholto.Interface.MainUI.ViewModels;
 
@@ -27,9 +27,9 @@ public sealed class MainViewModel :
     IEventHandler<DeviceConnectionChanged>,
     IEventHandler<MarkerAdded>,
     IEventHandler<TrackAddedToCrate>,
-    IEventHandler<TrackLoadFailed>
+    IEventHandler<TrackLoadFailed>,
+    IEventHandler<SystemCheckReported>
 {
-    private SholtoTheme _theme;
     private bool _isMagnetEligible;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -39,62 +39,26 @@ public sealed class MainViewModel :
     /// <summary>The visible library rows; the library list and the search overlay bind to it.</summary>
     public ObservableCollection<TrackRow> Tracks => _rows.Items;
 
-    /// <summary>Spacebar search overlay state. Built lazily so the
-    /// recompute-on-collection-change subscription doesn't fire during MainViewModel
-    /// construction (the rows are still being populated then).</summary>
-    public SearchViewModel Search { get; }
+    /// <summary>The Glance search overlay (Space, or a short press of the browse knob).</summary>
+    public IGlanceViewModel Glance { get; }
 
-    private bool _isSearchOpen;
+    /// <summary>The replace-a-playing-deck warning, the undo toast and the undo confirmation.</summary>
+    public ILoadFeedbackViewModel LoadFeedback { get; }
+
+    /// <summary>The overlay is open. Setting it opens or closes <see cref="Glance"/>.</summary>
     public bool IsSearchOpen
     {
-        get => _isSearchOpen;
+        get => Glance.IsOpen;
         set
         {
-            if (_isSearchOpen == value) return;
-            _isSearchOpen = value;
-            if (!value) Search.Reset();
-            else PickDefaultLoadTarget();
-            Notify();
+            if (value) Glance.Open();
+            else Glance.Close();
         }
     }
 
-    // Which deck the search overlay will load into on Enter. Set by
-    // PickDefaultLoadTarget when the overlay opens (prefer the empty deck;
-    // if both loaded, prefer the not-playing one); user can override with
-    // ←/→ inside the overlay. Two bool flags drive the two deck-circle
-    // symbols' highlight state in XAML.
-    private int _loadTargetDeck;
-    public int LoadTargetDeck
-    {
-        get => _loadTargetDeck;
-        set
-        {
-            if (_loadTargetDeck == value) return;
-            _loadTargetDeck = value;
-            Notify();
-            Notify(nameof(IsLoadTargetDeck1));
-            Notify(nameof(IsLoadTargetDeck2));
-        }
-    }
-    public bool IsLoadTargetDeck1 => LoadTargetDeck == 0;
-    public bool IsLoadTargetDeck2 => LoadTargetDeck == 1;
-
-    /// <summary>Picks which deck the next Enter-in-search will load into.
-    /// Priority: (1) the deck that's empty if exactly one is empty,
-    /// (2) the deck that's NOT playing if both loaded and exactly one
-    /// is playing, (3) deck 1 as fallback (both empty / both playing /
-    /// neither playing).</summary>
-    public void PickDefaultLoadTarget()
-    {
-        bool d1L = Deck1.IsLoaded, d2L = Deck2.IsLoaded;
-        if (!d1L && !d2L) { LoadTargetDeck = 0; return; }
-        if (!d1L) { LoadTargetDeck = 0; return; }
-        if (!d2L) { LoadTargetDeck = 1; return; }
-        bool d1P = Deck1.IsPlaying, d2P = Deck2.IsPlaying;
-        if (d1P && !d2P) { LoadTargetDeck = 1; return; }
-        if (d2P && !d1P) { LoadTargetDeck = 0; return; }
-        LoadTargetDeck = 0;
-    }
+    /// <summary>The load warning on the main window: shown only while the overlay is closed, since the
+    /// overlay carries its own copy.</summary>
+    public bool ShowLoadWarning => LoadFeedback.HasWarning && !Glance.IsOpen;
 
     /// <summary>Load the currently-selected library row into the given deck. Used by Enter in the search
     /// overlay AND by the 1 / 2 hotkeys / FLX-4 LOAD buttons (which send the same command): the headless
@@ -122,7 +86,10 @@ public sealed class MainViewModel :
         Notify(nameof(TagEditor));
 
         CratePicker = _overlays.CratePicker();
-        CratePicker.RequestClose += () => IsCratePickerOpen = false;
+        CratePicker.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(CratePickerViewModel.IsOpen)) Notify(nameof(IsCratePickerOpen));
+        };
         Notify(nameof(CratePicker));
     }
 
@@ -145,12 +112,8 @@ public sealed class MainViewModel :
         private set { if (_isTrackActionsOpen == value) return; _isTrackActionsOpen = value; Notify(); }
     }
 
-    private bool _isCratePickerOpen;
-    public bool IsCratePickerOpen
-    {
-        get => _isCratePickerOpen;
-        private set { if (_isCratePickerOpen == value) return; _isCratePickerOpen = value; Notify(); }
-    }
+    /// <summary>Whether the crate picker is showing (a pass-through to <see cref="CratePicker"/>).</summary>
+    public bool IsCratePickerOpen => CratePicker?.IsOpen ?? false;
 
     // ---- Controller guide (Faceplate) -------------------------------------------
 
@@ -171,6 +134,10 @@ public sealed class MainViewModel :
         Faceplate.RequestClose += () => IsFaceplateOpen = false;
         Notify(nameof(Faceplate));
     }
+
+    /// <summary>When the controller guide is open, collapsing into its top-bar icon, hinting or idle. The
+    /// view reads it to animate; <see cref="Mount"/> drives it.</summary>
+    public ICollapseToIconSequence FaceplateDock { get; }
 
     private Sholto.Interface.Faceplate.FaceplateMount _mount = Sholto.Interface.Faceplate.FaceplateMount.Hidden;
     /// <summary>Where the controller guide is shown — see
@@ -199,6 +166,9 @@ public sealed class MainViewModel :
             // it here would just re-enter this setter (safely, since the equality check
             // above short-circuits it, but needlessly).
             if (!isOpen) Faceplate?.ClearSelection();
+            // Inspect is already off and the selection gone: only now does the guide start shrinking into its icon.
+            if (isOpen) FaceplateDock.Open();
+            else FaceplateDock.Collapse();
         }
     }
 
@@ -257,7 +227,6 @@ public sealed class MainViewModel :
     {
         if (CratePicker is null) return;
         await CratePicker.OpenAsync(row);
-        IsCratePickerOpen = true;
     }
 
     /// <summary>A marker was dropped on a deck (M key; Shift = Deck 2): confirm it with a toast.</summary>
@@ -332,106 +301,128 @@ public sealed class MainViewModel :
 
     // ---- Boot-time tool check: amber dot + system report ------------------------
 
-    private SystemCheck? _systemCheck;
+    private SystemHealth? _systemHealth;
 
-    /// <summary>One row per external tool, for the system report overlay. Empty until
-    /// <see cref="ReportSystemCheck"/> runs.</summary>
-    public ObservableCollection<SystemReportRow> SystemReport { get; } = new();
+    /// <summary>The system report modal (the amber status dot): one row per external tool and a headline.</summary>
+    public ISystemReportViewModel SystemReportModal { get; }
 
-    /// <summary>Hand the boot-time tool probe's result to the UI. A METHOD, not a
-    /// constructor parameter: <c>tools/Sholto.Interface.Bench</c>'s app factory builds this view
-    /// model with a fixed argument list, and an extra parameter would break it. The
-    /// check is a value already computed by <c>ToolSet</c> at boot — nothing here
-    /// re-probes the filesystem, and availability deliberately never goes live
-    /// (see ExternalToolFinder: a tool installed mid-session needs a restart).</summary>
-    public void ReportSystemCheck(SystemCheck check)
+    /// <summary>The boot-time tool probe's result, published once at startup by the App side. Nothing here
+    /// re-probes the filesystem, and availability deliberately never goes live (see ExternalToolFinder: a
+    /// tool installed mid-session needs a restart).</summary>
+    void IEventHandler<SystemCheckReported>.Handle(in SystemCheckReported e)
     {
-        _systemCheck = check;
-        SystemReport.Clear();
-        foreach (var tool in check.Tools) SystemReport.Add(new SystemReportRow(tool));
+        _systemHealth = e.Health;
+        SystemReportModal.Report(e);
         Notify(nameof(SystemDegraded));
-        Notify(nameof(SystemReportHeadline));
     }
 
     /// <summary>Amber dot: some tool is missing AND the controller is fine. Never true
     /// while the controller is down — red wins, and the dot only ever shows one
     /// colour. Both <c>Degraded</c> and <c>Offline</c> land here; the severity shows
-    /// up in <see cref="SystemReportHeadline"/>, not in the colour.</summary>
+    /// up in the report's headline, not in the colour.</summary>
     public bool SystemDegraded =>
-        _controllerConnected && _systemCheck is { Status: not SystemStatus.Healthy };
+        _controllerConnected && _systemHealth is { } h && h != SystemHealth.Healthy;
 
-    /// <summary>What the report leads with — the one place the Offline/Degraded
-    /// distinction is visible to the user.</summary>
-    public string SystemReportHeadline => _systemCheck?.Status switch
-    {
-        SystemStatus.Offline =>
-            "Beat detection is unavailable, so tracks get no BPM, beatgrid, waveform or key.",
-        SystemStatus.Degraded =>
-            "Sholto is running, but some optional analysis features are unavailable.",
-        _ => "Everything Sholto needs is installed.",
-    };
-
-    private bool _isSystemReportOpen;
-    /// <summary>Whether the system report overlay is showing. The only way in is a
-    /// click on the amber dot; Esc and a backdrop click close it — the same
-    /// show/hide shape as the Enter-mode track action menu.</summary>
-    public bool IsSystemReportOpen
-    {
-        get => _isSystemReportOpen;
-        private set { if (_isSystemReportOpen == value) return; _isSystemReportOpen = value; Notify(); }
-    }
+    /// <summary>Whether the system report is showing (a pass-through to <see cref="SystemReportModal"/>).
+    /// The only way in is a click on the amber dot.</summary>
+    public bool IsSystemReportOpen => SystemReportModal.IsOpen;
 
     /// <summary>Click handler's entry point. No-ops unless the dot is actually amber,
     /// so a green (or red) dot is not a hidden button.</summary>
     public void OpenSystemReport()
     {
         if (!SystemDegraded) return;
-        IsSystemReportOpen = true;
+        SystemReportModal.Open();
     }
 
-    public void CloseSystemReport() => IsSystemReportOpen = false;
+    public void CloseSystemReport() => SystemReportModal.Close();
+
+    /// <summary>Which waveform style the decks draw (and the Layout Wizard's choice).</summary>
+    public IWaveformStyleViewModel WaveformStyle { get; }
+
+    /// <summary>The Layout Wizard overlay (Settings ▸ Layout Wizard…).</summary>
+    public ILayoutWizardViewModel LayoutWizard { get; }
+
+    /// <summary>Open the Layout Wizard. Its preview cards play a demo track in the current theme's colours.</summary>
+    public void OpenLayoutWizard() => LayoutWizard.Open(Theme.Waveform);
+
+    /// <summary>The Settings overlay (Settings ▸ Settings…): the backspin release knob.</summary>
+    public ISettingsViewModel Settings { get; }
+
+    /// <summary>The shell modals in key priority order (first open one gets the key): crate picker, system report,
+    /// layout wizard, settings. The crate picker is built lazily with the library, so it is skipped until then.
+    /// Built on each read.</summary>
+    public IReadOnlyList<IModal> Modals
+    {
+        get
+        {
+            var modals = new List<IModal>(4);
+            if (CratePicker is not null) modals.Add(CratePicker);
+            modals.Add(SystemReportModal);
+            modals.Add(LayoutWizard);
+            modals.Add(Settings);
+            return modals;
+        }
+    }
+
+    public void OpenSettings() => Settings.Open();
 
     private readonly IOverlayViewModelFactory _overlays;
-    private readonly IThemeContext _themeContext;
-    private readonly IThemeCatalog _themeCatalog;
+    private readonly IThemeViewModel _themes;
     private readonly ICommandSender _sender;
     private readonly IAppThread _appThread;
 
-    public MainViewModel(IThemeContext themeContext, IThemeCatalog themeCatalog,
+    public MainViewModel(IThemeViewModel themes,
                          IOverlayViewModelFactory overlays,
                          LibraryRowsViewModel rows,
                          ICommandSender sender,
                          IEventSubscriber subscriber,
                          IAppThread appThread,
-                         SearchViewModel search,
+                         IGlanceViewModel glance,
+                         ILoadFeedbackViewModel loadFeedback,
                          TrackActionsViewModel trackActions,
                          DeckViewModel deck1,
-                         DeckViewModel deck2)
+                         DeckViewModel deck2,
+                         IWaveformStyleViewModel waveformStyle,
+                         ILayoutWizardViewModel layoutWizard,
+                         ISettingsViewModel settings,
+                         ISystemReportViewModel systemReport,
+                         ICollapseToIconSequence faceplateDock)
     {
-        _themeContext = themeContext;
-        _themeCatalog = themeCatalog;
-        _theme = themeCatalog.ByName("Silence Groove");
+        SystemReportModal = systemReport;
+        SystemReportModal.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ISystemReportViewModel.IsOpen)) Notify(nameof(IsSystemReportOpen));
+        };
+        FaceplateDock = faceplateDock;
+        WaveformStyle = waveformStyle;
+        LayoutWizard = layoutWizard;
+        Settings = settings;
+        _themes = themes;
         _overlays = overlays;
         _sender = sender;
         _appThread = appThread;
         _rows = rows;
         TrackActions = trackActions;
 
-        // Make the initial theme visible to anything that reads ThemeContext
-        // before the user picks a different theme.
-        _themeContext.Current = _theme;
-
-        Search = search;
-        // Picking a tag or crate in the search overlay filters the library (a command) and closes the overlay.
-        Search.TagPicked += name =>
+        // A theme worn for any reason (menu pick, restore, the wizard's live try-on) re-emits the theme-derived
+        // bindings; only a choice is sent to the App.
+        _themes.PropertyChanged += (_, e) =>
         {
-            _sender.Send(new FilterLibraryByTag(name, Ui("search", "pick-tag")));
-            IsSearchOpen = false;
+            if (e.PropertyName == nameof(IThemeViewModel.Shown)) OnThemeShown();
         };
-        Search.CratePicked += crate =>
+
+        Glance = glance;
+        LoadFeedback = loadFeedback;
+        Glance.PropertyChanged += (_, e) =>
         {
-            _sender.Send(new FilterLibraryByCrate(crate.Id, crate.Name, Ui("search", "pick-crate")));
-            IsSearchOpen = false;
+            if (e.PropertyName != nameof(IGlanceViewModel.IsOpen)) return;
+            Notify(nameof(IsSearchOpen));
+            Notify(nameof(ShowLoadWarning));
+        };
+        LoadFeedback.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ILoadFeedbackViewModel.HasWarning)) Notify(nameof(ShowLoadWarning));
         };
         WireTrackActions();
 
@@ -451,43 +442,32 @@ public sealed class MainViewModel :
         subscriber.Subscribe<MarkerAdded>(this);
         subscriber.Subscribe<TrackAddedToCrate>(this);
         subscriber.Subscribe<TrackLoadFailed>(this);
+        subscriber.Subscribe<SystemCheckReported>(this);
     }
 
     private Origin Ui(string control, string gesture) => new(InterfaceIds.MainUI, control, gesture);
 
+    /// <summary>The theme the app wears now. Setting it is the user's choice (saved by the App).</summary>
     public SholtoTheme Theme
     {
-        get => _theme;
-        set
-        {
-            if (_theme == value) return;
-            _theme = value;
-            // Publish to the process-wide hook so anything not in our visual tree
-            // (e.g. value converters) can see the change too.
-            _themeContext.Current = value;
-            Notify();
-            // Re-emit theme-derived bindings on each track and deck so KeyBrush
-            // re-evaluates against the new palette. Cheaper than a static event
-            // subscription (which would pin every TrackRow until app exit).
-            _rows.RefreshThemeBindings();
-            Deck1.RefreshThemeBindings();
-            Deck2.RefreshThemeBindings();
-            // Tell the App so it can remember the choice and restore it next launch.
-            _sender.Send(new ChooseTheme(value.Name, new Origin(InterfaceIds.MainUI, "theme", "choose")));
-        }
+        get => _themes.Shown;
+        set => _themes.Choose(value);
+    }
+
+    private void OnThemeShown()
+    {
+        Notify(nameof(Theme));
+        // Re-emit theme-derived bindings on each track and deck so KeyBrush
+        // re-evaluates against the new palette. Cheaper than a static event
+        // subscription (which would pin every TrackRow until app exit).
+        _rows.RefreshThemeBindings();
+        Deck1.RefreshThemeBindings();
+        Deck2.RefreshThemeBindings();
     }
 
     /// <summary>Apply the theme saved last time, if the catalog still has one of that name. Not a user
-    /// choice: the App already has the name, and it ignores the resulting <c>ChooseTheme</c> until the
-    /// restore is done.</summary>
-    public void RestoreTheme(string savedName)
-    {
-        var match = _themeCatalog.All.FirstOrDefault(t => t.Name == savedName);
-        if (match is not null)
-            Theme = match;
-        else
-            Console.WriteLine($"[Theme] saved name '{savedName}' no longer exists — keeping default");
-    }
+    /// choice: the App already has the name.</summary>
+    public void RestoreTheme(string savedName) => _themes.Restore(savedName);
 
     private int _selectedTrackIndex = -1;
 
@@ -514,7 +494,7 @@ public sealed class MainViewModel :
 
     void IEventHandler<SelectionChanged>.Handle(in SelectionChanged e) => SetSelectedTrackIndex(e.Index);
 
-    public Track? SelectedTrack => SelectedTrackRow?.Track;
+    public TrackSummary? SelectedTrack => SelectedTrackRow?.Summary;
 
     public TrackRow? SelectedTrackRow =>
         SelectedTrackIndex >= 0 && SelectedTrackIndex < Tracks.Count
@@ -570,15 +550,15 @@ public sealed class MainViewModel :
         Notify(nameof(Crossfader));
     }
 
-    private Key? _harmonyReferenceKey;
+    private KeyRef? _harmonyReferenceKey;
 
     /// <summary>Camelot key of whichever deck is the harmony anchor — Deck 1 if it
     /// has a loaded key, else Deck 2. Drives row dimming in the library list.</summary>
-    public Key? HarmonyReferenceKey => _harmonyReferenceKey;
+    public KeyRef? HarmonyReferenceKey => _harmonyReferenceKey;
 
     void IEventHandler<HarmonyReferenceChanged>.Handle(in HarmonyReferenceChanged e)
     {
-        _harmonyReferenceKey = e.Key is { } k ? new Key(k.PitchClass, k.IsMajor) : null;
+        _harmonyReferenceKey = e.Key;
         Notify(nameof(HarmonyReferenceKey));
     }
 

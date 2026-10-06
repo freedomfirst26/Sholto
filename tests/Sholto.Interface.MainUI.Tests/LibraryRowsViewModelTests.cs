@@ -119,6 +119,6 @@ public class LibraryRowsViewModelTests
         Assert.True(alpha.HasTags);
         Assert.Equal("house, warm", alpha.TagsTooltip);
         Assert.Equal(TrackAnalysisState.Unanalyzed, alpha.AnalysisState);
-        Assert.Equal(LibrarySessionRig.Alpha, alpha.Track);
+        Assert.Equal(LibrarySessionRig.Alpha.FilePath, alpha.Summary.FilePath);
     }
 }

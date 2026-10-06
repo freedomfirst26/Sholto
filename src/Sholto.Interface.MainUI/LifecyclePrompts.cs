@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using Sholto.App.Audio;
 using Sholto.Data;
 using Sholto.Interface.MainUI.ViewModels;
 using Sholto.Interface.MainUI.Views;
@@ -11,7 +10,7 @@ namespace Sholto.Interface.MainUI;
 /// answer back as a command. <c>MusicFolderNeeded</c> opens the OS folder picker and answers
 /// <c>ChooseMusicFolder</c>; <c>OutputDeviceNeeded</c> opens the device picker and answers
 /// <c>ChooseOutputDevice</c>. A cancelled picker answers with a null path / name. <c>SavedThemeFound</c>
-/// applies the theme the user chose last time. Call <see cref="Start"/> before the lifecycle starts, so the
+/// applies the theme the user chose last time; <c>SavedWaveformStyleFound</c> the waveform style. Call <see cref="Start"/> before the lifecycle starts, so the
 /// first question finds a listener.</summary>
 public sealed class LifecyclePrompts(
     IEventSubscriber subscriber,
@@ -22,7 +21,8 @@ public sealed class LifecyclePrompts(
     Window owner) :
     IEventHandler<MusicFolderNeeded>,
     IEventHandler<OutputDeviceNeeded>,
-    IEventHandler<SavedThemeFound>
+    IEventHandler<SavedThemeFound>,
+    IEventHandler<SavedWaveformStyleFound>
 {
     private readonly IEventSubscriber _subscriber = subscriber;
     private readonly ICommandSender _sender = sender;
@@ -36,6 +36,7 @@ public sealed class LifecyclePrompts(
         _subscriber.Subscribe<MusicFolderNeeded>(this);
         _subscriber.Subscribe<OutputDeviceNeeded>(this);
         _subscriber.Subscribe<SavedThemeFound>(this);
+        _subscriber.Subscribe<SavedWaveformStyleFound>(this);
     }
 
     public void Handle(in MusicFolderNeeded e) => _ = AskMusicFolderAsync(e.Reason);
@@ -45,6 +46,9 @@ public sealed class LifecyclePrompts(
     /// <summary>Published on the app thread, before the App starts saving theme choices, so applying it
     /// here and now is what keeps the restore from being saved back.</summary>
     public void Handle(in SavedThemeFound e) => _viewModel.RestoreTheme(e.Name);
+
+    /// <summary>Applies the style saved last time; a restore, so nothing is sent back.</summary>
+    public void Handle(in SavedWaveformStyleFound e) => _viewModel.WaveformStyle.Restore(e.Id);
 
     private async Task AskMusicFolderAsync(MusicFolderReason reason)
     {
@@ -58,8 +62,7 @@ public sealed class LifecyclePrompts(
 
     private async Task AskOutputDeviceAsync(IReadOnlyList<OutputDeviceChoice> choices, string? currentName)
     {
-        var devices = choices.Select(c => new AudioDevice(c.Name, c.IsDefault)).ToList();
-        var picker = _pickerFactory.Create(devices, currentName);
+        var picker = _pickerFactory.Create(choices, currentName);
         await picker.ShowDialog(_owner);
         var name = picker.SelectedDevice?.Name;
         _appThread.Post(() => _sender.Send(

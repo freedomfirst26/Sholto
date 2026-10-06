@@ -12,12 +12,14 @@ namespace Sholto.App.ExternalTools;
 /// Deliberately knows nothing about per-tool cache/output layout — that used to be
 /// threaded through here as a <c>(toolName, inputPath) -&gt; workspace directory</c>
 /// function so <see cref="IExternalTool.RunAsync{T}"/> could compute its own work
-/// directory, but <c>Sholto.App.ExternalTools</c> has zero project references, so it
-/// could never really own that policy (it doesn't know about the SHA256-based
-/// directory encoding <c>ExternalToolStack.FromEnvironment</c> uses). Callers that need a deterministic work
+/// directory, but <c>Sholto.App.ExternalTools</c> references only <c>Sholto.App.Analysis</c>,
+/// so it could never really own that policy (it doesn't know about the SHA256-based
+/// directory encoding <c>ExternalToolStackFactory</c> uses; the options themselves come from
+/// <c>ExternalToolOptionsFactory.FromEnvironment</c>). Callers that need a deterministic work
 /// directory (the on-disk stem cache) now own that policy directly and pass it to
 /// <see cref="IExternalTool.RunAsync{T}"/> themselves — see
-/// <c>DemucsStemAnalysisStep</c>/<c>DemucsStemPresence</c> in <c>Sholto.App.Analysis</c>.
+/// <c>DemucsStemAnalysisStep</c> in <c>Sholto.App.ExternalTools</c> and
+/// <c>DemucsStemPresence</c> in <c>Sholto.App.Analysis.Stems</c>.
 /// </summary>
 public sealed class ToolSet
 {

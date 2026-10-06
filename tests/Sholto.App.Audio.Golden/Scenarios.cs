@@ -37,7 +37,8 @@ internal sealed class Scenarios
             compute: (_, _) => throw new NotSupportedException(
                 "The golden scenarios load via Deck.Load, which never reaches AnalysisProvider."));
         _deckFactory = new BenchDeckFactory(new AudioFileDecoder([]), new NoStemAnalysisStep(), analysisProvider,
-            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Analysis.Analyzers.Waveform.WaveformBandOptions()));
+            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Analysis.Analyzers.Waveform.WaveformBandOptions()),
+            new Sholto.Data.ImmediateAppThread());
         _benchDeck = new BenchDeck(_deckFactory);
         _renderer = new OfflineRenderer(_benchDeck, new EqualPowerCrossfade(), _routers);
     }

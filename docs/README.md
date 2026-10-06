@@ -2,7 +2,11 @@
 
 Every part of the screen, what you click, and what you press on the DDJ-FLX4.
 
-![Sholto's main window with each region numbered](../pictures/sholto-ui-annotated.png)
+**Other pages:** [Install](install.md) · [Features](features.md) · [Decks](deck.md) ·
+[Library](library.md) · [Search](search.md) · [Themes](themes.md) · [Waveforms](waveforms.md) ·
+[Licence](license.md) · [For developers](developers.md)
+
+![Sholto's main window with each region numbered](../pictures/sholto-guide-annotated.webp)
 
 ## What's on screen
 
@@ -19,6 +23,7 @@ There are two decks. Deck 1 is the upper pair (4–7), Deck 2 the lower one.
 ## Top bar
 
 - **Settings → Theme** — pick a colour theme; each entry shows its own colour swatches. See [themes.md](themes.md).
+- **Settings → Layout Wizard…** — try every theme on the whole app, then choose the waveform style (3-BAND or RGB). See [themes.md](themes.md) and [waveforms.md](waveforms.md).
 - **Settings → Music folder…** — choose the folder Sholto scans for music.
 - **Settings → Output device…** — choose which sound card or headphones Sholto plays to. Your choice is remembered.
 - **Controller icon** — opens the controller guide, a picture of your DDJ-FLX4 with every knob, pad and button explained. See [below](#your-controller).
@@ -37,7 +42,12 @@ Transport is controller-only: nothing on screen starts, stops, or jumps the musi
 
 | Key | What it does |
 |---|---|
-| **Space** | Open search — tracks, crates and tags at once |
+| **Space** | Open search — tracks ranked by fit against the deck you're not loading into. What you can type: [search.md](search.md) |
+| **Shift + 1** / **Shift + 2** (search open) | Load the highlighted track straight onto Deck 1 / Deck 2 |
+| **← / →** (search open) | Choose which deck **Enter** loads onto |
+| **Tab** (search open) | Switch between the track list and the side list (shortlist, recent loads, crates, tags) |
+| **Q** (search open) | Add or remove the highlighted track from your shortlist |
+| **Ctrl + Z** | Undo the last load within 10 s: the previous track returns, paused where you left it |
 | **↑ / ↓** | Move up and down the track list |
 | **1** / **2** | Load the highlighted track onto Deck 1 / Deck 2 |
 | **Enter** | Open the actions menu for the highlighted track |
@@ -51,7 +61,8 @@ Transport is controller-only: nothing on screen starts, stops, or jumps the musi
 
 ## Themes
 
-Sholto ships with eleven colour themes, picked from **Settings → Theme**. A theme
+Sholto ships with eleven colour themes, picked from **Settings → Theme** or tried on
+in the **Layout Wizard**. A theme
 recolours the whole app — the library, the section map, and the waveform's bands,
 grid, playhead, markers and loop. You can write your own and drop it in a folder;
 see [themes.md](themes.md).

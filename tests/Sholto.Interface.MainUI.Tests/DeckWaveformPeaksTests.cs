@@ -14,17 +14,15 @@ public class DeckWaveformPeaksTests
     // Frequency-band peaks from basic analysis. Per-stem peaks (StemPeaks) no longer
     // exist, so there is no stem-merge source left to set alongside them; the
     // assertions below still pin Peaks to the basic frequency bands.
-    private BasicAnalysis MakeBasic() => new(
+    private DeckAnalysis MakeBasic() => new(
         new WaveformPeaks(
             Min:  [-0.5f],
             Max:  [ 0.5f],
             Low:  [ 0.1f],
             Mid:  [ 0.2f],
             High: [ 0.3f],
-            SamplesPerPeak: 1024),
-        Bpm: 128.0,
-        BeatTimes: [],
-        DownbeatTimes: []);
+            SamplesPerPeak: 1024, SampleRate: 48000),
+        128.0, [], [], null, false, null);
 
     // The deck view model is a projection of the deck's content event: the analysis arrives on the bus,
     // so publishing it is what "a loaded deck" means here.
@@ -32,12 +30,10 @@ public class DeckWaveformPeaksTests
     {
         AvaloniaTestApp.EnsureStarted();
         var bus = new DataBus(new ThrowingFailureSink());
-        var deck = new DeckViewModel(0, bus, bus, new ThemeStackFactory().Build().Context, new WaveformPeaksFactory());
-        var analysis = new TrackAnalysis();
-        analysis.Set(MakeBasic());
-        bus.Publish(new DeckContentChanged<Track, TrackAnalysis, SongSegment>(
-            0, new Track("/music/a.mp3", "Alpha", "Zed", TimeSpan.FromMinutes(3)),
-            DeckLoadState.Loaded, true, analysis, null));
+        var deck = new DeckViewModel(0, bus, bus, new ThemeStackFactory().Build().Context, new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock()));
+        bus.Publish(new DeckContentChanged(
+            0, new DeckTrack("/music/a.mp3", "Alpha", "Zed", TimeSpan.FromMinutes(3)),
+            DeckLoadState.Loaded, true, MakeBasic()));
         return (deck, bus);
     }
 
@@ -46,7 +42,7 @@ public class DeckWaveformPeaksTests
     {
         var (deck, _) = MakeLoadedDeck();
         // Peaks must be the basic frequency peaks.
-        Assert.Same(deck.Analysis!.Basic!.Peaks, deck.Peaks);
+        Assert.Same(deck.Analysis!.Peaks, deck.Peaks);
     }
 
     [Fact]

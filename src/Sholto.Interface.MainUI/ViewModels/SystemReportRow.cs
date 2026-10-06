@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Sholto.App.ExternalTools;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.ViewModels;
 
@@ -7,13 +7,13 @@ namespace Sholto.Interface.MainUI.ViewModels;
 /// One line of the system report overlay: an external tool, whether the boot-time
 /// probe found it, and — when it didn't — what is lost and how to get it back.
 ///
-/// Built from a <see cref="ToolPresence"/>; it re-probes nothing. The cost/install
-/// text is looked up by tool name in the constructor, which is the ONLY place in
-/// the UI that knows those strings: madmom's install line is taken verbatim from
-/// <see cref="MadmomBeatAnalysisStep.InstallCommand"/> rather than copied, and the
-/// other two point at the project's installer because no equivalent constant exists
-/// for them (the pinned demucs spec lives in <c>sholto-deps.sh</c>, not in C#) — a
-/// second hand-written command here would be free to drift from the pin.
+/// Built from a <see cref="ToolStatus"/>; it re-probes nothing. The cost text is
+/// looked up by capability in the constructor, which is the ONLY place in the UI that
+/// knows those strings. The install line is the status's own
+/// <see cref="ToolStatus.InstallCommand"/> (madmom's, taken verbatim by the App side);
+/// a tool without one points at the project's installer because no equivalent
+/// constant exists for it (the pinned demucs spec lives in <c>sholto-deps.sh</c>, not
+/// in C#) — a second hand-written command here would be free to drift from the pin.
 /// </summary>
 public sealed class SystemReportRow
 {
@@ -31,30 +31,24 @@ public sealed class SystemReportRow
     public bool IsMissing => !IsPresent;
 
     [SetsRequiredMembers]
-    public SystemReportRow(ToolPresence tool)
+    public SystemReportRow(ToolStatus tool)
     {
         Capability = tool.Capability;
         ToolName = tool.ToolName;
         IsPresent = tool.IsPresent;
-        Detail = tool.IsPresent ? (tool.BinaryPath ?? "") : CostOf(tool.ToolName);
-        Install = tool.IsPresent ? "" : InstallOf(tool.ToolName);
+        Detail = tool.IsPresent ? (tool.BinaryPath ?? "") : CostOf(tool.Capability);
+        Install = tool.IsPresent ? "" : tool.InstallCommand ?? "Run ./install.sh from the Sholto folder, then restart Sholto.";
     }
 
-    private string CostOf(string toolName) => toolName switch
+    private string CostOf(string capability) => capability switch
     {
         // Same wording as the boot-time console warning in SholtoStackFactory.Build.
-        ExternalToolNames.Madmom =>
+        ToolCapabilities.Beats =>
             "No BPM, beatgrid, waveform or key for any track.",
-        ExternalToolNames.Demucs =>
+        ToolCapabilities.Stems =>
             "No stem separation — no stem EQ, stem mutes or vocal regions.",
-        ExternalToolNames.Ffmpeg =>
+        ToolCapabilities.Transcode =>
             "No M4A/AAC playback (MP3, FLAC and WAV still work).",
         _ => "Unavailable.",
-    };
-
-    private string InstallOf(string toolName) => toolName switch
-    {
-        ExternalToolNames.Madmom => MadmomBeatAnalysisStep.InstallCommand,
-        _ => "Run ./install.sh from the Sholto folder, then restart Sholto.",
     };
 }

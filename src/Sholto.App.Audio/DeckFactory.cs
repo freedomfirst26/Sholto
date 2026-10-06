@@ -6,6 +6,7 @@ using Sholto.App.Analysis.Stages;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.Stores;
+using Sholto.Data;
 using SoundFlow.Abstracts;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;
@@ -35,7 +36,7 @@ namespace Sholto.App.Audio;
 /// </summary>
 public sealed class DeckFactory(
     IAudioFileDecoder decoder,
-    IAnalysisStage<StemAnalysis> stemStage,
+    IStemStage stemStage,
     IAnalysisReporter reporter,
     IAnalysisProvider analysisProvider,
     IKeyAnalysisStore keyCache,
@@ -43,10 +44,11 @@ public sealed class DeckFactory(
     IKeyAnalyzer keyAnalyzer,
     IBeatgridFactory beatgrids,
     IReadOnlyList<Func<SfEngine, AudioFormat, SoundModifier>> effectFactories,
-    IPlaybackProviderFactory playbackProviders) : IDeckFactory
+    IPlaybackProviderFactory playbackProviders,
+    IAppThread appThread) : IDeckFactory
 {
     private readonly IAudioFileDecoder _decoder = decoder;
-    private readonly IAnalysisStage<StemAnalysis> _stemStage = stemStage;
+    private readonly IStemStage _stemStage = stemStage;
     private readonly IAnalysisReporter _reporter = reporter;
     private readonly IAnalysisProvider _analysisProvider = analysisProvider;
     private readonly IKeyAnalysisStore _keyCache = keyCache;
@@ -59,6 +61,7 @@ public sealed class DeckFactory(
     // is added without touching this factory.
     private readonly IReadOnlyList<Func<SfEngine, AudioFormat, SoundModifier>> _effectFactories = effectFactories;
     private readonly IPlaybackProviderFactory _playbackProviders = playbackProviders;
+    private readonly IAppThread _appThread = appThread;
 
-    public IDeckPorts Create() => new DeckPorts(new Deck(_decoder, _stemStage, _reporter, _analysisProvider, _keyCache, _gridCache, _keyAnalyzer, _beatgrids, _effectFactories, _playbackProviders));
+    public IDeckPorts Create() => new DeckPorts(new Deck(_decoder, _stemStage, _reporter, _analysisProvider, _keyCache, _gridCache, _keyAnalyzer, _beatgrids, _effectFactories, _playbackProviders, _appThread));
 }

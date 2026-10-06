@@ -1,3 +1,4 @@
+using Sholto.App.Analysis.Analyzers.Beats;
 using Sholto.App.Analysis.Analyzers.Segments;
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Audio;
@@ -55,9 +56,6 @@ public interface IDeckSession : IDeckPorts
     /// <summary>Stopped when not playing, Ending past 90 % of the track, else Playing.</summary>
     PlayPhase PlayState { get; }
 
-    /// <summary>True once the play position is past 90 %.</summary>
-    bool IsNearEnd { get; }
-
     /// <summary>The end-of-track flash phase: true while Ending and in the lit half of the flash period.
     /// Derived from the frame clock, so the controller light and the disc ring share it.</summary>
     bool EndFlashOn { get; }
@@ -82,9 +80,6 @@ public interface IDeckSession : IDeckPorts
 
     double SourceBpm { get; }
 
-    /// <summary>Time of the beat nearest the playhead, or -1.</summary>
-    double NearestBeatSec();
-
     /// <summary>Time of the downbeat nearest the playhead, or -1.</summary>
     double NearestDownbeatSec();
 
@@ -92,7 +87,15 @@ public interface IDeckSession : IDeckPorts
 
     void SetMarkers(IReadOnlyList<double> secs);
 
-    IReadOnlyList<SongSegment>? Segments { get; }
+    /// <summary>Phrase-aware sections of the loaded track; empty until basic analysis lands or when the
+    /// track has no usable grid. Recomputed on every <c>BasicReady</c>, so a grid nudge moves them.</summary>
+    IReadOnlyList<SongSection> Sections { get; }
+
+    /// <summary>Where phrase lines fall, in bars from the grid's first downbeat.</summary>
+    PhraseGrid PhraseGrid { get; }
+
+    /// <summary>The grid the sections were computed on; turns a bar into seconds (<c>DownbeatAt</c>).</summary>
+    Beatgrid SectionGrid { get; }
 
     // ---- BPM, tempo ---------------------------------------------------------------------------
     double BpmMultiplier { get; }
@@ -103,13 +106,6 @@ public interface IDeckSession : IDeckPorts
     void HalveBpm();
     void DoubleBpm();
     void ResetBpmMultiplier();
-
-    void BpmUp();
-    void BpmDown();
-    void BpmUpCoarse();
-    void BpmDownCoarse();
-    void PhaseNudgeLeft();
-    void PhaseNudgeRight();
 
     /// <summary>Reset tempo and grid to the analysed detection.</summary>
     void ResetToAnalysis();

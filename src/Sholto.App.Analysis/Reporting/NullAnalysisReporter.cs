@@ -18,4 +18,5 @@ public sealed class NullAnalysisReporter : IAnalysisReporter
     public void Running(string filePath, string stepName, double progress = 0, string? message = null) { }
     public void Complete(string filePath, string stepName, string? message = null) { }
     public void Failed(string filePath, string stepName, string message) { }
+    public void Cancelled(string filePath, string stepName) { }
 }

@@ -1,3 +1,5 @@
+using Sholto.Data;
+
 namespace Sholto.App.Analysis.Analyzers.Waveform;
 
 /// <summary>Default <see cref="IWaveformPeakAnalyzer"/>. Pure computation — no
@@ -18,7 +20,7 @@ public sealed class WaveformPeakAnalyzer(
     /// since independent normalization compresses cross-stem energy differences.
     /// </summary>
     public WaveformPeaks Compute(
-        float[] samples, int channels, int sampleRate = WaveformDefaults.SampleRate,
+        float[] samples, int channels, int sampleRate,
         int samplesPerPeak = WaveformDefaults.SamplesPerPeak, bool normalizeBands = true)
     {
         if (samples.Length == 0) return _peaks.None();
@@ -82,7 +84,7 @@ public sealed class WaveformPeakAnalyzer(
             Normalize(highOut);
         }
 
-        return new WaveformPeaks(min, max, lowOut, midOut, highOut, samplesPerPeak);
+        return new WaveformPeaks(min, max, lowOut, midOut, highOut, samplesPerPeak, sampleRate);
     }
 
     /// <summary>(2*radius + 1)-tap box smoothing in place.</summary>

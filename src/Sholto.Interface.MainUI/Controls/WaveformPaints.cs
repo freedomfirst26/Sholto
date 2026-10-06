@@ -12,7 +12,8 @@ namespace Sholto.Interface.MainUI.Controls;
 public sealed class WaveformPaints
 {
     private readonly ThreadLocal<SKPaint> _blit = new(() => new SKPaint { FilterQuality = SKFilterQuality.Low });
-    private readonly ThreadLocal<SKPaint> _head = new(() => new SKPaint { StrokeWidth = 2, IsAntialias = false });
+    private readonly ThreadLocal<SKPaint> _head = new(() => new SKPaint { StrokeWidth = 3, IsAntialias = false });
+    private readonly ThreadLocal<SKPaint> _headHalo = new(() => new SKPaint { StrokeWidth = 5, IsAntialias = false });
     private readonly ThreadLocal<SKPaint> _gain = new(() => new SKPaint { StrokeWidth = 1, IsAntialias = false });
     private readonly ThreadLocal<SKPaint> _db = new(() => new SKPaint { StrokeWidth = 2, IsAntialias = false });
     private readonly ThreadLocal<SKPaint> _glow = new(() => new SKPaint { IsAntialias = false });
@@ -23,6 +24,7 @@ public sealed class WaveformPaints
 
     public SKPaint Blit => _blit.Value!;
     public SKPaint Head => _head.Value!;
+    public SKPaint HeadHalo => _headHalo.Value!;
     public SKPaint Gain => _gain.Value!;
     public SKPaint Db => _db.Value!;
     public SKPaint Glow => _glow.Value!;

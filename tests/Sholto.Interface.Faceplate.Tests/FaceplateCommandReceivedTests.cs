@@ -57,12 +57,14 @@ public class FaceplateCommandReceivedTests
     }
 
     [Fact]
-    public void The_pad_roll_has_no_row_in_the_guide_and_is_dropped()
+    public void The_pad_roll_selects_pad_2_and_blinks()
     {
         FromController("HoldRoll", "deck.pad.2", "pad.padfx1.roll", deck: 0);
 
-        Assert.Null(_vm.Selected);
-        Assert.Empty(_blinked);
+        Assert.Equal("deck.pad.2", _vm.Selected!.Id);
+        Assert.Equal(0, _vm.SelectedDeck);
+        Assert.Equal("pad.padfx1.roll", _vm.ActiveRowId);
+        Assert.Equal(["deck.pad.2"], _blinked);
     }
 
     [Theory]
@@ -122,6 +124,17 @@ public class FaceplateCommandReceivedTests
 
         Assert.Equal("browse.knob", _vm.Selected!.Id);
         Assert.Equal("browse.press.hold", _vm.ActiveRowId);
+    }
+
+    [Fact]
+    public void A_short_browse_press_shows_the_open_search_row()
+    {
+        FromController("OpenSearch", "browse.knob", "browse.press.short");
+
+        Assert.Equal("browse.knob", _vm.Selected!.Id);
+        Assert.Equal("browse.press.short", _vm.ActiveRowId);
+        Assert.Contains("Opens search", _vm.Selected.Gestures.Single(g => g.Id == "browse.press.short").Result);
+        Assert.True(_vm.Selected.Gestures.Single(g => g.Id == "browse.press.short").Used);
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Analyzers.Segments;
 using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.Analyzers.Vocals;
+using Sholto.Data;
 
 namespace Sholto.App.Audio;
 

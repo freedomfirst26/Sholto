@@ -1,3 +1,5 @@
+using Sholto.Data;
+
 namespace Sholto.App.ExternalTools;
 
 /// <summary>
@@ -23,4 +25,17 @@ public sealed record SystemCheck(IReadOnlyList<ToolPresence> Tools)
         t.IsPresent
             ? $"{t.Capability}/{t.ToolName} OK ({t.BinaryPath})"
             : $"{t.Capability}/{t.ToolName} MISSING"));
+
+    /// <summary>This check as the event the interfaces are told: every tool, its install command where one is
+    /// known (madmom's), and <see cref="Status"/> as a <see cref="SystemHealth"/>.</summary>
+    public SystemCheckReported ToReported() =>
+        new(Tools.Select(t => new ToolStatus(
+                t.ToolName, t.Capability, t.Required, t.BinaryPath,
+                t.ToolName == ExternalToolNames.Madmom ? MadmomBeatAnalysisStep.InstallCommand : null)).ToList(),
+            Status switch
+            {
+                SystemStatus.Offline => SystemHealth.Offline,
+                SystemStatus.Degraded => SystemHealth.Degraded,
+                _ => SystemHealth.Healthy,
+            });
 }

@@ -15,7 +15,7 @@ public class DeckSessionTests
     private static readonly Track SomeTrack = new("/music/a.mp3", "A", "Artist", TimeSpan.FromMinutes(3));
 
     private static BasicAnalysis MakeBasic() => new(
-        new WaveformPeaks(Min: [-0.5f], Max: [0.5f], Low: [0.1f], Mid: [0.2f], High: [0.3f], SamplesPerPeak: 1024),
+        new WaveformPeaks(Min: [-0.5f], Max: [0.5f], Low: [0.1f], Mid: [0.2f], High: [0.3f], SamplesPerPeak: 1024, SampleRate: 48000),
         Bpm: 128.0,
         BeatTimes: [],
         DownbeatTimes: []);
@@ -122,6 +122,30 @@ public class DeckSessionTests
 
         Assert.True(rig.Session.IsMuted);
         Assert.Equal(0f, rig.Ports.Mixer.Volume);
+    }
+
+    [Fact]
+    public void A_channel_gain_above_one_is_clamped_to_one()
+    {
+        var rig = new DeckSessionRig(new TestDeckFactory().Create());
+
+        rig.Session.ChannelGain = 1.7;
+
+        Assert.Equal(1.0, rig.Session.ChannelGain);
+        Assert.Equal(1f, rig.Ports.Mixer.Volume);
+    }
+
+    [Fact]
+    public void Setting_the_same_channel_gain_raises_nothing()
+    {
+        var rig = new DeckSessionRig(new TestDeckFactory().Create());
+        var changes = new List<DeckChange>();
+        rig.Session.Changed += changes.Add;
+
+        rig.Session.ChannelGain = 0.25;
+        rig.Session.ChannelGain = 0.25;
+
+        Assert.Single(changes, DeckChange.ChannelGain);
     }
 
     // ---- End-of-track flash from the frame clock -------------------------------------------------
@@ -242,6 +266,115 @@ public class DeckSessionTests
         Assert.Equal(0, allocated);
     }
 
+    [Fact]
+    public void A_scratch_in_flight_leaves_the_transport_state_alone_but_still_moves_the_position()
+    {
+        var ports = Ports(analysed: true);
+        var rig = new DeckSessionRig(ports);
+        rig.Session.IsScratching = true;
+        ports.ScriptedLoading.IsPlaying = true;
+        ports.ScriptedPlayhead.PlayPosition = 0.3;
+
+        rig.Session.SyncPlayPosition();
+
+        Assert.False(rig.Session.IsPlaying);
+        Assert.Equal(PlayPhase.Stopped, rig.Session.PlayState);
+        Assert.Equal(0.3, rig.Session.PlayPosition);
+
+        rig.Session.IsScratching = false;
+        rig.Session.SyncPlayPosition();
+
+        Assert.True(rig.Session.IsPlaying);
+        Assert.Equal(PlayPhase.Playing, rig.Session.PlayState);
+    }
+
+    [Fact]
+    public void Starting_play_raises_IsPlaying_then_PlayState_then_publishes_then_moves_the_position()
+    {
+        var ports = Ports(analysed: true);
+        var rig = new DeckSessionRig(ports);
+        var log = new List<string>();
+        rig.Session.Changed += change =>
+        {
+            if (change is DeckChange.IsPlaying or DeckChange.PlayState or DeckChange.PlayPosition or DeckChange.EndFlash)
+                log.Add(change.ToString());
+        };
+        using var sub = rig.Bus.Subscribe(new ActionEventHandler<DeckPlayStateChanged>(e => log.Add("pub:" + e.Phase)));
+        log.Clear();   // drop the replay on subscribe
+
+        ports.ScriptedLoading.IsPlaying = true;
+        ports.ScriptedPlayhead.PlayPosition = 0.5;
+        rig.Session.SyncPlayPosition();
+
+        Assert.Equal(["IsPlaying", "PlayState", "pub:Playing", "PlayPosition"], log);
+
+        log.Clear();
+        ports.ScriptedPlayhead.PlayPosition = 0.95;
+        rig.Session.SyncPlayPosition();
+
+        Assert.Equal(["PlayPosition", "PlayState", "pub:Ending"], log);
+    }
+
+    [Fact]
+    public void Re_entering_the_end_restarts_the_flash_from_the_new_moment()
+    {
+        var ports = Ports(analysed: true);
+        var rig = new DeckSessionRig(ports);
+        var start = StartEnding(rig, ports);
+
+        rig.Clock.Now = start.AddMilliseconds(1000);
+        ports.ScriptedLoading.IsPlaying = false;
+        rig.Session.SyncPlayPosition();
+        Assert.Equal(PlayPhase.Stopped, rig.Session.PlayState);
+
+        var t2 = start.AddMilliseconds(1300);
+        rig.Clock.Now = t2;
+        ports.ScriptedLoading.IsPlaying = true;
+        ports.ScriptedPlayhead.PlayPosition = 0.95;
+        rig.Session.SyncPlayPosition();
+        Assert.True(rig.Session.EndFlashOn);
+
+        rig.Clock.Now = t2.AddMilliseconds(399);
+        rig.Session.SyncPlayPosition();
+        Assert.True(rig.Session.EndFlashOn);
+
+        rig.Clock.Now = t2.AddMilliseconds(400);
+        rig.Session.SyncPlayPosition();
+        Assert.False(rig.Session.EndFlashOn);
+    }
+
+    [Fact]
+    public void Beginning_a_load_while_ending_publishes_stopped_with_the_flash_off()
+    {
+        var ports = Ports(analysed: true);
+        var rig = new DeckSessionRig(ports);
+        var plays = new RecordingHandler<DeckPlayStateChanged>();
+        using var sub = rig.Bus.Subscribe(plays);
+        StartEnding(rig, ports);
+        Assert.Equal(PlayPhase.Ending, rig.Session.PlayState);
+
+        rig.Session.BeginLoad(SomeTrack);
+
+        Assert.Equal(new DeckPlayStateChanged(0, PlayPhase.Stopped, false), plays.Received[^1]);
+        Assert.Equal(0.0, rig.Session.PlayPosition);
+    }
+
+    [Fact]
+    public void Every_sync_raises_PlayPosition_even_when_the_position_has_not_moved()
+    {
+        var ports = Ports(analysed: true);
+        var rig = new DeckSessionRig(ports);
+        ports.ScriptedPlayhead.PlayPosition = 0.4;
+        var positions = 0;
+        rig.Session.Changed += change => { if (change == DeckChange.PlayPosition) positions++; };
+
+        rig.Session.SyncPlayPosition();
+        rig.Session.SyncPlayPosition();
+        rig.Session.SyncPlayPosition();
+
+        Assert.Equal(3, positions);
+    }
+
     // ---- Published state ------------------------------------------------------------------------
 
     [Fact]
@@ -293,6 +426,50 @@ public class DeckSessionTests
         Assert.True(rig.Session.InstrumentalActive);
         Assert.Contains(new StemMuteChanged(0, 0, false), stems.Received);
         Assert.Contains(new StemMuteChanged(0, 2, false), stems.Received);
+    }
+
+    [Fact]
+    public void Setting_a_stem_level_pushes_it_to_the_audio_and_an_unchanged_level_pushes_nothing()
+    {
+        var spy = new SpyStemControl();
+        var rig = new DeckSessionRig(new ScriptedPorts(new TestDeckFactory().Create(), stems: spy));
+
+        rig.Session.DrumsLevel = 0.3;
+        rig.Session.DrumsLevel = 0.3;
+        rig.Session.VocalsLevel = 0.7;
+
+        Assert.Equal([(0, 0.3), (1, 0.7)], spy.Levels);
+    }
+
+    [Fact]
+    public void Muting_a_stem_through_the_session_does_not_touch_the_audio()
+    {
+        // Pins split ownership: PadCommandHandlers pushes the mute to the audio itself; the session setter
+        // only publishes. Flips in T-DS3b.
+        var spy = new SpyStemControl();
+        var rig = new DeckSessionRig(new ScriptedPorts(new TestDeckFactory().Create(), stems: spy));
+
+        rig.Session.DrumsActive = false;
+
+        Assert.False(rig.Session.DrumsActive);
+        Assert.Empty(spy.Mutes);
+    }
+
+    [Fact]
+    public void Loading_a_track_returns_changed_stem_levels_to_unity_on_the_audio()
+    {
+        var spy = new SpyStemControl();
+        var rig = new DeckSessionRig(new ScriptedPorts(new TestDeckFactory().Create(), stems: spy));
+        rig.Session.DrumsLevel = 0.3;
+        rig.Session.InstrumentalLevel = 0;
+        spy.Levels.Clear();
+
+        rig.Session.BeginLoad(SomeTrack);
+
+        Assert.Equal([(0, 1.0), (2, 1.0)], spy.Levels);
+        Assert.Equal(1.0, rig.Session.DrumsLevel);
+        Assert.Equal(1.0, rig.Session.VocalsLevel);
+        Assert.Equal(1.0, rig.Session.InstrumentalLevel);
     }
 
     [Fact]
@@ -390,5 +567,102 @@ public class DeckSessionTests
 
         Assert.Equal(1.0, rig.Session.BpmMultiplier);
         Assert.Equal([(SomeTrack.FilePath, 1.0)], chosen);
+    }
+
+    [Fact]
+    public void Beginning_a_load_clears_a_magnet_adjustment()
+    {
+        var rig = new DeckSessionRig(Ports(analysed: true));
+        rig.Session.SetTempoRange(0.16);
+        Assert.True(rig.Session.MatchEffectiveBpm(130.0));
+        Assert.True(rig.Session.WasMagnetAdjusted);
+
+        rig.Session.BeginLoad(SomeTrack);
+
+        Assert.False(rig.Session.WasMagnetAdjusted);
+    }
+
+    [Fact]
+    public void Unloading_clears_a_magnet_adjustment()
+    {
+        var rig = new DeckSessionRig(Ports(analysed: true));
+        rig.Session.SetTempoRange(0.16);
+        Assert.True(rig.Session.MatchEffectiveBpm(130.0));
+
+        rig.Session.Unload();
+
+        Assert.False(rig.Session.WasMagnetAdjusted);
+    }
+
+    [Fact]
+    public void Beginning_or_streaming_a_load_restores_the_multiplier_to_the_audio_without_asking_to_persist_it()
+    {
+        var rig = new DeckSessionRig(Ports(analysed: true));
+        var chosen = new List<(string Path, double Multiplier)>();
+        rig.Session.BpmMultiplierChosen += (path, multiplier) => chosen.Add((path, multiplier));
+
+        rig.Session.BeginLoad(SomeTrack, 2.0);
+        Assert.Equal(2.0, rig.Session.BpmMultiplier);
+        Assert.Equal(2.0, rig.Ports.Tempo.BpmMultiplier);
+
+        rig.Session.LoadStreaming(SomeTrack, SomeTrack.FilePath, 0.5);
+        Assert.Equal(0.5, rig.Session.BpmMultiplier);
+        Assert.Equal(0.5, rig.Ports.Tempo.BpmMultiplier);
+
+        Assert.Empty(chosen);
+    }
+
+    [Fact]
+    public void Resetting_an_unchanged_multiplier_still_asks_the_owner_to_persist_it_but_raises_no_change()
+    {
+        // Pins current behaviour: the persist request is unconditional, the change event is not.
+        var rig = new DeckSessionRig(Ports(analysed: true));
+        rig.Session.LoadTrack(SomeTrack, SomeTrack.FilePath, [], bpmMultiplier: 1.0);
+        var chosen = new List<(string Path, double Multiplier)>();
+        rig.Session.BpmMultiplierChosen += (path, multiplier) => chosen.Add((path, multiplier));
+        var changes = new List<DeckChange>();
+        rig.Session.Changed += changes.Add;
+
+        rig.Session.ResetBpmMultiplier();
+
+        Assert.Equal([(SomeTrack.FilePath, 1.0)], chosen);
+        Assert.DoesNotContain(DeckChange.BpmMultiplier, changes);
+    }
+
+    [Fact]
+    public void Halving_with_no_track_loaded_changes_the_multiplier_but_asks_nothing()
+    {
+        var rig = new DeckSessionRig(Ports(analysed: true));
+        var chosen = new List<(string Path, double Multiplier)>();
+        rig.Session.BpmMultiplierChosen += (path, multiplier) => chosen.Add((path, multiplier));
+
+        rig.Session.HalveBpm();
+
+        Assert.Equal(0.5, rig.Session.BpmMultiplier);
+        Assert.Empty(chosen);
+    }
+
+    [Fact]
+    public void Matching_a_bpm_already_within_a_hundredth_changes_nothing()
+    {
+        var rig = new DeckSessionRig(Ports(analysed: true));
+        rig.Session.SetTempoRange(0.16);
+        var positionBefore = rig.Ports.Tempo.TempoPosition;
+
+        Assert.False(rig.Session.MatchEffectiveBpm(128.005));
+
+        Assert.False(rig.Session.WasMagnetAdjusted);
+        Assert.Equal(positionBefore, rig.Ports.Tempo.TempoPosition);
+    }
+
+    [Fact]
+    public void Cycling_from_a_range_between_stops_goes_to_ten_percent()
+    {
+        var rig = new DeckSessionRig(new TestDeckFactory().Create());
+        rig.Session.SetTempoRange(0.08);
+
+        rig.Session.CycleTempoRange();
+
+        Assert.Equal(0.10, rig.Ports.Tempo.TempoRange);
     }
 }

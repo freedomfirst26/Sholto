@@ -26,7 +26,8 @@ public enum DeckChange
     KeyReady,
     StemsReady,
     VocalRegionsReady,
-    Segments,
+    /// <summary>The phrase-aware sections or their grid changed (set, or cleared on a new load).</summary>
+    Sections,
     Markers,
     BpmMultiplier,
     /// <summary>The tempo fader position moved.</summary>

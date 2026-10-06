@@ -13,7 +13,7 @@ internal sealed class DeckSessionRig
     {
         Ports = ports;
         Session = new DeckSessionFactory(
-            new FixedDeckFactory(ports), new SongSegmentAnalyzer(), Clock, new ImmediateAppThread(), Bus).Create(0);
+            new FixedDeckFactory(ports), new PhraseSectionAnalyzer(new BarFeatureExtractor(new PhraseSectionOptions()), new PhraseSectionLabeler(new PhraseSectionOptions()), new PhraseSectionOptions()), Clock, new ImmediateAppThread(), Bus).Create(0);
     }
 
     public IDeckPorts Ports { get; }

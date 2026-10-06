@@ -27,6 +27,27 @@ internal sealed class FakeCrateService : ICrateService
     public Task<IReadOnlyList<Guid>> TrackIdsAsync(int crateId) =>
         Task.FromResult<IReadOnlyList<Guid>>(_members[crateId].ToList());
 
+    public Task<CrateMates> CrateMatesAsync(Guid trackId)
+    {
+        var crates = _names.Where(kv => kv.Value != CrateNames.AllTracks && _members[kv.Key].Contains(trackId)).ToList();
+        return Task.FromResult(new CrateMates(
+            crates.Select(kv => kv.Value).Order(StringComparer.Ordinal).ToList(),
+            crates.SelectMany(kv => _members[kv.Key]).Where(id => id != Guid.Empty).ToHashSet()));
+    }
+
+    /// <summary>How many times <see cref="MembershipAsync"/> has been called.</summary>
+    public int MembershipCalls { get; private set; }
+
+    public Task<CrateMembership> MembershipAsync()
+    {
+        MembershipCalls++;
+        var allTracks = _names.Where(kv => kv.Value == CrateNames.AllTracks).Select(kv => (int?)kv.Key).FirstOrDefault();
+        var byCrate = _names
+            .Where(kv => kv.Value != CrateNames.AllTracks)
+            .ToDictionary(kv => kv.Key, kv => (IReadOnlySet<Guid>)_members[kv.Key].ToHashSet());
+        return Task.FromResult(new CrateMembership(byCrate, allTracks));
+    }
+
     /// <summary>Ids filed into the crate called <paramref name="name"/>, or empty when there is none.</summary>
     public IReadOnlyCollection<Guid> Members(string name)
     {

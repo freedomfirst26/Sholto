@@ -99,7 +99,7 @@ public sealed class ControlChip : Border
     /// <summary>Sets the hand cursor once actually mounted in a live visual tree.
     /// <see cref="Cursor"/> needs a platform cursor factory, which only exists once
     /// Avalonia has a running application — deferring this (rather than setting it in
-    /// the constructor) is what lets <see cref="ProseWithChips.Build"/> be unit-tested
+    /// the constructor) is what lets <see cref="ProseInlinesFactory.Create"/> be unit-tested
     /// with no application at all.</summary>
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {

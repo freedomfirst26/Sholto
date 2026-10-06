@@ -15,4 +15,14 @@ public sealed class SettingsKeys
     // just be a silent migration for existing installs.
     public const string OutputDevice   = "output_device";
     public const string Theme          = "theme";
+    // The waveform style's stable id ("three-band", "rgb"); absent = the default style.
+    public const string WaveformStyle  = "waveform_style";
+    // The backspin coast time in seconds (0..3, invariant culture, e.g. "0.6"); absent = 0.6.
+    public const string BackspinTimeSeconds = "backspin_time_seconds";
+    // The backspin coast distance in beats (0..16, invariant culture, e.g. "2"); absent = 2.
+    public const string BackspinDistanceBeats = "backspin_distance_beats";
+    // The Glance shortlist: a JSON array of file paths in insertion order; absent = empty.
+    public const string GlanceShortlist = "glance_shortlist";
+    // Prefix of one key per one-time hint ("hint_shown:faceplate"): how many times it has been shown, as an integer.
+    public const string HintShownPrefix = "hint_shown:";
 }

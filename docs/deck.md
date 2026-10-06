@@ -108,7 +108,7 @@ top. Markers are saved with the track.
 ## Magnetic beat-snap
 
 When both decks are playing, both analysed, and their tempos are within about
-half a percent, a green chain-link icon appears between the two discs: the
+one percent, a green chain-link icon appears between the two discs: the
 magnet is available. Nudge a deck with the jog wheel and, as the beats come
 close, both waveforms glow green on the beat and the wheel gently holds. Let go
 and that deck locks to the other one's grid, tempo included. Nothing to arm — it
@@ -117,23 +117,28 @@ green line on both decks, so you can see the two line up.
 
 ## Section map
 
-The thin strip above each waveform is the whole song at a glance: one block per
-section, labelled **INTRO**, **BUILD**, **DROP**, **BREAK**, **VERSE**,
-**CHORUS**, **BRIDGE**, **OUTRO**. Calm sections are see-through, intense ones
-full colour, and a line marks where you are. The colours come from your theme.
-It is display-only — clicking it does nothing; use the platter or **SHIFT +
-CUE** to move.
+The strip above each waveform is the whole song at a glance. A row of section
+names (**INTRO**, **BUILD**, **DROP**, **BREAK**, **VERSE**, **CHORUS**,
+**BRIDGE**, **OUTRO**) sits over a coloured underline per section, each block sized
+by its length in bars and labelled with it (for example **DROP 16**). Faint phrase
+lines mark every 8, 16 and 32 bars, so you can see where the next phrase starts. Below it
+the entire track is drawn in your waveform style (3-BAND or RGB) on a faint tint
+of the section's colour. What you have already played is dimmed, a line marks
+where you are, small
+triangles mark your cues and a tinted span marks an active loop. The colours come
+from your theme. It is display-only — clicking it does nothing; use the platter
+or **SHIFT + CUE** to move.
 
 ## Waveform
 
 The big scrolling view. The playhead is the vertical line down the middle; the
-track moves under it.
+track moves under it. The music itself is drawn in one of two styles — **3-BAND**
+(bass outermost, mids in the middle, highs and transients in the core) or **RGB**
+(fine stripes coloured by the mix playing at each instant) — in your theme's
+colours; see [waveforms.md](waveforms.md).
 
 | What you see | What it means |
 |---|---|
-| Blue outer shape | Bass |
-| Orange middle | Mids |
-| White core | Highs and transients |
 | Full-height vertical lines | Downbeats — the 1 of each bar |
 | Small ticks along the top | The other beats |
 | Thin green bars in the middle | Where the vocals are. They grey out when VOX is muted |
@@ -150,7 +155,7 @@ the tempo fader and the waveform squeezes or stretches to match.
 The disc turns once per bar, in time with the track. Its outer ring is your
 progress: **green** at the start, through yellow and orange, to **red** at the
 end, flashing over the last tenth — the deck's **BEAT SYNC** light on the
-controller flashes with it. The number in the middle is the live BPM; click it
+controller flashes with it. Behind the number, three soft glows in your theme's waveform colours (bass bottom-left, mids right, highs on top) brighten with whatever is playing under the playhead. The number in the middle is the live BPM; click it
 to open the tempo and beatgrid tuner.
 
 ## Key chip and Camelot

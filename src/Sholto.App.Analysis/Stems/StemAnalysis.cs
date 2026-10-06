@@ -1,4 +1,5 @@
 using Sholto.App.Analysis.Analyzers.Vocals;
+using Sholto.Data;
 
 namespace Sholto.App.Analysis.Stems;
 
