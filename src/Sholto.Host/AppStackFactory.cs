@@ -49,11 +49,12 @@ public sealed class AppStackFactory : IAppStackFactory
             stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory()), [stack.FlacStrategy],
             stack.PipeWireRouter, stack.DeckFormat, masterCueOutput, stack.ToolStack.Check, appThread, bus,
             Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR"));
-        return new AppStack(new LiveEntities(bus, bus, bus, bus, frameClock, appThread), stack, options,
-            coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread, new AudioDevicePickerFactory()),
+        var iconFactory = new AppIconFactory();
+        return new AppStack(new LiveEntities(bus, bus, bus, bus, frameClock, appThread, iconFactory), stack, options,
+            coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread),
             new ThemeStackFactory(), new ControllerStackFactory(),
             new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, new HintCounter(stack.LibraryDatabase), options.Glance), new PerformanceFactory(),
                 new ControllerInputFactory(), new KeyboardInputFactory()),
-            masterCueOutput, frameClock, appThread, bus);
+            masterCueOutput, frameClock, appThread, bus, new TrayFactory(iconFactory));
     }
 }

@@ -42,7 +42,8 @@ More: [library.md](library.md).
 - **Headphone cue** — pre-listen a track in your headphones while the crowd still hears the other deck.
 - **Beat loops** — set a loop on the beat and halve or double its length on the fly.
 - **Magnetic beat-snap** — when both decks are playing and the beats drift close together, the jog wheel gently "holds" on the beat and both waveforms glow green; let go and the deck locks to the other one's grid. No button to arm — it just happens. More: [deck.md](deck.md#magnetic-beat-snap).
-- Pick which speakers or headphones Sholto plays to, and it remembers your choice.
+- Pick which speakers or headphones Sholto plays to (it asks on first start, or **Settings ▸ Output device…**), and it remembers your choice.
+- Sholto shows its icon in the system tray; click it to bring the window back.
 
 More: [deck.md](deck.md).
 

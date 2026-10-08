@@ -168,7 +168,7 @@ Target; migration in progress.
 - Themes are JSON: bundled in `src/Sholto.Interface.MainUI/Themes/*.json` (AvaloniaResource), user themes in `~/.config/sholto/themes/`. `SholtoThemeJson` parses them into `SholtoTheme`; the schema is documented in its doc comment — update that comment when adding a key.
 - Lookup order for a colour: the theme's JSON → the bundled `Themes/defaults.json` (non-derivable defaults) → derivation from the theme's core colours (`WaveformPaletteFactory`, `MinimapPaletteFactory`). New keys are optional and get their default in `defaults.json`, so existing user themes keep working; don't add values to every bundled theme.
 - Named waveform presets live in the fixed catalogue `Themes/waveform-presets.json`; themes refer to a preset by name.
-- In XAML use `{DynamicResource Sholto…}` brushes published from the current theme (MainWindow applies the theme to `Application.Resources`). In controls, take colours from the bound palette (`Palette` StyledProperty); a control created from XAML draws nothing until its palette arrives — no hardcoded fallback palette.
+- In XAML use `{DynamicResource Sholto…}` brushes published from the current theme (MainWindow applies the theme to its own `Resources`). In controls, take colours from the bound palette (`Palette` StyledProperty); a control created from XAML draws nothing until its palette arrives — no hardcoded fallback palette.
 - Alpha variations of a theme colour are applied in code (`WithAlpha`), not stored as separate keys.
 - Exception: drawings of physical hardware (e.g. `DdjFlx4Layout.axaml`, the Pioneer controller) are not theme data.
 

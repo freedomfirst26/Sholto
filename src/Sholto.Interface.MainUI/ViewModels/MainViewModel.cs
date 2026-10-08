@@ -105,6 +105,14 @@ public sealed class MainViewModel :
     // ---- Enter-mode: the track action menu + crate picker ----------------------
 
     public TrackActionsViewModel TrackActions { get; }
+    public OutputPickerViewModel OutputPicker { get; }
+
+    private bool _isOutputPickerOpen;
+    public bool IsOutputPickerOpen
+    {
+        get => _isOutputPickerOpen;
+        private set { if (_isOutputPickerOpen == value) return; _isOutputPickerOpen = value; Notify(); }
+    }
     public CratePickerViewModel? CratePicker { get; private set; }
 
     private bool _isTrackActionsOpen;
@@ -201,6 +209,12 @@ public sealed class MainViewModel :
         private set { _toast = value; Notify(); Notify(nameof(HasToast)); }
     }
     public bool HasToast => !string.IsNullOrEmpty(_toast);
+
+    private void WireOutputPicker()
+    {
+        OutputPicker.Opened += () => IsOutputPickerOpen = true;
+        OutputPicker.RequestClose += () => IsOutputPickerOpen = false;
+    }
 
     private void WireTrackActions()
     {
@@ -388,6 +402,7 @@ public sealed class MainViewModel :
                          IGlanceViewModel glance,
                          ILoadFeedbackViewModel loadFeedback,
                          TrackActionsViewModel trackActions,
+                         OutputPickerViewModel outputPicker,
                          DeckViewModel deck1,
                          DeckViewModel deck2,
                          IWaveformStyleViewModel waveformStyle,
@@ -418,6 +433,7 @@ public sealed class MainViewModel :
         _appThread = appThread;
         _rows = rows;
         TrackActions = trackActions;
+        OutputPicker = outputPicker;
 
         // A theme worn for any reason (menu pick, restore, the wizard's live try-on) re-emits the theme-derived
         // bindings; only a choice is sent to the App.
@@ -439,6 +455,7 @@ public sealed class MainViewModel :
             if (e.PropertyName == nameof(ILoadFeedbackViewModel.HasWarning)) Notify(nameof(ShowLoadWarning));
         };
         WireTrackActions();
+        WireOutputPicker();
 
         Deck1 = deck1;
         Deck2 = deck2;

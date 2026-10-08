@@ -55,6 +55,8 @@ public sealed class SholtoStartup : IApplicationStartup
     private readonly IFrameClock _frameClock;
     private readonly IAppThread _appThread;
     private readonly ICommandSender _sender;
+    private readonly ITrayFactory _trayFactory;
+    private IDisposable? _tray;
 
     public SholtoStartup(AppStack appStack)
     {
@@ -71,6 +73,7 @@ public sealed class SholtoStartup : IApplicationStartup
         _frameClock = appStack.FrameClock;
         _appThread = appStack.AppThread;
         _sender = appStack.Sender;
+        _trayFactory = appStack.TrayFactory;
     }
 
     public void Start(IClassicDesktopStyleApplicationLifetime desktop)
@@ -104,6 +107,11 @@ public sealed class SholtoStartup : IApplicationStartup
         var vm = _entities.CreateApplication();
         var core = _entities.CreateCore();
         desktop.MainWindow = (Avalonia.Controls.Window)_entities.CreateKeyboard();
+
+        // Tray icon: same image as the window icon. Classic, like the window icon
+        // (neither follows later theme changes today).
+        _tray = _trayFactory.Create(desktop.MainWindow, _themeCatalog.ByName("Classic"));
+        desktop.Exit += (_, _) => _tray?.Dispose();
 
         // Let the window paint its first frame, THEN initialize services.
         // Posting at Background priority ensures Render runs before InitializeServices.

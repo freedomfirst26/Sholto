@@ -542,6 +542,10 @@
         <modal:ModalShell.Body><v:SettingsOverlay/></modal:ModalShell.Body>
     </modal:ModalShell>
 
+    <!-- Audio output picker (the App asks at first run, when the saved device is missing, or from
+         Settings ▸ Output device…). Declared after every modal so it paints on top; it also gets keys first. -->
+    <v:OutputPickerOverlay/>
+
     <!-- The load warning outside the overlay, so a controller LOAD onto a playing deck still shows it. -->
     <Border IsVisible="{Binding ShowLoadWarning}"
             HorizontalAlignment="Center" VerticalAlignment="Bottom"

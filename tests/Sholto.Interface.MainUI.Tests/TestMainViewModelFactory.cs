@@ -71,6 +71,7 @@ internal sealed class TestMainViewModelFactory
             glance,
             new LoadFeedbackViewModel(bus, bus),
             new TrackActionsViewModel(),
+            new OutputPickerViewModel(),
             deck1ViewModel,
             deck2ViewModel,
             waveformStyle,

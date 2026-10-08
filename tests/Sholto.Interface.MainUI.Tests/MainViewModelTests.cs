@@ -52,6 +52,7 @@ public class MainViewModelTests
             glance,
             new LoadFeedbackViewModel(_bus, _bus),
             new TrackActionsViewModel(),
+            new OutputPickerViewModel(),
             deck1,
             deck2,
             waveformStyle,
@@ -636,5 +637,18 @@ public class MainViewModelTests
 
         var command = Assert.Single(sent.Received);
         Assert.Equal(InterfaceIds.MainUI, command.Origin.InterfaceId);
+    }
+
+    [Fact]
+    public async Task Output_picker_is_open_while_a_question_is_pending()
+    {
+        Assert.False(_vm.IsOutputPickerOpen);
+
+        var ask = _vm.OutputPicker.AskAsync([new OutputDeviceChoice("Speakers", true)], null);
+        Assert.True(_vm.IsOutputPickerOpen);
+
+        _vm.OutputPicker.Commit();
+        Assert.False(_vm.IsOutputPickerOpen);
+        Assert.Equal("Speakers", await ask);
     }
 }

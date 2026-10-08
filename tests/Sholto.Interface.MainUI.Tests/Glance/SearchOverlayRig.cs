@@ -43,6 +43,7 @@ internal sealed class SearchOverlayRig
             Rig.Glance,
             new LoadFeedbackViewModel(bus, bus),
             new TrackActionsViewModel(),
+            new OutputPickerViewModel(),
             deck1,
             deck2,
             waveformStyle,

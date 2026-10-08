@@ -1,15 +1,12 @@
 using Sholto.Interface.Keyboard;
 using System;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
-using SkiaSharp;
 using Avalonia.Controls.Selection;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -41,7 +38,7 @@ public partial class MainWindow : Window, IKeyboard
     /// Like the tag editor, the overlay binds its OWN IsVisible to the host's so its
     /// code-behind sees the change. It builds and owns its FaceplateViewModel; no
     /// DataContext is set on it from here, or the panel would silently stop opening.</summary>
-    public MainWindow(FaceplateOverlay faceplateOverlay, IThemeCatalog themeCatalog, IModalKeyRouter modalKeys)
+    public MainWindow(FaceplateOverlay faceplateOverlay, IThemeCatalog themeCatalog, IModalKeyRouter modalKeys, IAppIconFactory iconFactory)
     {
         _faceplateOverlay = faceplateOverlay;
         _modalKeys = modalKeys;
@@ -53,7 +50,7 @@ public partial class MainWindow : Window, IKeyboard
         InitializeComponent();
         FaceplateHost.Content = _faceplateOverlay;
         _faceplateOverlay.Bind(IsVisibleProperty, FaceplateHost.GetObservable(IsVisibleProperty));
-        Icon = BuildAppIcon(classic);   // tri-colour RGB "S" on a rounded plate — matches the library watermark
+        Icon = iconFactory.Create(classic);   // tri-colour RGB "S" on a rounded plate — matches the library watermark
         BuildThemesMenu();
         // Intercept keys before child controls (ListBox would otherwise eat arrows).
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -86,59 +83,6 @@ public partial class MainWindow : Window, IKeyboard
         };
     }
 
-    /// <summary>Rasterise the Sholto brand mark for the window / taskbar / alt-tab
-    /// icon: a rounded-square plate with three offset "S" glyphs (blue/green/red,
-    /// screen-blended) — the same RGB-split S as the Media Library watermark.</summary>
-    private WindowIcon BuildAppIcon(SholtoTheme theme)
-    {
-        const int size = 256;
-        using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul));
-        var canvas = surface.Canvas;
-        canvas.Clear(SKColors.Transparent);
-
-        // Rounded-square plate (Tokyo Night surface).
-        using (var plate = new SKPaint { Color = ToSk(theme.IconPlate), IsAntialias = true })
-            canvas.DrawRoundRect(new SKRect(0, 0, size, size), 56, 56, plate);
-
-        using var tf = SKTypeface.FromFamilyName("Inter",
-                           SKFontStyleWeight.ExtraBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
-                       ?? SKTypeface.FromFamilyName("Arial",
-                           SKFontStyleWeight.ExtraBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
-                       ?? SKTypeface.Default;
-        // Measure the glyph's TIGHT bounds (SKTextBlob.Bounds is a loose, inflated
-        // box that threw the centring way off), then draw with TextAlign.Center so
-        // the horizontal centre is just cx and only the vertical offset needs the
-        // bounds.
-        const float textSize = 220;
-        var bounds = new SKRect();
-        using (var probe = new SKPaint { Typeface = tf, TextSize = textSize, IsAntialias = true })
-            probe.MeasureText("S", ref bounds);
-        float cx = size / 2f;
-        float baseY = size / 2f - bounds.MidY;   // bounds are baseline-relative → centre vertically
-
-        void DrawS(float dx, float dy, SKColor c)
-        {
-            using var p = new SKPaint
-            {
-                Typeface = tf, TextSize = textSize, IsAntialias = true,
-                TextAlign = SKTextAlign.Center, Color = c, BlendMode = SKBlendMode.Screen,
-            };
-            canvas.DrawText("S", cx + dx, baseY + dy, p);
-        }
-        // Offsets mirror sholto-icon.svg: blue back (up-left), green anchor, red front (down-right).
-        DrawS(-12, 8, ToSk(theme.Stems.Drums));   // drums – blue
-        DrawS(0, 0, ToSk(theme.Stems.Vocals));     // vocals – green
-        DrawS(12, -8, ToSk(theme.Stems.Instrumental));   // instrumental – red
-
-        using var img = surface.Snapshot();
-        using var data = img.Encode(SKEncodedImageFormat.Png, 100);
-        var ms = new MemoryStream();
-        data.SaveTo(ms);
-        ms.Position = 0;
-        return new WindowIcon(new Bitmap(ms));
-    }
-
-    private SKColor ToSk(Color c) => new SKColor(c.R, c.G, c.B, c.A);
 
     /// <summary>
     /// Publish the theme's colors in Window.Resources keyed under "Sholto…" names, as one merged dictionary
@@ -163,6 +107,20 @@ public partial class MainWindow : Window, IKeyboard
 
         if (DataContext is not MainViewModel vm) return;
         bool shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+
+        // Output picker open → it owns the keyboard; nothing else may act underneath.
+        if (vm.IsOutputPickerOpen)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:     vm.OutputPicker.Move(-1); break;
+                case Key.Down:   vm.OutputPicker.Move(+1); break;
+                case Key.Enter:  vm.OutputPicker.Commit(); break;
+                case Key.Escape: vm.OutputPicker.Cancel(); break;
+            }
+            e.Handled = true;
+            return;
+        }
 
         // Tag editor open → let it own input. The InputBox handles
         // Tab/Enter/Esc/Backspace/Up/Down via its own KeyDown; we only need to

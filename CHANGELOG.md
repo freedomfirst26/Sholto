@@ -13,6 +13,7 @@ changed at the decks, not which class moved.
 
 ### New
 
+- **Sholto has a system tray icon.** The same tri-colour S as the window. Click it, or choose Show Sholto, to bring the window forward; Quit closes Sholto. Closing the window still quits. On a desktop without a tray, nothing changes.
 - **Search ranks tracks by how well they fit your mix.** Press Space and the list is sorted against the deck you're not loading into: green for a good key and tempo match, amber for usable, grey for a clash. Find tracks by initials, `bpm:128`, `key:8a` or `#tag`; click a row's list mark to add it to the Track List or take it out, and see your crates and tags beside the results. Shift+1 / Shift+2 load straight onto a deck; LOAD on the controller loads the pick.
 - **Search loads into three places: Deck 1, Deck 2 and the Track List.** Ctrl+L adds the highlighted song, crate or tag to the main view's Track List and keeps search open; loads add and never replace, the strip above the list shows the sources (× removes one), and the list survives a restart. Esc on the main view now only closes the tuner.
 - **The violet list mark on a search row adds the song to the Track List, or removes it.** It replaces the shortlist and the Q key: the mark shows a tick (≡✓) while the song is in the list, Ctrl+L does the same on the highlighted row, the row flashes when it is added, the footer counts the list, and any songs you had shortlisted move into the Track List the first time you start.
@@ -38,6 +39,7 @@ changed at the decks, not which class moved.
 
 ### Improved
 
+- **Choosing your audio output now looks like the rest of Sholto.** The picker opens inside the window in your theme. It says whether this is your first start or your saved device is unplugged, and marks the device in use and the system default. Use ↑↓, Enter and Esc, or click.
 - **Track List rows catch a soft sheen of light that follows your pointer.** Nothing moves or resizes; with reduced motion the light just rests on the title.
 
 - **Stem levels now use SHIFT + EQ.** Hold a deck's SHIFT and turn its HI, MID or LOW knob to set that deck's drums, vocals or instrumental level. FX ON/OFF no longer does this, and does nothing in Sholto.
@@ -50,6 +52,7 @@ changed at the decks, not which class moved.
 
 ### Fixed
 
+- **Key chips are easier to read.** Key chips now have white text and stem chips black text, and a theme can set each one. Dimmu Borgir's key chips are coloured instead of all the same grey.
 - **Waveform bands are no longer identical.** Since 1.0 the bass, mid and high bands came out the same, so 3-BAND looked like nested copies and RGB was a single colour. Fixed; each track is re-analysed once the first time you load it.
 
 ## v1.0.0

@@ -76,6 +76,7 @@ internal sealed class TrackListDragRig
             glance,
             new LoadFeedbackViewModel(bus, bus),
             new TrackActionsViewModel(),
+            new OutputPickerViewModel(),
             deck1,
             deck2,
             waveformStyle,
@@ -98,7 +99,7 @@ internal sealed class TrackListDragRig
 
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), bus, bus)
             .Create(new DdjFlx4Faceplate());
-        var window = new MainWindow(overlay, themes.Catalog, new ModalKeyRouter()) { DataContext = vm };
+        var window = new MainWindow(overlay, themes.Catalog, new ModalKeyRouter(), new AppIconFactory()) { DataContext = vm };
         return new TrackListDragRig(library, sender, list, vm, window);
     }
 }
