@@ -7,6 +7,8 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+## v1.1.0
+
 ### Licence
 
 - **Sholto moves to the PolyForm Shield License 1.0.0.** Free for everyone, including paid gigs, streaming, teaching, and clubs or bars running it for their DJs. Anything that competes with Sholto (selling copies, rebranding, hosting it, or bundling it with hardware or another product) needs a commercial licence: freedomfirst26@proton.me. Earlier releases keep the licence they shipped with (v0.1.0 and v0.2.0: PolyForm Noncommercial 1.0.0 with a free grant for individuals; v0.3.0 and v1.0.0: Business Source License 1.1). See [docs/license.md](docs/license.md).
