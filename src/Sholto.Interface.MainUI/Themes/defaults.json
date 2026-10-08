@@ -14,6 +14,7 @@
   "stems": { "drums": "#3D8BFF", "vocals": "#34F06F", "instrumental": "#FF4E5E", "chipText": "#000000" },
   "status": { "ok": "#3DDC84", "warn": "#FFC107", "error": "#FF5252", "attention": "#E8A33D" },
   "camelotPalette": { "keyChipText": "#FFFFFF" },
+  "load": { "deck1": "#3D8BFF", "deck2": "#FF8C2A", "trackList": "#34F06F" },
   "mute": "#FF3D4E",
   "ring": { "start": "#34F06F", "mid": "#FFD63D", "late": "#FF8C2A", "end": "#FF3D4E" },
   "tags": { "chipBg": "#4C5C8A", "chipFg": "#FFFFFF", "indicatorBg": "#33000000", "indicatorFg": "#C0C7D6" },

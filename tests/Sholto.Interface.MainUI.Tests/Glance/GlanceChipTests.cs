@@ -42,7 +42,7 @@ public class GlanceChipTests
     private GlanceRailCrate CrateItem(int id) => Glance.RailItems.OfType<GlanceRailCrate>().Single(c => c.Id == id);
 
     [Fact]
-    public void Activating_a_crate_adds_a_chip_ranks_with_it_and_stays_open_without_filtering_the_library()
+    public void Activating_a_crate_adds_a_chip_ranks_with_it_and_stays_open()
     {
         Pick(Peak);
 
@@ -52,7 +52,6 @@ public class GlanceChipTests
         Assert.Equal([7], _rig.Ranker.Asked[^1].CrateIds);
         Assert.Empty(_rig.Ranker.Asked[^1].Tags);
         Assert.True(Glance.IsOpen);
-        Assert.Empty(_rig.Log.OfType<FilterLibraryByCrate>());
         Assert.True(CrateItem(7).IsActive);
     }
 
@@ -86,21 +85,6 @@ public class GlanceChipTests
 
         Assert.Single(Glance.Chips);
         Assert.True(Glance.IsOpen);
-    }
-
-    [Fact]
-    public void Ctrl_Enter_filters_the_library_and_closes_and_leaves_the_chips_alone()
-    {
-        Pick(Warm);
-        Glance.ActivateRailItem();
-        Pick(Peak);
-
-        Glance.ActivateAlternate();
-
-        var filter = Assert.Single(_rig.Log.OfType<FilterLibraryByCrate>());
-        Assert.Equal(7, filter.CrateId);
-        Assert.False(Glance.IsOpen);
-        Assert.Equal([new GlanceChip(GlanceChipKind.Crate, 8, "Warm up")], Glance.Chips);
     }
 
     [Fact]
@@ -250,11 +234,10 @@ public class GlanceChipTests
     }
 
     [Fact]
-    public void The_action_text_says_add_or_remove_and_the_alternate_says_show_in_library()
+    public void The_action_text_says_add_or_remove()
     {
         Pick(Peak);
         Assert.Equal("Add filter", Glance.ActionText);
-        Assert.Equal("Show in library", Glance.AlternateActionText);
 
         Glance.ActivateRailItem();
 

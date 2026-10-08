@@ -164,7 +164,7 @@
                        Foreground="{DynamicResource SholtoTextBright}"/>
 
             <!-- Which layer the board currently reads as, driven by whichever modifier
-                 is physically held (Shift, stem-level). Hidden outright on "plain" —
+                 is physically held (Shift). Hidden outright on "plain" —
                  everything is plain unless something overrides it, same rule the row
                  tags below use, and the same chip form they wear (SholtoAccentBg /
                  SholtoAccent): this is one more place the same "a layer other than

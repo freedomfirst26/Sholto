@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sholto: DJ software for Linux</title>
+<meta name="description" content="Sholto: DJ software for mixing your own music on Linux and the Pioneer DDJ-FLX4. Free for everyone, including paid gigs. Source-available.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@800&family=JetBrains+Mono:wght@500;700&family=Saira+Semi+Condensed:wght@600;700;800&display=swap">
+<meta name="theme-color" content="#0B0412">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Sholto home"><span class="s" aria-hidden="true"><i>S</i><i>S</i><i>S</i></span><span class="name">Sholto</span></a>
+    <div class="q" role="search">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="#F4EBF1" stroke-width="2"/><path d="M10 10l4 4" stroke="#F4EBF1" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="jump" type="text" autocomplete="off" spellcheck="false" placeholder="Jump to… try  stems, bpm, or initials like sfym" aria-label="Jump to a section" aria-controls="hits">
+      <span class="kc" title="Press Space to search">Space</span>
+      <nav class="chips" aria-label="Sections">
+        <a class="chip" href="#stems">Stems</a>
+        <a class="chip" href="#search">Search</a>
+        <a class="chip" href="#controller">Controller</a>
+        <a class="chip tag" href="#themes">#themes</a>
+      </nav>
+      <ul class="hits" id="hits" role="listbox" hidden></ul>
+    </div>
+    <a class="lk sm" href="#install"><span>⤓ <span class="label">Install</span></span><span class="kc">⏎</span></a>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <span class="s big" aria-hidden="true"><i>S</i><i>S</i><i>S</i></span>
+        <h1>Mix your own music.</h1>
+        <p class="lede">DJ software for Linux and the Pioneer DDJ-FLX4. A free alternative to Rekordbox and Serato, <em>free for everyone, paid gigs included.</em></p>
+        <div class="ctas">
+          <a class="lk" href="#install"><span>⤓ Install</span><span class="kc">⏎</span></a>
+          <a class="lk ghost" href="https://github.com/freedomfirst26/Sholto"><span>Source on GitHub</span></a>
+        </div>
+        <div class="facts" aria-label="At a glance">
+          <span class="kc" data-version>Latest release</span><span class="kc">64-bit Linux</span><span class="kc">DDJ-FLX4 optional</span><span class="kc">no .NET needed</span>
+        </div>
+      </div>
+
+      <figure class="panel stage" style="margin:0">
+        <div class="slots" aria-hidden="true">
+          <div class="slot ref">
+            <svg class="plat" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="#401E5A" stroke-width="3"/><circle cx="20" cy="20" r="17" fill="none" stroke="#3DDC84" stroke-width="3" stroke-dasharray="70 107" transform="rotate(-90 20 20)"/><g class="spin"><circle cx="20" cy="20" r="11" fill="#1B0D31" stroke="#401E5A"/><path d="M20 20L20 10" stroke="#FF3D9F" stroke-width="2"/></g><text x="20" y="24" text-anchor="middle" font-family="IBM Plex Sans" font-weight="700" font-size="11" fill="#F4EBF1">1</text></svg>
+            <div><b>Pressure Systems</b><div class="meta"><span class="camelot" style="background:#9C5868">8B</span>128.0</div></div>
+            <span class="lkey">⇧1</span>
+          </div>
+          <div class="slot d2">
+            <svg class="plat" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="#401E5A" stroke-width="3"/><circle cx="20" cy="20" r="17" fill="none" stroke="#3DDC84" stroke-width="3" stroke-dasharray="40 107" transform="rotate(-90 20 20)"/><g class="spin"><circle cx="20" cy="20" r="11" fill="#1B0D31" stroke="#401E5A"/><path d="M20 20L20 10" stroke="#FFA8D6" stroke-width="2"/></g><text x="20" y="24" text-anchor="middle" font-family="IBM Plex Sans" font-weight="700" font-size="11" fill="#F4EBF1">2</text></svg>
+            <div><b>Static Bloom</b><div class="meta"><span class="camelot" style="background:#C77A2A">9A</span>128.0</div></div>
+            <span class="lkey">⏎ ⇧2</span>
+          </div>
+        </div>
+        <video autoplay muted loop playsinline width="720" height="417" poster="assets/decks-poster.webp" aria-label="Two decks playing: section maps with phrase lengths, scrolling waveforms and spinning platters">
+          <source src="assets/decks.mp4" type="video/mp4">
+          <img loading="lazy" src="assets/decks.webp" alt="Two decks playing in Sholto">
+        </video>
+        <div class="foot">
+          <span><span class="kc">Space</span> Search</span>
+          <span><span class="kc">1</span><span class="kc">2</span> Load</span>
+          <span><span class="kc">P</span> Play</span>
+          <span style="margin-left:auto">Real app, The Birthday Massacre theme</span>
+        </div>
+      </figure>
+    </div>
+  </div>
+
+  <!-- ===================== FEATURES ===================== -->
+  <div class="wrap">
+
+    <article class="feat" id="stems">
+      <div class="fcopy">
+        <div class="eyebrow"><span class="kcs"><span class="kc">SHIFT</span>+<span class="kc">HI</span><span class="kc">MID</span><span class="kc">LOW</span></span> Stems</div>
+        <h3 class="split">Drop the vocal. Keep the drums.</h3>
+        <p>Sholto splits every track into drums, vocals and instrumental. Hold a deck’s SHIFT and turn HI, MID or LOW to ride each level, or tap pads 1 to 3 on the HOT CUE page to mute one.</p>
+        <div class="stems" aria-label="Stem chips: drums and vocals playing, instrumental muted"><span class="d">DRMS</span><span class="v">VOX</span><span class="n">INST</span></div>
+        <p class="muted">Got an NVIDIA graphics card? Separation runs on it by itself. Without one it runs on the processor and takes from half a minute to a few minutes per track, once.</p>
+      </div>
+      <figure class="shot" style="margin:0">
+        <video data-lazyplay muted loop playsinline preload="none" width="960" height="236" poster="assets/stems-still.webp" aria-label="Deck 1: the VOX chip goes hollow, then DRMS, then both come back">
+          <source src="assets/stems.mp4" type="video/mp4">
+          <img loading="lazy" src="assets/stems.webp" width="960" height="236" alt="Deck 1: the VOX chip goes hollow, then DRMS, then both come back">
+        </video>
+        <figcaption class="cap">Mute the vocals, then the drums, from the HOT CUE pads. Hollow means muted.</figcaption>
+      </figure>
+    </article>
+    <article class="feat flip" id="search">
+      <div class="fcopy">
+        <div class="eyebrow"><span class="kc">Space</span> Search</div>
+        <h3 class="split">Search that fits your mix</h3>
+        <p>Press Space and type. Sholto ranks your whole library by how well each track fits the other deck: its key and its tempo, half- and double-time included.</p>
+        <p>Type the initials and skip the rest. <code>iltwykm</code> finds “I Like The Way You Kiss Me”. Add <code>bpm:124-128</code>, <code>key:8a</code> or <code>#vocal</code> to narrow it.</p>
+        <div class="fitkey"><span><i style="background:var(--ok)"></i>Good fit</span><span><i style="background:var(--warn)"></i>Usable</span><span><i style="background:#6E6276"></i>Clash</span></div>
+      </div>
+      <figure class="shot" style="margin:0">
+        <picture>
+          <source media="(prefers-reduced-motion: reduce)" srcset="assets/search-still.webp">
+          <img src="assets/search.webp" width="720" height="297" loading="lazy" alt="Typing the initials mcem narrows the ranked list to Midnight Circuit (Extended Mix)">
+        </picture>
+        <figcaption class="cap">Typing <span class="mono">m c e m</span>. The list is ranked against Deck 1 before you type a letter.</figcaption>
+      </figure>
+    </article>
+    <article class="feat" id="tracklist">
+      <div class="fcopy">
+        <div class="eyebrow"><span class="kcs"><span class="kc">Ctrl</span><span class="kc">L</span></span> Track List</div>
+        <h3 class="split">Build tonight’s set while you search</h3>
+        <p>Search loads into three places: Deck 1, Deck 2 and the Track List. Ctrl&nbsp;L adds the highlighted song, a whole crate or a tag, and keeps search open so you can add more.</p>
+        <p>Nothing is listed twice, you drag to reorder, and the list is still there when you restart Sholto.</p>
+      </div>
+      <figure class="shot" style="margin:0">
+        <video data-lazyplay muted loop playsinline preload="none" width="800" height="600" poster="assets/tracklist-still.webp" aria-label="Ctrl L adds the Peak time crate and two songs to the Track List, then the main view shows the strip">
+          <source src="assets/tracklist.mp4" type="video/mp4">
+          <img loading="lazy" src="assets/tracklist.webp" width="800" height="600" alt="Ctrl L adds the Peak time crate and two songs to the Track List, then the main view shows the strip">
+        </video>
+        <figcaption class="cap">Ctrl&nbsp;L on the Peak time crate, then on two songs. Esc shows the strip: Peak time ×, ♪ 2 songs ×, 11 songs.</figcaption>
+      </figure>
+    </article>
+    <article class="feat flip" id="sections">
+      <div class="fcopy">
+        <div class="eyebrow"><span class="kc">DROP 16</span> Section map</div>
+        <h3 class="split">See the whole song, phrase by phrase</h3>
+        <p>The strip above each waveform names every section and its length in bars, like DROP&nbsp;16, with faint lines every 8, 16 and 32 bars. You see the next phrase coming before you hear it.</p>
+        <p>Pick your waveform: <b>3-BAND</b> stacks bass, mids and highs as layers. <b>RGB</b> colours each fine stripe by what is playing at that instant.</p>
+      </div>
+      <figure class="shot" style="margin:0">
+        <img src="assets/waveform-styles.webp" width="760" height="404" loading="lazy" alt="The same drop drawn as 3-BAND layers and as RGB stripes">
+        <figcaption class="cap">The same drop, in 3-BAND and in RGB.</figcaption>
+      </figure>
+    </article>
+    <article class="feat" id="platter">
+      <div class="fcopy">
+        <div class="eyebrow"><span class="kc">JOG</span> Platter</div>
+        <h3 class="split">Scratch, backspin, brake</h3>
+        <p>Rest a hand on the jog wheel and the record holds. Turn it and the sound follows your hand. Fling it and let go for a backspin.</p>
+        <p>Two Platter feel knobs set how long the spin lasts and how far it rewinds, counted in beats so it follows the tempo.</p>
+      </div>
+      <figure class="shot" style="margin:0">
+        <video data-lazyplay muted loop playsinline preload="none" width="960" height="236" poster="assets/backspin-still.webp" aria-label="Deck 1 backspin: the platter whips back, the waveform rewinds and the track plays on">
+          <source src="assets/backspin.mp4" type="video/mp4">
+          <img loading="lazy" src="assets/backspin.webp" width="960" height="236" alt="Deck 1 backspin: the platter whips back, the waveform rewinds and the track plays on">
+        </video>
+        <figcaption class="cap">A fling backwards on the jog wheel. Watch the minimap playhead jump back.</figcaption>
+      </figure>
+    </article>
+    <article class="feat flip" id="snap">
+      <div class="fcopy">
+        <div class="eyebrow"><span class="kc">⛓</span> Beat-snap</div>
+        <h3 class="split">Beats that snap together</h3>
+        <p>Bring two tracks close and the jog wheel holds on the beat. Let go and they lock, tempo included. Nothing to arm.</p>
+      </div>
+      <figure class="shot" style="margin:0">
+        <img src="assets/magnet-snap.webp" width="760" height="431" loading="lazy" alt="Two decks on the same downbeat with green glow marks and a chain-link icon between the discs">
+      </figure>
+    </article>
+
+
+
+
+
+  </div>
+
+  <!-- ===================== CONTROLLER ===================== -->
+  <section id="controller">
+    <div class="wrap">
+      <div class="eyebrow"><span class="kc">DDJ-FLX4</span> Controller</div>
+      <h2 class="split">Your controller, drawn on screen</h2>
+      <p>Plug in a Pioneer DDJ-FLX4 and it just works. Click any control on the drawing, or press it on the real thing, to see what it does, including the Shift combinations. Controls Sholto does not use stay grey.</p>
+      <figure class="panel" style="margin:22px 0 0">
+        <img src="assets/sholto-faceplate.webp" width="1000" height="625" loading="lazy" alt="The DDJ-FLX4 drawn on screen with the jog wheel selected and a panel explaining it">
+        <div class="foot"><span>No controller? Everything works from the mouse and keyboard.</span></div>
+      </figure>
+      <div class="keys" aria-label="Keyboard shortcuts">
+        <div><span class="kcs"><span class="kc">Space</span></span>Open search</div>
+        <div><span class="kcs"><span class="kc">1</span><span class="kc">2</span></span>Load onto a deck</div>
+        <div><span class="kcs"><span class="kc">P</span><span class="kc">⇧P</span></span>Play Deck 1 / 2</div>
+        <div><span class="kcs"><span class="kc">G</span></span>Tempo and beatgrid tuner</div>
+        <div><span class="kcs"><span class="kc">Ctrl</span><span class="kc">Z</span></span>Undo a load</div>
+        <div><span class="kcs"><span class="kc">F11</span></span>Fullscreen</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== THEMES ===================== -->
+  <section id="themes">
+    <div class="wrap">
+      <div class="eyebrow"><span class="chip tag" style="height:22px">#themes</span> Themes</div>
+      <h2 class="split">Make it yours</h2>
+      <p>Eleven themes recolour everything: the library, the key chips, the section map and the waveforms. Or write your own in a small JSON file. Pick one to see it.</p>
+      <div class="tpick" role="tablist" aria-label="Themes">
+        <button type="button" role="tab" class="tchip" aria-selected="true" data-src="assets/theme-the-birthday-massacre.webp"><span>The Birthday Massacre</span></button>
+        <button type="button" role="tab" class="tchip" aria-selected="false" data-src="assets/theme-classic.webp"><span>Classic</span></button>
+        <button type="button" role="tab" class="tchip" aria-selected="false" data-src="assets/theme-aphex-twin.webp"><span>Aphex Twin</span></button>
+        <button type="button" role="tab" class="tchip" aria-selected="false" data-src="assets/theme-type-o-negative.webp"><span>Type O Negative</span></button>
+        <button type="button" role="tab" class="tchip" aria-selected="false" data-src="assets/theme-the-prodigy.webp"><span>The Prodigy</span></button>
+        <button type="button" role="tab" class="tchip" aria-selected="false" data-src="assets/theme-serato.webp"><span>Serato</span></button>
+      </div>
+      <figure class="shot tview" style="margin:0">
+        <img id="themeimg" src="assets/theme-the-birthday-massacre.webp" width="1440" height="852" loading="lazy" alt="Two decks playing in The Birthday Massacre theme">
+      </figure>
+      <article class="feat" style="border-top:0;margin-top:20px">
+        <div class="fcopy">
+          <div class="eyebrow"><span class="kc">Settings ▸ Layout Wizard</span></div>
+          <h3 class="split">Try them all on first</h3>
+          <p>The Layout Wizard puts each theme on the whole app as you move through the gallery. Nothing is kept until you press Apply, and Esc puts back what you had.</p>
+        </div>
+        <figure class="shot" style="margin:0">
+          <picture>
+            <source media="(prefers-reduced-motion: reduce)" srcset="assets/tryon-still.webp">
+            <img src="assets/tryon.webp" width="640" height="480" loading="lazy" alt="The Layout Wizard trying each theme on the whole app in turn">
+          </picture>
+        </figure>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===================== INSTALL ===================== -->
+  <section id="install">
+    <div class="wrap">
+      <div class="eyebrow"><span class="kc">⏎</span> Install</div>
+      <h2 class="split">One command</h2>
+      <p>It downloads the latest release into <code>~/sholto</code>, installs the tools it needs (it asks for your password once) and starts Sholto. Run it again to update.</p>
+      <div class="install" style="margin-top:22px">
+        <div class="panel term">
+          <div class="head"><span class="dot" style="background:var(--ok)"></span>Terminal · Ubuntu, Mint, Pop!_OS or Debian</div>
+          <div class="cmd">
+            <pre id="cmd"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash</pre>
+            <button class="copybtn" id="copybtn" type="button"><span>Copy</span></button>
+          </div>
+          <ol class="steps">
+            <li><span class="n">1</span>Finds the newest release on GitHub and downloads it, about 43&nbsp;MB.</li>
+            <li><span class="n">2</span>Installs ffmpeg, the beat detector (madmom) and stem separation (demucs).</li>
+            <li><span class="n">3</span>Starts Sholto. It scans your Music folder; press 1 or 2 to load a track.</li>
+          </ol>
+          <details class="alt">
+            <summary>Download it by hand</summary>
+            <pre>mkdir -p ~/sholto
+tar -xzf ~/Downloads/sholto-*-linux-x64.tar.gz -C ~/sholto
+cd ~/sholto
+bash install-deps.sh
+./Sholto</pre>
+          </details>
+          <details class="alt">
+            <summary>Build from source</summary>
+            <pre>git clone https://github.com/freedomfirst26/Sholto.git
+cd Sholto
+bash install.sh
+dotnet run -c Release --project src/Sholto.Interface.MainUI</pre>
+          </details>
+        </div>
+        <div class="panel req">
+          <h3>What you need</h3>
+          <dl>
+            <div><dt>Computer</dt><dd>64-bit Linux with a desktop and sound. Ubuntu, Mint, Pop!_OS or Debian for the installer.</dd></div>
+            <div><dt>Controller</dt><dd><span class="dot" style="background:var(--ok)"></span>Pioneer DDJ-FLX4, optional. Mouse and keyboard work.</dd></div>
+            <div><dt>Graphics card</dt><dd>Optional. An NVIDIA card makes stem separation faster.</dd></div>
+            <div><dt>Disk</dt><dd>About 250&nbsp;MB per track for stems, kept so they load instantly next time.</dd></div>
+          </dl>
+          <div class="trust">
+            <a class="chip" data-version-link href="https://github.com/freedomfirst26/Sholto/releases/latest">Latest release</a>
+            <a class="chip" href="https://github.com/freedomfirst26/Sholto/blob/main/CHANGELOG.md">What’s new</a>
+            <a class="chip" href="https://github.com/freedomfirst26/Sholto/blob/main/get-sholto.sh">Read the script</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FAQ ===================== -->
+  <section id="faq">
+    <div class="wrap">
+      <div class="eyebrow"><span class="kc">?</span> Questions</div>
+      <h2 class="split">Before you install</h2>
+      <div class="faq">
+        <details><summary>Is it really free?</summary><div><p>Yes, for everyone: paid gigs, streaming, teaching, and clubs or bars running it for their DJs. Sholto is source-available. Anything that competes with it (selling copies, rebranding, hosting it, or bundling it with hardware or another product) needs a commercial licence: freedomfirst26@proton.me. The beat detector (madmom) has non-commercial models under their own licence, which Sholto&rsquo;s licence does not cover.</p></div></details>
+        <details><summary>Do I need a DDJ-FLX4?</summary><div><p>No. Everything works from the mouse and keyboard. Plug the FLX4 in at any time and a green dot in the top bar shows it is connected.</p></div></details>
+        <details><summary>Windows or macOS?</summary><div><p>Not yet. Sholto runs on 64-bit Linux today. Windows, macOS and more controllers are on the way.</p></div></details>
+        <details><summary>What music does it play?</summary><div><p>mp3, FLAC, WAV, AIFF and M4A/AAC from your own music folder. It analyses each track once for beats, tempo and key, then remembers.</p></div></details>
+        <details><summary>Something did not install. How do I check?</summary><div><p>Run <code>bash install-deps.sh --verify</code> in <code>~/sholto</code>. It runs each tool for real and tells you which one is broken and what you lose without it. In the app, the status dot turns amber and lists the same.</p></div></details>
+        <details><summary>How do I update?</summary><div><p>Run the same install command again. It skips the download if you already have the newest release.</p></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="panel final">
+        <div style="display:flex;gap:18px;align-items:center"><span class="s" style="font-size:64px" aria-hidden="true"><i>S</i><i>S</i><i>S</i></span><h2>Ready to mix?</h2></div>
+        <a class="lk" href="#install"><span>⤓ Install</span><span class="kc">⏎</span></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="s" aria-hidden="true"><i>S</i><i>S</i><i>S</i></span>
+    <nav aria-label="Footer">
+      <a href="https://github.com/freedomfirst26/Sholto">GitHub</a>
+      <a href="https://github.com/freedomfirst26/Sholto/tree/main/docs">The guide</a>
+      <a href="https://github.com/freedomfirst26/Sholto/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/freedomfirst26/Sholto/blob/main/docs/license.md">Licence</a>
+      <a href="https://github.com/freedomfirst26/Sholto/blob/main/THIRD-PARTY-NOTICES.md">Third-party notices</a>
+    </nav>
+    <span style="margin-left:auto">PolyForm Shield License 1.0.0 · source-available, free for everyone. Pioneer and DDJ-FLX4 are trademarks of their owners.</span>
+  </div>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>

@@ -13,7 +13,4 @@ public readonly record struct SetBackspinTime(double Seconds, Origin Origin) : I
 
     /// <summary>The stock coast, in seconds.</summary>
     public const double Default = 0.6;
-
-    /// <summary>Not a deck command: it applies to both platters.</summary>
-    public int Deck => -1;
 }

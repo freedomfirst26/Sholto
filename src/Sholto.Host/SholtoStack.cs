@@ -1,4 +1,5 @@
 using Sholto.App.Analysis;
+using Sholto.App.Analysis.Stems;
 using Sholto.Interface.MainUI.ViewModels;
 using Sholto.App.Audio;
 using Sholto.App.Dsp;
@@ -56,7 +57,9 @@ public sealed class SholtoStack(
     ISettingPreference waveformStylePreference,
     ISettingPreference backspinTimePreference,
     ISettingPreference backspinDistancePreference,
-    ISettingPreference shortlistPreference)
+    ISettingPreference legacyShortlistPreference,
+    ISettingPreference trackListPreference,
+    IStemGate stemGate)
 {
     public ExternalToolStack ToolStack { get; } = toolStack;
     public FlacDecodeStrategy FlacStrategy { get; } = flacStrategy;
@@ -78,5 +81,8 @@ public sealed class SholtoStack(
     public ISettingPreference WaveformStylePreference { get; } = waveformStylePreference;
     public ISettingPreference BackspinTimePreference { get; } = backspinTimePreference;
     public ISettingPreference BackspinDistancePreference { get; } = backspinDistancePreference;
-    public ISettingPreference ShortlistPreference { get; } = shortlistPreference;
+    public ISettingPreference LegacyShortlistPreference { get; } = legacyShortlistPreference;
+    public ISettingPreference TrackListPreference { get; } = trackListPreference;
+    /// <summary>The one demucs slot, shared by the decks' stem stage and the re-analysis separator.</summary>
+    public IStemGate StemGate { get; } = stemGate;
 }

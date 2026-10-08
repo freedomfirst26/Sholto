@@ -25,6 +25,20 @@ public sealed class ThemeResourcesApplier
 
     private Color WithAlpha(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
 
+    private Color Mix(Color from, Color to, double t) => Color.FromArgb(
+        255,
+        (byte)Math.Round(from.R + (to.R - from.R) * t),
+        (byte)Math.Round(from.G + (to.G - from.G) * t),
+        (byte)Math.Round(from.B + (to.B - from.B) * t));
+
+    /// <summary>The target slot's wash: the deck's colour fading into the raised surface, left to right.</summary>
+    private LinearGradientBrush Wash(Color raised, Color deck) => new()
+    {
+        StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
+        GradientStops = [new GradientStop(Mix(raised, deck, 0.30), 0), new GradientStop(Mix(raised, deck, 0.09), 0.7)],
+    };
+
     /// <summary>Every themed key (brushes, palettes, shadows, tints) for <paramref name="theme"/>, in a new dictionary.</summary>
     private ResourceDictionary Create(SholtoTheme theme)
     {
@@ -98,6 +112,12 @@ public sealed class ThemeResourcesApplier
                 new GradientStop(WithAlpha(accent, 0), 1),
             ],
         };
+        // Load destinations: deck 1, deck 2, Track List.
+        resources["SholtoLoadDeck1"]     = Solid(theme.Load.Deck1);
+        resources["SholtoLoadDeck2"]     = Solid(theme.Load.Deck2);
+        resources["SholtoLoadTrackList"] = Solid(theme.Load.TrackList);
+        resources["SholtoSlotDeck1Wash"] = Wash(raised, theme.Load.Deck1);
+        resources["SholtoSlotDeck2Wash"] = Wash(raised, theme.Load.Deck2);
         resources["SholtoIconPlate"] = Solid(theme.IconPlate);
 
         // Tag editor chips + track-list tag indicator. The unprefixed keys are kept

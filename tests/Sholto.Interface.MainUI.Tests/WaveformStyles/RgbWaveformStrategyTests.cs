@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
 using Sholto.Interface.MainUI.Theming;
@@ -10,7 +11,7 @@ public class RgbWaveformStrategyTests
 {
     private const int MidY = 128;
 
-    private readonly IWaveformStyleStrategy _rgb = new WaveformStylesFactory().Create().ById("rgb");
+    private readonly IWaveformStyleStrategy _rgb = new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create().ById("rgb");
     private readonly WaveformPalette _palette = new TestWaveformPalette().Create();
     private readonly BakedPixels _pixels = new();
 
@@ -28,20 +29,25 @@ public class RgbWaveformStrategyTests
     }
 
     [Fact]
-    public void A_kick_column_is_red_and_a_hat_column_blue_even_with_every_band_loud()
+    public void Sustained_kick_hat_and_mid_sections_tint_red_blue_and_green_even_with_every_band_loud()
     {
-        using var image = _rgb.Bake(EightColumns(), _palette, CancellationToken.None)!;
-        var loudKick = _pixels.At(image, 0, MidY);
-        var loudHat = _pixels.At(image, 1, MidY);
-        var kick = _pixels.At(image, 2, MidY);
-        var hat = _pixels.At(image, 3, MidY);
-        var midLed = _pixels.At(image, 4, MidY);
-
-        Assert.True(loudKick.Red > loudKick.Blue && loudKick.Red > loudKick.Green, $"loud kick {loudKick}");
-        Assert.True(loudHat.Blue > loudHat.Red && loudHat.Blue > loudHat.Green, $"loud hat {loudHat}");
-        // Dimmed to this column's loudness (0.8 → ×0.92), so red is the top channel, not necessarily 255.
-        Assert.True(kick.Red > 200 && kick.Green < 100 && kick.Blue < 100, $"kick {kick}");
-        Assert.True(hat.Blue > hat.Red && hat.Blue >= hat.Green, $"hat {hat}");
+        // 48 columns each, every band near its reference (a drop). Colour is smoothed over neighbours, so
+        // each section is judged well inside its own run.
+        const int run = 48;
+        float[][] bands = [[1f, .9f, .73f], [.67f, .9f, 1f], [.3f, 1f, .5f]];
+        var low = new float[3 * run]; var mid = new float[3 * run]; var high = new float[3 * run];
+        var max = new float[3 * run]; var min = new float[3 * run];
+        for (int x = 0; x < 3 * run; x++)
+        {
+            var b = bands[x / run];
+            (low[x], mid[x], high[x], max[x], min[x]) = (b[0], b[1], b[2], .8f, -.8f);
+        }
+        using var image = _rgb.Bake(new WaveformPeaks(min, max, low, mid, high, 1024, 48000), _palette, CancellationToken.None)!;
+        var kick = _pixels.At(image, run / 2, MidY);
+        var hat = _pixels.At(image, run + run / 2, MidY);
+        var midLed = _pixels.At(image, 2 * run + run / 2, MidY);
+        Assert.True(kick.Red > kick.Blue && kick.Red > kick.Green, $"kick {kick}");
+        Assert.True(hat.Blue > hat.Red && hat.Blue > hat.Green, $"hat {hat}");
         Assert.True(midLed.Green > midLed.Red && midLed.Green > midLed.Blue, $"mid-led {midLed}");
     }
 
@@ -104,12 +110,28 @@ public class RgbWaveformStrategyTests
     private int Brightest(SKColor c) => Math.Max(c.Red, Math.Max(c.Green, c.Blue));
 
     [Fact]
-    public void A_kick_column_is_red_dominant_in_the_synthetic_track()
+    public void Alternating_kick_and_hat_columns_blend_in_colour_but_heights_still_follow_each_column()
     {
-        // Column 48 is a kick in TestWaveformPeaks (low 1, quiet highs).
-        using var image = _rgb.Bake(new TestWaveformPeaks().Create(), _palette, CancellationToken.None)!;
-        var c = _pixels.At(image, 48, MidY);
-        Assert.True(c.Red > c.Green && c.Red > c.Blue, $"expected a red-led column, got {c}");
+        const int n = 64;
+        var low = new float[n]; var mid = new float[n]; var high = new float[n];
+        var max = new float[n]; var min = new float[n];
+        for (int x = 0; x < n; x++)
+        {
+            bool kick = x % 2 == 0;
+            low[x] = kick ? 1f : .1f; mid[x] = .5f; high[x] = kick ? .1f : 1f;
+            max[x] = kick ? .9f : .4f; min[x] = -max[x];
+        }
+        using var image = _rgb.Bake(new WaveformPeaks(min, max, low, mid, high, 1024, 48000), _palette, CancellationToken.None)!;
+        for (int x = 20; x < 43; x++)
+        {
+            _pixels.At(image, x, MidY).ToHsv(out float h1, out _, out _);
+            _pixels.At(image, x + 1, MidY).ToHsv(out float h2, out _, out _);
+            float d = MathF.Abs(h1 - h2); d = MathF.Min(d, 360f - d);
+            Assert.True(d < 12f, $"hue jumps {d} degrees between columns {x} and {x + 1}");
+        }
+        var bg = _palette.Background.ToSk();
+        Assert.NotEqual(bg, _pixels.At(image, 30, MidY - 100));   // kick column is tall
+        Assert.Equal(bg, _pixels.At(image, 31, MidY - 100));      // hat column is short
     }
 
     [Fact]
@@ -126,7 +148,7 @@ public class RgbWaveformStrategyTests
     {
         var peaks = new TestWaveformPeaks().CreateWithoutBands();
         using var image = _rgb.Bake(peaks, _palette, CancellationToken.None)!;
-        var even = new RgbColourMixer().Mix(1f, 1f, 1f, _palette.RgbLow.ToSk(), _palette.RgbMid.ToSk(), _palette.RgbHigh.ToSk());
+        var even = new RgbColourMixer(0.75f).Mix(1f, 1f, 1f, _palette.RgbLow.ToSk(), _palette.RgbMid.ToSk(), _palette.RgbHigh.ToSk());
         // Hue is the even mix; brightness follows this column's loudness, so compare channel ratios.
         var c = _pixels.At(image, 600, MidY);
         Assert.Equal(Brightest(even), 255);

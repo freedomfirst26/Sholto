@@ -39,7 +39,6 @@ public sealed class ScenarioGestureFactory : IScenarioGestureFactory
             "BeatLoopDouble" => new ControllerEvent.BeatLoopDouble(Deck0(a)),
             "NudgeGrid" => new ControllerEvent.NudgeGrid(a.Deck is { } d ? d - 1 : -1, a.Delta ?? 1),
             "DeckShift" => new ControllerEvent.DeckShift(Deck0(a), a.On ?? true),
-            "StemLevelMode" => new ControllerEvent.StemLevelMode(a.On ?? true),
             "BeatSyncPressed" => new ControllerEvent.BeatSyncPressed(Deck0(a)),
             "CycleTempoRange" => new ControllerEvent.CycleTempoRange(Deck0(a)),
             "PadPageSelected" => new ControllerEvent.PadPageSelected(Deck0(a), ParsePage(a)),

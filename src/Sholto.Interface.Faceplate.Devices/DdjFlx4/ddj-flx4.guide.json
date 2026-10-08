@@ -11,11 +11,6 @@
       "modifier": "deck.shift"
     },
     {
-      "id": "stem-level",
-      "name": "Stem levels",
-      "modifier": "fx.onoff"
-    },
-    {
       "id": "page.hotcue",
       "name": "HOT CUE page",
       "modifier": "deck.padmode.hotcue"
@@ -76,7 +71,7 @@
           "id": "shift.hold",
           "verb": "hold",
           "layer": "plain",
-          "result": "Unlocks the alternate job of the [[deck.jog]], the transport [[deck.cue.transport]] button, and [[deck.sync]] on this deck. On its own it does nothing."
+          "result": "Unlocks the alternate job of the [[deck.jog]], the transport [[deck.cue.transport]] button, [[deck.sync]] and the [[mixer.eq.hi]], [[mixer.eq.mid]] and [[mixer.eq.low]] knobs (stem levels) on this deck. On its own it does nothing."
         }
       ]
     },
@@ -211,7 +206,7 @@
           "with": [
             "deck.padmode.hotcue"
           ],
-          "result": "Mutes or brings back the drums for this deck, once its stems are ready."
+          "result": "Mutes or brings back the drums for this deck, once its stems are ready. Hold [[deck.shift]] and turn [[mixer.eq.hi]] to set the drums' volume."
         },
         {
           "id": "pad.padfx1.echo",
@@ -237,7 +232,7 @@
           "with": [
             "deck.padmode.hotcue"
           ],
-          "result": "Mutes or brings back the vocals for this deck, once its stems are ready."
+          "result": "Mutes or brings back the vocals for this deck, once its stems are ready. Hold [[deck.shift]] and turn [[mixer.eq.mid]] to set the vocals' volume."
         },
         {
           "id": "pad.padfx1.roll",
@@ -263,7 +258,7 @@
           "with": [
             "deck.padmode.hotcue"
           ],
-          "result": "Mutes or brings back the instrumental \u2014 everything except vocals and drums \u2014 for this deck, once its stems are ready."
+          "result": "Mutes or brings back the instrumental \u2014 everything except vocals and drums \u2014 for this deck, once its stems are ready. Hold [[deck.shift]] and turn [[mixer.eq.low]] to set the instrumental's volume."
         }
       ]
     },
@@ -366,11 +361,11 @@
         {
           "id": "eq.stemlevel.turn",
           "verb": "turn",
-          "layer": "stem-level",
+          "layer": "shift",
           "with": [
-            "fx.onoff"
+            "deck.shift"
           ],
-          "result": "While [[fx.onoff]] is held, this sets the drums' volume on this deck instead of the EQ."
+          "result": "While this deck's [[deck.shift]] is held, this sets the drums' volume on this deck instead of the EQ. Centre is full volume; turn left to fade it out."
         }
       ]
     },
@@ -389,11 +384,11 @@
         {
           "id": "eq.stemlevel.turn",
           "verb": "turn",
-          "layer": "stem-level",
+          "layer": "shift",
           "with": [
-            "fx.onoff"
+            "deck.shift"
           ],
-          "result": "While [[fx.onoff]] is held, this sets the vocals' volume on this deck instead of the EQ."
+          "result": "While this deck's [[deck.shift]] is held, this sets the vocals' volume on this deck instead of the EQ. Centre is full volume; turn left to fade it out."
         }
       ]
     },
@@ -412,11 +407,11 @@
         {
           "id": "eq.stemlevel.turn",
           "verb": "turn",
-          "layer": "stem-level",
+          "layer": "shift",
           "with": [
-            "fx.onoff"
+            "deck.shift"
           ],
-          "result": "While [[fx.onoff]] is held, this sets the instrumental \u2014 everything except vocals and drums \u2014 volume on this deck instead of the EQ."
+          "result": "While this deck's [[deck.shift]] is held, this sets the instrumental \u2014 everything except vocals and drums \u2014 volume on this deck instead of the EQ. Centre is full volume; turn left to fade it out."
         }
       ]
     },
@@ -522,19 +517,19 @@
       "id": "browse.knob",
       "label": "Browse",
       "scope": "global",
-      "summary": "The rotary knob for moving through your library. Turn it to scroll, press it to open search, or hold it to re-analyse.",
+      "summary": "The rotary knob for moving through your library. Turn it to scroll the library, hold it to re-analyse the selected track.",
       "gestures": [
         {
           "id": "browse.turn",
           "verb": "turn",
           "layer": "plain",
-          "result": "Scrolls up or down your library list, or the search list while search is open."
+          "result": "Scrolls up or down your library list."
         },
         {
           "id": "browse.press.short",
           "verb": "press briefly",
           "layer": "plain",
-          "result": "Opens search. Press again to switch between the list and the shortlist/crates rail."
+          "result": "Does nothing."
         },
         {
           "id": "browse.press.hold",
@@ -548,15 +543,8 @@
       "id": "fx.onoff",
       "label": "FX ON/OFF (RELEASE FX)",
       "scope": "global",
-      "summary": "The button above the BEAT FX section. Sholto repurposes it as a modifier rather than for its printed effect.",
-      "gestures": [
-        {
-          "id": "stemlevel.hold",
-          "verb": "hold",
-          "layer": "plain",
-          "result": "While held, the [[mixer.eq.hi]], [[mixer.eq.mid]] and [[mixer.eq.low]] knobs on either deck set the drums, vocals and instrumental levels instead of the EQ. On its own it does nothing."
-        }
-      ]
+      "summary": "The button above the BEAT FX section. Sholto does not implement this \u2014 pressing it does nothing here.",
+      "gestures": []
     },
     {
       "id": "beat.nudge.back",

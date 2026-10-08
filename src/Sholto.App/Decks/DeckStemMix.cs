@@ -4,7 +4,7 @@ using Sholto.Data;
 namespace Sholto.App.Decks;
 
 /// <summary>See <see cref="IDeckStemMix"/>. The mute setters publish but do not touch the audio (the pad
-/// handler pushes the mute itself); the level setters push to the audio.</summary>
+/// handler pushes the mute itself); the level setters push to the audio and publish the level.</summary>
 public sealed class DeckStemMix(int index, IStemControl stems, IEventPublisher publisher) : IDeckStemMix
 {
     private readonly int _index = index;
@@ -54,7 +54,8 @@ public sealed class DeckStemMix(int index, IStemControl stems, IEventPublisher p
         }
     }
 
-    // Per-stem continuous level (0..1.5), driven by Shift + EQ knobs on the FLX-4. Default 1.0 (unity).
+    // Per-stem continuous level (0 = silent, 1.0 = unity; the audio does not boost above 1), driven by Shift + EQ knobs
+    // on the FLX-4 (knob centre = unity). Default 1.0.
     // The setter pushes the level to the audio path.
     public double DrumsLevel
     {
@@ -65,6 +66,7 @@ public sealed class DeckStemMix(int index, IStemControl stems, IEventPublisher p
             _drumsLevel = value;
             _stems.SetStemGroupLevel(0, value);
             Changed?.Invoke(DeckChange.DrumsLevel);
+            PublishLevel(0);
         }
     }
 
@@ -77,6 +79,7 @@ public sealed class DeckStemMix(int index, IStemControl stems, IEventPublisher p
             _vocalsLevel = value;
             _stems.SetStemGroupLevel(1, value);
             Changed?.Invoke(DeckChange.VocalsLevel);
+            PublishLevel(1);
         }
     }
 
@@ -89,6 +92,7 @@ public sealed class DeckStemMix(int index, IStemControl stems, IEventPublisher p
             _instrumentalLevel = value;
             _stems.SetStemGroupLevel(2, value);
             Changed?.Invoke(DeckChange.InstrumentalLevel);
+            PublishLevel(2);
         }
     }
 
@@ -104,7 +108,11 @@ public sealed class DeckStemMix(int index, IStemControl stems, IEventPublisher p
 
     public void PublishCurrent()
     {
-        for (var stem = 0; stem < StemMuteChanged.StemsPerDeck; stem++) PublishStem(stem);
+        for (var stem = 0; stem < StemMuteChanged.StemsPerDeck; stem++)
+        {
+            PublishStem(stem);
+            PublishLevel(stem);
+        }
     }
 
     private void PublishStem(int stem)
@@ -116,5 +124,16 @@ public sealed class DeckStemMix(int index, IStemControl stems, IEventPublisher p
             _ => _instrumentalActive,
         };
         _publisher.Publish(new StemMuteChanged(_index, stem, !active));
+    }
+
+    private void PublishLevel(int stem)
+    {
+        var level = stem switch
+        {
+            0 => _drumsLevel,
+            1 => _vocalsLevel,
+            _ => _instrumentalLevel,
+        };
+        _publisher.Publish(new StemLevelChanged(_index, stem, level));
     }
 }

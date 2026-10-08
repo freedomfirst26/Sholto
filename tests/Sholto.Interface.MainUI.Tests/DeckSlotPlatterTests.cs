@@ -23,7 +23,9 @@ public class DeckSlotPlatterTests
         public string Camelot => "";
         public IBrush? KeyBrush => null;
         public string BpmText => "";
-        public string TimeText => "";
+        public bool IsLow { get; set; }
+        public bool ShowsKeyCap => false;
+        public string KeyCapLabel => "";
         public string CautionText => "";
         public string ArmedText => "";
         public string EmptyTitle => "";
@@ -49,6 +51,7 @@ public class DeckSlotPlatterTests
         Slot = slot,
         TrackBrush = new SolidColorBrush(Colors.DimGray),
         PlayingBrush = new SolidColorBrush(Colors.LimeGreen),
+        LowBrush = new SolidColorBrush(Colors.Red),
         MutedBrush = new SolidColorBrush(Colors.Gray),
         AccentBrush = new SolidColorBrush(Colors.Gold),
         DiscBrush = new SolidColorBrush(Colors.Black),
@@ -114,7 +117,7 @@ public class DeckSlotPlatterTests
     }
 
     [Fact]
-    public void A_ghost_record_measures_52_and_draws_its_disc_only_while_the_deck_is_empty()
+    public void A_ghost_record_measures_64_and_draws_its_disc_only_while_the_deck_is_empty()
     {
         var slot = new StubSlot { IsLoaded = false, IsPlaying = false, IsTarget = false };
         var c = Control(slot);
@@ -122,8 +125,8 @@ public class DeckSlotPlatterTests
         c.Width = double.NaN;
         c.Height = double.NaN;
         c.Measure(new Size(200, 200));
-        Assert.Equal(new Size(52, 52), c.DesiredSize);
-        using var rtb = new RenderTargetBitmap(new PixelSize(52, 52));
+        Assert.Equal(new Size(64, 64), c.DesiredSize);
+        using var rtb = new RenderTargetBitmap(new PixelSize(64, 64));
         Draw(c, rtb, 1, _ => { });
         Assert.True(c.PaintBuilds > 0);
 
@@ -139,7 +142,7 @@ public class DeckSlotPlatterTests
         var slot = new StubSlot { IsLoaded = false, IsPlaying = false, IsTarget = true };
         var c = Control(slot);
         c.Ghost = true;
-        using var rtb = new RenderTargetBitmap(new PixelSize(52, 52));
+        using var rtb = new RenderTargetBitmap(new PixelSize(64, 64));
         using var ctx = rtb.CreateDrawingContext();
         for (var i = 0; i < 300; i++) c.Render(ctx);
         var built = c.PaintBuilds;
@@ -205,5 +208,39 @@ public class DeckSlotPlatterTests
         // The control allocates nothing per frame; the drawing context may record a small fixed amount per
         // call, so bound it per frame rather than demand zero from Avalonia.
         Assert.True(allocated <= 1000 * 256L, $"allocated {allocated} bytes over 1000 frames");
+    }
+
+    private static IBrush? RingBrushAfterDraw(DeckSlotPlatter c, int size)
+    {
+        c.Measure(new Size(size, size));
+        c.Arrange(new Rect(0, 0, size, size));
+        using var rtb = new RenderTargetBitmap(new PixelSize(size, size));
+        using (var ctx = rtb.CreateDrawingContext()) c.Render(ctx);
+        return c.RingBrush;
+    }
+
+    [Fact]
+    public void A_low_slot_draws_its_arc_with_the_low_brush()
+    {
+        var slot = new StubSlot { IsLow = true, RemainingFraction = 0.5 };
+        var c = Control(slot);
+        c.Width = 52;
+        c.Height = 52;
+
+        Assert.Same(c.LowBrush, RingBrushAfterDraw(c, 52));
+
+        slot.IsLow = false;
+        Assert.Same(c.PlayingBrush, RingBrushAfterDraw(c, 52));
+    }
+
+    [Fact]
+    public void The_platter_measures_to_its_set_size()
+    {
+        var c = Control(new StubSlot());
+        c.Width = 52;
+        c.Height = 52;
+        c.Measure(new Size(200, 200));
+
+        Assert.Equal(new Size(52, 52), c.DesiredSize);
     }
 }

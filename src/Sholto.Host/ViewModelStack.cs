@@ -3,6 +3,7 @@ using Sholto.App.Analysis.Analyzers.Segments;
 using Sholto.App.Audio;
 using Sholto.App.Library;
 using Sholto.App;
+using Sholto.Interface.MainUI.Controls.WaveformStyles;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
 
@@ -18,6 +19,9 @@ namespace Sholto.Host;
 /// <see cref="ISholtoEntities"/>.</summary>
 public sealed class ViewModelStack(
     IOptions<FeatureOptions> features,
+    IOptions<DeckViewOptions> deckView,
+    IOptions<GlanceViewOptions> glanceView,
+    IOptions<WaveformStyleOptions> waveformStyle,
     IDeckFactory decks,
     IThemeContext theme,
     IPhraseSectionAnalyzer songSegments,
@@ -26,6 +30,9 @@ public sealed class ViewModelStack(
     ICoreFactory coreFactory)
 {
     public IOptions<FeatureOptions> Features { get; } = features;
+    public IOptions<DeckViewOptions> DeckView { get; } = deckView;
+    public IOptions<GlanceViewOptions> GlanceView { get; } = glanceView;
+    public IOptions<WaveformStyleOptions> WaveformStyle { get; } = waveformStyle;
     public IDeckFactory Decks { get; } = decks;
     public IThemeContext Theme { get; } = theme;
     public IPhraseSectionAnalyzer SongSegments { get; } = songSegments;

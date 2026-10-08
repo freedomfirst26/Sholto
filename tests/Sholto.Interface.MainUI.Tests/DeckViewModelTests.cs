@@ -393,6 +393,59 @@ public class DeckViewModelTests
     // ---- Stems, echo, cue -----------------------------------------------------------------------
 
     [Fact]
+    public void Every_stem_chip_starts_at_full_opacity()
+    {
+        Assert.Equal(1.0, _deck.DrumsChipOpacity);
+        Assert.Equal(1.0, _deck.VocalsChipOpacity);
+        Assert.Equal(1.0, _deck.InstrumentalChipOpacity);
+    }
+
+    [Theory]
+    [InlineData(1.0, 1.0)]
+    [InlineData(0.5, 0.65)]
+    [InlineData(0.0, 0.3)]
+    [InlineData(0.75, 0.825)]
+    [InlineData(1.5, 1.0)]
+    public void A_stem_level_maps_to_chip_opacity_from_0_3_up_to_1(double level, double opacity)
+    {
+        _bus.Publish(new StemLevelChanged(0, 0, level));
+        _bus.Publish(new StemLevelChanged(0, 1, level));
+        _bus.Publish(new StemLevelChanged(0, 2, level));
+
+        Assert.Equal(opacity, _deck.DrumsChipOpacity, 6);
+        Assert.Equal(opacity, _deck.VocalsChipOpacity, 6);
+        Assert.Equal(opacity, _deck.InstrumentalChipOpacity, 6);
+    }
+
+    [Fact]
+    public void A_muted_stem_stays_hollow_at_full_opacity_whatever_its_level()
+    {
+        _bus.Publish(new StemLevelChanged(0, 0, 0.2));
+        _bus.Publish(new StemMuteChanged(0, 0, true));
+
+        Assert.False(_deck.DrumsActive);
+        Assert.Equal(1.0, _deck.DrumsChipOpacity);
+
+        _bus.Publish(new StemMuteChanged(0, 0, false));
+
+        Assert.True(_deck.DrumsActive);
+        Assert.True(_deck.DrumsChipOpacity < 1.0);
+    }
+
+    [Fact]
+    public void A_stem_level_notifies_only_that_chip_and_only_when_its_opacity_changes()
+    {
+        _changed.Clear();
+
+        _bus.Publish(new StemLevelChanged(0, 1, 0.5));
+        _bus.Publish(new StemLevelChanged(0, 1, 0.5));
+        _bus.Publish(new StemLevelChanged(0, 2, 1.2));
+        _bus.Publish(new StemLevelChanged(1, 0, 0.1));
+
+        Assert.Equal([nameof(DeckViewModel.VocalsChipOpacity)], _changed);
+    }
+
+    [Fact]
     public void Every_stem_starts_active()
     {
         Assert.True(_deck.DrumsActive);

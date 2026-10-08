@@ -22,7 +22,7 @@ namespace Sholto.Interface.MainUI.Controls.WaveformStyles;
 /// quiet intro is dim as well as short, the drop is both tall and vivid.
 ///
 /// Only the bake allocates; the per-frame blit is the control's and is the same for every style.</summary>
-public sealed class RgbWaveformStrategy(IWaveformBandScaler bandScaler, IRgbColourMixer mixer) : IWaveformStyleStrategy
+public sealed class RgbWaveformStrategy(IWaveformBandScaler bandScaler, IRgbColourMixer mixer, int colourRadius) : IWaveformStyleStrategy
 {
     private const int BakedHeight = 256;
     // How much of the half-height the loudest column reaches.
@@ -38,6 +38,7 @@ public sealed class RgbWaveformStrategy(IWaveformBandScaler bandScaler, IRgbColo
 
     private readonly IWaveformBandScaler _bandScaler = bandScaler;
     private readonly IRgbColourMixer _mixer = mixer;
+    private readonly int _colourRadius = colourRadius;
 
     public string Id => "rgb";
 
@@ -61,6 +62,16 @@ public sealed class RgbWaveformStrategy(IWaveformBandScaler bandScaler, IRgbColo
         // No band data: one colour, the even mix of the three.
         SKColor mono = _mixer.Mix(1f, 1f, 1f, lowC, midC, highC);
 
+        float[] sl = [], sm = [], sh = [];
+        if (hasBands)
+        {
+            // Colour only is smoothed over ±radius columns; heights stay per column.
+            var raw = (new float[width], new float[width], new float[width]);
+            for (int x = 0; x < width; x++)
+                (raw.Item1[x], raw.Item2[x], raw.Item3[x]) = scaling.NormalizeAbsolute(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
+            sl = BoxAverage(raw.Item1); sm = BoxAverage(raw.Item2); sh = BoxAverage(raw.Item3);
+        }
+
         var info = new SKImageInfo(width, BakedHeight, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var surface = SKSurface.Create(info);
         var canvas = surface.Canvas;
@@ -77,13 +88,26 @@ public sealed class RgbWaveformStrategy(IWaveformBandScaler bandScaler, IRgbColo
             SKColor colour = mono;
             if (hasBands)
             {
-                var (nl, nm, nh) = scaling.NormalizeAbsolute(peaks.Low[x], peaks.Mid[x], peaks.High[x]);
-                colour = _mixer.Mix(nl, nm, nh, lowC, midC, highC);
+                colour = _mixer.Mix(sl[x], sm[x], sh[x], lowC, midC, highC);
             }
             paint.Color = Dim(colour, BrightnessFloor + (1f - BrightnessFloor) * MathF.Pow(level, BrightnessGamma));
             canvas.DrawRect(x, midY - half, 1, 2 * half, paint);
         }
         return surface.Snapshot();
+    }
+
+    private float[] BoxAverage(float[] src)
+    {
+        int n = src.Length;
+        var prefix = new double[n + 1];
+        for (int i = 0; i < n; i++) prefix[i + 1] = prefix[i] + src[i];
+        var dst = new float[n];
+        for (int i = 0; i < n; i++)
+        {
+            int lo = Math.Max(0, i - _colourRadius), hi = Math.Min(n - 1, i + _colourRadius);
+            dst[i] = (float)((prefix[hi + 1] - prefix[lo]) / (hi - lo + 1));
+        }
+        return dst;
     }
 
     private float Amplitude(WaveformPeaks peaks, int x) =>

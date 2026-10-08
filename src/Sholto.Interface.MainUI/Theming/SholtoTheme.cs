@@ -33,7 +33,8 @@ public sealed record SholtoTheme(
     Color Scrim,             // overlay backdrop (alpha included)
     Color Shadow,            // deck shadow / vignette (alpha included)
     Color IconPlate,         // window icon background plate
-    KnobPalette Knob         // Settings knobs (value arc from "knob.arc", the rest from the core colours)
+    KnobPalette Knob,        // Settings knobs (value arc from "knob.arc", the rest from the core colours)
+    LoadPalette Load         // load destinations: deck 1, deck 2, Track List
 )
 {
     /// <summary>True for a theme loaded from the user themes folder (not one of the bundled themes).</summary>

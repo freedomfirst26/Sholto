@@ -1,6 +1,7 @@
 using Sholto.App.Analysis;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Reporting;
+using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.Stores;
 using Sholto.App.Audio;
 using Sholto.App.Library;
@@ -22,7 +23,8 @@ public sealed class TrackLoader(
     IEventPublisher publisher,
     ISearchPick pick,
     ILoadGuard guard,
-    ILoadUndo undo) : ITrackLoader
+    ILoadUndo undo,
+    IStemSeparator stems) : ITrackLoader
 {
     private readonly ILibrarySession _library = library;
     private readonly IDecks _decks = decks;
@@ -36,8 +38,11 @@ public sealed class TrackLoader(
     private readonly ISearchPick _pick = pick;
     private readonly ILoadGuard _guard = guard;
     private readonly ILoadUndo _undo = undo;
+    private readonly IStemSeparator _stems = stems;
     // Per deck, the id of its latest load. A decode that finishes after a newer load began is dropped. App thread.
     private readonly Dictionary<int, int> _generations = [];
+    // Per library file, the cancel source of its latest re-analysis; a newer one cancels the older stem run. App thread.
+    private readonly Dictionary<string, CancellationTokenSource> _reanalyses = [];
 
     public event Action<int, Track>? Accepted;
 
@@ -148,13 +153,19 @@ public sealed class TrackLoader(
             return;
         }
         Console.WriteLine($"[TrackLoader] {command.Origin.GestureName} → re-analyzing {track.FilePath}");
-        _ = ReanalyzeAsync(track, provider);
+        // A newer re-analysis of the same file supersedes the older one's stem run.
+        if (_reanalyses.Remove(track.FilePath, out var superseded)) superseded.Cancel();
+        var cancel = new CancellationTokenSource();
+        _reanalyses[track.FilePath] = cancel;
+        _ = ReanalyzeAsync(track, provider, cancel);
     }
 
     /// <summary>Force-reanalyze a library track: recompute BPM/beats/peaks (BasicAnalysis) AND the Camelot
     /// key, overwriting the matching cache tiers, then update the library row in place and re-broadcast the
-    /// harmony reference so the dimming refreshes.</summary>
-    private async Task ReanalyzeAsync(Track track, Sholto.App.Analysis.Analyzers.IAnalysisProvider provider)
+    /// harmony reference so the dimming refreshes. Then separate the stems (cached stems are reused, not
+    /// recomputed), so the row ends up ticked as analysed.</summary>
+    private async Task ReanalyzeAsync(
+        Track track, Sholto.App.Analysis.Analyzers.IAnalysisProvider provider, CancellationTokenSource cancel)
     {
         try
         {
@@ -172,6 +183,7 @@ public sealed class TrackLoader(
 
             _appThread.Post(() => _library.ApplyReanalysis(track.FilePath, analysis.Bpm, key.Key));
             Console.WriteLine($"[TrackLoader] re-analyzed {track.FilePath}: {analysis.Bpm:F1} BPM, key {key.Key?.ToCamelot()}");
+            await SeparateStemsAsync(track.FilePath, cancel.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -181,6 +193,36 @@ public sealed class TrackLoader(
             Console.WriteLine($"[TrackLoader] re-analyze failed: {ex.Message}");
             var failure = $"{ex.GetType().Name}: {ex.Message}";
             _appThread.Post(() => _library.ReportReanalysisFailure(track.FilePath, failure));
+        }
+        finally
+        {
+            _appThread.Post(() =>
+            {
+                if (_reanalyses.TryGetValue(track.FilePath, out var current) && current == cancel) _reanalyses.Remove(track.FilePath);
+                cancel.Dispose();
+            });
+        }
+    }
+
+    /// <summary>The stem half of a re-analysis. The separator waits its turn behind any deck's demucs run, reuses
+    /// cached stems, and reports progress, failure and cancellation on the row; a failure here leaves the BPM and key
+    /// already applied. Skipped when demucs is not installed, as on a deck load.</summary>
+    private async Task SeparateStemsAsync(string filePath, CancellationToken ct)
+    {
+        if (!_stems.IsAvailable) return;
+        try
+        {
+            await _stems.SeparateAsync(filePath, ct).ConfigureAwait(false);
+            _appThread.Post(() => _library.ApplyStemsReady(filePath));
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Superseded by a newer re-analysis: the separator has already reported the step cancelled.
+        }
+        catch (Exception ex)
+        {
+            // The separator has already put the failure on the row.
+            Console.WriteLine($"[TrackLoader] re-analyze stems failed: {ex.Message}");
         }
     }
 }

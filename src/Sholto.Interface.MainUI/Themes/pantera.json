@@ -21,15 +21,23 @@
   },
   "waveform": {
     "low": "#E01E1E",
-    "mid": "#FF7A1A",
-    "high": "#FFD23F",
+    "mid": "#D9943E",
+    "high": "#F4F4F0",
     "downbeat": "#D868B8FF",
-    "rgbLow": "#FF2D2D",
-    "rgbMid": "#FFC41F",
-    "rgbHigh": "#3FA8FF",
+    "rgbLow": "#E01E1E",
+    "rgbMid": "#E49839",
+    "rgbHigh": "#437FF7",
     "playhead": "#00FF00"
   },
   "minimap": {
-    "playhead": "#00FF00"
+    "playhead": "#00FF00",
+    "intro": "#B07A3A",
+    "buildUp": "#E01E1E",
+    "drop": "#246CFF",
+    "breakdown": "#757B80",
+    "verse": "#9FA5AA",
+    "chorus": "#F4F4F0",
+    "bridge": "#E4B37E",
+    "outro": "#865307"
   }
 }

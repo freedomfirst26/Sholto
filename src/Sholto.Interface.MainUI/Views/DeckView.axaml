@@ -210,7 +210,7 @@
                      audibly without stems, so we don't show them as if they did. -->
                 <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center"
                             IsVisible="{Binding HasStems}">
-                    <Grid Width="42" Height="16">
+                    <Grid Width="42" Height="16" Opacity="{Binding DrumsChipOpacity}">
                         <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
                               Fill="{DynamicResource SholtoStemDrums}" Stroke="{DynamicResource SholtoStemDrums}" StrokeThickness="1"
                               IsVisible="{Binding DrumsActive}"/>
@@ -224,7 +224,7 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SholtoStemDrums}" IsVisible="{Binding !DrumsActive}"/>
                     </Grid>
-                    <Grid Width="42" Height="16">
+                    <Grid Width="42" Height="16" Opacity="{Binding VocalsChipOpacity}">
                         <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
                               Fill="{DynamicResource SholtoStemVocals}" Stroke="{DynamicResource SholtoStemVocals}" StrokeThickness="1"
                               IsVisible="{Binding VocalsActive}"/>
@@ -238,7 +238,7 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SholtoStemVocals}" IsVisible="{Binding !VocalsActive}"/>
                     </Grid>
-                    <Grid Width="42" Height="16">
+                    <Grid Width="42" Height="16" Opacity="{Binding InstrumentalChipOpacity}">
                         <Path Data="M 6 0 L 42 0 L 36 16 L 0 16 Z"
                               Fill="{DynamicResource SholtoStemInstrumental}" Stroke="{DynamicResource SholtoStemInstrumental}" StrokeThickness="1"
                               IsVisible="{Binding InstrumentalActive}"/>

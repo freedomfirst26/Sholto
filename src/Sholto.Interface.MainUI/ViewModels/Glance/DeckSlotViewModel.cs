@@ -1,31 +1,32 @@
 using System.ComponentModel;
 using System.Globalization;
 using Avalonia.Media;
+using Microsoft.Extensions.Options;
 using Sholto.Interface.MainUI.Controls.CollapseToIcon;
 
 namespace Sholto.Interface.MainUI.ViewModels.Glance;
 
 /// <summary>The state of one LOAD TO slot, read off its deck each frame the header ticks. A steady frame
-/// allocates nothing: strings are rebuilt only when the whole second, the tempo or a state changes, and the
+/// allocates nothing: strings are rebuilt only when the tempo or a state changes, and the
 /// ring and the spin move in whole steps (1/360) and raise <see cref="Changed"/>, not a property change: the
 /// platter reads them when it repaints.
 /// <para>The platter turns once per bar. With a bar grid it follows the deck's playhead, so it keeps time with
 /// the tempo fader and a scratch; without one it turns smoothly at the deck's tempo (120 BPM when unknown).
 /// Under reduced motion it never turns.</para></summary>
-public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionPreference motion) : IDeckSlot
+public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionPreference motion, IOptions<GlanceViewOptions> options) : IDeckSlot
 {
     /// <summary>The ring and the spin move in steps of 1/360, one degree.</summary>
     public const int Steps = 360;
 
-    private const double FallbackBpm = 120;
     private const double BeatsPerBar = 4;
     private const double LongestFrameSeconds = 0.1;
 
     private readonly int _deck = deck;
     private readonly IDeckClockSource _decks = decks;
     private readonly IMotionPreference _motion = motion;
+    private readonly double _fallbackBpm = options.Value.FallbackBpm;
+    private readonly double _lowSeconds = options.Value.LowTimeSeconds;
 
-    private int _remainingWhole = -1;
     private int _ringStep;
     private int _spinStep;
     private double _spinTurns;
@@ -58,9 +59,13 @@ public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionP
 
     public string BpmText { get; private set; } = "";
 
-    public string TimeText { get; private set; } = "paused";
+    public bool IsLow { get; private set; }
 
-    public string CautionText { get; private set; } = "";
+    public string CautionText => "Playing";
+
+    public bool ShowsKeyCap => IsLoaded;
+
+    public string KeyCapLabel => IsTarget ? $"⏎ ⇧{Number}" : $"⇧{Number}";
 
     public string ArmedText => $"⇧{Number} again to replace";
 
@@ -94,6 +99,7 @@ public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionP
             IsLoaded = r.IsLoaded;
             stateChanged = true;
             Notify(nameof(IsLoaded));
+            Notify(nameof(ShowsKeyCap));
             Notify(nameof(IsSweeping));
         }
         if (IsPlaying != r.IsPlaying)
@@ -109,6 +115,7 @@ public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionP
             Notify(nameof(IsTarget));
             Notify(nameof(IsSweeping));
             Notify(nameof(EmptyHint));
+            Notify(nameof(KeyCapLabel));
         }
         if (IsReference != isReference)
         {
@@ -161,15 +168,11 @@ public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionP
 
         var speed = r.PlaybackSpeed > 0 ? r.PlaybackSpeed : 1.0;
         var remaining = r.IsLoaded ? Math.Max(0, (r.DurationSeconds - r.PlaybackSeconds) / speed) : 0;
-        var whole = (int)Math.Floor(remaining);
-        if (whole != _remainingWhole || stateChanged)
+        var low = r.IsLoaded && r.IsPlaying && remaining < _lowSeconds;
+        if (IsLow != low)
         {
-            _remainingWhole = whole;
-            var left = remaining.ToRemainingText();
-            TimeText = r.IsPlaying ? left : "paused";
-            CautionText = $"Playing · {left}";
-            Notify(nameof(TimeText));
-            Notify(nameof(CautionText));
+            IsLow = low;
+            Notify(nameof(IsLow));
             visual = true;
         }
 
@@ -203,7 +206,7 @@ public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionP
             }
             else
             {
-                var bpm = r.Bpm > 0 ? r.Bpm : FallbackBpm;
+                var bpm = r.Bpm > 0 ? r.Bpm : _fallbackBpm;
                 var turns = _spinTurns + elapsed * bpm / (60 * BeatsPerBar);
                 _spinTurns = turns - Math.Floor(turns);
             }

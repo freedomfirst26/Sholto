@@ -28,7 +28,7 @@ public class FaceplateViewModelTests
 
     /// <summary>What the App publishes in Inspect mode when the controller sends a command.</summary>
     private static void Echo(FaceplateViewModel vm, string commandName, string controlId, string gesture, int deck = 0) =>
-        vm.Handle(new CommandReceived(new Origin(InterfaceIds.Controller, controlId, gesture), commandName, deck));
+        vm.Handle(new CommandReceived(new Origin(InterfaceIds.Controller, controlId, gesture, deck), commandName));
 
     [Fact]
     public void The_panel_starts_closed_so_the_drawing_has_the_full_width()
@@ -97,13 +97,15 @@ public class FaceplateViewModelTests
     [Fact]
     public void Clicking_a_control_lists_every_gesture_it_is_involved_in_not_only_its_own()
     {
-        // SHIFT owns only "hold" (its headline). The three shift chords all belong to
-        // OTHER controls (the jog, transport CUE, BEAT SYNC) and only name SHIFT as a
+        // SHIFT owns only "hold" (its headline). The shift chords all belong to
+        // OTHER controls (the jog, transport CUE, BEAT SYNC, the EQ knobs) and only name SHIFT as a
         // partner — this is the involvement lookup the redesign exists for.
         var vm = New();
         vm.Select("deck.shift", deck: 0);
 
-        Assert.Equal(3, vm.Rows.Count);
+        Assert.Equal(6, vm.Rows.Count);
+        foreach (var eq in new[] { "mixer.eq.hi", "mixer.eq.mid", "mixer.eq.low" })
+            Assert.Contains(vm.Rows, r => r.GestureId == "eq.stemlevel.turn" && r.OwnerControlId == eq);
         Assert.Contains(vm.Rows, r => r.GestureId == JogTopShiftTurn && r.OwnerControlId == "deck.jog");
         Assert.Contains(vm.Rows, r => r.GestureId == CueTransportRestart && r.OwnerControlId == "deck.cue.transport");
         Assert.Contains(vm.Rows, r => r.GestureId == SyncCycleTempoRange && r.OwnerControlId == "deck.sync");

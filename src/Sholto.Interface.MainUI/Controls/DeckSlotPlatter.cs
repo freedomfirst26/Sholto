@@ -6,12 +6,12 @@ using Sholto.Interface.MainUI.ViewModels.Glance;
 namespace Sholto.Interface.MainUI.Controls;
 
 /// <summary>
-/// The 30 px platter in a Glance LOAD TO slot. A loaded deck is a dark disc with a marker that turns (one
+/// The platter in a Glance LOAD TO slot, drawn in a 30-unit box and scaled to the control's size (52 px in a slot). A loaded deck is a dark disc with a marker that turns (one
 /// turn per bar, <see cref="IDeckSlotViewModel.SpinTurns"/>), the deck number on its label, and a ring around
-/// it of the time left: StatusOk while playing, TextMuted while paused, on a Border track. The deck number is
+/// it of the time left: StatusOk while playing (LowBrush under 45 s), TextMuted while paused, on a Border track. The deck number is
 /// not drawn here: the slot lays a TextBlock over the label, because drawing text lays it out again on every
 /// frame.
-/// <para>In <see cref="Ghost"/> mode the control is the empty slot's 52 px record instead, drawn only while the
+/// <para>In <see cref="Ghost"/> mode the control is the empty slot's 64 px record instead, drawn only while the
 /// deck is empty: a radial-gradient disc (SurfaceRaised into BgDeep) with faint grooves, a highlight arc and a
 /// label circle, ringed and labelled in Accent when the slot is the load target. The slot crops it at its
 /// left edge and lays the deck number over the visible part.</para>
@@ -25,13 +25,13 @@ public sealed class DeckSlotPlatter : Control
     private const double Size = 30;
     private const double Centre = Size / 2;
     private const double RingRadius = 13.5;
-    private const double RingWidth = 2;
+    private const double RingWidth = 2.9; // 5 px at the 52 px the slot draws it
     private const double DiscRadius = 11;
     private const double GrooveRadius = 8.5;
     private const double LabelRadius = 6;
 
     // The ghost record is drawn in a 30-unit box like the platter and scaled up to GhostSize.
-    private const double GhostSize = 52;
+    private const double GhostSize = 64;
     private const double GhostScale = GhostSize / Size;
     private const double GhostDiscRadius = 14;
     private const double GhostLabelRadius = 5.6;
@@ -54,6 +54,10 @@ public sealed class DeckSlotPlatter : Control
     /// <summary>The ring while paused, and the ghost record's highlight arc (TextMuted).</summary>
     public static readonly StyledProperty<IBrush?> MutedBrushProperty =
         AvaloniaProperty.Register<DeckSlotPlatter, IBrush?>(nameof(MutedBrush));
+
+    /// <summary>The ring while the deck is playing with under 45 s left (StatusError).</summary>
+    public static readonly StyledProperty<IBrush?> LowBrushProperty =
+        AvaloniaProperty.Register<DeckSlotPlatter, IBrush?>(nameof(LowBrush));
 
     /// <summary>An empty target's record rim and label (Accent).</summary>
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
@@ -85,12 +89,13 @@ public sealed class DeckSlotPlatter : Control
     private IPen? _trackPen;
     private IPen? _playingPen;
     private IPen? _pausedPen;
+    private IPen? _lowPen;
     private IPen? _groovePen;
     private IPen? _ghostRimPen;
     private IPen? _ghostRimAccentPen;
     private IPen? _ghostGroovePen;
     private IPen? _ghostArcPen;
-    private readonly IBrush?[] _penBrushes = new IBrush?[8];
+    private readonly IBrush?[] _penBrushes = new IBrush?[9];
     private readonly StreamGeometry _ghostArc = new();
     private IBrush? _recordBrush;
     private IBrush? _recordFromDisc;
@@ -100,7 +105,7 @@ public sealed class DeckSlotPlatter : Control
     static DeckSlotPlatter()
     {
         AffectsRender<DeckSlotPlatter>(
-            TrackBrushProperty, PlayingBrushProperty, MutedBrushProperty, AccentBrushProperty,
+            TrackBrushProperty, PlayingBrushProperty, MutedBrushProperty, LowBrushProperty, AccentBrushProperty,
             DiscBrushProperty, LabelBrushProperty, MarkerBrushProperty, RaisedBrushProperty, GhostProperty);
         AffectsMeasure<DeckSlotPlatter>(GhostProperty);
         SlotProperty.Changed.AddClassHandler<DeckSlotPlatter>((c, e) => c.Rewire(e));
@@ -117,6 +122,7 @@ public sealed class DeckSlotPlatter : Control
     public IBrush? TrackBrush { get => GetValue(TrackBrushProperty); set => SetValue(TrackBrushProperty, value); }
     public IBrush? PlayingBrush { get => GetValue(PlayingBrushProperty); set => SetValue(PlayingBrushProperty, value); }
     public IBrush? MutedBrush { get => GetValue(MutedBrushProperty); set => SetValue(MutedBrushProperty, value); }
+    public IBrush? LowBrush { get => GetValue(LowBrushProperty); set => SetValue(LowBrushProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
     public IBrush? DiscBrush { get => GetValue(DiscBrushProperty); set => SetValue(DiscBrushProperty, value); }
     public IBrush? LabelBrush { get => GetValue(LabelBrushProperty); set => SetValue(LabelBrushProperty, value); }
@@ -128,7 +134,14 @@ public sealed class DeckSlotPlatter : Control
     /// turns the platter leaves it where it was.</summary>
     internal int PaintBuilds { get; private set; }
 
-    protected override Size MeasureOverride(Size availableSize) => Ghost ? new Size(GhostSize, GhostSize) : new Size(Size, Size);
+    /// <summary>The brush the ring's arc was last drawn with; what a headless test reads in place of a pixel.</summary>
+    internal IBrush? RingBrush { get; private set; }
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        if (Ghost) return new Size(GhostSize, GhostSize);
+        return new Size(double.IsNaN(Width) ? Size : Width, double.IsNaN(Height) ? Size : Height);
+    }
 
     private void Rewire(AvaloniaPropertyChangedEventArgs e)
     {
@@ -151,6 +164,10 @@ public sealed class DeckSlotPlatter : Control
 
         var centre = new Point(Centre, Centre);
         if (!slot.IsLoaded) return;
+
+        // The drawing is 30 units wide; it scales to the control's own size (52 px in a slot).
+        var scale = Bounds.Width > 0 ? Bounds.Width / Size : 1;
+        using var scaled = context.PushTransform(Matrix.CreateScale(scale, scale));
 
         context.DrawEllipse(null, _trackPen, centre, RingRadius, RingRadius);
         DrawRing(context, slot);
@@ -216,7 +233,8 @@ public sealed class DeckSlotPlatter : Control
     {
         var remaining = slot.RemainingFraction;
         if (remaining <= 0) return;
-        var pen = slot.IsPlaying ? _playingPen : _pausedPen;
+        var pen = slot.IsLow && _lowPen is not null ? _lowPen : slot.IsPlaying ? _playingPen : _pausedPen;
+        RingBrush = pen?.Brush;
         if (remaining >= 1)
         {
             context.DrawEllipse(null, pen, new Point(Centre, Centre), RingRadius, RingRadius);
@@ -251,6 +269,7 @@ public sealed class DeckSlotPlatter : Control
         Refresh(5, AccentBrush, ref _ghostRimAccentPen, b => new Pen(b, 1.2));
         Refresh(6, TrackBrush, ref _ghostGroovePen, b => new Pen(b, 0.5));
         Refresh(7, MutedBrush, ref _ghostArcPen, b => new Pen(b, 0.7, lineCap: PenLineCap.Round));
+        Refresh(8, LowBrush, ref _lowPen, b => new Pen(b, RingWidth, lineCap: PenLineCap.Round));
     }
 
     private void Refresh(int slot, IBrush? brush, ref IPen? pen, Func<IBrush, IPen> build)

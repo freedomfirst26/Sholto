@@ -93,7 +93,7 @@ public sealed class SholtoStartup : IApplicationStartup
         {
             live.UseThemeCatalog(_themeCatalog);
             live.UseViewModelStack(new ViewModelStack(
-                _options.Feature,
+                _options.Feature, _options.DeckView, _options.GlanceView, _options.WaveformStyle,
                 _stack.DeckFactory, _themeContext,
                 _stack.AnalysisStack.SongSegments,
                 _stack.TagRecency,

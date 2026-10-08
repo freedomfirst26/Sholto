@@ -4,7 +4,7 @@ namespace Sholto.App.Analysis.ToolBoundary;
 
 /// <summary>
 /// A descriptor for one arm's-length external CLI tool (madmom, demucs).
-/// The process boundary is load-bearing for the BUSL position and stays — this does
+/// The process boundary is load-bearing for the licensing position and stays — this does
 /// not pull the tools in-process, it just declares the contract every call site was
 /// previously reinventing on its own: what to run, and how to tell whether it
 /// actually worked.

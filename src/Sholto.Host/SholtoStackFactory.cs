@@ -95,8 +95,10 @@ public sealed class SholtoStackFactory(
         var libraryDatabase = new LibraryDatabase(_storage);
         var analysisStack = _analysisStackFactory.Build(madmom, libraryDatabase);
 
+        // One slot for every demucs run: the deck stage below and the re-analysis separator share it.
+        var stemGate = new SemaphoreStemGate();
         var stemAnalysisStage = new StemAnalysisStage(demucs, new StemDecoder(decoder), analysisStack.Peaks, analysisStack.VocalRegions, analysisStack.Reporter,
-            toolStack.StemDevice, new SemaphoreStemGate());
+            toolStack.StemDevice, stemGate);
 
         var deckFactory = new DeckFactory(
             decoder, stemAnalysisStage, analysisStack.Reporter,
@@ -137,6 +139,8 @@ public sealed class SholtoStackFactory(
             new SettingPreference(libraryDatabase, SettingsKeys.WaveformStyle),
             new SettingPreference(libraryDatabase, SettingsKeys.BackspinTimeSeconds),
             new SettingPreference(libraryDatabase, SettingsKeys.BackspinDistanceBeats),
-            new SettingPreference(libraryDatabase, SettingsKeys.GlanceShortlist));
+            new SettingPreference(libraryDatabase, SettingsKeys.GlanceShortlist),
+            new SettingPreference(libraryDatabase, SettingsKeys.TrackList),
+            stemGate);
     }
 }

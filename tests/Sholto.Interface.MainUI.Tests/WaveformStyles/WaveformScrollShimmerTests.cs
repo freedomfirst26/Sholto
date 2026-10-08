@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
 
 namespace Sholto.Interface.MainUI.Tests.WaveformStyles;
@@ -10,7 +11,7 @@ public class WaveformScrollShimmerTests
 {
     private const double MaxSpread = 1.3;
 
-    private readonly IWaveformStyles _styles = new WaveformStylesFactory().Create();
+    private readonly IWaveformStyles _styles = new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create();
 
     [Theory]
     [InlineData("rgb", 1.0)]

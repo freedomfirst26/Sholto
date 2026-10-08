@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
 
 namespace Sholto.Interface.MainUI.Tests.WaveformStyles;
@@ -11,7 +12,7 @@ public class ThreeBandWaveformStrategyTests
     private const string WithBandsSha = "4BF1DA58C45A872468992D20BC17874D59A5006AC3D7A7D4D2A3C3AB34051B98";
     private const string WithoutBandsSha = "468C9D25EC6E71B6EF9E5B83F56EEEA40AE4F5785595854693D809D4DE1C8824";
 
-    private readonly IWaveformStyleStrategy _threeBand = new WaveformStylesFactory().Create().ById("three-band");
+    private readonly IWaveformStyleStrategy _threeBand = new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create().ById("three-band");
 
     [Fact]
     public void Bake_with_bands_is_pixel_identical_to_the_pre_strategy_bake()

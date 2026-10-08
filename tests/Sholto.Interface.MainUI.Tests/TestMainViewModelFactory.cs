@@ -46,19 +46,20 @@ internal sealed class TestMainViewModelFactory
         var core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
             new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), decoder,
-            new EqualPowerCrossfade(), appThread, bus, clock).Build(deck1, deck2);
+            new EqualPowerCrossfade(), appThread, bus, clock, new Sholto.TestSupport.UnavailableStemSeparator(),
+            Microsoft.Extensions.Options.Options.Create(new LoadOptions())).Build(deck1, deck2);
         var rows = new LibraryRowsViewModel(bus, new TrackRowFactory(themes.Context));
         var deckViewModels = new DeckViewModelFactory(
-            bus, bus, themes.Context, Options.Create(new FeatureOptions()), new NoPeaksFactory(),
+            bus, bus, themes.Context, Options.Create(new FeatureOptions()), Options.Create(new DeckViewOptions()), new NoPeaksFactory(),
             new DiscBloomFactory(new ManualFrameClock()));
         var deck1ViewModel = deckViewModels.Create(0);
         var deck2ViewModel = deckViewModels.Create(1);
         var clocks = new DeckViewModelClockSource(deck1ViewModel, deck2ViewModel);
         var glance = new GlanceViewModel(
             bus, bus, bus, appThread, clock, rows, tagRecency,
-            new GlanceHeaderViewModel(clocks, clock, bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false))),
-            new FixedMotionPreference(false));
-        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory().Create(), bus);
+            new GlanceHeaderViewModel(clocks, clock, bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()))),
+            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()));
+        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
         var vm = new MainViewModel(
             themeViewModel,
@@ -80,7 +81,8 @@ internal sealed class TestMainViewModelFactory
             new SystemReportViewModel(),
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
-                new AlwaysHintPolicy()));
+                new AlwaysHintPolicy()),
+            new TrackListViewModel(bus, bus));
         return new TestApp(vm, core, bus);
     }
 }

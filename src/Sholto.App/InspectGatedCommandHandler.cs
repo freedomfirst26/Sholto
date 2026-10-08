@@ -26,7 +26,7 @@ public sealed class InspectGatedCommandHandler<T>(
             _inner.Handle(in command);
             return;
         }
-        _publisher.Publish(new CommandReceived(command.Origin, _commandName, command.Deck));
+        _publisher.Publish(new CommandReceived(command.Origin, _commandName));
     }
 
     private bool IsGated(string interfaceId)

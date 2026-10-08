@@ -163,17 +163,15 @@ public class ControllerModelTests
     }
 
     // Captured on hardware 2026-09-09 with SHOLTO_MIDI_LOG=1: the FX ON/OFF
-    // (RELEASE FX) button sends ch=06 0x47. The option said channel 5, so the
-    // modifier never fired and holding it just moved the EQ.
+    // (RELEASE FX) button sends ch=06 0x47. Sholto gives it no job (stem levels
+    // are SHIFT + EQ), so it must map to nothing on either edge.
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void Flx4_StemLevelMode_ComesFromChannel6(bool down)
+    public void Flx4_FxOnOff_IsNotMapped(bool down)
     {
         var mapping = new DdjFlx4Mapping();
-        var evt = mapping.Translate(new NoteEvent(6, 0x47, down ? 127 : 0, IsDown: down));
-        var mode = Assert.IsType<ControllerEvent.StemLevelMode>(evt);
-        Assert.Equal(down, mode.Pressed);
+        Assert.Null(mapping.Translate(new NoteEvent(6, 0x47, down ? 127 : 0, IsDown: down)));
     }
 
     [Fact]

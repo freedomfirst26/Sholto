@@ -17,7 +17,9 @@ public sealed class AppLifecycleFactory(
     ISettingPreference waveformStylePreference,
     ISettingPreference backspinTimePreference,
     ISettingPreference backspinDistancePreference,
-    ISettingPreference shortlistPreference,
+    ISettingPreference legacyShortlistPreference,
+    ISettingPreference trackListPreference,
+    ISavedTrackListCodec trackListCodec,
     IAudioOutputEnumerator outputEnumerator,
     IAudioEngineFactory audioEngineFactory,
     IReadOnlyList<INeedsAudioEngine> engineDependents,
@@ -36,7 +38,9 @@ public sealed class AppLifecycleFactory(
     private readonly ISettingPreference _waveformStylePreference = waveformStylePreference;
     private readonly ISettingPreference _backspinTimePreference = backspinTimePreference;
     private readonly ISettingPreference _backspinDistancePreference = backspinDistancePreference;
-    private readonly ISettingPreference _shortlistPreference = shortlistPreference;
+    private readonly ISettingPreference _legacyShortlistPreference = legacyShortlistPreference;
+    private readonly ISettingPreference _trackListPreference = trackListPreference;
+    private readonly ISavedTrackListCodec _trackListCodec = trackListCodec;
     private readonly IAudioOutputEnumerator _outputEnumerator = outputEnumerator;
     private readonly IAudioEngineFactory _audioEngineFactory = audioEngineFactory;
     private readonly IReadOnlyList<INeedsAudioEngine> _engineDependents = engineDependents;
@@ -55,7 +59,8 @@ public sealed class AppLifecycleFactory(
             core.Decks, _masterCue);
         return new AppLifecycle(
             _database, core.Library, core.Markers, _themePreference, _musicDirPreference, _outputDevicePreference,
-            _waveformStylePreference, _backspinTimePreference, _backspinDistancePreference, core.BackspinFeel, _shortlistPreference, core.Shortlist,
+            _waveformStylePreference, _backspinTimePreference, _backspinDistancePreference, core.BackspinFeel, _legacyShortlistPreference,
+            _trackListPreference, core.TrackList, _trackListCodec,
             _outputEnumerator, audio, controllerSoundCard, _systemCheck, _appThread, _publisher, _musicDirOverride);
     }
 }

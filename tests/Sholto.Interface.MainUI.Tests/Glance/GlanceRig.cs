@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Models;
 using Sholto.Interface.MainUI.Theming;
@@ -45,14 +46,16 @@ internal sealed class GlanceRig
             new F9QueryHandler<TagsByName, Task<IReadOnlyList<TagHit>>>(_ => Task.FromResult<IReadOnlyList<TagHit>>([])));
         Bus.Register(new LoggingCommandHandler<SetSearchPick>(Log));
         Bus.Register(new LoggingCommandHandler<LoadSelectedIntoDeck>(Log));
-        Bus.Register(new LoggingCommandHandler<ToggleShortlist>(Log));
-        Bus.Register(new LoggingCommandHandler<FilterLibraryByCrate>(Log));
-        Bus.Register(new LoggingCommandHandler<FilterLibraryByTag>(Log));
+        Bus.Register(new LoggingCommandHandler<RemoveFromTrackList>(Log));
+        Bus.Register(new LoggingCommandHandler<LoadSongToTrackList>(Log));
+        Bus.Register(new LoggingCommandHandler<LoadCrateToTrackList>(Log));
+        Bus.Register(new LoggingCommandHandler<LoadTagToTrackList>(Log));
+        Bus.Register(new LoggingCommandHandler<ClearTrackList>(Log));
         Bus.Register(new LoggingCommandHandler<UndoLastLoad>(Log));
-        Header = new GlanceHeaderViewModel(Decks, Clock, Bus, new DeckSlotFactory(Decks, new FixedMotionPreference(reducedMotion)));
+        Header = new GlanceHeaderViewModel(Decks, Clock, Bus, new DeckSlotFactory(Decks, new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions())));
         Glance = new GlanceViewModel(
             Bus, Bus, Bus, new ImmediateAppThread(), Clock, Library, new TagRecency(), Header,
-            new FixedMotionPreference(reducedMotion));
+            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions()));
     }
 
     public IEnumerable<SetSearchPick> Picks => Log.OfType<SetSearchPick>();
@@ -68,6 +71,12 @@ internal sealed class GlanceRig
     /// <summary>Show these tracks as the visible library rows.</summary>
     public void Show(params TrackSummary[] tracks) =>
         Bus.Publish(new LibraryRowsChanged(tracks, 1));
+
+    /// <summary>These tracks are the Track List (the list itself, not the rows the main view shows).</summary>
+    public void PutInList(params TrackSummary[] tracks) =>
+        Bus.Publish(new TrackListChanged(
+            [new TrackListSource("songs", TrackListSourceKind.Songs, "Songs", tracks.Length)], tracks.Length)
+        { Paths = tracks.Select(t => t.FilePath).ToList() });
 
     public static TrackSummary Summary(TrackRow row) => new(row.FilePath, row.Title, row.Artist, row.Duration);
 

@@ -128,41 +128,10 @@ public class GlanceViewModelTests
 
         Glance.Open();
 
-        Assert.False(_rig.Header.HasReference);
+        Assert.Equal(-1, _rig.Header.ReferenceDeck);
     }
 
     // ---- Knob and keys -------------------------------------------------------------------------
-
-    [Fact]
-    public void A_browse_push_opens_a_closed_overlay_and_then_toggles_the_zone()
-    {
-        ShowFour();
-        var origin = new Origin(InterfaceIds.Controller, "browse", "press");
-
-        _rig.Bus.Publish(new SearchRequested(origin));
-        Assert.True(Glance.IsOpen);
-        Assert.Equal(GlanceZone.Table, Glance.Zone);
-
-        _rig.Bus.Publish(new SearchRequested(origin));
-        Assert.Equal(GlanceZone.Rail, Glance.Zone);
-
-        _rig.Bus.Publish(new SearchRequested(origin));
-        Assert.Equal(GlanceZone.Table, Glance.Zone);
-    }
-
-    [Fact]
-    public void The_knob_moves_the_highlight_clamps_at_the_end_and_tells_the_App()
-    {
-        ShowFour();
-        Glance.Open();
-
-        _rig.Bus.Publish(new SearchCursorMoved(3));
-        Assert.Equal(3, Glance.TableIndex);
-        Assert.Equal(Delta.FilePath, _rig.Picks.Last().FilePath);
-
-        _rig.Bus.Publish(new SearchCursorMoved(3));
-        Assert.Equal(3, Glance.TableIndex);
-    }
 
     [Fact]
     public void A_pick_is_sent_only_when_it_changes()
@@ -175,22 +144,6 @@ public class GlanceViewModelTests
         Glance.Move(-1);
 
         Assert.Equal(before, _rig.Picks.Count());
-    }
-
-    [Fact]
-    public void Q_toggles_the_shortlist_only_while_the_box_is_empty()
-    {
-        ShowFour();
-        Glance.Open();
-
-        Assert.True(Glance.TryShortlistKey());
-        Assert.Equal(Alpha.FilePath, _rig.Log.OfType<ToggleShortlist>().Single().FilePath);
-
-        Glance.Query = "bsn";
-        _rig.Log.Clear();
-
-        Assert.False(Glance.TryShortlistKey());
-        Assert.Empty(_rig.Log.OfType<ToggleShortlist>());
     }
 
     [Theory]
@@ -259,24 +212,20 @@ public class GlanceViewModelTests
         _rig.Crates.Add(new CrateRef(7, "Peak time", 12));
         _rig.Tags.Add(new TagHit("techno", 40));
         _rig.AttachDatabase();
-        _rig.Bus.Publish(new ShortlistChanged([Bravo]));
-        _rig.Bus.Publish(new RecentLoadsChanged([Charlie, Delta]));
     }
 
     [Fact]
-    public void The_rail_lists_shortlist_recent_loads_crates_and_tags_in_that_order()
+    public void The_rail_opens_on_crates_then_tags()
     {
         ShowFour();
         FillRail();
 
         Glance.Open();
 
-        Assert.Equal(
-            ["SHORTLIST", "RECENT LOADS", "CRATES", "TAGS"],
-            Glance.RailItems.OfType<GlanceRailHeader>().Select(h => h.Title));
-        Assert.Equal([1, 2, 1, 1], Glance.RailItems.OfType<GlanceRailHeader>().Select(h => h.Count));
+        Assert.Equal(["CRATES", "TAGS"], Glance.RailItems.OfType<GlanceRailHeader>().Select(h => h.Title));
+        Assert.Equal([1, 1], Glance.RailItems.OfType<GlanceRailHeader>().Select(h => h.Count));
         Assert.IsType<GlanceRailHeader>(Glance.RailItems[0]);
-        Assert.IsType<GlanceRailTrack>(Glance.RailItems[1]);
+        Assert.IsType<GlanceRailCrate>(Glance.RailItems[1]);
     }
 
     [Fact]
@@ -301,67 +250,46 @@ public class GlanceViewModelTests
     }
 
     [Fact]
-    public void A_rail_track_is_the_pick_and_a_crate_is_not()
+    public void Tab_and_the_arrows_still_reach_every_rail_section()
+    {
+        ShowFour();
+        FillRail();
+        Glance.Open();
+        Assert.Equal(GlanceZone.Table, Glance.Zone);
+
+        Glance.ToggleZone();
+        Assert.Equal(GlanceZone.Rail, Glance.Zone);
+
+        var seen = new List<Type> { Glance.RailItems[Glance.RailIndex].GetType() };
+        for (var i = 0; i < Glance.RailItems.Count; i++)
+        {
+            Glance.Move(1);
+            seen.Add(Glance.RailItems[Glance.RailIndex].GetType());
+        }
+        Assert.Contains(typeof(GlanceRailCrate), seen);
+        Assert.Contains(typeof(GlanceRailTag), seen);
+
+        for (var i = 0; i < Glance.RailItems.Count; i++) Glance.Move(-1);
+        Assert.IsType<GlanceRailCrate>(Glance.RailItems[Glance.RailIndex]);
+        Assert.Equal(1, Glance.RailIndex);
+
+        Glance.ToggleZone();
+        Assert.Equal(GlanceZone.Table, Glance.Zone);
+    }
+
+    [Fact]
+    public void A_rail_crate_is_not_a_pick_track()
     {
         ShowFour();
         FillRail();
         Glance.Open();
         Glance.ToggleZone();
-        Assert.Equal(Bravo.FilePath, _rig.Picks.Last().FilePath);
 
-        Glance.Move(10);
-
-        Assert.IsType<GlanceRailTag>(Glance.RailItems[Glance.RailIndex]);
+        Assert.IsType<GlanceRailCrate>(Glance.RailItems[Glance.RailIndex]);
+        Assert.Null(Glance.HighlightedPath);
         Assert.Null(_rig.Picks.Last().FilePath);
         Assert.True(_rig.Picks.Last().Active);
     }
-
-    [Fact]
-    public void Ctrl_Enter_on_a_crate_filters_the_library_and_closes()
-    {
-        ShowFour();
-        FillRail();
-        Glance.Open();
-        Glance.ToggleZone();
-        while (Glance.RailItems[Glance.RailIndex] is not GlanceRailCrate) Glance.Move(1);
-
-        Glance.ActivateAlternate();
-
-        var filter = _rig.Log.OfType<FilterLibraryByCrate>().Single();
-        Assert.Equal(7, filter.CrateId);
-        Assert.Equal("Peak time", filter.Name);
-        Assert.False(Glance.IsOpen);
-    }
-
-    [Fact]
-    public void Ctrl_Enter_on_a_tag_filters_the_library_and_closes()
-    {
-        ShowFour();
-        FillRail();
-        Glance.Open();
-        Glance.ToggleZone();
-        while (Glance.RailItems[Glance.RailIndex] is not GlanceRailTag) Glance.Move(1);
-
-        Glance.ActivateAlternate();
-
-        Assert.Equal("techno", _rig.Log.OfType<FilterLibraryByTag>().Single().Tag);
-        Assert.False(Glance.IsOpen);
-    }
-
-    [Fact]
-    public void A_shortlisted_track_is_marked_in_the_table()
-    {
-        ShowFour();
-        _rig.Bus.Publish(new ShortlistChanged([Bravo]));
-
-        Glance.Open();
-
-        Assert.Equal([false, true, false, false], Glance.Rows.Select(r => r.IsShortlisted));
-        _rig.Bus.Publish(new ShortlistChanged([]));
-        Assert.All(Glance.Rows, r => Assert.False(r.IsShortlisted));
-    }
-
-    // ---- Coalescing ----------------------------------------------------------------------------
 
     [Fact]
     public void Twenty_summary_changes_in_one_frame_cost_one_more_ranking()

@@ -5,6 +5,7 @@ using Sholto.App.Storage;
 using Sholto.Data;
 using Sholto.App.Decks;
 using Sholto.App.Glance;
+using Sholto.App.Library;
 using Sholto.App.Lifecycle;
 using Sholto.App.Performance;
 
@@ -65,8 +66,9 @@ internal sealed class AppLifecycleRig
         WaveformStylePreference = new SettingPreference(Database, SettingsKeys.WaveformStyle);
         BackspinTimePreference = new SettingPreference(Database, SettingsKeys.BackspinTimeSeconds);
         BackspinDistancePreference = new SettingPreference(Database, SettingsKeys.BackspinDistanceBeats);
-        ShortlistPreference = new SettingPreference(Database, SettingsKeys.GlanceShortlist);
-        Shortlist = new Shortlist(Library.Library, Library.Bus);
+        LegacyShortlistPreference = new SettingPreference(Database, SettingsKeys.GlanceShortlist);
+        TrackListPreference = new SettingPreference(Database, SettingsKeys.TrackList);
+        TrackList = new TrackList(Library.Library, appThread, Library.Bus);
         Library.Bus.Subscribe(BackspinTimeAnnounced);
         Library.Bus.Subscribe(BackspinDistanceAnnounced);
         BackspinFeel = new BackspinFeel(Library.Bus);
@@ -74,7 +76,8 @@ internal sealed class AppLifecycleRig
         DeckMarkers = new DeckMarkers(new DeckPair(Library.Deck1, Library.Deck2), Library.Library, appThread, Library.Bus);
         Lifecycle = new AppLifecycle(
             Database, Library.Library, DeckMarkers, ThemePreference, MusicDirPreference, OutputDevicePreference,
-            WaveformStylePreference, BackspinTimePreference, BackspinDistancePreference, BackspinFeel, ShortlistPreference, Shortlist,
+            WaveformStylePreference, BackspinTimePreference, BackspinDistancePreference, BackspinFeel, LegacyShortlistPreference,
+            TrackListPreference, TrackList, Codec,
             Enumerator, Audio, new FakeControllerSoundCard(ControllerCard), systemCheck ?? new SystemCheck([]), appThread, Library.Bus, musicDirOverride);
         Library.Bus.Subscribe(MusicFolderAsked);
         Library.Bus.Subscribe(DeviceAsked);
@@ -96,8 +99,10 @@ internal sealed class AppLifecycleRig
     public ISettingPreference WaveformStylePreference { get; }
     public ISettingPreference BackspinTimePreference { get; }
     public ISettingPreference BackspinDistancePreference { get; }
-    public ISettingPreference ShortlistPreference { get; }
-    public Shortlist Shortlist { get; }
+    public ISettingPreference LegacyShortlistPreference { get; }
+    public ISettingPreference TrackListPreference { get; }
+    public TrackList TrackList { get; }
+    public SavedTrackListCodec Codec { get; } = new();
     public BackspinFeel BackspinFeel { get; }
     public FakeAudioOutputEnumerator Enumerator { get; }
     public RecordingAudioOutput Audio { get; } = new();

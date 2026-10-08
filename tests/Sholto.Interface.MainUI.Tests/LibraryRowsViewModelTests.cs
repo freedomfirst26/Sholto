@@ -1,5 +1,6 @@
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Library;
+using Sholto.Data;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
 
@@ -66,7 +67,7 @@ public class LibraryRowsViewModelTests
     }
 
     [Fact]
-    public async Task A_filter_keeps_the_rows_that_stay_and_clearing_it_brings_all_back_in_order()
+    public async Task A_track_list_keeps_the_rows_that_stay_and_loading_the_rest_brings_all_back_in_list_order()
     {
         var (rig, rows) = New();
         var charlieId = rig.Catalog.Assign(LibrarySessionRig.Charlie.FilePath);
@@ -78,18 +79,22 @@ public class LibraryRowsViewModelTests
         rig.Library.AttachServices(tags, rig.Crates);
         var charlie = rows.Items.Single(r => r.Title == "Charlie");
 
-        await rig.Library.FilterByTagAsync("peak");
+        var list = new TrackList(rig.Library, new ImmediateAppThread(), rig.Bus);
+        var from = new Origin(InterfaceIds.Bench, "test", "track-list");
+
+        list.Handle(new LoadTagToTrackList("peak", from));
 
         Assert.Same(charlie, Assert.Single(rows.Items));
 
-        rig.Library.ClearFilter();
+        list.Handle(new LoadSongToTrackList(LibrarySessionRig.Bravo.FilePath, from));
+        list.Handle(new LoadSongToTrackList(LibrarySessionRig.Alpha.FilePath, from));
 
-        Assert.Equal(new[] { "Bravo", "Charlie", "Alpha" }, rows.Items.Select(r => r.Title));
+        Assert.Equal(new[] { "Charlie", "Bravo", "Alpha" }, rows.Items.Select(r => r.Title));
         Assert.Same(charlie, rows.Items.Single(r => r.Title == "Charlie"));
     }
 
     [Fact]
-    public async Task A_rescan_rebuilds_the_rows_from_the_catalog_and_resets_the_selection()
+    public async Task A_rescan_rebuilds_the_rows_from_the_catalog_and_keeps_the_highlight_on_the_same_song()
     {
         var (rig, rows) = New();
         await rig.Library.ScanAsync("/music", null);
@@ -98,7 +103,8 @@ public class LibraryRowsViewModelTests
         await rig.Library.ScanAsync("/music", null);
 
         Assert.Equal(3, rows.Items.Count);
-        Assert.Equal(-1, rig.Library.SelectedIndex);
+        Assert.Equal(1, rig.Library.SelectedIndex);
+        Assert.Equal("Charlie", rig.Library.SelectedSummary!.Title);
     }
 
     [Fact]

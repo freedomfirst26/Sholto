@@ -6,11 +6,11 @@ namespace Sholto.Interface.MainUI.ViewModels.Glance;
 
 /// <summary>One row of the Glance table: the library <see cref="TrackRow"/> plus what the App's ranking said
 /// about it. Holds levels, not brushes; the XAML maps a level to a theme resource through a class.</summary>
-public sealed class GlanceRow(TrackRow row, RankedTrack ranked, bool isShortlisted) : INotifyPropertyChanged
+public sealed class GlanceRow(TrackRow row, RankedTrack ranked, bool isInTrackList = false) : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private bool _isShortlisted = isShortlisted;
+    private bool _isInTrackList = isInTrackList;
 
     public TrackRow Row { get; } = row;
 
@@ -34,14 +34,15 @@ public sealed class GlanceRow(TrackRow row, RankedTrack ranked, bool isShortlist
     /// <summary>Played tracks and the reference recede.</summary>
     public bool IsFaded => IsReference || Row.IsPlayed;
 
-    public bool IsShortlisted
+    /// <summary>The song is in the Track List (the library rows are the list): the row's star is filled.</summary>
+    public bool IsInTrackList
     {
-        get => _isShortlisted;
+        get => _isInTrackList;
         set
         {
-            if (_isShortlisted == value) return;
-            _isShortlisted = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsShortlisted)));
+            if (_isInTrackList == value) return;
+            _isInTrackList = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsInTrackList)));
         }
     }
 

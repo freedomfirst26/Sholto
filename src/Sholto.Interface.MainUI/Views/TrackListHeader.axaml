@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tl="using:Sholto.Interface.MainUI.ViewModels"
+             xmlns:chips="using:Sholto.Interface.MainUI.Controls.Chips"
+             x:Class="Sholto.Interface.MainUI.Views.TrackListHeader"
+             x:DataType="tl:ITrackListViewModel"
+             Focusable="False">
+    <!-- The Track List strip above the main list: one chip per source (its x removes the songs only
+         that source brought), the song count. The main window hides it while the list is empty. -->
+    <Border Background="{DynamicResource SholtoSurfaceRaised}"
+            BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="0,0,0,1"
+            Padding="12,6">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+            <ItemsControl Name="SourceChips" ItemsSource="{Binding Sources}"
+                          IsVisible="{Binding !IsEmpty}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="6"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="tl:TrackListSourceChip">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <chips:SourceChip Kind="{Binding ChipKind}" Text="{Binding Label}" Removed="OnSourceRemoved"
+                                              ToolTip.Tip="Remove these songs from the Track List"/>
+                            <TextBlock Text="{Binding Count}" IsVisible="{Binding ShowCount}"
+                                       Foreground="{DynamicResource SholtoLoadTrackList}"
+                                       FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Name="CountText" Text="{Binding CountText}"
+                       Foreground="{DynamicResource SholtoLoadTrackList}"
+                       FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"
+                       IsVisible="{Binding !IsEmpty}"/>
+        </StackPanel>
+    </Border>
+</UserControl>

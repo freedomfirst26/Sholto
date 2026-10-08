@@ -107,6 +107,18 @@ public class FaceplateDocTests
         }
     }
 
+    [Theory]
+    [InlineData("deck.pad.1", "pad.hotcue.drums", "mixer.eq.hi")]
+    [InlineData("deck.pad.2", "pad.hotcue.vocals", "mixer.eq.mid")]
+    [InlineData("deck.pad.3", "pad.hotcue.instrumental", "mixer.eq.low")]
+    public void A_hot_cue_stem_pad_points_at_its_shift_eq_stem_level(string padId, string gestureId, string eqId)
+    {
+        var gesture = Flx4().Controls.Single(c => c.Id == padId)
+                            .Gestures.Single(g => g.Id == gestureId);
+        Assert.Contains("[[deck.shift]]", gesture.Result);
+        Assert.Contains($"[[{eqId}]]", gesture.Result);
+    }
+
     /// <summary>Every DeviceLayout.Id in the layout XAML, read as plain XML.</summary>
     private static HashSet<string> LayoutIds()
     {

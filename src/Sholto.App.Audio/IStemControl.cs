@@ -13,12 +13,11 @@ public interface IStemControl
     /// Lock-free.</summary>
     void SetStemGroup(int group, bool active);
 
-    /// <summary>Continuous stem-group attenuator driven by the StemLevelMode
-    /// modifier + EQ knobs (HI = drums, MID = vocals, LOW = inst). Knob
-    /// position (0..1) maps through a Pioneer-style "isolator kill" curve so
-    /// the bottom half does all the attenuation and the bottom detent is
-    /// hard-zero (≤0.04 → 0, 0.04–0.5 → linear ramp, ≥0.5 → unity / no
-    /// boost). Independent from <see cref="SetStemGroup"/>: turning the knob
+    /// <summary>Continuous stem-group attenuator driven by Shift
+    /// + the EQ knobs (HI = drums, MID = vocals, LOW = inst). The
+    /// level is the stem's gain (1.0 = unity; the controller maps knob
+    /// centre to 1.0). A small bottom dead zone is hard-zero (≤0.08 → 0,
+    /// 0.08–1.0 → linear ramp, ≥1.0 → unity / no boost). Independent from <see cref="SetStemGroup"/>: turning the knob
     /// while pad-muted updates the stored level silently; mute stays in
     /// effect. Unmuting then brings the stem back at the stored level.</summary>
     void SetStemGroupLevel(int group, double level);

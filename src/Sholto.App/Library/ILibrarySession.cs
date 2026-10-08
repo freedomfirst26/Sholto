@@ -6,23 +6,22 @@ using Sholto.Data;
 
 namespace Sholto.App.Library;
 
-/// <summary>The music library, headless: scan and catalog, the visible rows (all or filtered by a tag or a
-/// crate), the browse selection, per-track facts as they arrive (BPM, multiplier, key, stems, tags, played,
+/// <summary>The music library, headless: scan and catalog, the visible rows (the catalog, then the Track List), the browse selection, per-track facts as they arrive (BPM, multiplier, key, stems, tags, played,
 /// analysis progress), the harmony reference key, and the persistence of the BPM multiplier. It emits
 /// immutable <see cref="TrackSummary"/> values and change notifications; an interface projects them. All
 /// members except the async ones run on the app thread; the async ones hop onto it themselves.
 /// <para>It also publishes the same changes on the bus as state events (<c>LibraryRowsChanged</c>, <c>SelectionChanged</c>,
-/// <c>LibraryFilterChanged</c>, <c>LibraryUnreachableChanged</c>, <c>HarmonyReferenceChanged</c>,
+/// <c>LibraryUnreachableChanged</c>, <c>HarmonyReferenceChanged</c>,
 /// <c>LibraryDatabaseAttached</c>) and facts (<c>TrackSummaryChanged</c>); those are what the interfaces follow.</para></summary>
 public interface ILibrarySession : ITrackSelection
 {
-    /// <summary>The visible rows, in display order (the whole catalog, or the active filter's subset).</summary>
+    /// <summary>The visible rows, in display order (the catalog until a Track List is shown, then the Track List).</summary>
     IReadOnlyList<TrackSummary> Rows { get; }
 
-    /// <summary>The whole catalog in scan order, whatever filter is active. A live list: copy it before using it off the app thread.</summary>
+    /// <summary>The whole catalog in scan order, whatever is shown. A live list: copy it before using it off the app thread.</summary>
     IReadOnlyList<TrackSummary> Catalog { get; }
 
-    /// <summary>The visible rows were replaced (scan, filter, filter cleared). The payload is a snapshot.</summary>
+    /// <summary>The visible rows were replaced (scan, Track List shown). The payload is a snapshot.</summary>
     event Action<IReadOnlyList<TrackSummary>>? RowsChanged;
 
     /// <summary>One track's summary changed (BPM landed, tags edited, played, analysis progress...).</summary>
@@ -52,9 +51,6 @@ public interface ILibrarySession : ITrackSelection
 
     bool IsUnreachable { get; }
 
-    /// <summary>Label of the active tag or crate filter, or null when the whole library shows.</summary>
-    string? ActiveFilter { get; }
-
     /// <summary>Camelot key of the harmony anchor: deck 1's loaded key, else deck 2's. Null when neither has one.</summary>
     Key? HarmonyReferenceKey { get; }
 
@@ -65,14 +61,10 @@ public interface ILibrarySession : ITrackSelection
     /// <summary>Remember (or clear, with null) the saved music folder that could not be reached.</summary>
     void SetUnreachablePath(string? path);
 
-    /// <summary>Show only the tracks carrying <paramref name="tag"/>. No tag service yet: nothing happens.</summary>
-    Task FilterByTagAsync(string tag);
-
-    /// <summary>Show only the tracks in <paramref name="crate"/>. No crate service yet: nothing happens.</summary>
-    Task FilterByCrateAsync(CrateSummary crate);
-
-    /// <summary>Show the whole library again.</summary>
-    void ClearFilter();
+    /// <summary>Show exactly these songs, in this order, as the visible rows. Paths the catalog does not hold
+    /// are skipped. From the first call on, rows follow this list (a rescan re-applies it); the highlight stays
+    /// on the same path, or on the same index (clamped) when that path is gone.</summary>
+    void ShowTrackList(IReadOnlyList<string> paths);
 
     /// <summary>The persisted half/double override for a file; 1.0 when there is none.</summary>
     double GetBpmMultiplierFor(string filePath);
@@ -109,6 +101,9 @@ public interface ILibrarySession : ITrackSelection
 
     /// <summary>A forced re-analysis threw: show <paramref name="failure"/> on the track.</summary>
     void ReportReanalysisFailure(string filePath, string failure);
+
+    /// <summary>The track's stems exist (a re-analysis separated them, or found them cached): tick the row.</summary>
+    void ApplyStemsReady(string filePath);
 
     /// <summary>Walk the catalog and mark the tracks whose four stem files already exist. Runs off the app
     /// thread (each check hashes 1 MiB of the file); never triggers analysis.</summary>

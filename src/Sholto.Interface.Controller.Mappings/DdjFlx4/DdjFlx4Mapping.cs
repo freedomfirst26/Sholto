@@ -43,12 +43,6 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Key == _o.JogTouchNote && (msg.Channel == _o.Deck0Channel || msg.Channel == _o.Deck1Channel))
             return new ControllerEvent.JogTouch(Deck: msg.Channel == _o.Deck0Channel ? 0 : 1, Touching: msg.IsDown);
 
-        // Stem-level modifier (deck-agnostic). Hold this button to repurpose
-        // the EQ knobs as per-stem attenuators. Both edges matter — the App
-        // tracks the held state and switches CC routing in EqMoved.
-        if (msg.Channel == _o.StemLevelModeChannel && msg.Key == _o.StemLevelModeNote)
-            return new ControllerEvent.StemLevelMode(Pressed: msg.IsDown);
-
         // PAD FX1 page, pad 2 — beat-repeat / roll. Held rather than toggled,
         // so (unlike the echo toggle on pad 1) both edges matter and this
         // check has to sit above the press-only filter below.

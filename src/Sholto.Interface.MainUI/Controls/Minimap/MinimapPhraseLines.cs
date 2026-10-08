@@ -4,7 +4,7 @@ namespace Sholto.Interface.MainUI.Controls.Minimap;
 
 public sealed class MinimapPhraseLines : IMinimapPhraseLines
 {
-    public IReadOnlyList<MinimapPhraseLine> Lines(DeckPhraseGrid grid, int lastBar)
+    public IReadOnlyList<MinimapPhraseLine> Lines(DeckPhraseGrid grid, int lastBar, double dipsPerBar)
     {
         int unit = grid.PhraseBars;
         if (unit <= 0 || lastBar < 0) return [];
@@ -18,6 +18,8 @@ public sealed class MinimapPhraseLines : IMinimapPhraseLines
             var weight = step == 0 ? MinimapPhraseLineWeight.Strong
                 : step == 2 ? MinimapPhraseLineWeight.Medium
                 : MinimapPhraseLineWeight.Thin;
+            if (weight == MinimapPhraseLineWeight.Thin && unit * dipsPerBar < MinimapMetrics.MinPhraseSpacing) continue;
+            if (weight == MinimapPhraseLineWeight.Medium && 2 * unit * dipsPerBar < MinimapMetrics.MinPhraseSpacing) continue;
             lines.Add(new MinimapPhraseLine(bar, weight));
         }
         return lines;

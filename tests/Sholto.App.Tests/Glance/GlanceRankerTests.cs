@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Glance;
 using Sholto.Data;
 
@@ -6,7 +7,7 @@ namespace Sholto.App.Tests.Glance;
 public class GlanceRankerTests
 {
     private readonly GlanceTrackBuilder _b = new();
-    private readonly GlanceRanker _ranker = new(new FitScorer(), new GlanceQueryFactory(), new GlanceMatcher());
+    private readonly GlanceRanker _ranker = new(new FitScorer(Options.Create(new GlanceOptions())), new GlanceQueryFactory(), new GlanceMatcher());
 
     private GlanceReference Ref() => new(0, _b.Key("8A"), 128, "/m/ref.mp3");
 

@@ -2,8 +2,4 @@ namespace Sholto.Data;
 
 /// <summary>The answer to <see cref="OutputDeviceNeeded"/>: the name of the device the user picked, or null
 /// when they cancelled the picker.</summary>
-public readonly record struct ChooseOutputDevice(string? Name, Origin Origin) : ICommand
-{
-    /// <summary>Not a deck command.</summary>
-    public int Deck => -1;
-}
+public readonly record struct ChooseOutputDevice(string? Name, Origin Origin) : ICommand;

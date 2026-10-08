@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
 using Sholto.Interface.MainUI.ViewModels;
@@ -8,7 +9,7 @@ public class WaveformStyleViewModelTests
 {
     private readonly DataBus _bus = new(new ThrowingFailureSink());
     private readonly F9RecordingCommandHandler<ChooseWaveformStyle> _sent = new();
-    private readonly IWaveformStyles _styles = new WaveformStylesFactory().Create();
+    private readonly IWaveformStyles _styles = new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create();
     private readonly WaveformStyleViewModel _vm;
     private readonly List<string?> _changed = [];
 

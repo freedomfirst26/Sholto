@@ -20,23 +20,26 @@
     "onChipForeground": "#050505"
   },
   "waveform": {
-    "low": "#D4132C",
-    "mid": "#9FD0F0",
-    "high": "#F4FBFF",
+    "low": "#CC272D",
+    "mid": "#A8C1DA",
+    "high": "#EDEDE8",
     "downbeat": "#D8E6E6E6",
     "marker": "#E6E6E6",
     "loop": "#80E6E6E6",
-    "rgbLow": "#FF1F3D",
-    "rgbMid": "#4FC3FF",
-    "rgbHigh": "#EAF4FF",
+    "rgbLow": "#DF212D",
+    "rgbMid": "#C9A24A",
+    "rgbHigh": "#A9C8E8",
     "playhead": "#00FF00"
   },
   "minimap": {
-    "drop":      "#E6E6E6",
-    "buildUp":   "#9A9A9A",
-    "breakdown": "#2E2E2E",
-    "intro":     "#1A1A1A",
-    "outro":     "#1A1A1A",
-    "playhead": "#00FF00"
+    "playhead": "#00FF00",
+    "intro": "#6B7681",
+    "buildUp": "#EDEDE8",
+    "drop": "#DB1A29",
+    "breakdown": "#7B95B0",
+    "verse": "#9BA6B2",
+    "chorus": "#C9A24A",
+    "bridge": "#774E96",
+    "outro": "#54595E"
   }
 }

@@ -120,27 +120,29 @@ public class GestureRecognizerTests
     }
 
     [Fact]
-    public void Eq_is_a_plain_turn_until_the_stem_level_button_is_held()
+    public void Eq_is_a_plain_turn_until_the_deck_shift_is_held()
     {
         var (_, go) = New();
         Assert.Equal(GestureIds.EqTurn,
             go(new ControllerEvent.EqMoved(0, EqBand.High, 0.7)).Value.Id);
 
-        go(new ControllerEvent.StemLevelMode(Pressed: true));
-        Assert.Equal(GestureIds.EqStemLevelTurn,
-            go(new ControllerEvent.EqMoved(0, EqBand.High, 0.7)).Value.Id);
+        go(new ControllerEvent.DeckShift(0, true));
+        var stem = go(new ControllerEvent.EqMoved(0, EqBand.High, 0.7)).Value;
+        Assert.Equal(GestureIds.EqStemLevelTurn, stem.Id);
+        Assert.Equal(0, stem.Deck);
 
-        go(new ControllerEvent.StemLevelMode(Pressed: false));
+        go(new ControllerEvent.DeckShift(0, false));
         Assert.Equal(GestureIds.EqTurn,
             go(new ControllerEvent.EqMoved(0, EqBand.High, 0.7)).Value.Id);
     }
 
     [Fact]
-    public void The_stem_level_modifier_applies_to_both_decks()
+    public void Shift_on_one_deck_does_not_turn_the_other_decks_eq_into_stem_levels()
     {
+        // FX ON/OFF is ch6 0x47 (measured on hardware 2026-09-09); it is not mapped.
         var (_, go) = New();
-        go(new ControllerEvent.StemLevelMode(Pressed: true));
-        Assert.Equal(GestureIds.EqStemLevelTurn,
+        go(new ControllerEvent.DeckShift(0, true));
+        Assert.Equal(GestureIds.EqTurn,
             go(new ControllerEvent.EqMoved(1, EqBand.Low, 0.2)).Value.Id);
     }
 
@@ -300,10 +302,8 @@ public class GestureRecognizerTests
         Feed(new ControllerEvent.NudgeGrid(-1, -1));
         Feed(new ControllerEvent.NudgeGrid(-1, +1));
         Feed(new ControllerEvent.BrowseRotated(1));
-        Feed(new ControllerEvent.StemLevelMode(true));
-        Feed(new ControllerEvent.EqMoved(0, EqBand.High, 0.5));   // now the stem variant
-        Feed(new ControllerEvent.StemLevelMode(false));
         Feed(new ControllerEvent.DeckShift(0, true));
+        Feed(new ControllerEvent.EqMoved(0, EqBand.High, 0.5));   // now the stem variant
         Feed(new ControllerEvent.JogRotated(0, 1, JogSource.TopPlatter)); // now the shift variant
         Feed(new ControllerEvent.DeckShift(0, false));
         Feed(new ControllerEvent.BrowsePressed());

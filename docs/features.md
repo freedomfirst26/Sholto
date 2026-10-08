@@ -11,22 +11,23 @@ The full feature list. For what each part of the screen means, see
 More: [library.md](library.md).
 
 ## Finding and organising
-- **Search that fits your mix** — press the spacebar and type. Search ranks your tracks by how well they fit the deck you're *not* loading into: the header shows that deck's key, BPM and title, and its LOAD TO slot is marked **FIT**. Each track is marked green (a good fit), amber (usable) or grey (a clash) from its key and tempo, with no bar until it is analysed, and half- and double-time count. Tracks you haven't loaded yet come first. With nothing loaded on the other deck (or its key and BPM not known yet), the list is simply A to Z by artist.
+- **Search that fits your mix** — press the spacebar and type. Search ranks your tracks by how well they fit the deck you're *not* loading into: the header shows that deck's key, BPM and title. Each track is marked green (a good fit), amber (usable) or grey (a clash) from its key and tempo, with no bar until it is analysed, and half- and double-time count. Tracks you haven't loaded yet come first. With nothing loaded on the other deck (or its key and BPM not known yet), the list is simply A to Z by artist.
   - Type a few letters of a title or artist, or just the initials (`iltwykm` finds "I Like The Way You Kiss Me", `bsn` finds "Born Slippy .NUXX"). Add `bpm:128` (or `bpm:124-128`), `key:8a` or `#vocal` to narrow it down; every word you type has to match. Every rule is in [search.md](search.md).
-  - A side list holds your **shortlist** (press **Q** on a track to add or remove it; it is kept when you restart Sholto), your **recent loads** for this session, and your crates and tags.
-  - Search always covers your whole library, even when the library list is filtered to a crate or tag. To narrow search itself, use a chip (below). It shows the best 250 matches.
-- **Narrow search to a crate or tag** — click a crate or tag in the side list (or press **Enter** on it) and it becomes a chip in the search box; the list narrows to it, still ranked by fit. Chips stack (a crate *and* a tag), the side list marks the ones in use and shows how many tracks each would leave, and typed words filter on top. Click a chip's **×**, or press **Backspace** in an empty box, to take it off. **Ctrl + Enter** on a crate or tag shows it in the library instead and closes search. If a re-rank takes a moment, the old list dims and a light runs down the fit bars; with reduced motion it just dims.
+  - Click the violet list mark on a row (**≡+**, or **≡✓** once it's in) to add that song to the Track List or remove it, or press **Ctrl + L**. A side list holds your crates and tags.
+  - Search always covers your whole library. To narrow search itself, use a chip (below). It shows the best 250 matches.
+- **Narrow search to a crate or tag** — click a crate or tag in the side list (or press **Enter** on it) and it becomes a chip in the search box; the list narrows to it, still ranked by fit. Chips stack (a crate *and* a tag), the side list marks the ones in use and shows how many tracks each would leave, and typed words filter on top. Click a chip's **×**, or press **Backspace** in an empty box, to take it off. Chips only narrow search; they don't filter the main list. If a re-rank takes a moment, the old list dims and a light runs down the fit bars; with reduced motion it just dims.
 
   ![The search box holding a crate chip and a tag chip, with those two marked in the side list](../pictures/glance-chips.webp)
 
 - **Load straight from search** — **Enter** loads onto the deck shown, **← / →** switches deck, and **Shift + 1** / **Shift + 2** load onto Deck 1 / Deck 2 directly.
-- **See both decks while you search** — the two LOAD TO slots in the header each show a spinning platter (one turn per bar, stopped if your desktop asks for reduced motion) with a ring of the time left, the title, key, BPM and time left, and **FIT** on the deck the list is fitted to. The deck a load goes to has an accent border and a notch on top; if it is playing the slot turns amber, and after the first press it turns red and reads "again to replace".
+- **The Track List** — the main view's list. **Ctrl + L** in search adds the highlighted song, crate or tag to it and leaves search open so you can add more. Loads add and never replace, and a song is never listed twice. The strip above the list shows what you've loaded; **×** removes the songs that source brought in. Drag the grip to reorder, press **Delete** to remove the highlighted song, or press **Ctrl + Del** twice in search to clear it. It is kept when you restart Sholto, and holds **All Tracks** on first launch.
+- **See both decks while you search** — the two deck slots in the header each show a spinning platter (one turn per bar, stopped if your desktop asks for reduced motion) with a ring of the time left (red in the last 45 seconds), the title, key, BPM and time left. Click a slot to load the highlighted song onto it. The deck a load goes to is washed in its deck colour, with a notch on top; the platter reads **⇧1** / **⇧2**, the key that loads there; if it is playing the slot turns amber, and after the first press it turns red and reads "again to replace".
 
-  ![The LOAD TO slots in the search header: one deck playing with the other left as an empty slot and chosen as the target, then the playing deck chosen and flagged amber](../pictures/glance-slots.webp)
+  ![The deck slots in the search header: one deck playing with the other left as an empty slot and chosen as the target, then the playing deck chosen and flagged amber](../pictures/glance-slots.webp)
 - **Asks before replacing a playing deck** — loading onto a deck that is playing shows a warning; load again within 3 seconds to confirm. This applies to the keyboard, the screen and the controller's LOAD buttons.
 - **Undo a load** — **Ctrl + Z** within 10 seconds of a load puts the previous track back on that deck, paused at the spot where you replaced it. (EQ, filter and loop settings are not restored.)
 - **Tags** — label any track with words that matter to you ("peak time", "vocal", "drum & bass"), then filter the whole library down to a tag in one click.
-- **Crates** — group tracks into crates (like playlists or record boxes) and jump to a crate's contents instantly. An **All Tracks** crate always holds everything; press **Esc** to get back to it.
+- **Crates** — group tracks into crates (like playlists or record boxes) and jump to a crate's contents instantly. An **All Tracks** crate always holds everything; **Ctrl + L** in search adds a crate's songs to the Track List.
 
 ## Reading your tracks
 - **Automatic beat and tempo detection** — Sholto finds the BPM and marks the downbeats so your beatgrid lines up.
@@ -64,7 +65,7 @@ left uncoloured, so you can see at a glance what's live.
 
 Close the guide (Esc, or its × button) and it shrinks into the controller icon, which pulses so you know where to reopen it; with your desktop's animations off it just fades.
 
-**Browsing with the controller.** A short press of the browse knob opens search (press again to switch between the track list and the side list); turning the knob moves through the search list, and **LOAD 1** / **LOAD 2** loads the highlighted search result. If the deck is playing, press **LOAD** a second time within 3 seconds to replace it. Hold the knob for about a second to re-analyse the highlighted track.
+**Browsing with the controller.** Turning the browse knob scrolls the Track List, and **LOAD 1** / **LOAD 2** loads the highlighted track (or the search pick while search is open). If the deck is playing, press **LOAD** a second time within 3 seconds to replace it. Hold the knob for about a second to re-analyse the highlighted track.
 
 ![The controller guide — the DDJ-FLX4 drawn on screen with the jog wheel selected, and a panel explaining every way of using it](../pictures/sholto-faceplate.webp)
 
@@ -85,9 +86,8 @@ device's button layout in one place.
 - **Space** — open search (ranks tracks by fit against the deck you're not loading into; type to narrow, or search crates and tags).
 - **Shift + 1 / Shift + 2** (in search) — load the highlighted track straight onto Deck 1 / Deck 2.
 - **← / →** (in search) — choose which deck **Enter** loads onto.
-- **Tab** (in search) — switch between the track list and the side list (shortlist, recent loads, crates, tags).
-- **Enter** / **Ctrl + Enter** (in search, on a crate or tag) — add or remove it as a chip / show it in the library and close search. **Backspace** in an empty search box removes the newest chip.
-- **Q** (in search, with an empty search box) — add or remove the highlighted track from your shortlist.
+- **Tab** (in search) — switch between the track list and the side list (crates, tags).
+- **Enter** (in search, on a crate or tag) — add or remove it as a chip. **Ctrl + L** adds the highlighted song, crate or tag to the Track List. **Ctrl + Del** twice clears it. **Backspace** in an empty search box removes the newest chip.
 - **Ctrl + Z** — undo the last load (within 10 seconds).
 - **↑ / ↓** — move up and down the track list.
 - **1 / 2** — load the highlighted track onto Deck 1 or Deck 2.
@@ -95,7 +95,7 @@ device's button layout in one place.
 - **P** — play / pause Deck 1; hold **Shift** for Deck 2.
 - **G** — open the beatgrid / tempo tuner on the playing deck; then **↑ / ↓** change the tempo and **← / →** nudge the grid.
 - **M** — drop a marker on the playing deck.
-- **Esc** — close a menu, or clear a tag/crate filter to go back to **All Tracks**.
+- **Esc** — close the tuner.
 - **F11** — toggle fullscreen.
 
 The full table, with the Shift variants, is in [the guide](README.md#keyboard-at-a-glance).

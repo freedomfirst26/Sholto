@@ -35,7 +35,7 @@ public class SearchPickTests
         });
         await Task.Run(() => lib.Library.ScanAsync("/music", lib.Stack(tags: tags)));
         lib.Library.AttachServices(tags, lib.Crates);
-        await lib.Library.FilterByTagAsync("house");
+        lib.Library.ShowTrackList([LibrarySessionRig.Alpha.FilePath]);
         Assert.Single(lib.Library.Rows);
         lib.Library.Select(0);
     }
@@ -101,75 +101,31 @@ public class SearchPickTests
     }
 
     [Fact]
-    public void Rotate_with_the_pick_active_publishes_SearchCursorMoved_and_leaves_the_selection()
+    public void Rotate_with_the_pick_active_still_moves_the_library_highlight()
     {
         var rig = new TrackLoaderRig(new FakeAudioFileDecoder());
         rig.Highlight(LibrarySessionRig.Alpha);
         var before = rig.Library.Library.SelectedIndex;
-        var moved = new CountingEventHandler<SearchCursorMoved>();
-        rig.Library.Bus.Subscribe(moved);
-        var browse = new BrowseCommandHandlers(rig.Library.Library, rig.Pick, rig.Library.Bus);
+        var browse = new BrowseCommandHandlers(rig.Library.Library);
         rig.Pick.Handle(Pick(true, LibrarySessionRig.Bravo.FilePath));
 
-        browse.Handle(new RotateBrowse(2, From));
+        browse.Handle(new RotateBrowse(-1, From));
 
-        Assert.Equal(before, rig.Library.Library.SelectedIndex);
-        Assert.Equal(1, moved.Count);
-        Assert.Equal(new SearchCursorMoved(2), moved.Last);
+        Assert.Equal(before - 1, rig.Library.Library.SelectedIndex);
     }
 
     [Fact]
-    public void Rotate_with_the_pick_inactive_moves_the_selection_and_publishes_nothing()
+    public void Rotate_with_the_pick_inactive_moves_the_selection()
     {
         var rig = new TrackLoaderRig(new FakeAudioFileDecoder());
         rig.Highlight(LibrarySessionRig.Alpha);
         var before = rig.Library.Library.SelectedIndex;
-        var moved = new CountingEventHandler<SearchCursorMoved>();
-        rig.Library.Bus.Subscribe(moved);
-        var browse = new BrowseCommandHandlers(rig.Library.Library, rig.Pick, rig.Library.Bus);
+        var browse = new BrowseCommandHandlers(rig.Library.Library);
 
         browse.Handle(new RotateBrowse(-before, From));
         browse.Handle(new RotateBrowse(2, From));
 
         Assert.Equal(2, rig.Library.Library.SelectedIndex);
-        Assert.Equal(0, moved.Count);
-    }
-
-    [Fact]
-    public void OpenSearch_publishes_exactly_one_SearchRequested_with_the_same_origin()
-    {
-        var rig = new TrackLoaderRig(new FakeAudioFileDecoder());
-        var requested = new CountingEventHandler<SearchRequested>();
-        rig.Library.Bus.Subscribe(requested);
-        var browse = new BrowseCommandHandlers(rig.Library.Library, rig.Pick, rig.Library.Bus);
-
-        browse.Handle(new OpenSearch(From));
-
-        Assert.Equal(1, requested.Count);
-        Assert.Equal(new SearchRequested(From), requested.Last);
-    }
-
-    [Fact]
-    public void In_inspect_an_OpenSearch_from_the_controller_is_echoed_and_not_executed()
-    {
-        var rig = new TrackLoaderRig(new FakeAudioFileDecoder());
-        var bus = rig.Library.Bus;
-        var inspect = new InspectMode(bus);
-        var registry = new InspectGatedCommandRegistry(bus, inspect, bus, [InterfaceIds.Controller, InterfaceIds.Keyboard]);
-        registry.Register<SetInspectMode>(inspect);
-        registry.Register<OpenSearch>(new BrowseCommandHandlers(rig.Library.Library, rig.Pick, bus));
-        var requested = new CountingEventHandler<SearchRequested>();
-        var echoed = new CountingEventHandler<CommandReceived>();
-        bus.Subscribe(requested);
-        bus.Subscribe(echoed);
-        var origin = new Origin(InterfaceIds.Controller, "browse.push", "browse.press.short");
-
-        bus.Send(new SetInspectMode(true, new Origin(InterfaceIds.Faceplate, "faceplate", "mount")));
-        bus.Send(new OpenSearch(origin));
-
-        Assert.Equal(0, requested.Count);
-        Assert.Equal(1, echoed.Count);
-        Assert.Equal("OpenSearch", echoed.Last.CommandName);
     }
 
     [Fact]

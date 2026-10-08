@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.App.Library;
 using Sholto.Data;
+using Sholto.Host;
 using Sholto.Interface.Bench.Headless;
 using Sholto.Interface.Faceplate;
 using Sholto.Interface.Faceplate.Devices.DdjFlx4;
@@ -29,10 +30,10 @@ namespace Sholto.Interface.MainUI.Harness.Ui;
 /// <param name="sender">The data bus the guide and view models send commands on.</param>
 /// <param name="asker">The data bus the view models ask their queries on.</param>
 /// <param name="subscriber">The data bus the view models follow events on.</param>
-/// <param name="feature">The feature flags the deck view models are built with.</param>
+/// <param name="options">The configured options the view models are built with.</param>
 /// <param name="appThread">The app thread the view models marshal onto.</param>
 public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCoreFactory coreFactory,
-    ICommandSender sender, IQueryAsker asker, IEventSubscriber subscriber, IOptions<FeatureOptions> feature,
+    ICommandSender sender, IQueryAsker asker, IEventSubscriber subscriber, SholtoOptions options,
     IAppThread appThread) : IBenchAppFactory
 {
     public BenchApp Create()
@@ -49,7 +50,7 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
         var tagRecency = new Sholto.Interface.MainUI.Models.TagRecency();
         var rows = new LibraryRowsViewModel(subscriber, new TrackRowFactory(themeContext));
         var deckViewModels = new DeckViewModelFactory(
-            subscriber, sender, themeContext, feature, new NoPeaksFactory(),
+            subscriber, sender, themeContext, options.Feature, options.DeckView, new NoPeaksFactory(),
             new DiscBloomFactory(new ManualFrameClock()));
         var deck1ViewModel = deckViewModels.Create(0);
         var deck2ViewModel = deckViewModels.Create(1);
@@ -62,8 +63,8 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
         _ = int.TryParse(Environment.GetEnvironmentVariable("SHOLTO_HARNESS_SLOWRANK"), out var rankDelayMs);
         var glance = new GlanceViewModel(
             sender, new DemoGlanceAsker(asker, rankDelayMs), subscriber, appThread, uiClock, rows, tagRecency,
-            new GlanceHeaderViewModel(deckClocks, uiClock, subscriber, new DeckSlotFactory(deckClocks, motion)), motion);
-        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory().Create(), sender);
+            new GlanceHeaderViewModel(deckClocks, uiClock, subscriber, new DeckSlotFactory(deckClocks, motion, options.GlanceView)), motion, options.GlanceView);
+        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(options.WaveformStyle).Create(), sender);
         var themeViewModel = new ThemeViewModel(themeContext, themeCatalog, sender);
         var vm = new MainViewModel(
             themeViewModel,
@@ -85,7 +86,8 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
             new SystemReportViewModel(),
             new CollapseToIconSequenceFactory(uiClock, motion)
                 .Create(new CollapseToIconOptions("faceplate", Slowed(new CollapseToIconTimingsFactory().Standard())),
-                    new HintPolicyFactory(asker, sender).Always()));
+                    new HintPolicyFactory(asker, sender).Always()),
+            new TrackListViewModel(sender, subscriber));
 
         var device = new DdjFlx4Faceplate();
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), sender, subscriber).Create(device);

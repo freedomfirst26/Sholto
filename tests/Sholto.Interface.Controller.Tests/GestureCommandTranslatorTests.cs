@@ -26,7 +26,7 @@ public class GestureCommandTranslatorTests
         var reportOnly = new HashSet<string>
         {
             GestureIds.CueTransportPlain, GestureIds.SyncPress,
-            GestureIds.ShiftHold, GestureIds.StemLevelHold,
+            GestureIds.ShiftHold,
         };
         var events = new Dictionary<string, ControllerEvent>
         {
@@ -58,7 +58,6 @@ public class GestureCommandTranslatorTests
             [GestureIds.GridNudgeForward] = new ControllerEvent.NudgeGrid(-1, 1),
             [GestureIds.BrowseTurn] = new ControllerEvent.BrowseRotated(1),
             [GestureIds.ShiftHold] = new ControllerEvent.DeckShift(0, true),
-            [GestureIds.StemLevelHold] = new ControllerEvent.StemLevelMode(true),
         };
 
         foreach (var id in new GestureCatalog().All)
@@ -117,6 +116,23 @@ public class GestureCommandTranslatorTests
     }
 
     [Fact]
+    public void A_per_deck_gesture_stamps_its_deck_side_on_the_origin()
+    {
+        var play = Assert.IsType<TogglePlay>(Run(new ControllerEvent.PlayPressed(1)));
+        Assert.Equal(new Origin(InterfaceIds.Controller, "deck.play", "play.press", 1), play.Origin);
+    }
+
+    [Fact]
+    public void The_beat_arrows_target_the_shift_deck_but_their_origin_names_no_deck()
+    {
+        // The arrows are one global pair: the command targets deck 1 (Shift held), the control has no deck side.
+        Run(new ControllerEvent.DeckShift(1, true));
+        var nudge = Assert.IsType<NudgeGrid>(Run(new ControllerEvent.NudgeGrid(-1, -1)));
+        Assert.Equal(1, nudge.Deck);
+        Assert.Equal(Origin.NoDeck, nudge.Origin.Deck);
+    }
+
+    [Fact]
     public void A_nudge_that_already_names_a_deck_keeps_it()
     {
         Run(new ControllerEvent.DeckShift(0, true));
@@ -126,11 +142,34 @@ public class GestureCommandTranslatorTests
     [Fact]
     public void Stem_level_turns_map_hi_mid_low_to_drums_vocals_instrumental()
     {
-        Run(new ControllerEvent.StemLevelMode(true));
+        Run(new ControllerEvent.DeckShift(0, true));
         Assert.Equal(0, Assert.IsType<SetStemLevel>(Run(new ControllerEvent.EqMoved(0, EqBand.High, 0.2))).Stem);
         Assert.Equal(1, Assert.IsType<SetStemLevel>(Run(new ControllerEvent.EqMoved(0, EqBand.Mid, 0.2))).Stem);
+        Run(new ControllerEvent.DeckShift(1, true));
         var low = Assert.IsType<SetStemLevel>(Run(new ControllerEvent.EqMoved(1, EqBand.Low, 0.9)));
-        Assert.Equal((1, 2, 0.9), (low.Deck, low.Stem, low.Value));
+        Assert.Equal((1, 2, 1.0), (low.Deck, low.Stem, low.Value));
+    }
+
+    [Theory]
+    [InlineData(0.0, 0.0)]
+    [InlineData(0.25, 0.5)]
+    [InlineData(64 / 127.0, 1.0)]   // the controller's centre detent
+    [InlineData(0.5, 1.0)]
+    [InlineData(0.75, 1.0)]
+    [InlineData(1.0, 1.0)]
+    public void Stem_level_knob_centre_is_unity_left_fades_to_silence_and_right_stays_at_unity(double knob, double level)
+    {
+        Run(new ControllerEvent.DeckShift(0, true));
+        var sent = Assert.IsType<SetStemLevel>(Run(new ControllerEvent.EqMoved(0, EqBand.Mid, knob)));
+        Assert.Equal(level, sent.Value, 6);
+    }
+
+    [Fact]
+    public void Shift_on_one_deck_leaves_the_other_decks_eq_plain()
+    {
+        Run(new ControllerEvent.DeckShift(0, true));
+        var eq = Assert.IsType<SetEq>(Run(new ControllerEvent.EqMoved(1, EqBand.High, 0.7)));
+        Assert.Equal((1, (int)EqBand.High, 0.7), (eq.Deck, eq.Band, eq.Value));
     }
 
     [Fact]
@@ -171,32 +210,26 @@ public class GestureCommandTranslatorTests
     public void Shift_plus_cue_restarts_and_plain_cue_only_reports()
     {
         var plain = Assert.IsType<ReportControl>(Run(new ControllerEvent.TransportCuePressed(0, false)));
-        Assert.Equal(new Origin(InterfaceIds.Controller, "deck.cue.transport", "cue.transport.press"), plain.Origin);
+        Assert.Equal(new Origin(InterfaceIds.Controller, "deck.cue.transport", "cue.transport.press", 0), plain.Origin);
         Assert.IsType<RestartTrack>(Run(new ControllerEvent.TransportCuePressed(0, true)));
     }
 
     [Fact]
-    public void A_short_browse_press_opens_search_on_release()
+    public void A_short_browse_press_reports_the_control_and_does_nothing_else()
     {
         Assert.Null(Run(new ControllerEvent.BrowsePressed()));
-        var open = Assert.IsType<OpenSearch>(Run(new ControllerEvent.BrowseReleased()));
-        Assert.Equal(new Origin(InterfaceIds.Controller, "browse.knob", "browse.press.short"), open.Origin);
+        var report = Assert.IsType<ReportControl>(Run(new ControllerEvent.BrowseReleased()));
+        Assert.Equal(new Origin(InterfaceIds.Controller, "browse.knob", "browse.press.short"), report.Origin);
     }
 
     [Fact]
-    public void The_modifier_holds_report_their_edge_and_name_the_release_distinctly()
+    public void The_shift_hold_reports_its_edge_and_names_the_release_distinctly()
     {
         var shiftOn = Assert.IsType<ReportControl>(Run(new ControllerEvent.DeckShift(1, true)));
         Assert.Equal((1, true, "deck.shift", "shift.hold"),
-            (shiftOn.Deck, shiftOn.Pressed, shiftOn.Origin.ControlId, shiftOn.Origin.GestureName));
+            (shiftOn.Origin.Deck, shiftOn.Pressed, shiftOn.Origin.ControlId, shiftOn.Origin.GestureName));
         var shiftOff = Assert.IsType<ReportControl>(Run(new ControllerEvent.DeckShift(1, false)));
         Assert.Equal((false, "shift.release"), (shiftOff.Pressed, shiftOff.Origin.GestureName));
-
-        var stemOn = Assert.IsType<ReportControl>(Run(new ControllerEvent.StemLevelMode(true)));
-        Assert.Equal((-1, true, "fx.onoff", "stemlevel.hold"),
-            (stemOn.Deck, stemOn.Pressed, stemOn.Origin.ControlId, stemOn.Origin.GestureName));
-        var stemOff = Assert.IsType<ReportControl>(Run(new ControllerEvent.StemLevelMode(false)));
-        Assert.Equal((false, "stemlevel.release"), (stemOff.Pressed, stemOff.Origin.GestureName));
     }
 
     [Fact]

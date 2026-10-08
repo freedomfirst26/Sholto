@@ -22,7 +22,7 @@ unanalysed, and it will play fine.
 ## Choosing a track
 
 **On screen:** click a row to highlight it. Clicking does *not* load it.
-**Controller:** turn the browse knob to move the highlight.
+**Controller:** turn the browse knob to scroll the Track List.
 **Keyboard:** **↑ / ↓**.
 
 ## Loading a track
@@ -35,7 +35,7 @@ It won't play until the beat detection has finished — usually a second or two.
 
 ## Search
 
-**Keyboard:** **Space** opens search from anywhere. **Controller:** a short press of the browse knob.
+**Keyboard:** **Space** opens search from anywhere.
 
 Type part of a name, the initials (`iltwykm` finds "I Like The Way You Kiss Me"),
 `bpm:128`, `key:8A` or `#tag`. Search covers your whole library and ranks the
@@ -67,9 +67,9 @@ removes the last tag, and **Esc** closes. Existing tags are listed under
 **TAGGED** with an **×** to remove each one.
 
 To see everything with a tag: press **Space**, type the tag, and press
-**Ctrl + Enter** on it under 🏷 TAGS. The library filters down to that tag.
-(**Enter** instead narrows the search results to it; see
-[search.md](search.md#narrowing-to-a-crate-or-tag).)
+**Ctrl + L** on it under 🏷 TAGS. Its songs are added to the
+[Track List](#the-track-list). (**Enter** instead narrows the search results to
+it; see [search.md](search.md#narrowing-to-a-crate-or-tag).)
 
 ## Crates
 
@@ -80,9 +80,20 @@ everything.
 The picker lists your crates — type to filter, **Enter** adds to the highlighted
 crate or creates one with the name you typed, **Esc** closes.
 
-To open a crate: **Space**, type its name, **Ctrl + Enter** on it under 📦 CRATES.
+To open a crate: **Space**, type its name, **Ctrl + L** on it under 📦 CRATES.
+Its songs are added to the [Track List](#the-track-list).
 
-**Esc** clears an active crate or tag filter and puts the whole library back.
+## The Track List
+
+The main view's list is the **Track List**. Search loads into it with
+**Ctrl + L**; loads add to it and never replace it, and a song is never listed
+twice. On first launch it holds **All Tracks**, and it is kept when you restart.
+
+- The strip above it shows what you've loaded: a crate, a tag, or single songs.
+  Click a source's **×** to remove the songs it brought in.
+- Drag the grip at the left of a row to reorder.
+- **Delete** removes the highlighted song.
+- **Ctrl + Del**, pressed twice in search, clears the whole list.
 
 ## Analysis
 
@@ -100,7 +111,9 @@ bass, other), then the song sections.
 **Controller:** hold the browse knob on it for about a second.
 
 That recomputes tempo, beats and key from scratch and overwrites what was
-stored.
+stored, then separates the stems too, so the row ends up ticked. Stems
+already on disk are reused, not recomputed, and a separation waits its turn
+behind any other one running (such as a deck load).
 
 ## BPM and key
 

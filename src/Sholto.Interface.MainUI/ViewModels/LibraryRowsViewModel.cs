@@ -60,13 +60,15 @@ public sealed class LibraryRowsViewModel :
         foreach (var row in _outside.Values) row.RefreshThemeBindings();
     }
 
-    /// <summary>Replace the list with the new rows. A row for a track that is already shown (same file, same
-    /// scanned metadata) is kept and brought up to date rather than rebuilt.</summary>
+    /// <summary>Bring the list to the new rows with the fewest edits: rows that left are removed, a row that
+    /// only changed place is moved, new rows are inserted. A row for a track that is already shown (same file,
+    /// same scanned metadata) is kept, as the same instance, and brought up to date rather than rebuilt, so the
+    /// list neither jumps nor loses its scroll position on a reorder.</summary>
     public void Handle(in LibraryRowsChanged e)
     {
         var previous = new Dictionary<string, TrackRow>(_byPath);
         _byPath.Clear();
-        Items.Clear();
+        var target = new List<TrackRow>(e.Rows.Count);
         foreach (var summary in e.Rows)
         {
             if (previous.TryGetValue(summary.FilePath, out var row) && SameTrack(row, summary))
@@ -78,7 +80,29 @@ public sealed class LibraryRowsViewModel :
             }
             _byPath[summary.FilePath] = row;
             _outside.Remove(summary.FilePath);
-            Items.Add(row);
+            target.Add(row);
+        }
+
+        var keep = new HashSet<TrackRow>(target);
+        for (var i = Items.Count - 1; i >= 0; i--)
+            if (!keep.Contains(Items[i])) Items.RemoveAt(i);
+
+        var targetIndex = new Dictionary<TrackRow, int>(target.Count);
+        for (var i = 0; i < target.Count; i++) targetIndex[target[i]] = i;
+
+        for (var i = 0; i < target.Count; i++)
+        {
+            if (i < Items.Count && ReferenceEquals(Items[i], target[i])) continue;
+            if (i + 1 < Items.Count && ReferenceEquals(Items[i + 1], target[i])
+                && targetIndex[Items[i]] is var home && home < Items.Count)
+            {
+                // The row sitting here belongs further on: one move puts it there and the rest line up.
+                Items.Move(i, home);
+                continue;
+            }
+            var at = i < Items.Count ? Items.IndexOf(target[i]) : -1;
+            if (at > i) Items.Move(at, i);
+            else Items.Insert(i, target[i]);
         }
     }
 

@@ -1,12 +1,14 @@
 using Sholto.Interface.Keyboard;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.VisualTree;
 using SkiaSharp;
 using Avalonia.Controls.Selection;
 using Avalonia.Input;
@@ -61,6 +63,7 @@ public partial class MainWindow : Window, IKeyboard
         DataContextChanged += (_, _) =>
         {
             if (DataContext is not MainViewModel vm) return;
+            TrackList.Classes.Set("motion", vm.Glance.AnimateResults);
             ApplyThemeToResources(vm.Theme);
             // Any theme the view model wears reaches the {DynamicResource} brushes: a menu pick, the saved
             // theme restored at startup, or the Layout Wizard's live try-on.
@@ -260,6 +263,14 @@ public partial class MainWindow : Window, IKeyboard
             }
         }
 
+        // Delete takes the highlighted song out of the Track List (the App decides what that means).
+        if (e.Key == Key.Delete && e.KeyModifiers == KeyModifiers.None)
+        {
+            vm.RemoveHighlighted();
+            e.Handled = true;
+            return;
+        }
+
         // Keys that are gestures (1/2 load, P play, M marker, G grid tool) are
         // recognised and dispatched by whoever subscribes to KeyPressed; the handler
         // sets Handled synchronously.
@@ -269,21 +280,7 @@ public partial class MainWindow : Window, IKeyboard
         switch (e.Key)
         {
             case Key.Escape:
-                if (vm.Deck1.EditOpen || vm.Deck2.EditOpen)
-                {
-                    vm.Deck1.CloseEditor();
-                    vm.Deck2.CloseEditor();
-                    e.Handled = true;
-                    return;
-                }
-                // Otherwise Escape clears an active crate/tag filter, returning the
-                // library to the full "All Songs" view.
-                if (vm.ActiveFilter is not null)
-                {
-                    vm.ClearFilter();
-                    e.Handled = true;
-                    return;
-                }
+                if (vm.HandleEscape()) e.Handled = true;
                 break;
         }
 
@@ -330,6 +327,89 @@ public partial class MainWindow : Window, IKeyboard
                 break;
             }
         }
+    }
+
+    private RowSheen? _litSheen;
+
+    /// <summary>The row under the pointer catches a sheen that follows it; under reduced motion it rests on the
+    /// title column instead. Only the sheen's two properties change, so no row or cell moves.</summary>
+    private void OnTrackListPointerMoved(object? sender, PointerEventArgs e)
+    {
+        var row = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>();
+        var sheen = row?.GetVisualDescendants().OfType<RowSheen>().FirstOrDefault();
+        if (!ReferenceEquals(sheen, _litSheen)) if (_litSheen is not null) _litSheen.Intensity = 0;
+        _litSheen = sheen;
+        if (sheen is null) return;
+        var animate = DataContext is not MainViewModel vm || vm.Glance.AnimateResults;
+        sheen.PointerX = animate ? e.GetPosition(sheen).X : TitleColumnCentre(sheen);
+        sheen.Intensity = 1;
+    }
+
+    private void OnTrackListPointerExited(object? sender, PointerEventArgs e)
+    {
+        if (_litSheen is not null) _litSheen.Intensity = 0;
+        _litSheen = null;
+    }
+
+    private double TitleColumnCentre(RowSheen sheen)
+    {
+        if (sheen.GetVisualParent() is not Grid grid) return 0;
+        var columns = grid.ColumnDefinitions;
+        return columns.Take(4).Sum(c => c.ActualWidth) + columns[4].ActualWidth / 2;
+    }
+
+    /// <summary>Grip pressed: start dragging this row. The view model owns the drag; this only reads geometry.</summary>
+    private void OnGripPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        if (sender is not Control { DataContext: TrackRow row } grip) return;
+        if (!e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed) return;
+        var index = vm.Tracks.IndexOf(row);
+        if (index < 0) return;
+        vm.TrackList.BeginDrag(row.FilePath, index, vm.Tracks.Count);
+        e.Pointer.Capture(grip);
+        e.Handled = true;
+    }
+
+    private void OnGripMoved(object? sender, PointerEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || !vm.TrackList.IsDragging) return;
+        var y = e.GetPosition(TrackList).Y;
+        var gap = -1;
+        var lineY = 0.0;
+        var last = -1;
+        foreach (var container in TrackList.GetRealizedContainers().OfType<Control>().OrderBy(c => TrackList.IndexFromContainer(c)))
+        {
+            var index = TrackList.IndexFromContainer(container);
+            if (index < 0) continue;
+            var top = container.TranslatePoint(new Point(0, 0), TrackList)?.Y ?? 0;
+            var height = container.Bounds.Height;
+            last = index;
+            if (gap < 0 && y < top + height / 2)
+            {
+                gap = index;
+                lineY = top;
+            }
+            else if (gap < 0) lineY = top + height;
+        }
+        if (last < 0) return;
+        if (gap < 0) gap = last + 1;
+        vm.TrackList.UpdateDrag(gap);
+        DropLine.Margin = new Thickness(6, Math.Max(0, lineY - 1.5), 14, 0);
+        DropLine.IsVisible = true;
+    }
+
+    private void OnGripReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.TrackList.CompleteDrag();
+        DropLine.IsVisible = false;
+        e.Pointer.Capture(null);
+    }
+
+    private void OnGripCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.TrackList.CancelDrag();
+        DropLine.IsVisible = false;
     }
 
     private void OnTrackSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -391,6 +471,11 @@ public partial class MainWindow : Window, IKeyboard
     private void OnSettingsClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel vm) vm.OpenSettings();
+    }
+
+    private void OnEmptySearchRequested(object? sender, EventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.IsSearchOpen = true;
     }
 
     private void OnMusicFolderClick(object? sender, RoutedEventArgs e)

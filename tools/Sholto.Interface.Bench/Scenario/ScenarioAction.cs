@@ -87,8 +87,7 @@ public sealed class ScenarioAction
 
     /// <summary>controller: whether the controller is announced as plugged in.
     /// gesture: generic boolean payload — JogTouch.Touching,
-    /// DeckShift.Pressed,
-    /// StemLevelMode.Pressed.</summary>
+    /// DeckShift.Pressed.</summary>
     public bool? On { get; init; }
 
     /// <summary>gesture (StemToggle): 0=Drums, 1=Vocals, 2=Instrumental.</summary>

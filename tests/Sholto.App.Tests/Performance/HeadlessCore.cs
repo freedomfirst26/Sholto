@@ -28,7 +28,8 @@ internal sealed class HeadlessCore
         Core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
             new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), new AudioFileDecoder([]),
-            new EqualPowerCrossfade(), appThread, bus, clock).Build(sessions.Create(0), sessions.Create(1));
+            new EqualPowerCrossfade(), appThread, bus, clock, new Sholto.TestSupport.UnavailableStemSeparator(),
+            Microsoft.Extensions.Options.Options.Create(new LoadOptions())).Build(sessions.Create(0), sessions.Create(1));
         Bus = bus;
     }
 

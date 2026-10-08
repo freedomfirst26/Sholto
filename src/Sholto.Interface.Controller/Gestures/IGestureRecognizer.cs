@@ -8,7 +8,6 @@ namespace Sholto.Interface.Controller.Gestures;
 internal interface IGestureRecognizer
 {
     bool IsShiftHeld(int deck);
-    bool IsStemLevelHeld { get; }
     bool IsPlatterTouched(int deck);
 
     /// <summary>Resolve one event. Returns null when the event carries no gesture —

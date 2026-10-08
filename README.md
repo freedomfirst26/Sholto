@@ -93,12 +93,17 @@ Runs on **Linux** with the **DDJ-FLX4** today. Windows, macOS, and more controll
 
 ## Licence
 
-Sholto is under the [Business Source License 1.1](LICENSE): **free for individuals,
-including paid gigs**; any use by or for an organization needs a commercial licence
-(<freedomfirst26@proton.me>). Each release becomes Apache-2.0 on its Change Date
-(2030-09-07). In plain words: [docs/license.md](docs/license.md). Third-party
-components and their licences — including madmom's non-commercial beat-detection
-models: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+From v1.1.0 Sholto is under the [PolyForm Shield License 1.0.0](LICENSE): source-available,
+and **free for everyone**, including paid gigs, streaming, teaching, and clubs or bars
+running it for their DJs. Anything that competes with Sholto (selling copies,
+rebranding, hosting it, or bundling it with hardware or another product) needs a
+commercial licence: <freedomfirst26@proton.me>. Earlier releases keep the licence they
+shipped with (v0.1.0 and v0.2.0: PolyForm Noncommercial 1.0.0 with a free grant for
+individuals; v0.3.0 and v1.0.0: Business Source License 1.1). In plain words:
+[docs/license.md](docs/license.md). Third-party components and their licences,
+including madmom's non-commercial (CC BY-NC-SA) beat-detection models, which are
+licensed separately by their authors and which Sholto's licence does not cover, paid gigs
+included: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ---
 

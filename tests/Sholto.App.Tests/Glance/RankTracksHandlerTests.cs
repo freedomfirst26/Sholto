@@ -19,7 +19,7 @@ public class RankTracksHandlerTests(ITestOutputHelper output)
     private static readonly Track Clash = new("/music/clash.mp3", "Clash", "Mid", TimeSpan.FromMinutes(5));
 
     private static RankTracksHandler HandlerFor(GlanceHandlerRig rig, int maxResults = 250) =>
-        new(rig.Library.Library, rig.Decks, new GlanceRanker(new FitScorer(), new GlanceQueryFactory(), new GlanceMatcher()),
+        new(rig.Library.Library, rig.Decks, new GlanceRanker(new FitScorer(Options.Create(new GlanceOptions())), new GlanceQueryFactory(), new GlanceMatcher()),
             new GlanceScope(), new CrateMembershipCache(rig.Library.Library),
             Options.Create(new GlanceOptions { MaxResults = maxResults }));
 
@@ -102,7 +102,7 @@ public class RankTracksHandlerTests(ITestOutputHelper output)
         var tags = new FakeTagService(new Dictionary<Guid, IReadOnlyList<string>> { [alphaId] = new[] { "house" } });
         await Task.Run(() => lib.Library.ScanAsync("/music", lib.Stack(tags: tags)));
         lib.Library.AttachServices(tags, lib.Crates);
-        await lib.Library.FilterByTagAsync("house");
+        lib.Library.ShowTrackList([LibrarySessionRig.Alpha.FilePath]);
         Assert.Single(lib.Library.Rows);
 
         var result = await HandlerFor(rig).Handle(new RankTracks("", 0));

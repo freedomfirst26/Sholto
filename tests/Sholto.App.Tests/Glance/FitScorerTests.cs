@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Glance;
 using Sholto.Data;
 
@@ -6,7 +7,7 @@ namespace Sholto.App.Tests.Glance;
 public class FitScorerTests
 {
     private readonly GlanceTrackBuilder _b = new();
-    private readonly FitScorer _scorer = new();
+    private readonly FitScorer _scorer = new(Options.Create(new GlanceOptions()));
 
     private GlanceReference Ref() => new(0, _b.Key("8A"), 128, "/m/ref.mp3");
 

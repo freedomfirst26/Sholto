@@ -131,31 +131,35 @@
     <Grid RowDefinitions="*,8,282,282">
 
         <!-- Track library, rendered as a fixed-column table. -->
-        <Grid Grid.Row="0" RowDefinitions="32,*" Background="{DynamicResource SholtoSurface}">
+        <Grid Grid.Row="0" RowDefinitions="Auto,32,*" Background="{DynamicResource SholtoSurface}">
+
+            <!-- Track List strip: source chips, song count, or the empty hint. -->
+            <v:TrackListHeader Name="TrackListStrip" Grid.Row="0" DataContext="{Binding TrackList}"
+                               IsVisible="{Binding !$parent[Grid].DataContext.ShowTrackListEmpty}"/>
 
             <!-- Column header -->
-            <Grid Grid.Row="0"
-                  ColumnDefinitions="80,50,240,*,80,80,80"
+            <Grid Name="ColumnHeaders" Grid.Row="1" IsVisible="{Binding !ShowTrackListEmpty}"
+                  ColumnDefinitions="22,80,50,240,*,80,80,80"
                   Background="{DynamicResource SholtoSurfaceRaised}">
-                <TextBlock Grid.Column="0" Text="ANALYZED"
+                <TextBlock Grid.Column="1" Text="ANALYZED"
                            Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="TAGS"
+                <TextBlock Grid.Column="2" Text="TAGS"
                            Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="ARTIST"
+                <TextBlock Grid.Column="3" Text="ARTIST"
                            Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="12,8" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="3" Text="TRACK"
+                <TextBlock Grid.Column="4" Text="TRACK"
                            Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="4" Text="BPM"
+                <TextBlock Grid.Column="5" Text="BPM"
                            Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="5" Text="KEY"
+                <TextBlock Grid.Column="6" Text="KEY"
                            Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="6" Text="TIME"
+                <TextBlock Grid.Column="7" Text="TIME"
                            Foreground="{DynamicResource SholtoTextMuted}" FontWeight="Bold" FontSize="11"
                            Margin="8,8" VerticalAlignment="Center"/>
             </Grid>
@@ -167,7 +171,7 @@
                  the same picker as the View menu's "Change Music Folder…" entry.
                  Sits in Row 1 so it overlays the empty track-list area; hidden
                  once a successful scan completes. -->
-            <Border Grid.Row="1"
+            <Border Grid.Row="2"
                     IsVisible="{Binding LibraryUnreachableVisible}"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{DynamicResource SholtoSurfaceRaised}"
@@ -193,12 +197,14 @@
                 </StackPanel>
             </Border>
 
-            <ListBox Grid.Row="1"
+            <ListBox Grid.Row="2"
                      Name="TrackList"
                      ItemsSource="{Binding Tracks}"
                      SelectedIndex="{Binding SelectedTrackIndex, Mode=TwoWay}"
                      SelectionChanged="OnTrackSelectionChanged"
                      DoubleTapped="OnTrackDoubleTapped"
+                     PointerMoved="OnTrackListPointerMoved"
+                     PointerExited="OnTrackListPointerExited"
                      Background="{DynamicResource SholtoSurface}">
                 <ListBox.Styles>
                     <!-- Override Fluent's hover/selected backgrounds so they don't clobber
@@ -210,14 +216,45 @@
                     <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
                         <Setter Property="Background" Value="{DynamicResource SholtoSurfaceRaised}"/>
                     </Style>
+                    <!-- The grip shows on the highlighted and hovered row only. -->
+                    <Style Selector="Border.grip">
+                        <Setter Property="Opacity" Value="0"/>
+                    </Style>
+                    <Style Selector="ListBoxItem:pointerover Border.grip, ListBoxItem:selected Border.grip">
+                        <Setter Property="Opacity" Value="1"/>
+                    </Style>
                     <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
                         <Setter Property="Background" Value="{DynamicResource SholtoAccentBg}"/>
+                    </Style>
+                    <!-- The pointer sheen fades over 140 ms; under reduced motion the class is off and it just appears. -->
+                    <Style Selector="ListBox#TrackList.motion controls|RowSheen">
+                        <Setter Property="Transitions">
+                            <Transitions>
+                                <DoubleTransition Property="Intensity" Duration="0:0:0.14"/>
+                            </Transitions>
+                        </Setter>
                     </Style>
                 </ListBox.Styles>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Grid ColumnDefinitions="80,50,240,*,80,80,80">
-                            <Grid Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Grid ColumnDefinitions="22,80,50,240,*,80,80,80">
+                            <!-- Soft light under the pointer: first child, so every cell and the grip draw over it. -->
+                            <controls:RowSheen Grid.ColumnSpan="8"
+                                               Light="{DynamicResource SholtoTextBright}"
+                                               Fringe="{DynamicResource SholtoLoadTrackList}"/>
+                            <!-- Drag grip: press here and drag to move the song. Transparent, not null, so the
+                                 whole 22 px column takes the pointer; it fades in on the hovered or highlighted row. -->
+                            <Border Grid.Column="0" Classes="grip" Background="Transparent" Cursor="SizeAll"
+                                    ToolTip.Tip="Drag to move"
+                                    PointerPressed="OnGripPressed"
+                                    PointerMoved="OnGripMoved"
+                                    PointerReleased="OnGripReleased"
+                                    PointerCaptureLost="OnGripCaptureLost">
+                                <TextBlock Text="⠿" FontSize="14" IsHitTestVisible="False"
+                                           Foreground="{DynamicResource SholtoTextMuted}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Grid Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <!-- Done state — uses the theme accent so it reads as a positive
                                      signal and changes colour with each theme. -->
                                 <TextBlock Text="✓"
@@ -251,7 +288,7 @@
                                            ToolTip.Tip="{Binding AnalysisFailureTooltip}"
                                            IsVisible="{Binding ShowAnalysisFailed}"/>
                             </Grid>
-                            <Border Grid.Column="1"
+                            <Border Grid.Column="2"
                                     IsVisible="{Binding HasTags}"
                                     Background="{DynamicResource TagIndicatorBackground}"
                                     CornerRadius="3" Padding="6,1"
@@ -270,7 +307,7 @@
                             <!-- Played tracks render italic. Style class applied to both
                                  artist and title cells so they shift together as one signal. -->
                             <!-- Artist is the secondary read — muted so Title anchors the row. -->
-                            <TextBlock Grid.Column="2" Text="{Binding Artist}"
+                            <TextBlock Grid.Column="3" Text="{Binding Artist}"
                                        Foreground="{DynamicResource SholtoTextMuted}"
                                        Margin="12,4" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
@@ -283,7 +320,7 @@
                                 </TextBlock.Styles>
                             </TextBlock>
                             <!-- Title is the primary scan anchor — semibold + bright. -->
-                            <TextBlock Grid.Column="3" Text="{Binding Title}"
+                            <TextBlock Grid.Column="4" Text="{Binding Title}"
                                        Foreground="{DynamicResource SholtoTextBright}"
                                        FontWeight="SemiBold"
                                        Margin="8,4" VerticalAlignment="Center"
@@ -296,14 +333,14 @@
                                     </Style>
                                 </TextBlock.Styles>
                             </TextBlock>
-                            <TextBlock Grid.Column="4" Text="{Binding BpmDisplay}"
+                            <TextBlock Grid.Column="5" Text="{Binding BpmDisplay}"
                                        Foreground="{DynamicResource SholtoAccent}"
                                        FontWeight="Bold" Margin="8,4" VerticalAlignment="Center"/>
                             <!-- Camelot key chip — matches the deck panel so the same colour
                                  shows in both surfaces. Hidden when no key is analysed yet.
                                  Chips for harmonically-eligible keys gain a primary-colour
                                  outline; non-eligible chips stay readable at full opacity. -->
-                            <Border Grid.Column="5" CornerRadius="4" Padding="6,1"
+                            <Border Grid.Column="6" CornerRadius="4" Padding="6,1"
                                     Background="{Binding KeyBrush}"
                                     HorizontalAlignment="Left" VerticalAlignment="Center"
                                     Margin="8,4"
@@ -331,13 +368,29 @@
                                            Foreground="{DynamicResource SholtoKeyChipForeground}"
                                            FontWeight="Bold" FontSize="12"/>
                             </Border>
-                            <TextBlock Grid.Column="6" Text="{Binding DurationDisplay}"
+                            <TextBlock Grid.Column="7" Text="{Binding DurationDisplay}"
                                        Foreground="{DynamicResource SholtoTextMuted}"
                                        Margin="8,4" VerticalAlignment="Center"/>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
+
+            <!-- The empty Track List: shown while the list holds no songs and the library is reachable. -->
+            <v:TrackListEmpty Name="TrackListEmptyState" Grid.Row="2" DataContext="{Binding TrackList}"
+                              SearchRequested="OnEmptySearchRequested">
+                <v:TrackListEmpty.IsVisible>
+                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                        <Binding Path="$parent[Grid].DataContext.ShowTrackListEmpty"/>
+                        <Binding Path="!$parent[Grid].DataContext.LibraryUnreachableVisible"/>
+                    </MultiBinding>
+                </v:TrackListEmpty.IsVisible>
+            </v:TrackListEmpty>
+
+            <!-- Drop line while a row is dragged; positioned between rows by the code-behind. -->
+            <Border Name="DropLine" Grid.Row="2" IsVisible="False" IsHitTestVisible="False"
+                    Height="3" Margin="6,0,14,0" VerticalAlignment="Top"
+                    Background="{DynamicResource SholtoPrimary}"/>
         </Grid>
 
         <!-- Brand watermark + wooden-blinds texture overlay, both scale with the
@@ -347,8 +400,8 @@
             <!-- The S logo, scaled to fill ~60% of the track-list area via a
                  Viewbox + a Border that constrains aspect. Grows naturally as
                  the window resizes. -->
-            <Viewbox Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
-                     Margin="40,40,40,60">
+            <Viewbox Name="SholtoWatermark" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                     Margin="40,40,40,60" IsVisible="{Binding !ShowTrackListEmpty}">
                 <Grid Width="96" Height="96" Opacity="0.18">
                     <TextBlock Text="S" FontFamily="Inter, Helvetica, Arial" FontWeight="ExtraBold"
                                FontSize="84" Foreground="{DynamicResource SholtoStemDrums}"
@@ -365,16 +418,14 @@
             </Viewbox>
 
             <!-- Angled wooden-blinds texture, sits in front of the S at low
-                 opacity for a venetian-blind feel. SpreadMethod=Repeat gives us
-                 unlimited stripes; the RotateTransform tilts them ~22°. The
-                 rectangle is oversized so the rotated corners still fill bounds. -->
-            <Rectangle Width="3000" Height="3000" Opacity="0.03"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                       RenderTransformOrigin="50%,50%">
+                 opacity for a venetian-blind feel. The rectangle stretches to the
+                 track-list bounds and is NOT rotated: the 8 degree tilt lives in the
+                 gradient vector itself (absolute units, SpreadMethod=Repeat), so the
+                 stripes tile to every edge at any window size. The vector is 36 px
+                 long (one stripe period) pointing (-sin 8, cos 8). -->
+            <Rectangle Opacity="0.03">
                 <Rectangle.Fill>
-                    <!-- Stripe period = 0.012 of the 3000 px rectangle = 36 px.
-                         SpreadMethod=Repeat tiles the gradient outward. -->
-                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,1.2%"
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="-5.01,35.65"
                                          SpreadMethod="Repeat">
                         <GradientStop Color="{DynamicResource SholtoTextBrightColor}" Offset="0"/>
                         <GradientStop Color="{DynamicResource SholtoTextBrightColor}" Offset="0.35"/>
@@ -382,9 +433,6 @@
                         <GradientStop Color="Transparent" Offset="1"/>
                     </LinearGradientBrush>
                 </Rectangle.Fill>
-                <Rectangle.RenderTransform>
-                    <RotateTransform Angle="8"/>
-                </Rectangle.RenderTransform>
             </Rectangle>
         </Grid>
 

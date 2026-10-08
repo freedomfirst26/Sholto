@@ -191,7 +191,7 @@
         something on the other end is doing two jobs), not a folder question, and must be
         raised rather than silently done.
       - Explicitly call out where a proposed folder would cut across an existing port/adapter
-        boundary, since those boundaries are load-bearing for the BUSL licensing position.
+        boundary, since those boundaries are load-bearing for the licensing position (madmom stays at arm's length).
 
       **Deliverable is a PROPOSAL, not a mass move.** Namespaces follow folders by convention
       in this codebase, so relocating a file is a namespace change and a churn of `using`

@@ -1,4 +1,5 @@
 using Sholto.App.Analysis.Harmony;
+using Sholto.App.Analysis.Stems;
 using Sholto.Data;
 using Sholto.App.Audio;
 using Sholto.App.ExternalTools;
@@ -26,7 +27,7 @@ public sealed class AppStackFactory : IAppStackFactory
         // The app thread (the UI thread), shared by the decks, the entities and the input stack.
         var appThread = new AvaloniaAppThread();
         var stackFactory = new SholtoStackFactory(
-            new ExternalToolStackFactory(new ExternalToolFinderFactory(), new MadmomBeatAnalysisStepFactory()),
+            new ExternalToolStackFactory(new ExternalToolFinderFactory(), new MadmomBeatAnalysisStepFactory(), options.StemSeparation),
             new AnalysisStackFactory(keyFactory, options.WaveformBands),
             new SholtoStorage(new DatabaseStackFactory(keyFactory), new SholtoDbContextOptionsFactory()),
             appThread);
@@ -39,10 +40,12 @@ public sealed class AppStackFactory : IAppStackFactory
         var masterCueOutput = new MasterCueOutput();
         var coreFactory = new CoreFactory(
             stack.TrackScanner, stack.AnalysisStack.KeyStore, stack.ToolStack.StemCache, stack.AnalysisStack.Reporter,
-            stack.AnalysisStack.KeyAnalyzer, stack.Decoder, stack.Crossfade, appThread, bus, frameClock);
+            stack.AnalysisStack.KeyAnalyzer, stack.Decoder, stack.Crossfade, appThread, bus, frameClock,
+            new GatedStemSeparator(stack.ToolStack.Stems, stack.StemGate, stack.AnalysisStack.Reporter), options.Load);
         var lifecycleFactory = new AppLifecycleFactory(
             stack.LibraryDatabase, stack.ThemePreference, stack.MusicDirPreference, stack.OutputDevicePreference,
-            stack.WaveformStylePreference, stack.BackspinTimePreference, stack.BackspinDistancePreference, stack.ShortlistPreference,
+            stack.WaveformStylePreference, stack.BackspinTimePreference, stack.BackspinDistancePreference, stack.LegacyShortlistPreference,
+            stack.TrackListPreference, new SavedTrackListCodec(),
             stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory()), [stack.FlacStrategy],
             stack.PipeWireRouter, stack.DeckFormat, masterCueOutput, stack.ToolStack.Check, appThread, bus,
             Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR"));

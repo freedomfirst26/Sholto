@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tl="using:Sholto.Interface.MainUI.ViewModels"
+             x:Class="Sholto.Interface.MainUI.Views.TrackListEmpty"
+             x:DataType="tl:ITrackListViewModel"
+             Focusable="False">
+    <!-- The Track List while it holds no songs: the Ctrl L load key, enlarged, with the two keys that fill the list.
+         Clicking the plate opens search. Shown while the list is empty. -->
+    <UserControl.Resources>
+        <StreamGeometry x:Key="TrackListEmptyBarsGlyph">M1.5,3.5H9.5 M1.5,8H9.5 M1.5,12.5H7</StreamGeometry>
+        <StreamGeometry x:Key="TrackListEmptyPlusGlyph">M12.5,9V15 M9.5,12H15.5</StreamGeometry>
+    </UserControl.Resources>
+    <UserControl.Styles>
+        <Style Selector="Button.plate">
+            <Setter Property="Width" Value="210"/>
+            <Setter Property="Height" Value="150"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadTrackList}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="RenderTransform" Value="skewX(-8deg)"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.plate /template/ ContentPresenter, Button.plate:pointerover /template/ ContentPresenter, Button.plate:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadTrackList}"/>
+        </Style>
+        <Style Selector="Button.plate Border.fill"><Setter Property="Opacity" Value="0.09"/></Style>
+        <Style Selector="Button.plate:pointerover Border.fill"><Setter Property="Opacity" Value="0.2"/></Style>
+        <Style Selector="Button.plate:pressed Border.fill"><Setter Property="Opacity" Value="0.3"/></Style>
+        <Style Selector="Border.keycap">
+            <Setter Property="Background" Value="{DynamicResource SholtoBgDeep}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+            <Setter Property="BorderThickness" Value="1,1,1,3"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,2"/>
+        </Style>
+        <Style Selector="Border.keycap > TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+            <Setter Property="FontFamily" Value="DejaVu Sans Mono, Consolas, monospace"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Border.keycap.list"><Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadTrackList}"/></Style>
+        <Style Selector="Border.keycap.list > TextBlock"><Setter Property="Foreground" Value="{DynamicResource SholtoLoadTrackList}"/></Style>
+    </UserControl.Styles>
+
+    <Panel Name="EmptyState" IsVisible="{Binding IsEmpty}"
+           HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="18" HorizontalAlignment="Center">
+            <Button Name="OpenSearchPlate" Classes="plate" Focusable="False" HorizontalAlignment="Center"
+                    Click="OnPlateClick" ToolTip.Tip="Open search">
+                <Panel>
+                    <Border Classes="fill" Background="{DynamicResource SholtoLoadTrackList}"/>
+                    <Viewbox Width="104" Height="104" Stretch="Uniform" RenderTransform="skewX(8deg)"
+                             HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Canvas Width="16" Height="16">
+                            <Path Data="{StaticResource TrackListEmptyBarsGlyph}"
+                                  Stroke="{DynamicResource SholtoLoadTrackList}" StrokeThickness="1.5" StrokeLineCap="Round"/>
+                            <Path Classes="plus" Data="{StaticResource TrackListEmptyPlusGlyph}"
+                                  Stroke="{DynamicResource SholtoLoadTrackList}" StrokeThickness="1.5" StrokeLineCap="Round"/>
+                        </Canvas>
+                    </Viewbox>
+                </Panel>
+            </Button>
+            <TextBlock Text="Track List is empty" HorizontalAlignment="Center"
+                       Foreground="{DynamicResource SholtoTextBright}" FontSize="20" FontWeight="SemiBold"/>
+            <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                    <Border Classes="keycap"><TextBlock Text="Space"/></Border>
+                    <TextBlock Text="Search" Foreground="{DynamicResource SholtoTextMuted}" FontSize="13" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                    <Border Classes="keycap list"><TextBlock Text="Ctrl L"/></Border>
+                    <TextBlock Text="Load" Foreground="{DynamicResource SholtoTextMuted}" FontSize="13" VerticalAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </Panel>
+</UserControl>

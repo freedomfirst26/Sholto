@@ -39,9 +39,9 @@ internal sealed class StemControl(Func<StemMixDataProvider?> stemProvider) : ISt
     {
         if (_stemProvider() is null || (uint)group >= 3) return;
         float curved;
-        if (level <= 0.04)      curved = 0f;
-        else if (level >= 0.5)  curved = 1f;
-        else                    curved = (float)((level - 0.04) / (0.5 - 0.04));
+        if (level <= 0.08)      curved = 0f;
+        else if (level >= 1.0)  curved = 1f;
+        else                    curved = (float)((level - 0.08) / (1.0 - 0.08));
         _groupLevel[group] = curved;
         ApplyGroupGain(group);
     }

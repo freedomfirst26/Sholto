@@ -53,5 +53,4 @@ internal static class GestureIds
 
     // Modifiers — emitted so the Faceplate can show them being held.
     public const string ShiftHold            = "shift.hold";
-    public const string StemLevelHold        = "stemlevel.hold";
 }

@@ -5,14 +5,21 @@
              xmlns:data="using:Sholto.Data"
              xmlns:conv="using:Avalonia.Data.Converters"
              xmlns:controls="using:Sholto.Interface.MainUI.Controls"
+             xmlns:chips="using:Sholto.Interface.MainUI.Controls.Chips"
              x:Class="Sholto.Interface.MainUI.Views.SearchOverlay"
              x:DataType="vm:MainViewModel"
              IsVisible="{Binding IsSearchOpen}"
              Focusable="False">
 
     <UserControl.Resources>
+        <!-- Deck numbers as ints, for comparing a slot's Number. -->
+        <x:Int32 x:Key="DeckOne">1</x:Int32>
+        <x:Int32 x:Key="DeckTwo">2</x:Int32>
         <!-- The warning triangle (16x16 box) beside "Playing · −0:38". -->
         <StreamGeometry x:Key="DeckSlotLoadGlyph">M8,2V10 M4.5,6.5L8,10L11.5,6.5 M3,13H13</StreamGeometry>
+        <!-- Track List glyphs (16x16 box): a list with a plus, a list with a tick. -->
+        <StreamGeometry x:Key="LoadListPlusGlyph">M1.5,3.5H9.5 M1.5,8H9.5 M1.5,12.5H7 M12.5,9V15 M9.5,12H15.5</StreamGeometry>
+        <StreamGeometry x:Key="LoadInListGlyph">M1.5,3.5H9.5 M1.5,8H9.5 M1.5,12.5H7 M9.5,12.5L11.5,14.5L15,10</StreamGeometry>
         <StreamGeometry x:Key="DeckSlotWarnGlyph">M8,1.5L15,14.5H1Z M7.25,6H8.75V10H7.25Z M7.25,11.25H8.75V12.75H7.25Z</StreamGeometry>
     </UserControl.Resources>
 
@@ -39,29 +46,14 @@
             </Setter>
         </Style>
 
-        <!-- Results settle: a new ranking fades up 0.45 to 1 and rises 6 px over 160 ms, and the fit bars re-grow over
-             220 ms. The view adds "fresh" for a moment after each result when motion is wanted; bars realised after the
-             class is on start the animation as they appear, so recycled rows are covered. -->
-        <Style Selector="ListBox.table">
-            <Setter Property="RenderTransform"><TranslateTransform/></Setter>
-        </Style>
+        <!-- Results settle: a new ranking fades up 0.45 to 1 over 160 ms. Nothing moves or resizes while it does (no
+             slide, no bar regrow): a result lands on every keystroke, and any geometry motion reads as the rows jumping.
+             The view adds "fresh" for a moment after each result when motion is wanted. -->
         <Style Selector="ListBox.table.fresh">
             <Style.Animations>
                 <Animation Duration="0:0:0.16" Easing="CubicEaseOut">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.45"/><Setter Property="TranslateTransform.Y" Value="6"/></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/><Setter Property="TranslateTransform.Y" Value="0"/></KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
-        <Style Selector="Border.fitbar">
-            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
-            <Setter Property="RenderTransform"><ScaleTransform/></Setter>
-        </Style>
-        <Style Selector="ListBox.table.fresh Border.fitbar">
-            <Style.Animations>
-                <Animation Duration="0:0:0.22" Easing="CubicEaseOut">
-                    <KeyFrame Cue="0%"><Setter Property="ScaleTransform.ScaleY" Value="0.15"/></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="ScaleTransform.ScaleY" Value="1"/></KeyFrame>
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.45"/></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
                 </Animation>
             </Style.Animations>
         </Style>
@@ -109,26 +101,11 @@
             <Setter Property="BorderBrush" Value="{DynamicResource SholtoTagChipForeground}"/>
         </Style>
 
-        <!-- Chips in the query box; they slide in over 180 ms when motion is wanted (the overlay carries "motion"). -->
-        <Style Selector="Border.chipx">
-            <Setter Property="Width" Value="16"/>
-            <Setter Property="Height" Value="16"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Opacity" Value="0.65"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Border.chipx:pointerover"><Setter Property="Opacity" Value="1"/></Style>
-        <Style Selector="Border.chipx TextBlock">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Panel.chip">
+        <!-- Chips in the query box (the chip itself is the shared SourceChip); they slide in over 180 ms when motion is wanted (the overlay carries "motion"). -->
+        <Style Selector="chips|SourceChip.chip">
             <Setter Property="RenderTransform"><TranslateTransform/></Setter>
         </Style>
-        <Style Selector="UserControl.motion Panel.chip">
+        <Style Selector="UserControl.motion chips|SourceChip.chip">
             <Style.Animations>
                 <Animation Duration="0:0:0.18" Easing="CubicEaseOut">
                     <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0"/><Setter Property="TranslateTransform.X" Value="-6"/></KeyFrame>
@@ -212,10 +189,8 @@
         </Style>
         <Style Selector="Button.slot.caution">
             <Setter Property="BorderBrush" Value="{DynamicResource SholtoStatusWarn}"/>
-            <Setter Property="Background" Value="Transparent"/>
         </Style>
         <Style Selector="Button.slot.caution:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="{DynamicResource SholtoStatusWarn}"/>
         </Style>
         <Style Selector="Button.slot.armed">
@@ -228,8 +203,8 @@
         </Style>
 
         <Style Selector="TextBlock.platternumber">
-            <Setter Property="FontSize" Value="9.5"/>
-            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="ExtraBold"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
@@ -246,39 +221,11 @@
         <Style Selector="TextBlock.ghostnumber.on">
             <Setter Property="Foreground" Value="{DynamicResource SholtoBgDeep}"/>
         </Style>
-        <Style Selector="TextBlock.deckword">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="LetterSpacing" Value="1.2"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
-        </Style>
-        <Style Selector="TextBlock.deckword.num">
-            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
-        </Style>
-        <Style Selector="TextBlock.deckword.num.on">
-            <Setter Property="Foreground" Value="{DynamicResource SholtoAccent}"/>
-        </Style>
         <Style Selector="TextBlock.emptyword">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
-        </Style>
-        <Style Selector="Border.slotkeycap">
-            <Setter Property="Background" Value="{DynamicResource SholtoSurfaceRaised}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
-            <Setter Property="BorderThickness" Value="1,1,1,2"/>
-            <Setter Property="CornerRadius" Value="3"/>
-            <Setter Property="Height" Value="15"/>
-            <Setter Property="Padding" Value="4,0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Border.slotkeycap > TextBlock">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
         </Style>
         <Style Selector="Rectangle.sweep">
             <Setter Property="Fill" Value="{DynamicResource SholtoSlotSweep}"/>
@@ -290,7 +237,59 @@
             <Style.Animations>
                 <Animation Duration="0:0:2.8" IterationCount="INFINITE" Easing="SineEaseInOut">
                     <KeyFrame Cue="0%"><Setter Property="TranslateTransform.X" Value="-120"/></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="TranslateTransform.X" Value="204"/></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="TranslateTransform.X" Value="480"/></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <!-- Load keys: small slanted parallelograms (skewX -8, text counter-skewed). Filled in the deck's colour on the
+             target, an outline otherwise; the row's Track List key is always an outline. -->
+        <Style Selector="Border.loadkey">
+            <Setter Property="Height" Value="17"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="RenderTransform" Value="skewX(-8deg)"/>
+        </Style>
+        <Style Selector="Border.loadkey > TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontFamily" Value="DejaVu Sans Mono, Consolas, monospace"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="RenderTransform" Value="skewX(8deg)"/>
+        </Style>
+        <Style Selector="Border.loadkey.d1"><Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadDeck1}"/></Style>
+        <Style Selector="Border.loadkey.d1 > TextBlock"><Setter Property="Foreground" Value="{DynamicResource SholtoLoadDeck1}"/></Style>
+        <Style Selector="Border.loadkey.d2"><Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadDeck2}"/></Style>
+        <Style Selector="Border.loadkey.d2 > TextBlock"><Setter Property="Foreground" Value="{DynamicResource SholtoLoadDeck2}"/></Style>
+        <Style Selector="Border.loadkey.list"><Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadTrackList}"/></Style>
+        <Style Selector="Border.loadkey.list > TextBlock"><Setter Property="Foreground" Value="{DynamicResource SholtoLoadTrackList}"/></Style>
+        <Style Selector="Border.loadkey.d1.filled"><Setter Property="Background" Value="{DynamicResource SholtoLoadDeck1}"/></Style>
+        <Style Selector="Border.loadkey.d2.filled"><Setter Property="Background" Value="{DynamicResource SholtoLoadDeck2}"/></Style>
+        <Style Selector="Border.loadkey.filled > TextBlock"><Setter Property="Foreground" Value="{DynamicResource SholtoBgDeep}"/></Style>
+
+        <!-- The deck's own 6 px stripe down the slot's left edge. The target's slot is washed in the deck's colour. -->
+        <Style Selector="Border.stripe.d1"><Setter Property="Background" Value="{DynamicResource SholtoLoadDeck1}"/></Style>
+        <Style Selector="Border.stripe.d2"><Setter Property="Background" Value="{DynamicResource SholtoLoadDeck2}"/></Style>
+        <Style Selector="Button.slot.on.d1"><Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadDeck1}"/></Style>
+        <Style Selector="Button.slot.on.d1:pointerover /template/ ContentPresenter"><Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadDeck1}"/></Style>
+        <Style Selector="Button.slot.on.d2"><Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadDeck2}"/></Style>
+        <Style Selector="Button.slot.on.d2:pointerover /template/ ContentPresenter"><Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadDeck2}"/></Style>
+        <Style Selector="Button.slot.on.d1:not(.empty)"><Setter Property="Background" Value="{DynamicResource SholtoSlotDeck1Wash}"/></Style>
+        <Style Selector="Button.slot.on.d1:not(.empty):pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource SholtoSlotDeck1Wash}"/></Style>
+        <Style Selector="Button.slot.on.d2:not(.empty)"><Setter Property="Background" Value="{DynamicResource SholtoSlotDeck2Wash}"/></Style>
+        <Style Selector="Button.slot.on.d2:not(.empty):pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource SholtoSlotDeck2Wash}"/></Style>
+
+        <!-- The highlighted row shows its Track List key; a row just added flashes violet for 600 ms (the view sets "flash"). -->
+        <Style Selector="Border.rowkey"><Setter Property="IsVisible" Value="False"/></Style>
+        <Style Selector="ListBoxItem:selected Border.rowkey"><Setter Property="IsVisible" Value="True"/></Style>
+        <Style Selector="Border.flashfill"><Setter Property="Opacity" Value="0"/></Style>
+        <Style Selector="ListBoxItem.flash Border.flashfill">
+            <Style.Animations>
+                <Animation Duration="0:0:0.6" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.18"/></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0"/></KeyFrame>
                 </Animation>
             </Style.Animations>
         </Style>
@@ -326,17 +325,34 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource SholtoStatusError}"/>
         </Style>
-        <Style Selector="TextBlock.slotline.fit">
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="LetterSpacing" Value="0.9"/>
-            <Setter Property="Foreground" Value="{DynamicResource SholtoStatusOk}"/>
-        </Style>
         <Style Selector="TextBlock.slottitle">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="LineHeight" Value="15"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LineHeight" Value="19"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+        </Style>
+        <Style Selector="TextBlock.slotbpm">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="ExtraBold"/>
+            <Setter Property="FontFamily" Value="DejaVu Sans Mono, Consolas, monospace"/>
+            <Setter Property="LetterSpacing" Value="-0.3"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+        </Style>
+        <Style Selector="TextBlock.cautiontext">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="0.8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoStatusWarn}"/>
+        </Style>
+        <Style Selector="TextBlock.emptydeck">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="ExtraBold"/>
+            <Setter Property="FontFamily" Value="DejaVu Sans Mono, Consolas, monospace"/>
+            <Setter Property="LetterSpacing" Value="0.3"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
         </Style>
         <Style Selector="TextBlock.slottitle.muted">
@@ -357,102 +373,80 @@
 
             <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
 
-                <!-- Header strip: what the list is fitted to, its countdown, and where a load goes. -->
+                <!-- Header strip: the two decks, wide. A click on a deck loads the highlighted song there. -->
                 <Border Grid.Row="0" Background="{DynamicResource SholtoSurface}"
                         BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="0,0,0,1"
-                        Padding="14,10" DataContext="{Binding Glance.Header}" x:DataType="glance:IGlanceHeaderViewModel">
-                    <Grid ColumnDefinitions="*,Auto,Auto">
-                        <Grid Grid.Column="0" ColumnDefinitions="Auto,Auto,Auto,*" VerticalAlignment="Center"
-                                    IsVisible="{Binding HasReference}">
-                            <Border x:Name="HeaderKeyChip" Grid.Column="1" Margin="0,0,12,0" MinWidth="42" Height="24" CornerRadius="4" Padding="6,0"
-                                    VerticalAlignment="Center"
-                                    IsVisible="{Binding KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <TextBlock Text="{Binding KeyText}" FontSize="13" FontWeight="Bold"
-                                           Foreground="{DynamicResource SholtoKeyChipForeground}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <TextBlock Grid.Column="2" Margin="0,0,12,0" Text="{Binding BpmText}" FontSize="18" FontWeight="SemiBold"
-                                       FontFamily="DejaVu Sans Mono, Consolas, monospace"
-                                       Foreground="{DynamicResource SholtoAccent}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="3" Margin="0,0,12,0" Text="{Binding Title}" FontSize="17" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource SholtoTextBright}"
-                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                        </Grid>
-
-                        <TextBlock Grid.Column="1" Text="{Binding CountdownText}" FontSize="26" FontWeight="Bold"
-                                   FontFamily="DejaVu Sans Mono, Consolas, monospace"
-                                   Margin="12,0" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource SholtoTextBright}"
-                                   Classes.low="{Binding IsLow}">
-                            <TextBlock.Styles>
-                                <Style Selector="TextBlock.low">
-                                    <Setter Property="Foreground" Value="{DynamicResource SholtoStatusError}"/>
-                                </Style>
-                            </TextBlock.Styles>
-                        </TextBlock>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <!-- Two equal slots: a platter, the title, and a second line of key, tempo and time (or the warning). -->
-                            <ItemsControl ItemsSource="{Binding Slots}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="glance:IDeckSlotViewModel">
-                                        <Grid Width="204" Height="40">
-                                            <Button Classes="slot" Click="OnTargetClick"
-                                                    Classes.on="{Binding IsTarget}" Classes.empty="{Binding !IsLoaded}"
-                                                    Classes.caution="{Binding IsCaution}" Classes.armed="{Binding IsArmed}">
-                                                <Panel>
-                                                    <Panel IsVisible="{Binding IsLoaded}">
-                                                    <Grid ColumnDefinitions="Auto,*" Margin="5,0,8,0">
-                                                        <Panel Width="30" Height="30">
-                                                        <controls:DeckSlotPlatter Width="30" Height="30" Slot="{Binding}"
+                        Padding="11,10" DataContext="{Binding Glance.Header}" x:DataType="glance:IGlanceHeaderViewModel">
+                    <ItemsControl ItemsSource="{Binding Slots}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="glance:IDeckSlotViewModel">
+                                <Grid Height="64" Margin="3,0">
+                                    <Button Classes="slot" Click="OnSlotClick"
+                                            Classes.on="{Binding IsTarget}" Classes.empty="{Binding !IsLoaded}"
+                                            Classes.caution="{Binding IsCaution}" Classes.armed="{Binding IsArmed}"
+                                            Classes.d1="{Binding Number, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={StaticResource DeckOne}}"
+                                            Classes.d2="{Binding Number, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={StaticResource DeckTwo}}">
+                                        <Panel>
+                                            <Panel IsVisible="{Binding IsLoaded}">
+                                                <Border Classes="stripe" Width="6" HorizontalAlignment="Left" CornerRadius="5,0,0,5" IsHitTestVisible="False"
+                                                        Classes.d1="{Binding Number, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={StaticResource DeckOne}}"
+                                                        Classes.d2="{Binding Number, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={StaticResource DeckTwo}}"/>
+                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,0,12,0">
+                                                    <Panel Width="52" Height="52">
+                                                        <controls:DeckSlotPlatter Width="52" Height="52" Slot="{Binding}"
                                                                                   TrackBrush="{DynamicResource SholtoBorder}"
                                                                                   PlayingBrush="{DynamicResource SholtoStatusOk}"
                                                                                   MutedBrush="{DynamicResource SholtoTextMuted}"
+                                                                                  LowBrush="{DynamicResource SholtoStatusError}"
                                                                                   AccentBrush="{DynamicResource SholtoAccent}"
                                                                                   DiscBrush="{DynamicResource SholtoBgDeep}"
                                                                                   LabelBrush="{DynamicResource SholtoSurface}"
                                                                                   MarkerBrush="{DynamicResource SholtoTextBright}"/>
                                                         <!-- The deck number on the label; text laid over the platter, not drawn by it. -->
-                                                        <TextBlock Classes="platternumber" Text="{Binding Number}" IsHitTestVisible="False"/>
-                                                        </Panel>
-                                                        <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                            <TextBlock Classes="slottitle" Text="{Binding Title}" />
-                                                            <Panel Height="15">
-                                                                <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding ShowStats}">
-                                                                    <Border MinWidth="26" Height="15" CornerRadius="3" Padding="3,0" VerticalAlignment="Center"
-                                                                            Background="{Binding KeyBrush}"
-                                                                            IsVisible="{Binding Camelot, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                                        <TextBlock Text="{Binding Camelot}" FontSize="10" FontWeight="Bold"
-                                                                                   Foreground="{DynamicResource SholtoKeyChipForeground}"
-                                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                    </Border>
-                                                                    <TextBlock Classes="slotline mono" Text="{Binding BpmText}"/>
-                                                                    <TextBlock Classes="slotline mono" Text="{Binding TimeText}"/>
-                                                                    <TextBlock Classes="slotline fit" Text="FIT" IsVisible="{Binding IsReference}"/>
-                                                                </StackPanel>
-                                                                <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding ShowCaution}">
-                                                                    <Path Width="11" Height="11" Stretch="Uniform" VerticalAlignment="Center"
-                                                                          Fill="{DynamicResource SholtoStatusWarn}" Data="{StaticResource DeckSlotWarnGlyph}"/>
-                                                                    <TextBlock Classes="slotline warn" Text="{Binding CautionText}" TextTrimming="CharacterEllipsis"/>
-                                                                </StackPanel>
-                                                                <TextBlock Classes="slotline err" Text="{Binding ArmedText}" TextTrimming="CharacterEllipsis"
-                                                                           IsVisible="{Binding ShowArmed}"/>
-                                                            </Panel>
-                                                        </StackPanel>
-                                                    </Grid>
+                                                        <TextBlock Classes="platternumber" IsHitTestVisible="False"><Run FontSize="9" Text="⇧"/><Run Text="{Binding Number}"/></TextBlock>
                                                     </Panel>
+                                                    <StackPanel Grid.Column="1" Margin="12,0,8,0" Spacing="3" VerticalAlignment="Center">
+                                                        <TextBlock Classes="slottitle" Text="{Binding Title}"/>
+                                                        <Panel Height="22">
+                                                            <StackPanel Classes="stats" Orientation="Horizontal" Spacing="6"
+                                                                        IsVisible="{Binding ShowStats}">
+                                                                <Border MinWidth="36" Height="22" CornerRadius="4" Padding="6,0" VerticalAlignment="Center"
+                                                                        Background="{Binding KeyBrush}"
+                                                                        IsVisible="{Binding Camelot, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                    <TextBlock Text="{Binding Camelot}" FontSize="12.5" FontWeight="ExtraBold"
+                                                                               Foreground="{DynamicResource SholtoKeyChipForeground}"
+                                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <TextBlock Classes="slotbpm" Text="{Binding BpmText}"/>
+                                                            </StackPanel>
+                                                            <Border Background="{DynamicResource SholtoStatusWarnTint}" CornerRadius="4" Height="22" Padding="8,0"
+                                                                    HorizontalAlignment="Left" IsVisible="{Binding ShowCaution}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                    <Path Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center"
+                                                                          Fill="{DynamicResource SholtoStatusWarn}" Data="{StaticResource DeckSlotWarnGlyph}"/>
+                                                                    <TextBlock Classes="cautiontext" Text="PLAYING"
+                                                                               TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <TextBlock Classes="slotline err" Text="{Binding ArmedText}" TextTrimming="CharacterEllipsis"
+                                                                       IsVisible="{Binding ShowArmed}"/>
+                                                        </Panel>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Panel>
                                                     <!-- Empty: a ghost record cropped by the card's left edge (the clip), the deck number on its
-                                                         label, two lines of text, and on the target a light sweep. -->
+                                                         label, the deck's name, its key, and on the target a light sweep. -->
                                                     <Border CornerRadius="5" ClipToBounds="True" IsVisible="{Binding !IsLoaded}"
                                                             AutomationProperties.Name="{Binding EmptyTitle}">
                                                         <Panel>
                                                             <Rectangle Classes="sweep" Classes.running="{Binding IsSweeping}"
                                                                        Width="120" HorizontalAlignment="Left" IsHitTestVisible="False"
                                                                        IsVisible="{Binding IsSweeping}"/>
-                                                            <controls:DeckSlotPlatter Ghost="True" Width="52" Height="52" Slot="{Binding}"
-                                                                                      HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-14,0,0,0"
+                                                            <controls:DeckSlotPlatter Ghost="True" Width="64" Height="64" Slot="{Binding}"
+                                                                                      HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-18,0,0,0"
                                                                                       TrackBrush="{DynamicResource SholtoBorder}"
                                                                                       PlayingBrush="{DynamicResource SholtoStatusOk}"
                                                                                       MutedBrush="{DynamicResource SholtoTextMuted}"
@@ -461,55 +455,36 @@
                                                                                       RaisedBrush="{DynamicResource SholtoSurfaceRaised}"
                                                                                       LabelBrush="{DynamicResource SholtoSurface}"
                                                                                       MarkerBrush="{DynamicResource SholtoTextBright}"/>
-                                                            <TextBlock Classes="ghostnumber" Classes.on="{Binding IsTarget}" Text="{Binding Number}"
-                                                                       Width="20" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                                       Margin="2,0,0,0" IsHitTestVisible="False"/>
-                                                            <StackPanel Margin="44,0,8,0" VerticalAlignment="Center" IsHitTestVisible="False">
-                                                                <StackPanel Orientation="Horizontal" Spacing="5" Height="15">
-                                                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                        <TextBlock Classes="deckword" Text="DECK"/>
-                                                                        <TextBlock Classes="deckword num" Classes.on="{Binding IsTarget}" Text="{Binding Number}"/>
-                                                                    </StackPanel>
-                                                                    <TextBlock Classes="emptyword" Text="· empty"/>
+                                                            <TextBlock Classes="ghostnumber" Classes.on="{Binding IsTarget}"
+                                                                       Width="24" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                                       Margin="2,0,0,0" IsHitTestVisible="False"><Run FontSize="9" Text="⇧"/><Run Text="{Binding Number}"/></TextBlock>
+                                                            <Grid ColumnDefinitions="*,Auto" Margin="56,0,12,0" IsHitTestVisible="False">
+                                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                    <TextBlock Classes="emptydeck" Text="{Binding Number, StringFormat='DECK {0}'}"/>
+                                                                    <TextBlock Classes="emptyword" Text="empty"/>
                                                                 </StackPanel>
-                                                                <Panel Height="15">
-                                                                    <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding !IsTarget}">
-                                                                        <Border Classes="slotkeycap">
-                                                                            <TextBlock Text="{Binding KeyCapText}"/>
-                                                                        </Border>
-                                                                        <TextBlock Classes="slotline" Text="{Binding EmptyHint}"/>
-                                                                    </StackPanel>
-                                                                    <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding IsTarget}">
-                                                                        <Path Width="11" Height="11" Stretch="Uniform" VerticalAlignment="Center"
-                                                                              Stroke="{DynamicResource SholtoAccent}" StrokeThickness="1.4"
-                                                                              StrokeLineCap="Round" StrokeJoin="Round"
-                                                                              Data="{StaticResource DeckSlotLoadGlyph}"/>
-                                                                        <TextBlock Classes="slotline loads" Text="{Binding EmptyHint}"/>
-                                                                    </StackPanel>
-                                                                </Panel>
-                                                            </StackPanel>
+                                                            </Grid>
                                                         </Panel>
                                                     </Border>
-                                                </Panel>
-                                            </Button>
-                                            <!-- The notch on the top border points into the target. -->
-                                            <Path Classes="notch" Classes.caution="{Binding IsCaution}" Classes.armed="{Binding IsArmed}"
-                                                  Data="M0,0 L12,0 L6,6 Z" Width="12" Height="6" Margin="0,-1,0,0"
-                                                  HorizontalAlignment="Center" VerticalAlignment="Top" IsHitTestVisible="False"
-                                                  IsVisible="{Binding IsTarget}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Grid>
+                                        </Panel>
+                                    </Button>
+                                    
+<!-- The notch on the top border points into the target. -->
+                                    <Path Classes="notch" Classes.caution="{Binding IsCaution}" Classes.armed="{Binding IsArmed}"
+                                          Data="M0,0 L16,0 L8,8 Z" Width="16" Height="8" Margin="0,-1,0,0"
+                                          HorizontalAlignment="Center" VerticalAlignment="Top" IsHitTestVisible="False"
+                                          IsVisible="{Binding IsTarget}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </Border>
 
                 <!-- Query row: the box plus what the query was understood as. -->
                 <Border Grid.Row="1" Padding="12,8" BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="0,0,0,1">
                     <Border Background="{DynamicResource SholtoBgDeep}" BorderBrush="{DynamicResource SholtoBorder}"
                             BorderThickness="1" CornerRadius="6" Padding="10,0">
-                        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
                             <TextBlock Grid.Column="0" Text="🔍" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"
                                        IsHitTestVisible="False"/>
                             <!-- The crates and tags narrowing the list, in pick order, before the caret. -->
@@ -520,37 +495,8 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="glance:GlanceChip">
-                                        <Panel>
-                                            <Panel Classes="chip" Height="24"
-                                                   IsVisible="{Binding Kind, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={x:Static glance:GlanceChipKind.Crate}}">
-                                                <Border CornerRadius="5" Background="{DynamicResource SholtoMint}" Opacity="0.12" IsHitTestVisible="False"/>
-                                                <Border CornerRadius="5" BorderBrush="{DynamicResource SholtoMint}" BorderThickness="1" Opacity="0.55"
-                                                        IsHitTestVisible="False"/>
-                                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,4,0" VerticalAlignment="Center">
-                                                    <Path Width="12" Height="12" VerticalAlignment="Center" Stretch="Uniform"
-                                                          Data="M6,1 L11,3.5 L11,8.5 L6,11 L1,8.5 L1,3.5 Z M1,3.5 L6,6 L11,3.5 M6,6 L6,11"
-                                                          Stroke="{DynamicResource SholtoMint}" StrokeThickness="1.2" StrokeJoin="Round"/>
-                                                    <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                               Foreground="{DynamicResource SholtoMint}"/>
-                                                    <Border Classes="chipx" PointerPressed="OnChipRemovePressed"
-                                                            AutomationProperties.Name="Remove filter">
-                                                        <TextBlock Text="×" Foreground="{DynamicResource SholtoMint}"/>
-                                                    </Border>
-                                                </StackPanel>
-                                            </Panel>
-                                            <Border Classes="chip" Height="24" CornerRadius="12" Padding="10,0,4,0"
-                                                    Background="{DynamicResource SholtoTagChipBackground}"
-                                                    IsVisible="{Binding Kind, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={x:Static glance:GlanceChipKind.Tag}}">
-                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                               Foreground="{DynamicResource SholtoTagChipForeground}"/>
-                                                    <Border Classes="chipx" PointerPressed="OnChipRemovePressed"
-                                                            AutomationProperties.Name="Remove filter">
-                                                        <TextBlock Text="×" Foreground="{DynamicResource SholtoTagChipForeground}"/>
-                                                    </Border>
-                                                </StackPanel>
-                                            </Border>
-                                        </Panel>
+                                        <chips:SourceChip Classes="chip" Kind="{Binding ChipKind}" Text="{Binding Name}"
+                                                          Removed="OnChipRemoved"/>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -582,12 +528,6 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <Border Grid.Column="4" CornerRadius="4" Padding="8,2" VerticalAlignment="Center"
-                                    Background="{DynamicResource SholtoPrimaryTint}"
-                                    IsVisible="{Binding Glance.Header.FilterLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <TextBlock Text="{Binding Glance.Header.FilterLabel}" FontSize="11" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource SholtoPrimary}"/>
-                            </Border>
                         </Grid>
                     </Border>
                 </Border>
@@ -597,8 +537,7 @@
                     <Border Grid.Column="0" Background="{DynamicResource SholtoSurface}"
                             BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="0,0,1,0">
                         <ListBox x:Name="RailList" Classes="rail" Background="Transparent" BorderThickness="0"
-                                 Focusable="False" Padding="0,6" SelectionChanged="OnRailSelectionChanged"
-                                 DoubleTapped="OnRailDoubleTapped">
+                                 Focusable="False" Padding="0,6" SelectionChanged="OnRailSelectionChanged">
                             <ListBox.DataTemplates>
                                 <DataTemplate DataType="glance:GlanceRailHeader" x:DataType="glance:GlanceRailHeader">
                                     <Grid ColumnDefinitions="*,Auto" Margin="12,8,12,3" IsHitTestVisible="False">
@@ -606,22 +545,6 @@
                                                    Foreground="{DynamicResource SholtoTextMuted}"/>
                                         <TextBlock Grid.Column="1" Text="{Binding Count}" FontSize="10" FontWeight="Bold"
                                                    Foreground="{DynamicResource SholtoTextMuted}"/>
-                                    </Grid>
-                                </DataTemplate>
-                                <!-- Every row: 30 px tall, 12 px left inset, content centred; name column fills, count column is 28 px right-aligned. -->
-                                <DataTemplate DataType="glance:GlanceRailTrack" x:DataType="glance:GlanceRailTrack">
-                                    <Grid ColumnDefinitions="Auto,*" Height="30" Margin="12,0">
-                                        <Border MinWidth="34" Height="20" CornerRadius="3" Padding="5,0" VerticalAlignment="Center"
-                                                Background="{Binding Row.KeyBrush, FallbackValue=Transparent}"
-                                                IsVisible="{Binding Row.Key, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                            <TextBlock Text="{Binding Row.Key}" FontSize="11" LineHeight="14" FontWeight="Bold"
-                                                       Foreground="{DynamicResource SholtoKeyChipForeground}"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock Grid.Column="1" Margin="8,0,0,0" Text="{Binding Title}" FontSize="13.5" LineHeight="18"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource SholtoTextBright}"
-                                                   TextTrimming="CharacterEllipsis"/>
                                     </Grid>
                                 </DataTemplate>
                                 <!-- Crate: the cube and name in mint, the count at the right. Active: a 3 px mint bar, a faint mint tint, a bold count. -->
@@ -676,7 +599,7 @@
                     <Grid Grid.Column="1" RowDefinitions="Auto,*">
                         <!-- Column labels; widths match the row template below. -->
                         <Grid Grid.Row="0" ColumnDefinitions="22,72,*,96,64,40" Margin="10,0,16,0" Height="28">
-                            <TextBlock Grid.Column="0" Text="FIT" Classes="colhead"/>
+                            <TextBlock Grid.Column="0" Text="" Classes="colhead"/>
                             <TextBlock Grid.Column="1" Text="KEY" Classes="colhead"/>
                             <TextBlock Grid.Column="2" Text="TITLE / ARTIST" Classes="colhead"/>
                             <TextBlock Grid.Column="3" Text="BPM" Classes="colhead" HorizontalAlignment="Right"/>
@@ -706,6 +629,8 @@
                                 <DataTemplate x:DataType="glance:GlanceRow">
                                     <Grid ColumnDefinitions="22,72,*,96,64,40" Margin="10,0,6,0" Height="42"
                                           Classes.faded="{Binding IsFaded}">
+                                        <Border Grid.ColumnSpan="6" Classes="flashfill" Margin="-10,0,-6,0" IsHitTestVisible="False"
+                                                Background="{DynamicResource SholtoLoadTrackList}"/>
                                         <Border Grid.Column="0" Classes="fitbar" Width="6" Height="30" CornerRadius="3"
                                                 HorizontalAlignment="Left" VerticalAlignment="Center"
                                                 Classes.good="{Binding FitLevel, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={x:Static data:FitLevel.Good}}"
@@ -719,7 +644,8 @@
                                                        Foreground="{DynamicResource SholtoKeyChipForeground}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0">
+                                        <Grid Grid.Column="2" ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                                        <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Row.Title}" FontSize="15" FontWeight="SemiBold"
                                                        TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource SholtoTextBright}"
@@ -734,6 +660,14 @@
                                             <TextBlock Text="{Binding Subtitle}" FontSize="12" TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource SholtoTextMuted}"/>
                                         </StackPanel>
+                                        <!-- The highlighted row's Track List key: add (Ctrl L), or the tick once it is in. -->
+                                        <Border Grid.Column="1" Classes="loadkey list rowkey" Margin="8,0" IsHitTestVisible="False">
+                                            <Panel>
+                                                <TextBlock Text="≡+ Ctrl L" IsVisible="{Binding !IsInTrackList}"/>
+                                                <TextBlock Text="≡✓" IsVisible="{Binding IsInTrackList}"/>
+                                            </Panel>
+                                        </Border>
+                                        </Grid>
                                         <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
                                             <TextBlock Text="{Binding Row.BpmDisplay}" FontSize="16" FontWeight="SemiBold"
                                                        FontFamily="DejaVu Sans Mono, Consolas, monospace"
@@ -751,12 +685,14 @@
                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource SholtoTextMuted}"/>
                                         <Panel Grid.Column="5" Background="Transparent" Tapped="OnStarTapped">
-                                            <TextBlock Text="★" FontSize="16" Foreground="{DynamicResource SholtoAccent}"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                       IsVisible="{Binding IsShortlisted}"/>
-                                            <TextBlock Text="☆" FontSize="16" Foreground="{DynamicResource SholtoTextMuted}"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                       IsVisible="{Binding !IsShortlisted}"/>
+                                            <Path Width="16" Height="16" Stretch="Uniform" Data="{StaticResource LoadListPlusGlyph}"
+                                                  Stroke="{DynamicResource SholtoBorder}" StrokeThickness="1.7" StrokeLineCap="Round"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  IsVisible="{Binding !IsInTrackList}"/>
+                                            <Path Width="16" Height="16" Stretch="Uniform" Data="{StaticResource LoadInListGlyph}"
+                                                  Stroke="{DynamicResource SholtoLoadTrackList}" StrokeThickness="1.7" StrokeLineCap="Round"
+                                                  StrokeJoin="Round" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  IsVisible="{Binding IsInTrackList}"/>
                                         </Panel>
                                     </Grid>
                                 </DataTemplate>
@@ -796,20 +732,16 @@
                                        Foreground="{DynamicResource SholtoTextBright}"/>
                             <TextBlock Text="{Binding Glance.ScopeCount, StringFormat='of {0}'}" FontSize="11.5"
                                        Foreground="{DynamicResource SholtoTextMuted}"/>
+                            <Path Width="12" Height="12" Margin="6,0,0,0" Stretch="Uniform" Data="{StaticResource LoadInListGlyph}"
+                                  Stroke="{DynamicResource SholtoLoadTrackList}" StrokeThickness="1.7" StrokeLineCap="Round"
+                                  StrokeJoin="Round" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TrackListCountText" Text="{Binding Glance.TrackListCount}" FontSize="11.5" FontWeight="Bold"
+                                       Foreground="{DynamicResource SholtoLoadTrackList}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Border Classes="keycap"><TextBlock Text="Q"/></Border>
-                                <TextBlock Text="Shortlist" FontSize="11.5" Foreground="{DynamicResource SholtoTextMuted}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="5">
                                 <Border Classes="keycap"><TextBlock Text="Tab"/></Border>
                                 <TextBlock x:Name="TabHintText" Text="Rail / Table" FontSize="11.5" Foreground="{DynamicResource SholtoTextMuted}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Border Classes="keycap"><TextBlock Text="⇧1"/></Border>
-                                <Border Classes="keycap"><TextBlock Text="⇧2"/></Border>
-                                <TextBlock Text="Load" FontSize="11.5" Foreground="{DynamicResource SholtoTextMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="5">
                                 <Border Classes="keycap"><TextBlock Text="←→"/></Border>
@@ -820,17 +752,12 @@
                                 <TextBlock Text="Remove filter" FontSize="11.5" Foreground="{DynamicResource SholtoTextMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Border Classes="keycap"><TextBlock Text="Ctrl Z"/></Border>
-                                <TextBlock Text="Undo" FontSize="11.5" Foreground="{DynamicResource SholtoTextMuted}" VerticalAlignment="Center"/>
+                                <Border Classes="keycap"><TextBlock Text="Ctrl Del"/></Border>
+                                <TextBlock x:Name="ClearHintText" Text="Clear Track List" FontSize="11.5"
+                                           Foreground="{DynamicResource SholtoTextMuted}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="5"
-                                        IsVisible="{Binding Glance.AlternateActionText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <Border Classes="keycap"><TextBlock Text="Ctrl Enter"/></Border>
-                                <TextBlock Text="{Binding Glance.AlternateActionText}" FontSize="11.5"
-                                           Foreground="{DynamicResource SholtoTextMuted}" VerticalAlignment="Center"/>
-                            </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="5">
                                 <Border Classes="keycap"><TextBlock Text="Enter"/></Border>
                                 <TextBlock Text="{Binding Glance.ActionText}" FontSize="11.5" FontWeight="SemiBold"

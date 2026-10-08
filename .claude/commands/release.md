@@ -59,6 +59,11 @@ Interface / Data / App rebuild):
 
 State the version and the one-line reason.
 
+Licence statements in README, docs/license.md, THIRD-PARTY-NOTICES.md, Directory.Build.props
+and the changelog say the PolyForm Shield switch happens "from v1.1.0". If the version
+chosen here is not `v1.1.0`, stop and fix those statements to the real version before
+going on.
+
 ## 4. Edit the changelog
 
 Rename `## Unreleased` to `## vX.Y.Z` and insert a fresh empty block above it:
@@ -84,7 +89,7 @@ git push origin main vX.Y.Z
 ```
 
 Then say what happens next: pushing the tag fires `.github/workflows/release.yml`, which
-builds a self-contained linux-x64 single-file binary, bundles README, LICENSE and
+builds a self-contained linux-x64 single-file binary, bundles README, LICENSE, THIRD-PARTY-NOTICES, docs/license.md and
 install-deps.sh into `sholto-vX.Y.Z-linux-x64.tar.gz`, takes the `## vX.Y.Z` section of
 the changelog as the release body, and creates the GitHub Release.
 

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -18,7 +19,7 @@ public class MinimapControlTests
     private readonly ITestOutputHelper _output;
     private readonly System.Collections.Concurrent.BlockingCollection<Action> _posts = new();
 
-    private readonly IWaveformStyles _styles = new WaveformStylesFactory().Create();
+    private readonly IWaveformStyles _styles = new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create();
     private readonly WaveformPalette _wave = new TestWaveformPalette().Create();
     private readonly MinimapPalette _palette;
     private readonly WaveformPeaks _peaks;
@@ -41,31 +42,31 @@ public class MinimapControlTests
         ];
     }
 
-    private sealed class CountingBaker : IMinimapBaker
+    private sealed class CountingRenderer : IMinimapRenderer
     {
-        private readonly MinimapBaker _real = new(new MinimapPeakDownsampler(), new MinimapGeometry(), new MinimapPhraseLines(), new MinimapSectionLabels());
+        private readonly MinimapRenderer _real = new(new MinimapPeakDownsampler(), new MinimapGeometry(), new MinimapPhraseLines(), new MinimapSectionLabels());
         public int Calls { get; private set; }
         public IWaveformStyleStrategy? LastStyle { get; private set; }
-        public SKImage? Bake(WaveformPeaks peaks, MinimapStructure? structure, MinimapPalette palette,
+        public SKImage? Render(WaveformPeaks peaks, MinimapStructure? structure, MinimapPalette palette,
             WaveformPalette waveform, IWaveformStyleStrategy style, int pixelWidth, int pixelHeight, double scale)
         {
             Calls++; LastStyle = style;
-            return _real.Bake(peaks, structure, palette, waveform, style, pixelWidth, pixelHeight, scale);
+            return _real.Render(peaks, structure, palette, waveform, style, pixelWidth, pixelHeight, scale);
         }
     }
 
-    private (MinimapControl Control, CountingBaker Baker) Make(double width = 600)
+    private (MinimapControl Control, CountingRenderer Renderer) Make(double width = 600)
     {
-        var baker = new CountingBaker();
+        var renderer = new CountingRenderer();
         var c = new MinimapControl
         {
-            Baker = baker, Post = _posts.Add, ScaleOverride = 1, Peaks = _peaks, Sections = _sections,
+            Renderer = renderer, Post = _posts.Add, ScaleOverride = 1, Peaks = _peaks, Sections = _sections,
             BarPeriodSec = _barPeriod,
             Palette = _palette, WaveformPalette = _wave, StyleStrategy = _styles.Default,
         };
         c.Measure(new Size(width, 100));
         c.Arrange(new Rect(0, 0, width, c.DesiredSize.Height));
-        return (c, baker);
+        return (c, renderer);
     }
 
     /// <summary>Request a bake if one is due, then run the posted results on this thread until none is in flight.</summary>
@@ -86,36 +87,36 @@ public class MinimapControlTests
         c.Render(ctx);
     }
 
-    private sealed class GatedBaker : IMinimapBaker
+    private sealed class GatedRenderer : IMinimapRenderer
     {
-        private readonly MinimapBaker _real = new(new MinimapPeakDownsampler(), new MinimapGeometry(), new MinimapPhraseLines(), new MinimapSectionLabels());
+        private readonly MinimapRenderer _real = new(new MinimapPeakDownsampler(), new MinimapGeometry(), new MinimapPhraseLines(), new MinimapSectionLabels());
         public ManualResetEventSlim Gate { get; } = new(false);
         public ManualResetEventSlim Entered { get; } = new(false);
         public List<int> Widths { get; } = [];
         public int BakeThreadId { get; private set; }
-        public SKImage? Bake(WaveformPeaks peaks, MinimapStructure? structure, MinimapPalette palette,
+        public SKImage? Render(WaveformPeaks peaks, MinimapStructure? structure, MinimapPalette palette,
             WaveformPalette waveform, IWaveformStyleStrategy style, int pixelWidth, int pixelHeight, double scale)
         {
             lock (Widths) Widths.Add(pixelWidth);
             BakeThreadId = Environment.CurrentManagedThreadId;
             Entered.Set();
             Gate.Wait(10_000);
-            return _real.Bake(peaks, structure, palette, waveform, style, pixelWidth, pixelHeight, scale);
+            return _real.Render(peaks, structure, palette, waveform, style, pixelWidth, pixelHeight, scale);
         }
     }
 
-    private (MinimapControl Control, GatedBaker Baker) MakeGated(double width = 600)
+    private (MinimapControl Control, GatedRenderer Renderer) MakeGated(double width = 600)
     {
-        var baker = new GatedBaker();
+        var renderer = new GatedRenderer();
         var c = new MinimapControl
         {
-            Baker = baker, Post = _posts.Add, ScaleOverride = 1, Peaks = _peaks, Sections = _sections,
+            Renderer = renderer, Post = _posts.Add, ScaleOverride = 1, Peaks = _peaks, Sections = _sections,
             BarPeriodSec = _barPeriod,
             Palette = _palette, WaveformPalette = _wave, StyleStrategy = _styles.Default,
         };
         c.Measure(new Size(width, 100));
         c.Arrange(new Rect(0, 0, width, c.DesiredSize.Height));
-        return (c, baker);
+        return (c, renderer);
     }
 
     private void Resize(MinimapControl c, double width) => c.Arrange(new Rect(0, 0, width, 64));
@@ -123,18 +124,18 @@ public class MinimapControlTests
     [Fact]
     public void Render_returns_while_the_bake_is_blocked_and_the_result_is_posted_not_applied_on_the_bake_thread()
     {
-        var (c, baker) = MakeGated();
+        var (c, renderer) = MakeGated();
         var rtb = new RenderTargetBitmap(new PixelSize(600, 64));
         using var ctx = rtb.CreateDrawingContext();
 
         c.Render(ctx);                                  // would hang on the gate if it baked inline
-        Assert.True(baker.Entered.Wait(10_000));
-        Assert.NotEqual(Environment.CurrentManagedThreadId, baker.BakeThreadId);
+        Assert.True(renderer.Entered.Wait(10_000));
+        Assert.NotEqual(Environment.CurrentManagedThreadId, renderer.BakeThreadId);
         Assert.True(c.BakeInFlight);
         Assert.Equal(default, c.BakedPixelSize);        // nothing applied yet
         Assert.Empty(_posts);
 
-        baker.Gate.Set();
+        renderer.Gate.Set();
         Assert.True(_posts.TryTake(out var work, 10_000));   // the result arrives as posted work
         Assert.Equal(default, c.BakedPixelSize);        // still not applied until the UI thread runs it
         work();
@@ -145,21 +146,21 @@ public class MinimapControlTests
     [Fact]
     public void Three_resizes_during_one_blocked_bake_give_one_more_bake_for_the_final_size()
     {
-        var (c, baker) = MakeGated(500);
+        var (c, renderer) = MakeGated(500);
         var rtb = new RenderTargetBitmap(new PixelSize(900, 64));
         using var ctx = rtb.CreateDrawingContext();
 
         c.Render(ctx);                                  // first bake (500), blocked
-        Assert.True(baker.Entered.Wait(10_000));
+        Assert.True(renderer.Entered.Wait(10_000));
         Resize(c, 600); c.Render(ctx);
         Resize(c, 700); c.Render(ctx);
         Resize(c, 800); c.Render(ctx);
-        Assert.Single(baker.Widths);                    // none of them started a bake of its own
+        Assert.Single(renderer.Widths);                    // none of them started a bake of its own
 
-        baker.Gate.Set();
+        renderer.Gate.Set();
         while (c.BakeInFlight) { Assert.True(_posts.TryTake(out var work, 10_000)); work(); }
 
-        Assert.Equal([500, 800], baker.Widths);         // the stale 500 and the newest 800; 600 and 700 never baked
+        Assert.Equal([500, 800], renderer.Widths);         // the stale 500 and the newest 800; 600 and 700 never baked
         Assert.Equal(2, c.BakeCount);
         Assert.Equal(800, c.BakedPixelSize.Width);
     }
@@ -167,26 +168,26 @@ public class MinimapControlTests
     [Fact]
     public void A_stale_result_is_dropped_and_the_last_picture_keeps_drawing_until_the_new_one_lands()
     {
-        var (c, baker) = MakeGated(500);
-        baker.Gate.Set();
+        var (c, renderer) = MakeGated(500);
+        renderer.Gate.Set();
         Settle(c);
         var first = c.BakedBitmap;
         Assert.Equal(500, first!.PixelSize.Width);
 
-        baker.Gate.Reset(); baker.Entered.Reset();
+        renderer.Gate.Reset(); renderer.Entered.Reset();
         Resize(c, 650);
         c.EnsureBaked();
-        Assert.True(baker.Entered.Wait(10_000));
+        Assert.True(renderer.Entered.Wait(10_000));
         Assert.Same(first, c.BakedBitmap);              // the old picture is still the one on screen
         var rtb = new RenderTargetBitmap(new PixelSize(650, 64));
         using (var ctx = rtb.CreateDrawingContext()) c.Render(ctx);   // draws it stretched, does not throw or wait
 
         Resize(c, 700);                                 // newer request while 650 is running
         c.EnsureBaked();
-        baker.Gate.Set();
+        renderer.Gate.Set();
         while (c.BakeInFlight) { Assert.True(_posts.TryTake(out var work, 10_000)); work(); }
         Assert.Equal(700, c.BakedPixelSize.Width);      // the 650 result never showed
-        Assert.Equal([500, 650, 700], baker.Widths);
+        Assert.Equal([500, 650, 700], renderer.Widths);
     }
 
     [Fact]
@@ -221,12 +222,12 @@ public class MinimapControlTests
         double median = frames[frames.Count / 2];
 
         // What every one of those frames cost before: bake and copy to a bitmap, inline.
-        var baker = new MinimapBaker(new MinimapPeakDownsampler(), new MinimapGeometry(), new MinimapPhraseLines(), new MinimapSectionLabels());
+        var renderer = new MinimapRenderer(new MinimapPeakDownsampler(), new MinimapGeometry(), new MinimapPhraseLines(), new MinimapSectionLabels());
         var inline = new List<double>();
         for (int i = 0; i < 15; i++)
         {
             var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
-            using var img = baker.Bake(_peaks, new MinimapStructure(_sections, new DeckPhraseGrid(0, 8), 0, _barPeriod), _palette, _wave, _styles.Default, width, 64, 1);
+            using var img = renderer.Render(_peaks, new MinimapStructure(_sections, new DeckPhraseGrid(0, 8), 0, _barPeriod), _palette, _wave, _styles.Default, width, 64, 1);
             _ = img!.ToBitmap();
             inline.Add(System.Diagnostics.Stopwatch.GetElapsedTime(t0).TotalMilliseconds);
         }
@@ -246,9 +247,9 @@ public class MinimapControlTests
     [Fact]
     public void The_first_frame_bakes_once_at_the_strip_size_and_steady_frames_do_not_re_bake()
     {
-        var (c, baker) = Make();
+        var (c, renderer) = Make();
         Settle(c);
-        Assert.Equal(1, baker.Calls);
+        Assert.Equal(1, renderer.Calls);
         Assert.Equal(new PixelSize(600, 64), c.BakedPixelSize);
 
         for (int i = 0; i < 200; i++)
@@ -256,71 +257,71 @@ public class MinimapControlTests
             c.PlayPosition = i / 200.0;
             Settle(c);
         }
-        Assert.Equal(1, baker.Calls);
+        Assert.Equal(1, renderer.Calls);
     }
 
     [Fact]
     public void Style_theme_palette_width_scale_peaks_and_sections_changes_each_re_bake()
     {
-        var (c, baker) = Make();
+        var (c, renderer) = Make();
         Settle(c);
-        int n = baker.Calls;
+        int n = renderer.Calls;
 
         c.StyleStrategy = _styles.ById("rgb"); Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
 
         c.Palette = _palette with { Drop = Colors.Yellow }; Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
 
         c.WaveformPalette = _wave with { RgbLow = Colors.Yellow }; Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
 
         c.Arrange(new Rect(0, 0, 700, 64)); Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
         Assert.Equal(700, c.BakedPixelSize.Width);
 
         c.ScaleOverride = 2; Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
         Assert.Equal(new PixelSize(1400, 128), c.BakedPixelSize);
 
         c.Peaks = new TestWaveformPeaks().Create(1500); Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
 
         c.Sections = _sections.Take(2).ToList(); Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
 
         c.PhraseGrid = new DeckPhraseGrid(1, 8); Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
 
         c.BarPeriodSec = _barPeriod * 2; Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
 
         c.FirstDownbeatSec = 0.5; Settle(c);
-        Assert.Equal(++n, baker.Calls);
+        Assert.Equal(++n, renderer.Calls);
     }
 
     [Fact]
     public void A_waveform_palette_change_the_style_does_not_bake_does_not_re_bake()
     {
-        var (c, baker) = Make();
+        var (c, renderer) = Make();
         Settle(c);
 
         c.WaveformPalette = _wave with { Marker = Colors.Yellow, Loop = Colors.Yellow };   // live colours only
         Settle(c);
 
-        Assert.Equal(1, baker.Calls);
+        Assert.Equal(1, renderer.Calls);
     }
 
     [Fact]
     public void The_baked_picture_follows_the_three_band_or_rgb_setting()
     {
-        var (c, baker) = Make();
+        var (c, renderer) = Make();
         Settle(c);
-        Assert.Equal("three-band", baker.LastStyle!.Id);
+        Assert.Equal("three-band", renderer.LastStyle!.Id);
         var threeBand = Pixels(c);
 
         c.StyleStrategy = _styles.ById("rgb"); Settle(c);
-        Assert.Equal("rgb", baker.LastStyle!.Id);
+        Assert.Equal("rgb", renderer.LastStyle!.Id);
         Assert.NotEqual(threeBand, Pixels(c));
     }
 
@@ -338,32 +339,61 @@ public class MinimapControlTests
         }
 
         // Underline: the bottom 3 rows of the 14-row label row, the section's colour.
-        Assert.Equal(Color.FromRgb(_palette.Drop.R, _palette.Drop.G, _palette.Drop.B), px(300, 12));
+        Assert.Equal(Color.FromRgb(_palette.Drop.R, _palette.Drop.G, _palette.Drop.B), px(310, 12));   // clear of the gap at bar 8 (x 300)
         Assert.Equal(Color.FromRgb(_palette.Intro.R, _palette.Intro.G, _palette.Intro.B), px(20, 12));
         // The centre of the body, in the loud middle section, is not the backdrop or the tint alone.
         Assert.NotEqual(px(320, 14 + 25), px(320, 14 + 1));
     }
 
     [Fact]
-    public void Phrase_lines_are_baked_into_the_body_at_whole_pixels_with_a_wider_strong_line()
+    public void Phrase_gaps_cut_the_top_colour_strip_only_and_leave_the_waveform_untouched()
     {
-        var (c, baker) = Make();                      // 16 bars over 600 px: 37.5 px a bar
-        c.PhraseGrid = new DeckPhraseGrid(1, 8);      // bar 1 strong (x 38), bar 9 thin (x 338)
-        c.Peaks = new WaveformPeaks(new float[2000], new float[2000], new float[2000], new float[2000], new float[2000], 512, 48000);   // silent, so only the lines show
-        Settle(c);
-        var bytes = Pixels(c);
-        int stride = bytes.Length / c.BakedPixelSize.Height;
-        int y = 14 + 5;                               // near the top of the body, clear of any centre line
-        byte[] px(int x) => bytes.AsSpan(y * stride + x * 4, 4).ToArray();
+        // 16 bars over 600 px: 37.5 px a bar. Grid (1,8): bar 1 strong (x 38, 2 px), bar 9 thin (x 338, 1 px).
+        // The strip is the 3 underline rows 11..13 of the 14-row label row; the body is rows 14..63.
+        var (with, without) = BakePair(new DeckPhraseGrid(1, 8), new DeckPhraseGrid(0, 0), out int stride);
+        byte[] px(byte[] b, int x, int y) => b.AsSpan(y * stride + x * 4, 4).ToArray();
+        int Lum(byte[] p) => p[0] + p[1] + p[2];
 
-        Assert.NotEqual(px(30), px(38));              // the strong line, 2 px wide
-        Assert.Equal(px(38), px(39));
-        Assert.NotEqual(px(38), px(40));
-        Assert.NotEqual(px(330), px(338));            // the thin line, 1 px wide
-        Assert.Equal(px(330), px(339));
-        Assert.NotEqual(px(338), px(38));             // and fainter than the strong one
-        // The lines are not in the label row.
-        Assert.Equal(bytes.AsSpan(0 * stride + 30 * 4, 4).ToArray(), bytes.AsSpan(0 * stride + 38 * 4, 4).ToArray());
+        // No phrase line on the waveform: every body row is identical with and without a grid.
+        for (int y = 14; y < 64; y++)
+            for (int x = 0; x < 600; x++)
+                Assert.Equal(px(without, x, y), px(with, x, y));
+
+        for (int y = 11; y <= 13; y++)
+        {
+            // Boundary columns are darker with the grid.
+            Assert.True(Lum(px(with, 38, y)) < Lum(px(without, 38, y)), $"bar 1, x 38, row {y}");
+            Assert.True(Lum(px(with, 39, y)) < Lum(px(without, 39, y)), $"bar 1, x 39, row {y}");
+            Assert.True(Lum(px(with, 338, y)) < Lum(px(without, 338, y)), $"bar 9, x 338, row {y}");
+            // The 32-bar gap is 2 px wide, the 8-bar gap 1 px.
+            Assert.Equal(px(without, 37, y), px(with, 37, y));
+            Assert.Equal(px(without, 40, y), px(with, 40, y));
+            Assert.Equal(px(without, 337, y), px(with, 337, y));
+            Assert.Equal(px(without, 339, y), px(with, 339, y));
+        }
+
+        // Every other column of the strip is identical, and the label row above it is untouched.
+        var gapCols = new HashSet<int> { 38, 39, 338 };
+        for (int x = 0; x < 600; x++)
+        {
+            if (gapCols.Contains(x)) continue;
+            for (int y = 0; y < 14; y++) Assert.Equal(px(without, x, y), px(with, x, y));
+        }
+        for (int x = 38; x <= 39; x++)
+            for (int y = 0; y < 11; y++) Assert.Equal(px(without, x, y), px(with, x, y));
+    }
+
+    private (byte[] With, byte[] Without) BakePair(DeckPhraseGrid grid, DeckPhraseGrid none, out int stride)
+    {
+        var (c, _) = Make();
+        c.PhraseGrid = grid;
+        Settle(c);
+        var a = Pixels(c);
+        c.PhraseGrid = none;
+        Settle(c);
+        var b = Pixels(c);
+        stride = a.Length / c.BakedPixelSize.Height;
+        return (a, b);
     }
 
     [Fact]
@@ -420,7 +450,7 @@ public class MinimapControlTests
     [Fact]
     public void A_steady_playing_frame_draws_without_allocating()
     {
-        var (c, baker) = Make();
+        var (c, renderer) = Make();
         c.MarkerSecs = [5, 20]; c.LoopStartSec = 10; c.LoopEndSec = 15;
         var rtb = new RenderTargetBitmap(new PixelSize(600, 64));
         using var ctx = rtb.CreateDrawingContext();
@@ -431,7 +461,7 @@ public class MinimapControlTests
         for (int i = 300; i < 1300; i++) { c.PlayPosition = i / 3000.0; c.Render(ctx); }
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-        Assert.Equal(1, baker.Calls);
+        Assert.Equal(1, renderer.Calls);
         // The control itself allocates nothing per frame; the drawing context may record a small
         // fixed amount per call, so bound it per frame rather than demand zero from Avalonia.
         Assert.True(allocated <= 1000 * 256L, $"allocated {allocated} bytes over 1000 frames");

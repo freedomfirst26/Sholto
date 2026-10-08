@@ -16,8 +16,7 @@ else). Drop the vocal out, bring the beat back, all live.
 coloured text means it's muted. The chips appear only once the stems are ready,
 and they show state — they aren't buttons.
 
-Muting and riding stem levels is done from the controller — see the controller
-guide (top bar) for the pads and knobs involved.
+Mute stems with pads 1–3 on the HOT CUE page; ride their levels by holding a deck's **SHIFT** and turning **HI / MID / LOW** (drums / vocals / instrumental). Knob centre is full level; turning left fades the stem to silence. The controller guide in the top bar shows both.
 
 Stems need **demucs** installed. The first analysis of a track takes roughly
 half a minute to a few minutes; after that it's instant. The four files are

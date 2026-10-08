@@ -7,11 +7,17 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+### Licence
+
+- **Sholto moves to the PolyForm Shield License 1.0.0.** Free for everyone, including paid gigs, streaming, teaching, and clubs or bars running it for their DJs. Anything that competes with Sholto (selling copies, rebranding, hosting it, or bundling it with hardware or another product) needs a commercial licence: freedomfirst26@proton.me. Earlier releases keep the licence they shipped with (v0.1.0 and v0.2.0: PolyForm Noncommercial 1.0.0 with a free grant for individuals; v0.3.0 and v1.0.0: Business Source License 1.1). See [docs/license.md](docs/license.md).
+
 ### New
 
-- **Search ranks tracks by how well they fit your mix.** Press Space (or give the browse knob a short press) and the list is sorted against the deck you're not loading into: green for a good key and tempo match, amber for usable, grey for a clash. Find tracks by initials, `bpm:128`, `key:8a` or `#tag`; press Q to shortlist a track, and see your recent loads beside your crates and tags. Shift+1 / Shift+2 load straight onto a deck, and on the controller the browse knob moves through the search list and LOAD loads the pick.
-- **Click a crate or tag in search to narrow the list to it, ranked by what fits the playing track.** Picks become chips in the search box and stack; Backspace or the × takes one off, and Ctrl+Enter shows the pick in the library instead.
-- **The search header shows both decks.** The two LOAD TO slots now carry a platter that spins with the music and rings the time left, the title, key, BPM and time, FIT on the reference deck, an amber warning when the deck you would load onto is playing, and red "again to replace" after the first press.
+- **Search ranks tracks by how well they fit your mix.** Press Space and the list is sorted against the deck you're not loading into: green for a good key and tempo match, amber for usable, grey for a clash. Find tracks by initials, `bpm:128`, `key:8a` or `#tag`; click a row's list mark to add it to the Track List or take it out, and see your crates and tags beside the results. Shift+1 / Shift+2 load straight onto a deck; LOAD on the controller loads the pick.
+- **Search loads into three places: Deck 1, Deck 2 and the Track List.** Ctrl+L adds the highlighted song, crate or tag to the main view's Track List and keeps search open; loads add and never replace, the strip above the list shows the sources (× removes one), and the list survives a restart. Esc on the main view now only closes the tuner.
+- **The violet list mark on a search row adds the song to the Track List, or removes it.** It replaces the shortlist and the Q key: the mark shows a tick (≡✓) while the song is in the list, Ctrl+L does the same on the highlighted row, the row flashes when it is added, the footer counts the list, and any songs you had shortlisted move into the Track List the first time you start.
+- **Click a crate or tag in search to narrow the list to it, ranked by what fits the playing track.** Picks become chips in the search box and stack; Backspace or the × takes one off. Chips only narrow search.
+- **The search header shows both decks.** The two deck slots now carry a platter that spins with the music, a ring of the time left (red in the last 45 seconds), the title, key, BPM and time. The deck a load goes to is washed in its colour. Click a slot to load onto it. An amber warning shows when the deck you would load onto is playing, and red "again to replace" after the first press.
 - **Undo a load.** Ctrl+Z within 10 seconds of loading puts the previous track back on that deck, paused where you replaced it.
 - **The section map shows the whole track.** The strip above each waveform is taller: section names over a coloured underline, and below them the entire song drawn in your waveform style (3-BAND or RGB) with the played part dimmed, and your cues and loop marked on it.
 - **An empty deck shows a ghost vinyl.** With no track loaded, the platter is drawn as a faint outline of a record, so you can see at a glance which deck is waiting for a load.
@@ -32,7 +38,10 @@ changed at the decks, not which class moved.
 
 ### Improved
 
-- **Empty LOAD TO slots in search are clearer.** A deck with no track now shows as an empty slot, so you can see which deck a load will go to and which is waiting.
+- **Track List rows catch a soft sheen of light that follows your pointer.** Nothing moves or resizes; with reduced motion the light just rests on the title.
+
+- **Stem levels now use SHIFT + EQ.** Hold a deck's SHIFT and turn its HI, MID or LOW knob to set that deck's drums, vocals or instrumental level. FX ON/OFF no longer does this, and does nothing in Sholto.
+- **Empty deck slots in search are clearer.** A deck with no track now shows as an empty slot, so you can see which deck a load will go to and which is waiting.
 
 - **Loading onto a playing deck now asks for a second press.** The first press shows a warning; press again within 3 seconds to replace the track. This covers the keyboard, the screen and the controller's LOAD buttons, so a stray press can't cut your music.
 - **"Birthday Massacre" is now "The Birthday Massacre".** The theme is called by its proper name in the picker, and if you had it selected it stays selected.

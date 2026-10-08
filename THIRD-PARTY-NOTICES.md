@@ -1,6 +1,6 @@
 # Third-party notices
 
-Sholto itself is licensed under the [Business Source License 1.1](LICENSE).
+Sholto itself is licensed under the [PolyForm Shield License 1.0.0](LICENSE) from v1.1.0 (v0.1.0 and v0.2.0 are under PolyForm Noncommercial 1.0.0 with a free grant for individuals; v0.3.0 and v1.0.0 are under the Business Source License 1.1).
 It depends on the software below, each under its own license. Nothing here is
 redistributed by Sholto unless the "Shipped" column says so — the external
 tools are installed separately by `install-deps.sh` and invoked as processes.
@@ -8,7 +8,7 @@ tools are installed separately by `install-deps.sh` and invoked as processes.
 ## ⚠ Non-commercial dependency — read before commercial use
 
 **madmom** (beat and downbeat detection) is on Sholto's **required** path:
-`Sholto.Analysis/BasicAnalysis.cs` runs it on every track load, and without a
+`src/Sholto.App.ExternalTools/MadmomBeatAnalysisStep.cs` runs it on every track load, and without a
 beatgrid a track will not play.
 
 madmom's licensing is split:
@@ -22,10 +22,12 @@ madmom's licensing is split:
   a commercial product, please contact Gerhard Widmer at
   gerhard.widmer@jku.at."
 
-**Consequence:** a commercial license to Sholto does **not** carry a right to use
-madmom's models. Organizations must obtain their own permission from JKU, or
-wait for Sholto to ship a permissively-licensed default beat tracker. If you are
-buying a commercial license, raise this first: <freedomfirst26@proton.me>.
+**Consequence:** Sholto's licence, free or commercial, does **not** carry a right to
+use madmom's models. Whether using Sholto at a paid gig counts as commercial use of
+them is a question for JKU, not for us. Anyone using Sholto commercially (paid gigs
+included) or buying a commercial license should get their own permission from JKU, or
+wait for Sholto to ship a permissively-licensed default beat tracker. Questions:
+<freedomfirst26@proton.me>.
 
 ## External tools (installed separately, invoked as processes)
 
@@ -54,4 +56,4 @@ All of the above are MIT and impose no restriction on Sholto's commercial track.
 ## Keeping this file honest
 
 Any PR that adds a dependency must add it here with its license — see
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](https://github.com/freedomfirst26/Sholto/blob/main/CONTRIBUTING.md).

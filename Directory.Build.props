@@ -1,14 +1,15 @@
 <Project>
   <!-- Shared assembly + licence metadata for every project in the solution.
-       Keeps the SPDX id and copyright in one place instead of six csproj files. -->
+       Keeps the licence id and copyright in one place instead of six csproj files. -->
   <PropertyGroup>
     <Product>Sholto</Product>
     <Authors>freedomfirst26</Authors>
     <Company>freedomfirst26</Company>
     <Copyright>Copyright (c) 2026 freedomfirst26</Copyright>
     <PackageProjectUrl>https://github.com/freedomfirst26/Sholto</PackageProjectUrl>
-    <!-- Business Source License 1.1; converts to Apache-2.0 on the Change Date
-         recorded in LICENSE. See also THIRD-PARTY-NOTICES.md. -->
-    <PackageLicenseExpression>BUSL-1.1</PackageLicenseExpression>
+    <!-- PolyForm Shield 1.0.0 (v1.1.0 onward; v0.1.0 and v0.2.0 were PolyForm Noncommercial 1.0.0,
+         v0.3.0 and v1.0.0 were BUSL-1.1).
+         See LICENSE and THIRD-PARTY-NOTICES.md. -->
+    <PackageLicenseExpression>PolyForm-Shield-1.0.0</PackageLicenseExpression>
   </PropertyGroup>
 </Project>

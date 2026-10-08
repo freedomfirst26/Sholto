@@ -6,6 +6,6 @@ public enum GlanceZone
     /// <summary>The ranked track table.</summary>
     Table,
 
-    /// <summary>The rail: shortlist, recent loads, crates and tags.</summary>
+    /// <summary>The rail: recent loads, crates and tags.</summary>
     Rail,
 }

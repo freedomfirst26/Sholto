@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.Interface.MainUI.Controls.CollapseToIcon;
 using Sholto.Interface.MainUI.Controls.Knob;
 using Sholto.Interface.MainUI.Controls.Modal;
@@ -37,9 +38,9 @@ public class MainViewModelTests
             new DiscBloomFactory(new ManualFrameClock()));
         var clocks = new DeckViewModelClockSource(deck1, deck2);
         var glance = new GlanceViewModel(_bus, _bus, _bus, appThread, clock, rows, recency,
-            new GlanceHeaderViewModel(clocks, clock, _bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false))),
-            new FixedMotionPreference(false));
-        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory().Create(), _bus);
+            new GlanceHeaderViewModel(clocks, clock, _bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()))),
+            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()));
+        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), _bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, _bus);
         _vm = new MainViewModel(
             themeViewModel,
@@ -61,7 +62,8 @@ public class MainViewModelTests
             new SystemReportViewModel(),
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
-                new AlwaysHintPolicy()));
+                new AlwaysHintPolicy()),
+            new TrackListViewModel(_bus, _bus));
         _vm.PropertyChanged += (_, e) => _changed.Add(e.PropertyName);
 
         // The search overlay and overlay factory ask these once the database is attached.
@@ -235,30 +237,55 @@ public class MainViewModelTests
         Assert.Contains(nameof(MainViewModel.Crossfader), _changed);
     }
 
-    // ---- Filter ---------------------------------------------------------------------------------
+    // ---- Escape and Delete ----------------------------------------------------------------------
 
     [Fact]
-    public void The_active_filter_follows_LibraryFilterChanged()
+    public void HandleEscape_with_a_Track_List_loaded_returns_false_and_sends_nothing()
     {
-        _bus.Publish(new LibraryFilterChanged("peak"));
+        var removed = Record<RemoveSourceFromTrackList>();
+        _bus.Publish(new TrackListChanged([new TrackListSource("crate:1", TrackListSourceKind.Crate, "Peak", 3)], 3));
 
-        Assert.Equal("peak", _vm.ActiveFilter);
-        Assert.Contains(nameof(MainViewModel.ActiveFilter), _changed);
+        Assert.False(_vm.HandleEscape());
 
-        _bus.Publish(new LibraryFilterChanged(null));
-
-        Assert.Null(_vm.ActiveFilter);
+        Assert.Empty(removed.Received);
     }
 
     [Fact]
-    public void ClearFilter_sends_ClearLibraryFilter()
+    public void HandleEscape_with_a_tuner_open_returns_true_and_closes_it()
     {
-        var sent = Record<ClearLibraryFilter>();
+        var closed = Record<CloseTuneEditor>();
+        _bus.Publish(new DeckEditChanged(0, true, false, false));
+        Assert.True(_vm.Deck1.EditOpen);
 
-        _vm.ClearFilter();
+        Assert.True(_vm.HandleEscape());
 
-        var command = Assert.Single(sent.Received);
+        Assert.Contains(closed.Received, c => c.Deck == 0);
+    }
+
+    [Fact]
+    public void RemoveHighlighted_sends_the_path_of_the_highlighted_row()
+    {
+        var removed = Record<RemoveFromTrackList>();
+        ShowRows("a", "b", "c", "d");
+        _bus.Publish(new SelectionChanged(2, Guid.NewGuid()));
+
+        _vm.RemoveHighlighted();
+
+        var command = Assert.Single(removed.Received);
+        Assert.Equal("/music/c.mp3", command.Path);
         Assert.Equal(InterfaceIds.MainUI, command.Origin.InterfaceId);
+    }
+
+    [Fact]
+    public void RemoveHighlighted_with_no_highlight_sends_nothing()
+    {
+        var removed = Record<RemoveFromTrackList>();
+        ShowRows("a", "b");
+        _bus.Publish(new SelectionChanged(-1, Guid.Empty));
+
+        _vm.RemoveHighlighted();
+
+        Assert.Empty(removed.Received);
     }
 
     // ---- Unreachable folder, controller, magnet, harmony ----------------------------------------

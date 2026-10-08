@@ -5,15 +5,11 @@ using Sholto.Data;
 
 namespace Sholto.App.Library;
 
-/// <summary>Executes the library commands an interface sends: highlight a row, filter by tag or crate,
-/// clear the filter, tag a track, remove a tag, add a track to a crate. Thin: each calls the library
+/// <summary>Executes the library commands an interface sends: highlight a row, tag a track, remove a tag, add a track to a crate. Thin: each calls the library
 /// session or its database services. The database calls are async; their outcomes are published on the
 /// app thread as facts (<see cref="TagAddAttempted"/>, <see cref="TrackAddedToCrate"/>).</summary>
 public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread appThread, IEventPublisher publisher, ICrateMembershipCache membership) :
     ICommandHandler<SelectTrack>,
-    ICommandHandler<FilterLibraryByTag>,
-    ICommandHandler<FilterLibraryByCrate>,
-    ICommandHandler<ClearLibraryFilter>,
     ICommandHandler<AddTagToTrack>,
     ICommandHandler<RemoveTagFromTrack>,
     ICommandHandler<AddTrackToCrate>
@@ -28,13 +24,6 @@ public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread a
         if (command.Clamp) _library.Select(command.Index);
         else _library.SetSelectedIndex(command.Index);
     }
-
-    public void Handle(in FilterLibraryByTag command) => _ = ObserveAsync(_library.FilterByTagAsync(command.Tag), "filter by tag");
-
-    public void Handle(in FilterLibraryByCrate command) =>
-        _ = ObserveAsync(_library.FilterByCrateAsync(new CrateSummary(command.CrateId, command.Name, 0)), "filter by crate");
-
-    public void Handle(in ClearLibraryFilter command) => _library.ClearFilter();
 
     public void Handle(in AddTagToTrack command) => _ = AddTagAsync(command.TrackId, command.Name);
 
@@ -89,12 +78,6 @@ public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread a
             });
         }
         catch (Exception ex) { Console.WriteLine($"[Crate] add failed: {ex.Message}"); }
-    }
-
-    private async Task ObserveAsync(Task task, string what)
-    {
-        try { await task; }
-        catch (Exception ex) { Console.WriteLine($"[Library] {what} failed: {ex.Message}"); }
     }
 
     private void Announce(TagAddAttempted attempt) => _appThread.Post(() => _publisher.Publish(attempt));

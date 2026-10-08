@@ -6,6 +6,7 @@ using Sholto.Data;
 using Sholto.App.Decks;
 using Sholto.App.Glance;
 using Sholto.App.Library;
+using Sholto.App.Library.Crates;
 using Sholto.App.Performance;
 using System.Globalization;
 using System.Text.Json;
@@ -43,8 +44,10 @@ public sealed class AppLifecycle(
     ISettingPreference backspinTimePreference,
     ISettingPreference backspinDistancePreference,
     IBackspinFeel backspinFeel,
-    ISettingPreference shortlistPreference,
-    IShortlist shortlist,
+    ISettingPreference legacyShortlistPreference,
+    ISettingPreference trackListPreference,
+    ITrackList trackList,
+    ISavedTrackListCodec trackListCodec,
     IAudioOutputEnumerator outputEnumerator,
     IAudioOutput audioOutput,
     IControllerSoundCard controllerSoundCard,
@@ -63,8 +66,10 @@ public sealed class AppLifecycle(
     private readonly ISettingPreference _backspinTimePreference = backspinTimePreference;
     private readonly ISettingPreference _backspinDistancePreference = backspinDistancePreference;
     private readonly IBackspinFeel _backspinFeel = backspinFeel;
-    private readonly ISettingPreference _shortlistPreference = shortlistPreference;
-    private readonly IShortlist _shortlist = shortlist;
+    private readonly ISettingPreference _legacyShortlistPreference = legacyShortlistPreference;
+    private readonly ISettingPreference _trackListPreference = trackListPreference;
+    private readonly ITrackList _trackList = trackList;
+    private readonly ISavedTrackListCodec _trackListCodec = trackListCodec;
     private readonly IAudioOutputEnumerator _outputEnumerator = outputEnumerator;
     private readonly IAudioOutput _audioOutput = audioOutput;
     private readonly IControllerSoundCard _controllerSoundCard = controllerSoundCard;
@@ -88,8 +93,11 @@ public sealed class AppLifecycle(
     private double? _pendingBackspinTime;
     private bool _backspinDistancePersistence;
     private double? _pendingBackspinDistance;
-    // And for the Glance shortlist.
-    private bool _shortlistPersistence;
+    // And for the Track List. The restore task is awaited by the first scan, which loads All Tracks
+    // when there was no saved list at all (first launch); a saved empty list stays empty.
+    private bool _trackListPersistence;
+    private bool _trackListFirstLaunch;
+    private Task _trackListRestored = Task.CompletedTask;
 
     public void Start()
     {
@@ -113,9 +121,9 @@ public sealed class AppLifecycle(
         _ = Task.Run(RestoreBackspinTimeAsync);
         _ = Task.Run(RestoreBackspinDistanceAsync);
 
-        // Restore the Glance shortlist, the same way; a later toggle is saved once that is done.
-        _shortlist.Changed += OnShortlistChanged;
-        _ = Task.Run(RestoreShortlistAsync);
+        // Restore the Track List, the same way; a later change is saved once that is done.
+        _trackList.Changed += OnTrackListChanged;
+        _trackListRestored = Task.Run(RestoreTrackListAsync);
 
         // Resolve which folder to scan. Order: env var override -> saved setting -> first-run picker.
         _ = Task.Run(ResolveMusicDirAsync);
@@ -300,22 +308,45 @@ public sealed class AppLifecycle(
         });
     }
 
-    // ---- Glance shortlist -----------------------------------------------------------------------
+    // ---- Track List -----------------------------------------------------------------------------
 
-    private async Task RestoreShortlistAsync()
+    private async Task RestoreTrackListAsync()
     {
         var database = await _database.Opened;
         if (database is null) return;
 
-        var saved = await _shortlistPreference.GetAsync();
-        var paths = ParseShortlist(saved);
-        if (paths.Count > 0)
-            await _appThread.InvokeAsync(() => _shortlist.Restore(paths));
+        var saved = await _trackListPreference.GetAsync();
+        if (saved is null)
+            _trackListFirstLaunch = true;
+        else if (ParseTrackList(saved) is { } list)
+        {
+            var entries = list.Entries.Select(e => new TrackListEntry(e.Path, e.SourceKeys)).ToList();
+            var sources = list.Sources.Select(s => new TrackListSource(s.Key, s.Kind, s.Name, 0)).ToList();
+            await _appThread.InvokeAsync(() => _trackList.Restore(entries, sources));
+        }
 
-        _shortlistPersistence = true;
+        _trackListPersistence = true;
+        await MigrateShortlistAsync();
     }
 
-    private IReadOnlyList<string> ParseShortlist(string? saved)
+    // One time: the retired shortlist's songs join the end of the Track List as songs (de-duplicated by the
+    // list), then the saved shortlist is emptied so no later startup adds them again.
+    private async Task MigrateShortlistAsync()
+    {
+        var paths = ParseLegacyShortlist(await _legacyShortlistPreference.GetAsync());
+        if (paths.Count == 0) return;
+
+        await _appThread.InvokeAsync(() =>
+        {
+            foreach (var path in paths)
+                _trackList.Handle(new LoadSongToTrackList(path, _migrationOrigin));
+        });
+        await _legacyShortlistPreference.SetAsync("[]");
+    }
+
+    private readonly Origin _migrationOrigin = new(InterfaceIds.MainUI, "startup", "shortlist-migration");
+
+    private IReadOnlyList<string> ParseLegacyShortlist(string? saved)
     {
         if (string.IsNullOrEmpty(saved)) return [];
         try
@@ -324,25 +355,65 @@ public sealed class AppLifecycle(
         }
         catch (JsonException ex)
         {
-            Console.WriteLine($"[Shortlist] saved list unreadable, starting empty: {ex.Message}");
+            Console.WriteLine($"[Shortlist] saved list unreadable, not migrated: {ex.Message}");
             return [];
         }
     }
 
-    // Raised on the app thread: snapshot the paths now, write on the pool.
-    private void OnShortlistChanged()
+    private SavedTrackList? ParseTrackList(string saved)
     {
-        if (!_shortlistPersistence) return;
-        var json = JsonSerializer.Serialize(_shortlist.Paths);
+        try
+        {
+            return _trackListCodec.Decode(saved);
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"[TrackList] saved list unreadable, starting empty: {ex.Message}");
+            return null;
+        }
+    }
+
+    // Raised on the app thread: snapshot the list now, write on the pool.
+    private void OnTrackListChanged()
+    {
+        if (!_trackListPersistence) return;
+        var json = _trackListCodec.Encode(new SavedTrackList(
+            _trackList.Entries.Select(e => new SavedTrackListEntry(e.Path, [.. e.SourceKeys])).ToList(),
+            _trackList.Sources.Select(s => new SavedTrackListSource(s.Key, s.Kind, s.Name)).ToList()));
         _ = Task.Run(async () =>
         {
             try
             {
-                await _shortlistPreference.SetAsync(json);
+                await _trackListPreference.SetAsync(json);
             }
-            catch (Exception ex) { Console.WriteLine($"[Shortlist] persist failed: {ex.Message}"); }
+            catch (Exception ex) { Console.WriteLine($"[TrackList] persist failed: {ex.Message}"); }
         });
     }
+
+    // First launch: once the first scan is done and the new songs are filed, load the "All Tracks" crate.
+    private async Task LoadAllTracksOnFirstLaunchAsync()
+    {
+        await _trackListRestored;
+        var crates = _library.Crates;
+        if (!_trackListFirstLaunch || crates is null) return;
+        _trackListFirstLaunch = false;
+        try
+        {
+            var crateId = await crates.CreateAsync(CrateNames.AllTracks);
+            // The scan files songs into the crate in the background: wait until it holds the whole catalog.
+            var catalogIds = await _appThread.InvokeAsync(() => _library.Catalog.Select(s => s.TrackId).Where(id => id != Guid.Empty).ToHashSet());
+            for (var attempt = 0; attempt < 50; attempt++)
+            {
+                var members = await crates.TrackIdsAsync(crateId);
+                if (catalogIds.IsSubsetOf(members)) break;
+                await Task.Delay(100);
+            }
+            await _appThread.InvokeAsync(() => _trackList.Handle(new LoadCrateToTrackList(crateId, CrateNames.AllTracks, _firstLaunchOrigin)));
+        }
+        catch (Exception ex) { Console.WriteLine($"[TrackList] first-launch load failed: {ex.Message}"); }
+    }
+
+    private readonly Origin _firstLaunchOrigin = new(InterfaceIds.MainUI, "startup", "first-launch");
 
     // ---- Music folder --------------------------------------------------------------------------
 
@@ -371,6 +442,7 @@ public sealed class AppLifecycle(
         }
 
         await _library.ScanAsync(musicDir!, _database.Stores);
+        await LoadAllTracksOnFirstLaunchAsync();
     }
 
     /// <summary>Menu entry point: ask for a new music folder, persist it, then re-scan. Nothing happens if

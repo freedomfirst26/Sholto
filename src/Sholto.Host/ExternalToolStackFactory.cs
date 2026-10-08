@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Processing;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stems;
@@ -20,10 +21,12 @@ namespace Sholto.Host;
 /// </summary>
 public sealed class ExternalToolStackFactory(
     IExternalToolFinderFactory finderFactory,
-    IBeatAnalysisStepFactory beatSteps) : IExternalToolStackFactory
+    IBeatAnalysisStepFactory beatSteps,
+    IOptions<StemSeparationOptions> stemOptions) : IExternalToolStackFactory
 {
     private readonly IExternalToolFinderFactory _finderFactory = finderFactory;
     private readonly IBeatAnalysisStepFactory _beatSteps = beatSteps;
+    private readonly StemSeparationOptions _stemOptions = stemOptions.Value;
 
     public ExternalToolStack Build()
     {
@@ -71,7 +74,7 @@ public sealed class ExternalToolStackFactory(
         // at startup, gets the bare StemCache instead.
         var demucsCache = new DemucsStemPresence(DemucsWorkspaceFor);
         // Confirmed once, cached; shared by the step (the -d flag) and the stage (overlap decision).
-        var stemDevice = new CudaProbingStemDevice(tools.PathOrName(ExternalToolNames.Demucs), TimeSpan.FromSeconds(60));
+        var stemDevice = new CudaProbingStemDevice(tools.PathOrName(ExternalToolNames.Demucs), _stemOptions.CudaProbeTimeout);
         var demucsRaw = new DemucsStemAnalysisStep(tools.For(ExternalToolNames.Demucs), DemucsWorkspaceFor, stemDevice);
         var demucs = new CachingStemAnalysisStep(demucsRaw, demucsCache);
         var madmom = _beatSteps.Create(tools.For(ExternalToolNames.Madmom), new NullAnalysisReporter());

@@ -4,7 +4,7 @@ using Avalonia.Media;
 namespace Sholto.Interface.MainUI.ViewModels.Glance;
 
 /// <summary>One of the two LOAD TO slots in the Glance header: a platter that spins while its deck plays (an empty deck shows a ghost record half out of the slot's left edge) with
-/// a ring of the time left, the deck's title and, on the second line, its key, tempo and time, or the warning
+/// a ring of the time left, the deck's title and, on the second line, its key and tempo, or the warning
 /// a load would raise. The slot is the target (a load goes here), the fit reference, in caution (the target is
 /// playing) or armed (the first replace press is made).</summary>
 public interface IDeckSlotViewModel : INotifyPropertyChanged
@@ -40,11 +40,17 @@ public interface IDeckSlotViewModel : INotifyPropertyChanged
     /// <summary>The tempo heard to one decimal, "128.0"; empty when the track has none.</summary>
     string BpmText { get; }
 
-    /// <summary>"−5:53" while playing, "paused" otherwise.</summary>
-    string TimeText { get; }
+    /// <summary>The slot is loaded, playing and has under 45 s left at the deck's speed: the ring turns red.</summary>
+    bool IsLow { get; }
 
-    /// <summary>"Playing · −0:38": the caution line.</summary>
+    /// <summary>"Playing": the caution line, without a time.</summary>
     string CautionText { get; }
+
+    /// <summary>A loaded slot shows its key cap.</summary>
+    bool ShowsKeyCap { get; }
+
+    /// <summary>"⏎ ⇧1" on the target deck, otherwise "⇧1" or "⇧2".</summary>
+    string KeyCapLabel { get; }
 
     /// <summary>"⇧2 again to replace": the armed line.</summary>
     string ArmedText { get; }
@@ -63,7 +69,7 @@ public interface IDeckSlotViewModel : INotifyPropertyChanged
     /// reduced motion.</summary>
     bool IsSweeping { get; }
 
-    /// <summary>Line two shows key, tempo and time.</summary>
+    /// <summary>Line two shows key and tempo.</summary>
     bool ShowStats { get; }
 
     bool ShowCaution { get; }

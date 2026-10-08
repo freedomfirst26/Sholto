@@ -53,10 +53,13 @@ public sealed class HeadlessCoreFactory(IBenchDeck benchDeck, IBenchDeckFactory 
         var sessions = new DeckSessionFactory(capturingFactory, sectionAnalyzer, _clock, _appThread, _publisher);
         var deck1 = sessions.Create(0);
         var deck2 = sessions.Create(1);
+        var reporter = new AnalysisReporter(new[] { AnalysisSteps.Beats });
         var core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
-            new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), _decoder,
-            new EqualPowerCrossfade(), _appThread, _publisher, _clock).Build(deck1, deck2);
+            reporter, new KeyAnalyzer(), _decoder,
+            new EqualPowerCrossfade(), _appThread, _publisher, _clock,
+            new GatedStemSeparator(new NoOpStemAnalysisStep(), new SemaphoreStemGate(), reporter),
+            Microsoft.Extensions.Options.Options.Create(new LoadOptions())).Build(deck1, deck2);
 
         var decks = capturingFactory.Created.ToArray();
         decks[0].AttachEngine(engine, _deckFactory.DeckFormat);

@@ -12,7 +12,7 @@ using Sholto.App.Decks;
 namespace Sholto.App.Library;
 
 /// <summary>See <see cref="ILibrarySession"/>. The catalog (<c>_all</c>) is the source of truth; the
-/// visible rows (<c>_visible</c>) are the catalog or a filtered subset of it, in the same order. Every
+/// visible rows (<c>_visible</c>) are the catalog until a Track List is shown, then the Track List's paths (those in the catalog), in its order. Every
 /// mutation happens on the app thread: events from other threads (the analysis reporter, a deck's analysis
 /// landing, the tag service) are posted onto it first.</summary>
 public sealed class LibrarySession : ILibrarySession
@@ -31,6 +31,7 @@ public sealed class LibrarySession : ILibrarySession
     private readonly Dictionary<string, int> _visibleIndex = [];
     private int _version;
     private int _selectedIndex = -1;
+    private List<string>? _shownPaths;
 
     private ICrateService? _crates;
     private ITagService? _tags;
@@ -102,8 +103,6 @@ public sealed class LibrarySession : ILibrarySession
 
     public bool IsUnreachable => !string.IsNullOrEmpty(UnreachablePath);
 
-    public string? ActiveFilter { get; private set; }
-
     public Key? HarmonyReferenceKey { get; private set; }
 
     // ---- Scan ----------------------------------------------------------------------------------
@@ -111,7 +110,6 @@ public sealed class LibrarySession : ILibrarySession
     public async Task ScanAsync(string musicDir, LibraryStack? stores)
     {
         if (string.IsNullOrEmpty(musicDir)) return;
-        await _appThread.InvokeAsync(() => ClearFilter());
         IsScanning = true;
         try
         {
@@ -221,25 +219,37 @@ public sealed class LibrarySession : ILibrarySession
         _all = summaries;
         _allIndex.Clear();
         for (var i = 0; i < _all.Count; i++) _allIndex[_all[i].FilePath] = i;
-        SetActiveFilter(null);
-        SetVisible([.. _all]);
+        SetVisible(VisibleRows());
     }
 
-    private void SetActiveFilter(string? label)
+    /// <summary>The rows to show now: the whole catalog until a Track List is first shown, then the shown
+    /// paths that the catalog holds, in the shown order.</summary>
+    private List<TrackSummary> VisibleRows()
     {
-        ActiveFilter = label;
-        _publisher.Publish(new LibraryFilterChanged(label));
+        if (_shownPaths is null) return [.. _all];
+        var rows = new List<TrackSummary>(_shownPaths.Count);
+        foreach (var path in _shownPaths)
+            if (_allIndex.TryGetValue(path, out var i)) rows.Add(_all[i]);
+        return rows;
     }
 
     private void SetVisible(List<TrackSummary> rows)
     {
+        // Keep the highlight on the same song; when it is gone, on the same row (clamped).
+        var highlighted = SelectedSummary?.FilePath;
+        var oldIndex = _selectedIndex;
         _visible = rows;
         _visibleIndex.Clear();
         for (var i = 0; i < _visible.Count; i++) _visibleIndex[_visible[i].FilePath] = i;
         _version++;
-        // The old rows are gone, so the old highlight is too (the list box used to report -1 as its items
-        // were cleared).
-        SetSelectedIndex(-1);
+        var newIndex = NewSelectedIndex(highlighted, oldIndex);
+        if (newIndex == _selectedIndex && newIndex >= 0 && SelectedSummary?.FilePath != highlighted)
+        {
+            // Same row number, different song: the index did not change but the selection did.
+            SelectedIndexChanged?.Invoke();
+            _publisher.Publish(new SelectionChanged(_selectedIndex, SelectedSummary?.TrackId ?? Guid.Empty));
+        }
+        else SetSelectedIndex(newIndex);
         // One immutable snapshot, shared by the C# event and the bus.
         var snapshot = _visible.ToArray();
         RowsChanged?.Invoke(snapshot);
@@ -275,41 +285,19 @@ public sealed class LibrarySession : ILibrarySession
     public Guid TrackIdFor(string filePath) =>
         TryFind(filePath, out _, out var summary) ? summary.TrackId : Guid.Empty;
 
-    // ---- Filters -------------------------------------------------------------------------------
+    // ---- Track List ----------------------------------------------------------------------------
 
-    public async Task FilterByTagAsync(string tag)
+    public void ShowTrackList(IReadOnlyList<string> paths)
     {
-        var tags = _tags;
-        if (tags is null) return;
-        var ids = await tags.GetTrackIdsForTagAsync(tag, default);
-        await _appThread.InvokeAsync(() => ApplyFilter(tag, ids));
+        _shownPaths = [.. paths];
+        SetVisible(VisibleRows());
     }
 
-    public async Task FilterByCrateAsync(CrateSummary crate)
+    private int NewSelectedIndex(string? highlighted, int oldIndex)
     {
-        var crates = _crates;
-        if (crates is null) return;
-        var ids = await crates.TrackIdsAsync(crate.Id);
-        // The label carries a package emoji so the active-filter chip reads as a crate, not a tag.
-        await _appThread.InvokeAsync(() => ApplyFilter($"📦 {crate.Name}", ids));
-    }
-
-    /// <summary>Filter from the whole catalog (a second filter replaces the first, it does not nest).</summary>
-    private void ApplyFilter(string label, IEnumerable<Guid> trackIds)
-    {
-        var allowed = new HashSet<Guid>(trackIds);
-        var rows = new List<TrackSummary>();
-        foreach (var summary in _all)
-            if (allowed.Contains(summary.TrackId)) rows.Add(summary);
-        SetActiveFilter(label);
-        SetVisible(rows);
-    }
-
-    public void ClearFilter()
-    {
-        if (ActiveFilter is null) return;
-        SetActiveFilter(null);
-        SetVisible([.. _all]);
+        if (oldIndex < 0 || _visible.Count == 0) return -1;
+        if (highlighted is not null && _visibleIndex.TryGetValue(highlighted, out var same)) return same;
+        return Math.Clamp(oldIndex, 0, _visible.Count - 1);
     }
 
     // ---- Selection -----------------------------------------------------------------------------
@@ -514,7 +502,7 @@ public sealed class LibrarySession : ILibrarySession
         });
     }
 
-    private void ApplyStemsReady(string filePath)
+    public void ApplyStemsReady(string filePath)
     {
         if (TryFind(filePath, out var i, out var s) && !s.StemsReady) Replace(i, s with { StemsReady = true });
     }

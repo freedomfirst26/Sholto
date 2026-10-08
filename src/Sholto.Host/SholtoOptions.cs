@@ -2,6 +2,7 @@ using Sholto.App;
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.Interface.Controller.Mappings;
+using Sholto.Interface.MainUI.Controls.WaveformStyles;
 
 using Sholto.Interface.MainUI;
 
@@ -13,7 +14,7 @@ namespace Sholto.Host;
 /// <c>new XOptions()</c>.
 ///
 /// <para>Bench already references <c>Sholto.Interface.MainUI</c>, which already references
-/// <c>Sholto.Interface.Controller.Mappings</c>, so all four options types here are visible
+/// <c>Sholto.Interface.Controller.Mappings</c>, so all options types here are visible
 /// from Bench today: no new project is needed to construct one there. The one
 /// condition that would change that: if <c>Sholto.App.Audio</c> or <c>Sholto.Interface.Controller</c> ever needed to READ configured
 /// values, they could not reference <c>Sholto.Interface.MainUI</c> without inverting the
@@ -27,6 +28,11 @@ public sealed class SholtoOptions
     public IOptions<GlanceOptions> Glance { get; }
     public IOptions<WaveformBandOptions> WaveformBands { get; }
     public IOptions<RenderingOptions> Rendering { get; }
+    public IOptions<LoadOptions> Load { get; }
+    public IOptions<GlanceViewOptions> GlanceView { get; }
+    public IOptions<DeckViewOptions> DeckView { get; }
+    public IOptions<WaveformStyleOptions> WaveformStyle { get; }
+    public IOptions<StemSeparationOptions> StemSeparation { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down.</summary>
@@ -39,5 +45,11 @@ public sealed class SholtoOptions
         Glance = Options.Create(new GlanceOptions());
         WaveformBands = Options.Create(new WaveformBandOptions());
         Rendering = Options.Create(new RenderingOptions());
+        Load = Options.Create(new LoadOptions());
+        // One tempo for "no analysed BPM": the platter's and the LOAD TO slot's agree.
+        GlanceView = Options.Create(new GlanceViewOptions { FallbackBpm = Scratch.Value.FallbackBpm });
+        DeckView = Options.Create(new DeckViewOptions());
+        WaveformStyle = Options.Create(new WaveformStyleOptions());
+        StemSeparation = Options.Create(new StemSeparationOptions());
     }
 }

@@ -75,7 +75,7 @@ public class LibrarySessionTests
     }
 
     [Fact]
-    public async Task A_scan_clears_the_unreachable_banner_and_an_active_filter_and_the_selection()
+    public async Task A_scan_clears_the_unreachable_banner_and_keeps_the_shown_list_and_the_highlight()
     {
         var rig = new LibrarySessionRig();
         var alphaId = rig.Catalog.Assign(LibrarySessionRig.Alpha.FilePath);
@@ -83,7 +83,7 @@ public class LibrarySessionTests
         await rig.Library.ScanAsync("/music", rig.Stack(tags: tags));
         rig.Library.AttachServices(tags, rig.Crates);
         rig.Library.SetUnreachablePath("/media/gone");
-        await rig.Library.FilterByTagAsync("house");
+        rig.Library.ShowTrackList([LibrarySessionRig.Alpha.FilePath]);
         rig.Library.Select(0);
         Assert.True(rig.Library.IsUnreachable);
         Assert.Single(rig.Library.Rows);
@@ -91,9 +91,8 @@ public class LibrarySessionTests
         await rig.Library.ScanAsync("/music", rig.Stack(tags: tags));
 
         Assert.False(rig.Library.IsUnreachable);
-        Assert.Null(rig.Library.ActiveFilter);
-        Assert.Equal(3, rig.Library.Rows.Count);
-        Assert.Equal(-1, rig.Library.SelectedIndex);
+        Assert.Equal(new[] { LibrarySessionRig.Alpha.FilePath }, rig.Library.Rows.Select(r => r.FilePath));
+        Assert.Equal(0, rig.Library.SelectedIndex);
     }
 
     [Fact]
@@ -235,74 +234,71 @@ public class LibrarySessionTests
         Assert.Equal(3, onBus.Received.Last().Rows.Count);
     }
 
-    // ---- Filters --------------------------------------------------------------------------------
+    // ---- Shown list -----------------------------------------------------------------------------
 
     [Fact]
-    public async Task A_tag_filter_shows_only_the_tracks_with_that_tag_and_clearing_restores_all()
+    public async Task Showing_a_list_replaces_the_rows_in_that_order_and_skips_paths_the_catalog_lacks()
     {
         var rig = new LibrarySessionRig();
-        var bravoId = rig.Catalog.Assign(LibrarySessionRig.Bravo.FilePath);
-        var charlieId = rig.Catalog.Assign(LibrarySessionRig.Charlie.FilePath);
-        var tags = Tags((bravoId, new[] { "peak" }), (charlieId, new[] { "peak", "vocal" }));
-        await rig.Library.ScanAsync("/music", rig.Stack(tags: tags));
-        rig.Library.AttachServices(tags, rig.Crates);
-        rig.Library.Select(2);
+        await rig.Library.ScanAsync("/music", null);
+        var onBus = new RecordingHandler<LibraryRowsChanged>();
+        using var sub = rig.Bus.Subscribe(onBus);
 
-        await rig.Library.FilterByTagAsync("peak");
+        rig.Library.ShowTrackList([LibrarySessionRig.Alpha.FilePath, "/gone.mp3", LibrarySessionRig.Bravo.FilePath]);
 
         Assert.Equal(
-            new[] { LibrarySessionRig.Bravo.FilePath, LibrarySessionRig.Charlie.FilePath },
+            new[] { LibrarySessionRig.Alpha.FilePath, LibrarySessionRig.Bravo.FilePath },
             rig.Library.Rows.Select(r => r.FilePath));
-        Assert.Equal("peak", rig.Library.ActiveFilter);
-        Assert.Equal(-1, rig.Library.SelectedIndex);
-
-        rig.Library.ClearFilter();
-
-        Assert.Equal(3, rig.Library.Rows.Count);
-        Assert.Null(rig.Library.ActiveFilter);
+        Assert.Equal(2, onBus.Received[^1].Rows.Count);
     }
 
     [Fact]
-    public async Task A_crate_filter_shows_the_crates_tracks_under_a_labelled_chip()
-    {
-        var rig = new LibrarySessionRig();
-        var alphaId = rig.Catalog.Assign(LibrarySessionRig.Alpha.FilePath);
-        await rig.Library.ScanAsync("/music", rig.Stack());
-        rig.Library.AttachServices(Tags(), rig.Crates);
-        var crateId = await rig.Crates.CreateAsync("Warmup");
-        await rig.Crates.AddTrackAsync(crateId, alphaId);
-
-        await rig.Library.FilterByCrateAsync(new CrateSummary(crateId, "Warmup", 1));
-
-        Assert.Equal(new[] { LibrarySessionRig.Alpha.FilePath }, rig.Library.Rows.Select(r => r.FilePath));
-        Assert.Equal("📦 Warmup", rig.Library.ActiveFilter);
-    }
-
-    [Fact]
-    public async Task A_filter_before_the_services_attach_does_nothing()
+    public async Task Showing_an_empty_list_shows_no_rows()
     {
         var rig = new LibrarySessionRig();
         await rig.Library.ScanAsync("/music", null);
 
-        await rig.Library.FilterByTagAsync("peak");
-        await rig.Library.FilterByCrateAsync(new CrateSummary(1, "Warmup", 0));
+        rig.Library.ShowTrackList([]);
 
-        Assert.Equal(3, rig.Library.Rows.Count);
-        Assert.Null(rig.Library.ActiveFilter);
+        Assert.Empty(rig.Library.Rows);
+        Assert.Equal(3, rig.Library.Catalog.Count);
     }
 
     [Fact]
-    public async Task A_fact_that_lands_while_filtered_is_there_when_the_filter_clears()
+    public async Task The_highlight_stays_on_its_path_when_the_list_is_reordered()
     {
         var rig = new LibrarySessionRig();
-        var bravoId = rig.Catalog.Assign(LibrarySessionRig.Bravo.FilePath);
-        var tags = Tags((bravoId, new[] { "peak" }));
-        await rig.Library.ScanAsync("/music", rig.Stack(tags: tags));
-        rig.Library.AttachServices(tags, rig.Crates);
-        await rig.Library.FilterByTagAsync("peak");
+        await rig.Library.ScanAsync("/music", null);
+        rig.Library.Select(2);
+        Assert.Equal(LibrarySessionRig.Alpha.FilePath, rig.Library.SelectedSummary!.FilePath);
+
+        rig.Library.ShowTrackList([LibrarySessionRig.Alpha.FilePath, LibrarySessionRig.Bravo.FilePath]);
+
+        Assert.Equal(0, rig.Library.SelectedIndex);
+        Assert.Equal(LibrarySessionRig.Alpha.FilePath, rig.Library.SelectedSummary!.FilePath);
+    }
+
+    [Fact]
+    public async Task When_the_highlighted_path_leaves_the_list_the_same_index_is_kept_clamped()
+    {
+        var rig = new LibrarySessionRig();
+        await rig.Library.ScanAsync("/music", null);
+        rig.Library.Select(2);
+
+        rig.Library.ShowTrackList([LibrarySessionRig.Bravo.FilePath, LibrarySessionRig.Charlie.FilePath]);
+
+        Assert.Equal(1, rig.Library.SelectedIndex);
+    }
+
+    [Fact]
+    public async Task A_fact_that_lands_while_a_list_is_shown_is_there_when_the_whole_catalog_shows_again()
+    {
+        var rig = new LibrarySessionRig();
+        await rig.Library.ScanAsync("/music", null);
+        rig.Library.ShowTrackList([LibrarySessionRig.Bravo.FilePath]);
 
         rig.Library.SeedKnownBpms(new Dictionary<string, double> { [LibrarySessionRig.Alpha.FilePath] = 90.0 });
-        rig.Library.ClearFilter();
+        rig.Library.ShowTrackList(rig.Library.Catalog.Select(r => r.FilePath).ToList());
 
         Assert.Equal(90.0, rig.Row(LibrarySessionRig.Alpha).Bpm);
     }

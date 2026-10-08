@@ -19,17 +19,26 @@
     "minorLightness":   0.45,
     "onChipForeground": "#1B0D31"
   },
+  "load": { "deck1": "#FF3D9F", "deck2": "#FFA8D6", "trackList": "#A98BFF" },
   "waveform": {
-    "low": "#6A55FF",
-    "mid": "#E65CF0",
-    "high": "#FFD0F4",
+    "low": "#943AE4",
+    "mid": "#FF3D9F",
+    "high": "#E9DEFF",
     "downbeat": "#D8FFFAF5",
-    "rgbLow": "#5B5CFF",
-    "rgbMid": "#FF3DB8",
-    "rgbHigh": "#FFD84A",
+    "rgbLow": "#4569FA",
+    "rgbMid": "#FF3D9F",
+    "rgbHigh": "#C9A8FF",
     "playhead": "#00FF00"
   },
   "minimap": {
-    "playhead": "#00FF00"
+    "playhead": "#00FF00",
+    "intro": "#904E95",
+    "buildUp": "#9A41EA",
+    "drop": "#FF3D9F",
+    "breakdown": "#3959DA",
+    "verse": "#AD7CE8",
+    "chorus": "#C9A8FF",
+    "bridge": "#D6353C",
+    "outro": "#A1252B"
   }
 }

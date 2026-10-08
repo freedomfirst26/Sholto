@@ -50,7 +50,7 @@ write("main",a)
 # "Silence Groove" card instead of truncating the long name); Esc puts it back.
 a=base()+[{"action":"click","target":"LayoutWizard"}]+pick_theme(hero)+[shot("wiz-theme"),{"action":"key","key":"Escape"}]
 a+=apply_theme(hero)+[{"action":"click","target":"LayoutWizard"}]
-a+=[{"action":"key","key":"Enter"},shot("wiz-wave"),shot("wiz-wave3",3)]
+a+=[{"action":"key","key":"Enter"},shot("wiz-wave")]
 write("wizard",a)
 # try-on animation frames
 a=base()+[{"action":"click","target":"LayoutWizard"},{"action":"key","key":"Home"}]
@@ -72,7 +72,7 @@ a+=[{"action":"click","target":"TrackList","index":3},{"action":"key","key":"D1"
 write("slots",a)
 # Glance chips: search open on the fit-ranked list, then a crate chip, then a crate and a tag chip, then text that
 # leaves nothing. A "database" step files the harness's made-up crates and tags into its demo database (the real services).
-# Rail keys: Tab to the rail, Down from the recent load to the first crate (Peak time), Enter adds it; four more Downs
+# Rail keys: Tab to the rail (first crate, Peak time), Enter adds it; four Downs
 # reach the first tag (Vocal).
 def glance_open(theme):
     a=[{"action":"scan","dir":LIB},{"action":"controller","on":True}]+apply_theme(theme)
@@ -84,7 +84,7 @@ def glance_open(theme):
     return a
 def glance_chips(theme, slug):
     a=glance_open(theme)+[shot(f"glance-chips-{slug}-none")]
-    a+=[{"action":"key","key":"Tab"},{"action":"key","key":"Down"},{"action":"key","key":"Enter"},{"action":"wait","seconds":0.8},
+    a+=[{"action":"key","key":"Tab"},{"action":"key","key":"Enter"},{"action":"wait","seconds":0.8},
         shot(f"glance-chips-{slug}-crate")]
     a+=[{"action":"key","key":"Down"}]*4+[{"action":"key","key":"Enter"},{"action":"wait","seconds":0.8},shot(f"glance-chips-{slug}-both")]
     a+=[{"action":"type","text":"zzzq"},{"action":"wait","seconds":0.8},shot(f"glance-chips-{slug}-empty")]

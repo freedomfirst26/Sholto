@@ -139,7 +139,7 @@ public class FactPublishingTests
         var loader = new TrackLoader(
             rig.Library, new DeckPair(rig.Deck1, rig.Deck2), decoder, new RecordingKeyAnalysisStore(),
             new FakeKeyAnalyzer(null), rig.Reporter, new ImmediateAppThread(), rig.Bus, new Sholto.App.Loading.SearchPick(rig.Library),
-            new Sholto.App.Loading.LoadGuard(clock, rig.Bus), new Sholto.App.Loading.LoadUndo(clock, rig.Bus));
+            new Sholto.App.Loading.LoadGuard(clock, rig.Bus, Microsoft.Extensions.Options.Options.Create(new Sholto.App.LoadOptions())), new Sholto.App.Loading.LoadUndo(clock, rig.Bus, Microsoft.Extensions.Options.Options.Create(new Sholto.App.LoadOptions())), new Sholto.TestSupport.UnavailableStemSeparator());
         return (rig, loader);
     }
 

@@ -12,4 +12,8 @@ public sealed class MinimapMetrics
 
     /// <summary>The coloured underline under each section name, the bottom of the label row.</summary>
     public const double UnderlineHeight = 3;
+
+    /// <summary>The least spacing, in DIPs, between neighbouring phrase gaps in the underline strip; closer
+    /// gaps of the weaker weights are dropped.</summary>
+    public const double MinPhraseSpacing = 6;
 }

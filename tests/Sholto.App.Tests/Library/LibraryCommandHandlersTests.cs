@@ -34,8 +34,6 @@ public class LibraryCommandHandlersTests
         _rig.Library.AttachServices(_tags, _rig.Crates);
     }
 
-    private IEnumerable<string> VisiblePaths => _rig.Library.Rows.Select(r => r.FilePath);
-
     // ---- SelectTrack ----------------------------------------------------------------------------
 
     [Fact]
@@ -91,75 +89,6 @@ public class LibraryCommandHandlersTests
         _handlers.Handle(new SelectTrack(2, false, _from));
 
         Assert.Equal(2, Assert.Single(changes.Received).Index);
-    }
-
-    // ---- Filters --------------------------------------------------------------------------------
-
-    [Fact]
-    public async Task FilterLibraryByTag_shows_only_the_tracks_with_that_tag()
-    {
-        _tags.TrackIdsByTag["peak"] = [_bravoId, _charlieId];
-        await ScanAndAttachAsync();
-
-        _handlers.Handle(new FilterLibraryByTag("peak", _from));
-
-        Assert.Equal([LibrarySessionRig.Bravo.FilePath, LibrarySessionRig.Charlie.FilePath], VisiblePaths);
-        Assert.Equal("peak", _rig.Library.ActiveFilter);
-    }
-
-    [Fact]
-    public async Task FilterLibraryByTag_publishes_the_filter_label_and_the_visible_rows()
-    {
-        _tags.TrackIdsByTag["peak"] = [_alphaId];
-        await ScanAndAttachAsync();
-        var labels = new RecordingHandler<LibraryFilterChanged>();
-        var rows = new RecordingHandler<LibraryRowsChanged>();
-        using var labelSub = _rig.Bus.Subscribe(labels);
-        using var rowsSub = _rig.Bus.Subscribe(rows);
-
-        _handlers.Handle(new FilterLibraryByTag("peak", _from));
-
-        Assert.Equal("peak", labels.Received[^1].Label);
-        Assert.Equal([LibrarySessionRig.Alpha.FilePath], rows.Received[^1].Rows.Select(r => r.FilePath));
-    }
-
-    [Fact]
-    public async Task FilterLibraryByCrate_shows_the_crates_tracks_under_a_labelled_chip()
-    {
-        await ScanAndAttachAsync();
-        var crateId = await _rig.Crates.CreateAsync("Warmup");
-        await _rig.Crates.AddTrackAsync(crateId, _alphaId);
-
-        _handlers.Handle(new FilterLibraryByCrate(crateId, "Warmup", _from));
-
-        Assert.Equal([LibrarySessionRig.Alpha.FilePath], VisiblePaths);
-        Assert.Equal("📦 Warmup", _rig.Library.ActiveFilter);
-    }
-
-    [Fact]
-    public async Task ClearLibraryFilter_brings_every_track_back()
-    {
-        _tags.TrackIdsByTag["peak"] = [_bravoId];
-        await ScanAndAttachAsync();
-        _handlers.Handle(new FilterLibraryByTag("peak", _from));
-        Assert.Single(_rig.Library.Rows);
-
-        _handlers.Handle(new ClearLibraryFilter(_from));
-
-        Assert.Equal(3, _rig.Library.Rows.Count);
-        Assert.Null(_rig.Library.ActiveFilter);
-    }
-
-    [Fact]
-    public async Task A_filter_before_the_services_attach_does_nothing()
-    {
-        await _rig.Library.ScanAsync("/music", _rig.Stack());
-
-        _handlers.Handle(new FilterLibraryByTag("peak", _from));
-        _handlers.Handle(new FilterLibraryByCrate(1, "Warmup", _from));
-
-        Assert.Equal(3, _rig.Library.Rows.Count);
-        Assert.Null(_rig.Library.ActiveFilter);
     }
 
     // ---- AddTagToTrack --------------------------------------------------------------------------

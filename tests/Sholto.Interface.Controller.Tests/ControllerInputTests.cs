@@ -24,7 +24,7 @@ public class ControllerInputTests
 
         var play = Assert.IsType<TogglePlay>(Assert.Single(_sender.Sent));
         Assert.Equal(1, play.Deck);
-        Assert.Equal(new Origin(InterfaceIds.Controller, "deck.play", "play.press"), play.Origin);
+        Assert.Equal(new Origin(InterfaceIds.Controller, "deck.play", "play.press", 1), play.Origin);
     }
 
     [Fact]
@@ -48,11 +48,11 @@ public class ControllerInputTests
         _thread.RunPosted();
 
         var held = Assert.IsType<ReportControl>(_sender.Sent[0]);
-        Assert.Equal((1, true, new Origin(InterfaceIds.Controller, "deck.shift", "shift.hold")),
-            (held.Deck, held.Pressed, held.Origin));
+        Assert.Equal((true, new Origin(InterfaceIds.Controller, "deck.shift", "shift.hold", 1)),
+            (held.Pressed, held.Origin));
         var released = Assert.IsType<ReportControl>(_sender.Sent[1]);
-        Assert.Equal((1, false, new Origin(InterfaceIds.Controller, "deck.shift", "shift.release")),
-            (released.Deck, released.Pressed, released.Origin));
+        Assert.Equal((false, new Origin(InterfaceIds.Controller, "deck.shift", "shift.release", 1)),
+            (released.Pressed, released.Origin));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class ControllerInputTests
     }
 
     [Fact]
-    public void A_short_browse_press_sends_one_open_search_on_release()
+    public void A_short_browse_press_reports_the_control_once_on_release()
     {
         _surface.Emit(new ControllerEvent.BrowsePressed());
         _thread.RunPosted();
@@ -92,8 +92,8 @@ public class ControllerInputTests
         _surface.Emit(new ControllerEvent.BrowseReleased());
         _thread.RunPosted();
 
-        var open = Assert.IsType<OpenSearch>(Assert.Single(_sender.Sent));
-        Assert.Equal(new Origin(InterfaceIds.Controller, "browse.knob", "browse.press.short"), open.Origin);
+        var report = Assert.IsType<ReportControl>(Assert.Single(_sender.Sent));
+        Assert.Equal(new Origin(InterfaceIds.Controller, "browse.knob", "browse.press.short"), report.Origin);
     }
 
     [Fact]

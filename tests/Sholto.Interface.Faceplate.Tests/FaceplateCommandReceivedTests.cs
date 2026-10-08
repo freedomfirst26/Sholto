@@ -22,7 +22,7 @@ public class FaceplateCommandReceivedTests
     }
 
     private void Receive(string interfaceId, string commandName, string controlId, string gesture, int deck = -1) =>
-        _vm.Handle(new CommandReceived(new Origin(interfaceId, controlId, gesture), commandName, deck));
+        _vm.Handle(new CommandReceived(new Origin(interfaceId, controlId, gesture, deck), commandName));
 
     private void FromController(string commandName, string controlId, string gesture, int deck = -1) =>
         Receive(InterfaceIds.Controller, commandName, controlId, gesture, deck);
@@ -91,16 +91,11 @@ public class FaceplateCommandReceivedTests
     }
 
     [Fact]
-    public void Shift_and_stem_level_holds_switch_the_layer_without_selecting_anything()
+    public void Shift_hold_switches_the_layer_without_selecting_anything()
     {
         FromController("ReportControl", "deck.shift", "shift.hold", deck: 0);
         Assert.Equal("shift", _vm.ActiveLayerId);
         FromController("ReportControl", "deck.shift", "shift.release", deck: 0);
-        Assert.Equal("plain", _vm.ActiveLayerId);
-
-        FromController("ReportControl", "fx.onoff", "stemlevel.hold");
-        Assert.Equal("stem-level", _vm.ActiveLayerId);
-        FromController("ReportControl", "fx.onoff", "stemlevel.release");
         Assert.Equal("plain", _vm.ActiveLayerId);
 
         Assert.Null(_vm.Selected);
@@ -127,20 +122,20 @@ public class FaceplateCommandReceivedTests
     }
 
     [Fact]
-    public void A_short_browse_press_shows_the_open_search_row()
+    public void A_short_browse_press_shows_the_does_nothing_row()
     {
-        FromController("OpenSearch", "browse.knob", "browse.press.short");
+        FromController("ReportControl", "browse.knob", "browse.press.short");
 
         Assert.Equal("browse.knob", _vm.Selected!.Id);
         Assert.Equal("browse.press.short", _vm.ActiveRowId);
-        Assert.Contains("Opens search", _vm.Selected.Gestures.Single(g => g.Id == "browse.press.short").Result);
+        Assert.Contains("Does nothing", _vm.Selected.Gestures.Single(g => g.Id == "browse.press.short").Result);
         Assert.True(_vm.Selected.Gestures.Single(g => g.Id == "browse.press.short").Used);
     }
 
     [Fact]
-    public void A_global_control_shows_no_deck_even_when_the_command_names_one()
+    public void A_global_control_shows_no_deck_even_when_the_origin_names_one()
     {
-        // The BEAT arrows are one pair shared by both decks; the command names the deck whose Shift is held.
+        // The BEAT arrows are one pair shared by both decks; even if an origin names a deck, a global control shows none.
         FromController("NudgeGrid", "beat.nudge.back", "gridnudge.back", deck: 1);
 
         Assert.Equal("beat.nudge.back", _vm.Selected!.Id);
@@ -195,7 +190,7 @@ public class FaceplateCommandReceivedTests
         bus.Subscribe<InspectModeChanged>(vm);
 
         bus.Publish(new InspectModeChanged(true));
-        bus.Publish(new CommandReceived(new Origin(InterfaceIds.Controller, "deck.play", "play.press"), "TogglePlay", 1));
+        bus.Publish(new CommandReceived(new Origin(InterfaceIds.Controller, "deck.play", "play.press", 1), "TogglePlay"));
 
         Assert.True(vm.IsInspecting);
         Assert.Equal("deck.play", vm.Selected!.Id);

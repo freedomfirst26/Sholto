@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Avalonia.Media;
 using Sholto.Data;
 using Sholto.Interface.MainUI.ViewModels.Glance;
@@ -48,7 +49,7 @@ public class DeckSlotViewModelTests
         Assert.Equal("8A", one.Camelot);
         Assert.Same(Key8A, one.KeyBrush);
         Assert.Equal("128.0", one.BpmText);
-        Assert.Equal("−4:40", one.TimeText);
+        Assert.False(one.IsLow);
 
         var two = Slot(1);
         Assert.False(two.IsLoaded);
@@ -61,7 +62,7 @@ public class DeckSlotViewModelTests
     }
 
     [Fact]
-    public void A_paused_target_reads_paused_and_the_playing_deck_stays_the_reference()
+    public void A_paused_target_shows_no_time_text_and_the_playing_deck_stays_the_reference()
     {
         Open(Loaded("Pressure Systems", playing: true), Loaded("Static Bloom", playing: false, camelot: "9A"), target: 1);
 
@@ -70,7 +71,7 @@ public class DeckSlotViewModelTests
         Assert.False(two.IsPlaying);
         Assert.False(two.IsCaution);
         Assert.True(two.ShowStats);
-        Assert.Equal("paused", two.TimeText);
+        Assert.False(two.IsLow);
         Assert.True(Slot(0).IsReference);
     }
 
@@ -83,11 +84,11 @@ public class DeckSlotViewModelTests
         Assert.False(Slot(0).IsLoaded);
         Assert.Equal("Loads here", Slot(0).EmptyHint);
         Assert.True(Slot(1).IsReference);
-        Assert.Equal("paused", Slot(1).TimeText);
+        Assert.False(Slot(1).IsLow);
     }
 
     [Fact]
-    public void A_playing_target_is_in_caution_with_its_time_left()
+    public void A_playing_target_is_in_caution_without_a_time()
     {
         Open(Loaded("Static Bloom", playing: false), Loaded("Afterglow (Club Edit)", playing: true, position: 322, camelot: "4A"), target: 1);
 
@@ -97,7 +98,7 @@ public class DeckSlotViewModelTests
         Assert.True(two.ShowCaution);
         Assert.False(two.ShowStats);
         Assert.False(two.IsArmed);
-        Assert.Equal("Playing · −0:38", two.CautionText);
+        Assert.Equal("Playing", two.CautionText);
         Assert.False(Slot(0).IsCaution);
     }
 
@@ -212,7 +213,7 @@ public class DeckSlotViewModelTests
     public void A_steady_empty_target_frame_allocates_nothing_and_repaints_nothing()
     {
         var decks = new FakeDeckClockSource();
-        var slot = new DeckSlotFactory(decks, new FixedMotionPreference(false)).Create(0);
+        var slot = new DeckSlotFactory(decks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create(0);
         var notifications = 0;
         var repaints = 0;
         slot.PropertyChanged += (_, _) => notifications++;
@@ -263,11 +264,66 @@ public class DeckSlotViewModelTests
     }
 
     [Fact]
-    public void The_time_text_counts_down_at_the_decks_speed()
+    public void Under_45_seconds_left_on_a_playing_deck_the_slot_is_low()
     {
-        Open(new DeckClockReading(true, true, "A", 180, 30, 1.25, "8A", Key8A, 128), Empty, target: 1);
+        Open(Loaded("A", playing: true, duration: 180, position: 100), Empty, target: 1);
+        Assert.False(Slot(0).IsLow);
+        var changed = new List<string?>();
+        Slot(0).PropertyChanged += (_, e) => changed.Add(e.PropertyName);
 
-        Assert.Equal("−2:00", Slot(0).TimeText);
+        _rig.Decks.Set(0, Loaded("A", playing: true, duration: 180, position: 140));
+        _rig.Tick();
+        Assert.True(Slot(0).IsLow);
+        Assert.Single(changed, nameof(IDeckSlotViewModel.IsLow));
+
+        _rig.Decks.Set(0, Loaded("A", playing: true, duration: 180, position: 141));
+        _rig.Tick();
+        Assert.Single(changed, nameof(IDeckSlotViewModel.IsLow));
+    }
+
+    [Fact]
+    public void Low_is_judged_at_the_decks_speed()
+    {
+        // 180 s track at 1.25x, 30 s in: 120 s left. At 140 s in: 32 s left.
+        Open(new DeckClockReading(true, true, "A", 180, 30, 1.25, "8A", Key8A, 128), Empty, target: 1);
+        Assert.False(Slot(0).IsLow);
+
+        _rig.Decks.Set(0, new DeckClockReading(true, true, "A", 180, 140, 1.25, "8A", Key8A, 128));
+        _rig.Tick();
+
+        Assert.True(Slot(0).IsLow);
+    }
+
+    [Fact]
+    public void A_paused_deck_is_never_low()
+    {
+        Open(Loaded("A", playing: false, duration: 180, position: 170), Empty, target: 1);
+
+        Assert.False(Slot(0).IsLow);
+    }
+
+    [Fact]
+    public void The_target_keycap_label_carries_the_enter_mark()
+    {
+        Open(Loaded("A", playing: false), Loaded("B", playing: false), target: 1);
+
+        Assert.True(Slot(0).ShowsKeyCap);
+        Assert.Equal("⇧1", Slot(0).KeyCapLabel);
+        Assert.Equal("⏎ ⇧2", Slot(1).KeyCapLabel);
+
+        _rig.Glance.FlipTarget();
+        _rig.Tick();
+
+        Assert.Equal("⏎ ⇧1", Slot(0).KeyCapLabel);
+        Assert.Equal("⇧2", Slot(1).KeyCapLabel);
+    }
+
+    [Fact]
+    public void An_empty_slot_shows_no_loaded_keycap()
+    {
+        Open(Empty, Empty, target: 0);
+
+        Assert.False(Slot(0).ShowsKeyCap);
     }
 
     [Fact]
@@ -325,7 +381,7 @@ public class DeckSlotViewModelTests
     {
         // Frames inside one whole second and one ring degree: only the spin moves, on every frame.
         var decks = new FakeDeckClockSource();
-        var slot = new DeckSlotFactory(decks, new FixedMotionPreference(false)).Create(0);
+        var slot = new DeckSlotFactory(decks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create(0);
         var notifications = 0;
         var repaints = 0;
         slot.PropertyChanged += (_, _) => notifications++;

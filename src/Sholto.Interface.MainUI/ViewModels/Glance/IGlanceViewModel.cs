@@ -2,9 +2,9 @@ using System.ComponentModel;
 
 namespace Sholto.Interface.MainUI.ViewModels.Glance;
 
-/// <summary>The Glance search overlay: a fit-ranked track table beside a rail of shortlist, recent loads,
+/// <summary>The Glance search overlay: a fit-ranked track table beside a rail of recent loads,
 /// crates and tags. Presentation state lives here (open, query, zone, highlight); ranking, loading and the
-/// shortlist are the App's, reached through the bus.</summary>
+/// Track List are the App's, reached through the bus.</summary>
 public interface IGlanceViewModel : INotifyPropertyChanged
 {
     IGlanceHeaderViewModel Header { get; }
@@ -41,6 +41,9 @@ public interface IGlanceViewModel : INotifyPropertyChanged
     /// <summary>Raised when a result has replaced <see cref="Rows"/>: the view's cue to settle them in.</summary>
     event Action? ResultsReplaced;
 
+    /// <summary>A shown row joined the Track List while the overlay was open; carries its file path.</summary>
+    event Action<string>? AddedToTrackList;
+
     /// <summary>"BPM 124–128", "KEY 8A", "#techno": what the query was understood as.</summary>
     IReadOnlyList<string> FilterChips { get; }
 
@@ -48,20 +51,35 @@ public interface IGlanceViewModel : INotifyPropertyChanged
 
     int TableIndex { get; }
 
-    /// <summary><see cref="GlanceRailHeader"/>, <see cref="GlanceRailTrack"/>, <see cref="GlanceRailCrate"/> and
+    /// <summary><see cref="GlanceRailHeader"/>, <see cref="GlanceRailCrate"/> and
     /// <see cref="GlanceRailTag"/> items.</summary>
     IReadOnlyList<object> RailItems { get; }
 
     int RailIndex { get; }
 
-    /// <summary>The highlighted row's file when it is a track; null on a crate, a tag, or nothing.</summary>
+    /// <summary>The highlighted row's file when it is in the table; always null on the rail.</summary>
     string? HighlightedPath { get; }
 
     /// <summary>What Enter does now: "Load to Deck 1", "Add filter", "Remove filter", or empty.</summary>
     string ActionText { get; }
 
-    /// <summary>What Ctrl+Enter does now: "Show in library" on a rail crate or tag, otherwise empty.</summary>
-    string AlternateActionText { get; }
+    /// <summary>Songs in the Track List.</summary>
+    int TrackListCount { get; }
+
+    /// <summary>The Deck 1 key: Ready on a song, Off on a crate or tag.</summary>
+    GlanceLoadState Deck1LoadState { get; }
+
+    /// <summary>The Deck 2 key: Ready on a song, Off on a crate or tag.</summary>
+    GlanceLoadState Deck2LoadState { get; }
+
+    /// <summary>The Track List key: Ready on a song, crate or tag, InList when it is already there, Off on nothing.</summary>
+    GlanceLoadState TrackListLoadState { get; }
+
+    /// <summary>The "+N" on the Track List key: the rail count of a crate or tag that is Ready; 0 otherwise.</summary>
+    int TrackListLoadCount { get; }
+
+    /// <summary>"Ctrl Del again: clear N" while a first Ctrl+Delete waits for its second; null otherwise.</summary>
+    string? ClearArmedText { get; }
 
     /// <summary>Raised on open; the view selects the whole query so typing replaces it.</summary>
     event Action? SelectAllOnOpen;
@@ -95,9 +113,13 @@ public interface IGlanceViewModel : INotifyPropertyChanged
     /// clears the typed free words; <c>bpm:</c>, <c>key:</c> and <c>#</c> tokens stay. Anything else does nothing.</summary>
     void ActivateRailItem();
 
-    /// <summary>Ctrl+Enter: filter the library by the rail crate or tag and close, leaving the chips alone.
-    /// Anywhere else it is <see cref="Activate"/>.</summary>
-    void ActivateAlternate();
+    /// <summary>Ctrl+L: add the highlighted song, crate or tag to the Track List and stay open. Does nothing on
+    /// something already in the list.</summary>
+    void LoadToTrackList();
+
+    /// <summary>Ctrl+Delete: the first press arms ("Ctrl Del again: clear N"); a second within about 2 s empties
+    /// the Track List.</summary>
+    void ClearTrackList();
 
     /// <summary>Backspace in an empty box: remove the newest chip. False when the query is not empty or there is
     /// no chip, so the key edits the text.</summary>
@@ -108,10 +130,6 @@ public interface IGlanceViewModel : INotifyPropertyChanged
     /// <summary>Shift+1 / Shift+2 and LOAD: aim at <paramref name="deck"/> and load the highlighted track.</summary>
     void LoadTo(int deck);
 
-    /// <summary>Add the highlighted track to the shortlist, or remove it.</summary>
-    void ToggleShortlistOnHighlight();
-
-    /// <summary>The Q key: toggles the shortlist only while the query box is empty. False when it did nothing,
-    /// so the key types a letter.</summary>
-    bool TryShortlistKey();
+    /// <summary>The star: add the highlighted song to the Track List, or remove it when it is already there.</summary>
+    void ToggleHighlightedInTrackList();
 }

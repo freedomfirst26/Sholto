@@ -11,6 +11,7 @@ public sealed class DeckViewModelFactory(
     ICommandSender sender,
     IThemeContext theme,
     IOptions<FeatureOptions> features,
+    IOptions<DeckViewOptions> deckView,
     INoPeaksFactory peaksFactory,
     IDiscBloomFactory bloomFactory) : IDeckViewModelFactory
 {
@@ -18,12 +19,14 @@ public sealed class DeckViewModelFactory(
     private readonly ICommandSender _sender = sender;
     private readonly IThemeContext _theme = theme;
     private readonly IOptions<FeatureOptions> _features = features;
+    private readonly IOptions<DeckViewOptions> _deckView = deckView;
     private readonly INoPeaksFactory _peaksFactory = peaksFactory;
     private readonly IDiscBloomFactory _bloomFactory = bloomFactory;
 
     public DeckViewModel Create(int deck) =>
         new(deck, _subscriber, _sender, _theme, _peaksFactory, _bloomFactory)
         {
-            SectionMapEnabled = _features.Value.ShowSectionMap
+            SectionMapEnabled = _features.Value.ShowSectionMap,
+            StemChipMinOpacity = _deckView.Value.StemChipMinOpacity
         };
 }

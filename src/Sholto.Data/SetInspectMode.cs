@@ -4,8 +4,4 @@ namespace Sholto.Data;
 /// (controller, keyboard) are not executed: the App echoes each one as <see cref="CommandReceived"/>
 /// instead, so the guide can explain a control without the control acting. Sent by the Faceplate when
 /// it is mounted and unmounted.</summary>
-public readonly record struct SetInspectMode(bool On, Origin Origin) : ICommand
-{
-    /// <summary>Not a deck command.</summary>
-    public int Deck => -1;
-}
+public readonly record struct SetInspectMode(bool On, Origin Origin) : ICommand;

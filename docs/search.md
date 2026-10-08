@@ -1,6 +1,6 @@
 # Search
 
-Press **Space** (or give the browse knob a short press) and start typing. Search
+Press **Space** and start typing. Search
 looks through your whole library and puts the tracks that fit your mix at the
 top.
 
@@ -110,12 +110,8 @@ result by typing a real word.
 
 ## The side list
 
-The column beside the results has four groups:
+The column beside the results has two groups:
 
-- **Shortlist** — tracks you've marked to play soon. Press **Q** (with the box
-  empty) or click the ☆ on a row to add or remove one. Sholto remembers your
-  shortlist when you restart.
-- **Recent loads** — the last six tracks you loaded this session.
 - **Crates** — your crates. Typing narrows them to names containing your text.
 - **Tags** — with the box empty, tags you've picked this session first, then
   your most used, up to ten. Typing shows up to ten tags that start with, then
@@ -143,11 +139,10 @@ chip off.
   the chips you have. Ones that would leave none are dimmed.
 - Take a chip off with its **×**, or press **Backspace** in an empty box to remove
   the newest one.
-- **Ctrl + Enter** on a crate or tag does something else: it filters the main
-  library to it and closes search.
+- Chips only narrow search. They do not change the main view's Track List;
+  **Ctrl + L** adds a crate or tag's songs to it.
 
-Search always covers your whole library. Filtering the main library list to a
-crate or tag does not narrow search; chips do.
+Search always covers your whole library, whatever is in the Track List.
 
 When nothing is left, the list says why: "No tracks in Peak time tagged Vocal",
 or "No “bsn” in Peak time". With no chips it reads "Nothing matches …" and
@@ -156,10 +151,14 @@ reminds you that initials work.
 ## How the list is ordered
 
 Search measures every track against the deck you are **not** loading into —
-the deck that has **FIT** in its slot at the top. Its key, BPM and title show
-in the header.
+the other deck, the one you're not loading into.
+Its key, BPM and title show there.
 
-![The LOAD TO slots in the search header: one deck playing with the other left as an empty slot and chosen as the target, then the playing deck chosen and flagged amber](../pictures/glance-slots.webp)
+Each deck slot has a coloured stripe, a ring of the time left (it turns red in the
+last 45 seconds) and its **⇧1** / **⇧2** shortcut on the platter. Click a slot to load the
+highlighted song onto that deck.
+
+![The deck slots in the search header: one deck playing with the other left as an empty slot and chosen as the target, then the playing deck chosen and flagged amber](../pictures/glance-slots.webp)
 
 **When that deck has a track with a known key and BPM**, each result gets a
 coloured bar:
@@ -189,7 +188,7 @@ How a word matched — by name or by initials — makes no difference to the ord
 
 Search shows at most **250** tracks, best first. The footer reads, for example,
 **250 of 1,234**: 250 shown, out of the 1,234 tracks searched (the whole library,
-or what your chips leave). If what you want isn't there, type more to narrow it.
+or what your chips leave). Beside it, **≡✓** and a number count the songs in your Track List. If what you want isn't there, type more to narrow it.
 With no deck to fit against, the list is alphabetical, so this matters most for
 artists late in the alphabet.
 
@@ -200,7 +199,15 @@ then Deck 2); otherwise the deck that isn't playing; if both play, the one with
 less time left. The box keeps your last search, selected, so typing replaces it. Chips stay on
 until you take them off.
 
-Loading closes search. Loading onto a playing deck needs a second press within
+Search loads into three places: Deck 1, Deck 2 and the **Track List** (the main
+view's list). **Ctrl + L** adds the highlighted song, crate or tag to the Track
+List and leaves search open so you can add more. A song is never listed twice.
+Every row has a violet list mark, **≡+** when the song isn't in the Track List
+and **≡✓** when it is: click it, or press **Ctrl + L** on the highlighted row, to add
+or remove the song. A row flashes violet when it is added.
+**Ctrl + Del**, pressed twice, clears the Track List.
+
+Loading onto a deck closes search. Loading onto a playing deck needs a second press within
 3 seconds. **Ctrl + Z** within 10 seconds puts the previous track back, paused
 where it was.
 
@@ -213,17 +220,15 @@ where it was.
 | **Tab** | Switch between the results and the side list, or accept a faint tag completion |
 | **← / →** | Switch which deck **Enter** loads onto |
 | **Enter** | On a track: load it. On a crate or tag: add or remove its chip |
-| **Ctrl + Enter** | On a crate or tag: filter the main library to it and close search |
+| **Ctrl + L** | Add the highlighted song, crate or tag to the Track List; search stays open |
+| **Ctrl + Del** (twice) | Clear the Track List |
 | **Shift + 1** / **Shift + 2** | Load the highlighted track straight onto Deck 1 / Deck 2 |
-| **Q** | Add or remove the highlighted track from your shortlist (empty box only; otherwise it types a q) |
 | **Backspace** | In an empty box: remove the newest chip |
 | **Ctrl + Z** | Undo the last load, within 10 seconds |
 | **Esc** | Close search |
 
-**Mouse:** click a row to highlight it, double-click to load it. Click the ☆ to
-shortlist. Click a crate or tag to add or remove its chip. Click a LOAD TO slot
-to choose the deck. Click the dark backdrop to close.
+**Mouse:** click a row to highlight it, double-click to load it. Click a row's list mark to add the song to the Track List or take it out. Click a crate or tag to add or remove its chip. Click a deck slot
+to load the highlighted song onto it. Click the dark backdrop to close.
 
-**Controller:** a short press of the browse knob opens search; press again to
-switch between the results and the side list. Turn the knob to move.
+**Controller:** search is driven from the keyboard and mouse; the controller does not open or move it.
 **LOAD 1** / **LOAD 2** loads the highlighted track.

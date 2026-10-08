@@ -73,13 +73,6 @@ public abstract record ControllerEvent
     /// route combined events (like NudgeGrid) to the correct deck.</summary>
     public record DeckShift(int Deck, bool Pressed) : ControllerEvent;
 
-    /// <summary>Momentary modifier that reinterprets the 3 EQ knobs on
-    /// both decks as stem-group attenuators (HI → Drums, MID → Vocals,
-    /// LOW → Instrumental). Sent on a dedicated FLX-4 button (ch=5 0x47)
-    /// — separate from Shift so the Shift key stays free for the existing
-    /// arrow-nudge gesture and any future Shift-modified bindings.</summary>
-    public record StemLevelMode(bool Pressed) : ControllerEvent;
-
     /// <summary>FLX-4 BEAT SYNC button (ch=1/2 0x58), plain press. Beat sync
     /// is not yet implemented, so this is currently a no-op.</summary>
     public record BeatSyncPressed(int Deck) : ControllerEvent;

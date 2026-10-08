@@ -373,8 +373,8 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
     /// Lock-free. See <see cref="StemControl.SetStemGroup"/>.</summary>
     public void SetStemGroup(int group, bool active) => _stems.SetStemGroup(group, active);
 
-    /// <summary>Continuous stem-group attenuator driven by the StemLevelMode
-    /// modifier + EQ knobs (HI = drums, MID = vocals, LOW = inst). Knob
+    /// <summary>Continuous stem-group attenuator driven by Shift
+    /// + the EQ knobs (HI = drums, MID = vocals, LOW = inst). Knob
     /// position (0..1) maps through a Pioneer-style "isolator kill" curve so
     /// the bottom half does all the attenuation and the bottom detent is
     /// hard-zero (≤0.04 → 0, 0.04–0.5 → linear ramp, ≥0.5 → unity / no

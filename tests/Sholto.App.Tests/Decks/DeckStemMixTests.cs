@@ -84,4 +84,44 @@ public class DeckStemMixTests
         Assert.Equal([DeckChange.VocalsLevel], _changes);
         Assert.Equal(0.5, _mix.VocalsLevel);
     }
+
+    [Fact]
+    public void Turning_a_stem_level_publishes_it_once_and_the_same_level_does_nothing()
+    {
+        var seen = new RecordingHandler<StemLevelChanged>();
+        using var sub = _bus.Subscribe(seen);
+        seen.Received.Clear();
+
+        _mix.VocalsLevel = 0.5;
+        _mix.VocalsLevel = 0.5;
+
+        Assert.Equal([new StemLevelChanged(0, 1, 0.5)], seen.Received);
+    }
+
+    [Fact]
+    public void Resetting_for_a_new_track_publishes_unity_for_a_turned_down_stem()
+    {
+        _mix.InstrumentalLevel = 0.2;
+        var seen = new RecordingHandler<StemLevelChanged>();
+        using var sub = _bus.Subscribe(seen);
+        seen.Received.Clear();
+
+        _mix.ResetForNewTrack();
+
+        Assert.Equal([new StemLevelChanged(0, 2, 1.0)], seen.Received);
+    }
+
+    [Fact]
+    public void Publishing_the_current_state_announces_every_stem_level()
+    {
+        _mix.DrumsLevel = 0.7;
+        _mix.PublishCurrent();
+        var seen = new RecordingHandler<StemLevelChanged>();
+
+        using var sub = _bus.Subscribe(seen);
+
+        Assert.Equal(
+            [new StemLevelChanged(0, 0, 0.7), new StemLevelChanged(0, 1, 1.0), new StemLevelChanged(0, 2, 1.0)],
+            seen.Received);
+    }
 }

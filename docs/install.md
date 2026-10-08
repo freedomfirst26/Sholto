@@ -51,7 +51,7 @@ The binary is **self-contained — you don't need .NET installed.**
    ./Sholto
    ```
 
-The archive holds the `Sholto` program, `README.md`, `LICENSE`, `install-deps.sh`,
+The archive holds the `Sholto` program, `README.md`, `LICENSE`, `THIRD-PARTY-NOTICES.md`, `docs/license.md`, `install-deps.sh`,
 `sholto-deps.sh` (the tool versions and checks `install-deps.sh` uses) and
 `get-sholto.sh`.
 

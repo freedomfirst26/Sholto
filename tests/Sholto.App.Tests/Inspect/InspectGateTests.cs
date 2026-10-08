@@ -8,8 +8,9 @@ namespace Sholto.App.Tests;
 /// are echoed as <see cref="CommandReceived"/> instead of executed; every other origin always runs.</summary>
 public class InspectGateTests
 {
-    private static Origin From(string interfaceId, string control = "deck.play", string gesture = "play.press") =>
-        new(interfaceId, control, gesture);
+    private static Origin From(string interfaceId, string control = "deck.play", string gesture = "play.press",
+        int deck = Origin.NoDeck) =>
+        new(interfaceId, control, gesture, deck);
 
     private readonly DataBus _bus = new(new ThrowingFailureSink());
     private readonly InspectMode _inspect;
@@ -49,12 +50,13 @@ public class InspectGateTests
     {
         _bus.Send(new SetInspectMode(true, From(InterfaceIds.Faceplate, "faceplate", "mount")));
 
-        var origin = From(interfaceId);
+        var origin = From(interfaceId, deck: 1);
         _bus.Send(new TogglePlay(1, origin));
 
         Assert.Equal(0, _play.Count);
         Assert.Equal(1, _echoed.Count);
-        Assert.Equal(new CommandReceived(origin, "TogglePlay", 1), _echoed.Last);
+        Assert.Equal(new CommandReceived(origin, "TogglePlay"), _echoed.Last);
+        Assert.Equal(1, _echoed.Last.Origin.Deck);
     }
 
     [Theory]
@@ -72,14 +74,15 @@ public class InspectGateTests
     }
 
     [Fact]
-    public void A_deckless_command_is_echoed_with_deck_minus_one()
+    public void A_global_control_is_echoed_with_no_deck()
     {
         _bus.Send(new SetInspectMode(true, From(InterfaceIds.Faceplate, "faceplate", "mount")));
 
         _bus.Send(new SetCrossfader(0.5, From(InterfaceIds.Controller, "mixer.crossfader", "crossfader.move")));
 
         Assert.Equal(0, _crossfader.Count);
-        Assert.Equal(("SetCrossfader", -1), (_echoed.Last.CommandName, _echoed.Last.Deck));
+        Assert.Equal("SetCrossfader", _echoed.Last.CommandName);
+        Assert.Equal(Origin.NoDeck, _echoed.Last.Origin.Deck);
     }
 
     [Fact]
@@ -97,17 +100,18 @@ public class InspectGateTests
     [Fact]
     public void A_report_control_does_nothing_outside_inspect_and_is_echoed_in_inspect()
     {
-        var shift = From(InterfaceIds.Controller, "deck.shift", "shift.hold");
+        var shift = From(InterfaceIds.Controller, "deck.shift", "shift.hold", deck: 1);
 
-        _bus.Send(new ReportControl(1, true, shift));
+        _bus.Send(new ReportControl(true, shift));
         Assert.Equal(0, _echoed.Count);
         Assert.Equal(1, _report.Count);
 
         _bus.Send(new SetInspectMode(true, From(InterfaceIds.Faceplate, "faceplate", "mount")));
-        _bus.Send(new ReportControl(1, true, shift));
+        _bus.Send(new ReportControl(true, shift));
 
         Assert.Equal(1, _report.Count);   // not executed: echoed only
-        Assert.Equal(new CommandReceived(shift, "ReportControl", 1), _echoed.Last);
+        Assert.Equal(new CommandReceived(shift, "ReportControl"), _echoed.Last);
+        Assert.Equal(1, _echoed.Last.Origin.Deck);
     }
 
     [Fact]
@@ -138,9 +142,13 @@ public class InspectGateTests
             [InterfaceIds.Controller, InterfaceIds.Keyboard]);
         var handler = new CountingCommandHandler<TurnPlatter>();
         registry.Register<TurnPlatter>(handler);
+        var crossfaderHandler = new CountingCommandHandler<SetCrossfader>();
+        registry.Register<SetCrossfader>(crossfaderHandler);
         registry.Register<SetInspectMode>(inspect);
         var echoes = new CountingEventHandler<CommandReceived>();
         bus.Subscribe<CommandReceived>(echoes);
+
+        var crossfade = new SetCrossfader(0.5, From(InterfaceIds.Controller, "mixer.crossfader", "crossfader.move"));
 
         long Measure()
         {
@@ -150,12 +158,26 @@ public class InspectGateTests
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
 
+        // A global command must not box either: guards against a default interface member on ICommand.
+        long MeasureGlobal()
+        {
+            for (var i = 0; i < 2_000; i++) bus.Send(crossfade);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            for (var i = 0; i < 10_000; i++) bus.Send(crossfade);
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+
         Assert.Equal(0, Measure());
         Assert.Equal(12_000, handler.Count);
+        Assert.Equal(0, MeasureGlobal());
+        Assert.Equal(12_000, crossfaderHandler.Count);
 
         bus.Send(new SetInspectMode(true, From(InterfaceIds.Faceplate)));
         Assert.Equal(0, Measure());
         Assert.Equal(12_000, handler.Count);
         Assert.Equal(12_000, echoes.Count);
+        Assert.Equal(0, MeasureGlobal());
+        Assert.Equal(12_000, crossfaderHandler.Count);
+        Assert.Equal(24_000, echoes.Count);
     }
 }

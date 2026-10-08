@@ -105,16 +105,16 @@ public sealed class LiveEntities(
         // The view models know the bus and nothing else of the App: they subscribe to its events and send
         // it commands and queries.
         var rows = new LibraryRowsViewModel(_subscriber, new TrackRowFactory(l.Theme));
-        var deckViewModels = new DeckViewModelFactory(_subscriber, _sender, l.Theme, l.Features,
+        var deckViewModels = new DeckViewModelFactory(_subscriber, _sender, l.Theme, l.Features, l.DeckView,
             new NoPeaksFactory(), new DiscBloomFactory(_clock));
         var deck1ViewModel = deckViewModels.Create(0);
         var deck2ViewModel = deckViewModels.Create(1);
         var deckClocks = new DeckViewModelClockSource(deck1ViewModel, deck2ViewModel);
         var motion = new DesktopMotionPreference(Environment.GetEnvironmentVariable, new GsettingsAnimationSetting());
-        var glanceHeader = new GlanceHeaderViewModel(deckClocks, _clock, _subscriber, new DeckSlotFactory(deckClocks, motion));
-        var glance = new GlanceViewModel(_sender, _asker, _subscriber, _appThread, _clock, rows, l.TagRecency, glanceHeader, motion);
+        var glanceHeader = new GlanceHeaderViewModel(deckClocks, _clock, _subscriber, new DeckSlotFactory(deckClocks, motion, l.GlanceView));
+        var glance = new GlanceViewModel(_sender, _asker, _subscriber, _appThread, _clock, rows, l.TagRecency, glanceHeader, motion, l.GlanceView);
         var loadFeedback = new LoadFeedbackViewModel(_sender, _subscriber);
-        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory().Create(), _sender);
+        var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(l.WaveformStyle).Create(), _sender);
         var themes = new ThemeViewModel(l.Theme, catalog, _sender);
         var docks = new CollapseToIconSequenceFactory(_clock, motion);
         var faceplateDock = docks.Create(
@@ -132,7 +132,8 @@ public sealed class LiveEntities(
                 themes, new ThemeOptionFactory()),
             new SettingsViewModel(_subscriber, _sender, new KnobScaleFactory()),
             new SystemReportViewModel(),
-            faceplateDock);
+            faceplateDock,
+            new TrackListViewModel(_sender, _subscriber));
     }
 
     public IKeyboard CreateKeyboard() => Window;

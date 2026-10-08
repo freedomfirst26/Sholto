@@ -45,8 +45,8 @@ Transport is controller-only: nothing on screen starts, stops, or jumps the musi
 | **Space** | Open search — tracks ranked by fit against the deck you're not loading into. What you can type: [search.md](search.md) |
 | **Shift + 1** / **Shift + 2** (search open) | Load the highlighted track straight onto Deck 1 / Deck 2 |
 | **← / →** (search open) | Choose which deck **Enter** loads onto |
-| **Tab** (search open) | Switch between the track list and the side list (shortlist, recent loads, crates, tags) |
-| **Q** (search open) | Add or remove the highlighted track from your shortlist |
+| **Tab** (search open) | Switch between the track list and the side list (crates, tags) |
+| **Ctrl + L** (search open) | Add the highlighted song, crate or tag to the Track List; search stays open |
 | **Ctrl + Z** | Undo the last load within 10 s: the previous track returns, paused where you left it |
 | **↑ / ↓** | Move up and down the track list |
 | **1** / **2** | Load the highlighted track onto Deck 1 / Deck 2 |
@@ -56,7 +56,7 @@ Transport is controller-only: nothing on screen starts, stops, or jumps the musi
 | **G** | Open the tempo and beatgrid tuner on the deck you're working on |
 | **↑ / ↓** (tuner open) | BPM ±0.1 — hold **Shift** for ±1 |
 | **← / →** (tuner open) | Slide the grid ±10 ms — hold **Shift** for ±1 beat |
-| **Esc** | Close the tuner or a menu; otherwise clear a crate or tag filter |
+| **Esc** | Close the tuner |
 | **F11** | Toggle fullscreen |
 
 ## Themes

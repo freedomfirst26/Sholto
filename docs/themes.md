@@ -113,9 +113,13 @@ good theme file, and every older theme keeps working unchanged.
 `"minimap"` colours the section-map strip: `backdrop`, `playhead`, `label`,
 `divider`, and one colour each for `intro`, `buildUp`, `drop`, `breakdown`,
 `verse`, `chorus`, `bridge` and `outro`.
+The bundled themes carry section colours picked from each band's own palette, so
+a drop is always the loudest colour on the strip. A theme of your own that leaves
+those keys out gets section colours derived from its accent, primary and mint.
 
 `"waveform"` colours the big waveform: `background`, `low` (the bass band),
-`mid` and `high` (the inner band), plus `downbeat`, `beatTick`, `playhead`,
+`mid` and `high` (the inner band), `rgbLow`, `rgbMid` and `rgbHigh` (the three
+colours the RGB style mixes), plus `downbeat`, `beatTick`, `playhead`,
 `marker`, `gain` (the fader line), `loop` (the loop band), `vocal` and
 `vocalInactive` (the vocal lane, on and muted), `snapGlow` (the beat-snap glow),
 `gridEdit` (the tint once a grid has been nudged) and `edge` (the outline).

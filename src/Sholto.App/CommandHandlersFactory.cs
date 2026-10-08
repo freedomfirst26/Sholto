@@ -48,20 +48,16 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<AddMarker>(loops);
         registry.Register<OpenGridEditor>(loops);
 
-        var browse = new BrowseCommandHandlers(core.Library, core.SearchPick, _publisher);
+        var browse = new BrowseCommandHandlers(core.Library);
         registry.Register<RotateBrowse>(browse);
-        registry.Register<OpenSearch>(browse);
         registry.Register<SetSearchPick>(core.SearchPick);
         registry.Register<LoadSelectedIntoDeck>(core.Loader);
         registry.Register<UndoLastLoad>(core.Loader);
 
-        // The library commands and queries (selection, filters, tags, crates) and the on-screen deck tuning.
+        // The library commands and queries (selection, tags, crates) and the on-screen deck tuning.
         var membership = new CrateMembershipCache(core.Library);
         var library = new LibraryCommandHandlers(core.Library, _appThread, _publisher, membership);
         registry.Register<SelectTrack>(library);
-        registry.Register<FilterLibraryByTag>(library);
-        registry.Register<FilterLibraryByCrate>(library);
-        registry.Register<ClearLibraryFilter>(library);
         registry.Register<AddTagToTrack>(library);
         registry.Register<RemoveTagFromTrack>(library);
         registry.Register<AddTrackToCrate>(library);
@@ -73,12 +69,18 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         queries.Register<TagsByName, Task<IReadOnlyList<TagHit>>>(libraryQueries);
         queries.Register<SearchCrates, Task<IReadOnlyList<CrateRef>>>(libraryQueries);
 
-        // Glance: rank the whole catalogue, narrowed by the chips, against the other deck, suggest the load target, and the shortlist.
+        // Glance: rank the whole catalogue, narrowed by the chips, against the other deck, suggest the load target.
         queries.Register<RankTracks, Task<RankedTracks>>(
-            new RankTracksHandler(core.Library, core.Decks, new GlanceRanker(new FitScorer(), new GlanceQueryFactory(), new GlanceMatcher()),
+            new RankTracksHandler(core.Library, core.Decks, new GlanceRanker(new FitScorer(_glanceOptions), new GlanceQueryFactory(), new GlanceMatcher()),
                 new GlanceScope(), membership, _glanceOptions));
         queries.Register<SuggestLoadTarget, int>(new SuggestLoadTargetHandler(core.Decks));
-        registry.Register<ToggleShortlist>(core.Shortlist);
+        registry.Register<LoadSongToTrackList>(core.TrackList);
+        registry.Register<LoadCrateToTrackList>(core.TrackList);
+        registry.Register<LoadTagToTrackList>(core.TrackList);
+        registry.Register<RemoveFromTrackList>(core.TrackList);
+        registry.Register<RemoveSourceFromTrackList>(core.TrackList);
+        registry.Register<MoveInTrackList>(core.TrackList);
+        registry.Register<ClearTrackList>(core.TrackList);
 
         var tuning = new DeckTuningCommandHandlers(core.Decks);
         registry.Register<ChangeBpmMultiplier>(tuning);

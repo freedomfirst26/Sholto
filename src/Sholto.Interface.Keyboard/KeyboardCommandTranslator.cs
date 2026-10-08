@@ -10,7 +10,7 @@ internal sealed class KeyboardCommandTranslator(ICommandSender sender) : IKeyboa
 
     public void Translate(in KeyboardGesture g)
     {
-        var origin = new Origin(InterfaceIds.Keyboard, g.ControlId, g.Id);
+        var origin = new Origin(InterfaceIds.Keyboard, g.ControlId, g.Id, g.Deck);
         switch (g.Id)
         {
             case KeyboardGestureIds.PlayPress: _sender.Send(new TogglePlay(g.Deck, origin)); break;

@@ -14,11 +14,11 @@ namespace Sholto.Interface.MainUI.Controls;
 /// Stationary whole-song map, "band overview": a 14-DIP label row (section names over a coloured underline
 /// per section, "DROP 16": kind and bars) above a 50-DIP body that is the whole track in the deck's waveform style (3-BAND or RGB,
 /// the same <see cref="IWaveformStyleStrategy"/> as the main waveform), squeezed to the strip's width over a
-/// faint tint of each section's colour, phrase lines every 8, 16 and 32 bars over it, and dividers at the
+/// faint tint of each section's colour, phrase gaps cut through the underline every 8, 16 and 32 bars, and dividers at the
 /// section boundaries. Sections sit in bars, placed on the strip through the bar grid. Display-only: transport is
 /// controller-only (platter, CUE, Shift + CUE).
 ///
-/// The still picture is baked on a background task (<see cref="IMinimapBaker"/>), posted back to the UI thread, and re-baked only when the track, its
+/// The still picture is baked on a background task (<see cref="IMinimapRenderer"/>), posted back to the UI thread, and re-baked only when the track, its
 /// sections, the strip's pixel size or scale, the minimap palette, or the style or the colours it bakes
 /// change; a frame blits it and draws the moving parts over it from cached brushes: the played part
 /// dimmed, the loop, cue markers, and the playhead.
@@ -39,7 +39,7 @@ public sealed class MinimapControl : Control
     public static readonly StyledProperty<IReadOnlyList<DeckSection>?> SectionsProperty =
         AvaloniaProperty.Register<MinimapControl, IReadOnlyList<DeckSection>?>(nameof(Sections));
 
-    /// <summary>Where the phrase lines fall: every <c>PhraseBars</c> bars from <c>PhaseBar</c>.</summary>
+    /// <summary>Where the phrase gaps in the underline strip fall: every <c>PhraseBars</c> bars from <c>PhaseBar</c>.</summary>
     public static readonly StyledProperty<DeckPhraseGrid> PhraseGridProperty =
         AvaloniaProperty.Register<MinimapControl, DeckPhraseGrid>(nameof(PhraseGrid), new DeckPhraseGrid(0, 8));
 
@@ -151,9 +151,9 @@ public sealed class MinimapControl : Control
     public WaveformPalette? WaveformPalette { get => GetValue(WaveformPaletteProperty); set => SetValue(WaveformPaletteProperty, value); }
     public IWaveformStyleStrategy? StyleStrategy { get => GetValue(StyleStrategyProperty); set => SetValue(StyleStrategyProperty, value); }
 
-    /// <summary>The baker; replaceable so a test can count or stub bakes. XAML cannot inject, so it
+    /// <summary>The renderer; replaceable so a test can count or stub bakes. XAML cannot inject, so it
     /// defaults to the real one.</summary>
-    internal IMinimapBaker Baker { get; set; } = new MinimapBaker(
+    internal IMinimapRenderer Renderer { get; set; } = new MinimapRenderer(
         new MinimapPeakDownsampler(), new MinimapGeometry(), new MinimapPhraseLines(), new MinimapSectionLabels());
 
     /// <summary>Device pixels per DIP, when a test has no window to take it from.</summary>
@@ -258,14 +258,14 @@ public sealed class MinimapControl : Control
         var request = _pendingRequest!;
         _pendingRequest = null;
         _bakeInFlight = true;
-        var baker = Baker;
+        var renderer = Renderer;
         var post = Post;
         Task.Run(() =>
         {
             WriteableBitmap? bitmap = null;
             try
             {
-                using var image = baker.Bake(request.Peaks, request.Structure, request.Palette, request.Waveform,
+                using var image = renderer.Render(request.Peaks, request.Structure, request.Palette, request.Waveform,
                     request.Style, request.PixelWidth, request.PixelHeight, request.Scale);
                 bitmap = image?.ToBitmap();
             }

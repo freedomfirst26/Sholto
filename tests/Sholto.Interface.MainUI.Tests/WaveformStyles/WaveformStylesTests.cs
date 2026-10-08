@@ -1,10 +1,11 @@
+using Microsoft.Extensions.Options;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
 
 namespace Sholto.Interface.MainUI.Tests.WaveformStyles;
 
 public class WaveformStylesTests
 {
-    private readonly IWaveformStyles _styles = new WaveformStylesFactory().Create();
+    private readonly IWaveformStyles _styles = new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create();
 
     [Fact]
     public void Three_band_then_rgb_with_three_band_the_default()

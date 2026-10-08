@@ -1,14 +1,13 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Harmony;
 using Sholto.Data;
 
 namespace Sholto.App.Glance;
 
 /// <inheritdoc cref="IFitScorer"/>
-public sealed class FitScorer : IFitScorer
+public sealed class FitScorer(IOptions<GlanceOptions> options) : IFitScorer
 {
-    private const double ClashPercent = 6.0;
-    private const double GoodTempoPercent = 2.0;
-    private const double UsableTempoPercent = 4.0;
+    private readonly GlanceOptions _options = options.Value;
 
     public FitResult Score(TrackSummary candidate, GlanceReference reference)
     {
@@ -23,10 +22,10 @@ public sealed class FitScorer : IFitScorer
             return new FitResult(FitLevel.None, -1, candidate.IsAnalyzing ? null : pct);
 
         double a = Math.Abs(pct.Value);
-        int tempoScore = a <= GoodTempoPercent ? 2 : a <= UsableTempoPercent ? 1 : 0;
+        int tempoScore = a <= _options.GoodTempoPercent ? 2 : a <= _options.UsableTempoPercent ? 1 : 0;
         int score = KeyScore(reference.Key.Value, candidate.MusicalKey.Value) + tempoScore;
 
-        if (a > ClashPercent)
+        if (a > _options.ClashTempoPercent)
             return new FitResult(FitLevel.Clash, Math.Min(score, 1), pct);
 
         FitLevel level = score >= 4 ? FitLevel.Good : score == 3 ? FitLevel.Usable : FitLevel.Clash;

@@ -10,7 +10,7 @@ using Sholto.Interface.MainUI.ViewModels.Glance;
 
 namespace Sholto.Interface.MainUI.ViewModels;
 
-/// <summary>The main window's view model: overlays, the search text and filter display, the load target
+/// <summary>The main window's view model: overlays, the Track List strip, the load target
 /// choice, the faceplate mount, the theme, the toast and the system report. It talks to the App only
 /// through the bus: it subscribes to the library, mixer, controller and toast-worthy events, caches what it
 /// shows, and sends commands for every action. Events arrive on the app thread (the UI thread), so the
@@ -18,7 +18,6 @@ namespace Sholto.Interface.MainUI.ViewModels;
 public sealed class MainViewModel :
     INotifyPropertyChanged,
     IEventHandler<SelectionChanged>,
-    IEventHandler<LibraryFilterChanged>,
     IEventHandler<LibraryUnreachableChanged>,
     IEventHandler<HarmonyReferenceChanged>,
     IEventHandler<LibraryDatabaseAttached>,
@@ -39,7 +38,10 @@ public sealed class MainViewModel :
     /// <summary>The visible library rows; the library list and the search overlay bind to it.</summary>
     public ObservableCollection<TrackRow> Tracks => _rows.Items;
 
-    /// <summary>The Glance search overlay (Space, or a short press of the browse knob).</summary>
+    /// <summary>The Track List strip above the library list, and its reorder drag.</summary>
+    public ITrackListViewModel TrackList { get; }
+
+    /// <summary>The Glance search overlay (Space).</summary>
     public IGlanceViewModel Glance { get; }
 
     /// <summary>The replace-a-playing-deck warning, the undo toast and the undo confirmation.</summary>
@@ -64,7 +66,7 @@ public sealed class MainViewModel :
     /// overlay AND by the 1 / 2 hotkeys / FLX-4 LOAD buttons (which send the same command): the headless
     /// track loader does the work.</summary>
     public void LoadSelectedToDeck(int deckIndex) =>
-        _sender.Send(new LoadSelectedIntoDeck(deckIndex, new Origin(InterfaceIds.MainUI, "search", "load")));
+        _sender.Send(new LoadSelectedIntoDeck(deckIndex, new Origin(InterfaceIds.MainUI, "search", "load", deckIndex)));
 
     public TagEditorViewModel? TagEditor { get; private set; }
 
@@ -270,6 +272,11 @@ public sealed class MainViewModel :
     /// <see cref="LibraryUnreachableChanged"/>), for the unreachable-banner bindings.</summary>
     private string? _libraryUnreachablePath;
     public string? LibraryUnreachablePath => _libraryUnreachablePath;
+    /// <summary>The Track List holds no songs AND the main list has no rows to show: the empty state replaces
+    /// the list. Rows with an empty Track List (before the first restore) never show it, so the screen is never
+    /// half empty and half full.</summary>
+    public bool ShowTrackListEmpty => TrackList.IsEmpty && Tracks.Count == 0;
+
     public bool LibraryUnreachableVisible => !string.IsNullOrEmpty(_libraryUnreachablePath);
 
     void IEventHandler<LibraryUnreachableChanged>.Handle(in LibraryUnreachableChanged e)
@@ -387,8 +394,15 @@ public sealed class MainViewModel :
                          ILayoutWizardViewModel layoutWizard,
                          ISettingsViewModel settings,
                          ISystemReportViewModel systemReport,
-                         ICollapseToIconSequence faceplateDock)
+                         ICollapseToIconSequence faceplateDock,
+                         ITrackListViewModel trackList)
     {
+        TrackList = trackList;
+        TrackList.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ITrackListViewModel.IsEmpty)) Notify(nameof(ShowTrackListEmpty));
+        };
+        rows.Items.CollectionChanged += (_, _) => Notify(nameof(ShowTrackListEmpty));
         SystemReportModal = systemReport;
         SystemReportModal.PropertyChanged += (_, e) =>
         {
@@ -431,7 +445,6 @@ public sealed class MainViewModel :
 
         // The App announces; this view model caches and re-emits for the bindings. State events are
         // replayed on subscribe, so a view model built after the App started still shows the real picture.
-        subscriber.Subscribe<LibraryFilterChanged>(this);
         subscriber.Subscribe<LibraryUnreachableChanged>(this);
         subscriber.Subscribe<HarmonyReferenceChanged>(this);
         subscriber.Subscribe<SelectionChanged>(this);
@@ -504,17 +517,20 @@ public sealed class MainViewModel :
     /// <summary>Highlight row <paramref name="index"/>, clamped to the visible rows by the App.</summary>
     public void SelectTrack(int index) => _sender.Send(new SelectTrack(index, true, Ui("library", "select")));
 
-    /// <summary>Label of the active tag or crate filter, or null when the whole library shows.</summary>
-    public string? ActiveFilter { get; private set; }
-
-    void IEventHandler<LibraryFilterChanged>.Handle(in LibraryFilterChanged e)
+    /// <summary>Esc on the main view: closes an open deck tuner (true), else does nothing (false).</summary>
+    public bool HandleEscape()
     {
-        ActiveFilter = e.Label;
-        Notify(nameof(ActiveFilter));
+        if (Deck1.EditOpen || Deck2.EditOpen)
+        {
+            Deck1.CloseEditor();
+            Deck2.CloseEditor();
+            return true;
+        }
+        return false;
     }
 
-    /// <summary>Show the whole library again (Esc).</summary>
-    public void ClearFilter() => _sender.Send(new ClearLibraryFilter(Ui("library", "clear-filter")));
+    /// <summary>Delete on the main view: take the highlighted song out of the Track List.</summary>
+    public void RemoveHighlighted() => TrackList.RemoveSong(SelectedTrackRow?.FilePath);
 
     /// <summary>Double-click on a library row: re-analyze the highlighted track. The headless track loader
     /// does it, the same as for the browse-knob long-press.</summary>

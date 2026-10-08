@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Sholto.Interface.MainUI.Controls.Chips.SourceChip"
+             Focusable="False">
+    <!-- The one chip look for a crate, a tag or loose songs: the query box in search and the Track List strip both use it. -->
+    <UserControl.Styles>
+        <Style Selector="Border.chipx">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Opacity" Value="0.65"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.chipx:pointerover"><Setter Property="Opacity" Value="1"/></Style>
+        <Style Selector="Border.chipx TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Styles>
+    <Panel>
+        <Panel x:Name="CratePart" Height="24" IsVisible="False">
+            <Border CornerRadius="5" Background="{DynamicResource SholtoMint}" Opacity="0.12" IsHitTestVisible="False"/>
+            <Border CornerRadius="5" BorderBrush="{DynamicResource SholtoMint}" BorderThickness="1" Opacity="0.55"
+                    IsHitTestVisible="False"/>
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,4,0" VerticalAlignment="Center">
+                <Path Width="12" Height="12" VerticalAlignment="Center" Stretch="Uniform"
+                      Data="M6,1 L11,3.5 L11,8.5 L6,11 L1,8.5 L1,3.5 Z M1,3.5 L6,6 L11,3.5 M6,6 L6,11"
+                      Stroke="{DynamicResource SholtoMint}" StrokeThickness="1.2" StrokeJoin="Round"/>
+                <TextBlock x:Name="CrateText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Foreground="{DynamicResource SholtoMint}"/>
+                <Border x:Name="CrateRemove" Classes="chipx" AutomationProperties.Name="Remove filter">
+                    <TextBlock Text="×" Foreground="{DynamicResource SholtoMint}"/>
+                </Border>
+            </StackPanel>
+        </Panel>
+        <Border x:Name="TagPart" Height="24" CornerRadius="12" Padding="10,0,4,0" IsVisible="False"
+                Background="{DynamicResource SholtoTagChipBackground}">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock x:Name="TagText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Foreground="{DynamicResource SholtoTagChipForeground}"/>
+                <Border x:Name="TagRemove" Classes="chipx" AutomationProperties.Name="Remove filter">
+                    <TextBlock Text="×" Foreground="{DynamicResource SholtoTagChipForeground}"/>
+                </Border>
+            </StackPanel>
+        </Border>
+        <!-- Loose songs have no search twin: the tag pill's shape and type, in the neutral tokens. -->
+        <Border x:Name="SongsPart" Height="24" CornerRadius="12" Padding="10,0,4,0" IsVisible="False"
+                Background="{DynamicResource SholtoBgDeep}" BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock x:Name="SongsText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                           Foreground="{DynamicResource SholtoTextBright}"/>
+                <Border x:Name="SongsRemove" Classes="chipx" AutomationProperties.Name="Remove songs">
+                    <TextBlock Text="×" Foreground="{DynamicResource SholtoTextMuted}"/>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Panel>
+</UserControl>

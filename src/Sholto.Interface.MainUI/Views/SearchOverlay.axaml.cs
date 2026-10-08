@@ -16,15 +16,18 @@ namespace Sholto.Interface.MainUI.Views;
 /// <summary>
 /// The Glance search overlay. The XAML carries the look and the bindings; this file carries what only a view
 /// can: key routing into the Glance view model, keeping the two lists' highlight on the view model's,
-/// the header chip and deck captions that follow the deck view models, and the motion (the results settling in,
+/// the motion (the results settling in,
 /// the slow indicator, a rail count ticking) that the view model only cues.
 /// </summary>
 public partial class SearchOverlay : UserControl
 {
     private const int PageSize = 8;
 
-    /// <summary>How long the "fresh" class stays on the table after a result: past the 220 ms bar re-grow.</summary>
+    /// <summary>How long the "fresh" class stays on the table after a result: past the 160 ms fade.</summary>
     private const int SettleHoldMs = 260;
+
+    /// <summary>How long a row that joined the Track List glows.</summary>
+    private const int FlashMs = 600;
 
     private const string DefaultWatermark = "Name, initials (bsn), bpm:128, key:8A, #tag";
     private const string ChipWatermark = "Filter further…";
@@ -76,14 +79,14 @@ public partial class SearchOverlay : UserControl
             _vm.Glance.PropertyChanged -= OnGlanceChanged;
             _vm.Glance.SelectAllOnOpen -= OnSelectAllOnOpen;
             _vm.Glance.ResultsReplaced -= OnResultsReplaced;
-            _vm.Glance.Header.PropertyChanged -= OnHeaderChanged;
+            _vm.Glance.AddedToTrackList -= OnAddedToTrackList;
         }
         _vm = DataContext as MainViewModel;
         if (_vm is null) return;
         _vm.Glance.PropertyChanged += OnGlanceChanged;
         _vm.Glance.SelectAllOnOpen += OnSelectAllOnOpen;
         _vm.Glance.ResultsReplaced += OnResultsReplaced;
-        _vm.Glance.Header.PropertyChanged += OnHeaderChanged;
+        _vm.Glance.AddedToTrackList += OnAddedToTrackList;
         // Chips slide in only when motion is wanted; the styles key off this class.
         Classes.Set("motion", _vm.Glance.AnimateResults);
         FitShimmer.Animated = _vm.Glance.AnimateResults;
@@ -92,8 +95,8 @@ public partial class SearchOverlay : UserControl
         SyncZone();
         SyncChips();
         SyncReassessing();
-        SyncHeaderChip();
         SyncCompletion();
+        SyncClearHint();
     }
 
     // ---- View model → view ---------------------------------------------------------------------------
@@ -110,6 +113,7 @@ public partial class SearchOverlay : UserControl
             case nameof(IGlanceViewModel.Chips): SyncChips(); break;
             case nameof(IGlanceViewModel.IsReassessing): SyncReassessing(); break;
             case nameof(IGlanceViewModel.ScopeEmptyText): SyncEmpty(); break;
+            case nameof(IGlanceViewModel.ClearArmedText): SyncClearHint(); break;
             case nameof(IGlanceViewModel.CompletionSuffix):
             case nameof(IGlanceViewModel.Query): SyncCompletion(); break;
         }
@@ -132,10 +136,16 @@ public partial class SearchOverlay : UserControl
         TabHintText.Text = suffix is not null && atEnd ? "Add tag" : "Rail / Table";
     }
 
-    private void OnHeaderChanged(object? sender, PropertyChangedEventArgs e)
+
+
+    /// <summary>The footer's Ctrl Del caption turns into the second-press prompt while a clear is armed.</summary>
+    private void SyncClearHint()
     {
-        if (e.PropertyName is nameof(IGlanceHeaderViewModel.ReferenceDeck) or nameof(IGlanceHeaderViewModel.KeyText))
-            SyncHeaderChip();
+        var armed = Glance?.ClearArmedText;
+        ClearHintText.Text = armed ?? "Clear Track List";
+        ClearHintText.Foreground = armed is null
+            ? (IBrush?)this.FindResource("SholtoTextMuted")
+            : (IBrush?)this.FindResource("SholtoStatusWarn");
     }
 
     private void OnSelectAllOnOpen()
@@ -220,7 +230,7 @@ public partial class SearchOverlay : UserControl
         FitShimmer.Classes.Set("running", glance.IsReassessing && glance.AnimateResults);
     }
 
-    /// <summary>A result replaced the rows: the table settles in (and the bars re-grow) for a moment.</summary>
+    /// <summary>A result replaced the rows: the table fades in for a moment.</summary>
     private void OnResultsReplaced()
     {
         if (Glance is not { AnimateResults: true }) return;
@@ -316,15 +326,6 @@ public partial class SearchOverlay : UserControl
         RailList.Classes.Set("dim", glance.Zone != GlanceZone.Rail);
     }
 
-    /// <summary>The header's key chip takes the colour the reference deck's own chip has.</summary>
-    private void SyncHeaderChip()
-    {
-        if (_vm is null) return;
-        var deck = _vm.Glance.Header.ReferenceDeck switch { 0 => _vm.Deck1, 1 => _vm.Deck2, _ => null };
-        if (deck is null) return;
-        HeaderKeyChip.Bind(Border.BackgroundProperty, new Binding(nameof(DeckViewModel.KeyBrush)) { Source = deck });
-    }
-
     // ---- Keys ----------------------------------------------------------------------------------------
 
     private void OnQueryKeyDown(object? sender, KeyEventArgs e)
@@ -341,10 +342,12 @@ public partial class SearchOverlay : UserControl
             e.Handled = true;
             return;
         }
-        // Ctrl+Enter on a rail crate or tag filters the library and closes; before the modifier return below.
-        if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Enter)
+        // Ctrl+L adds to the Track List and Ctrl+Delete clears it (twice); before the modifier return below.
+        // Ctrl+Delete would otherwise delete the word ahead of the caret.
+        if (e.KeyModifiers == KeyModifiers.Control && e.Key is Key.L or Key.Delete)
         {
-            glance.ActivateAlternate();
+            if (e.Key == Key.L) glance.LoadToTrackList();
+            else glance.ClearTrackList();
             e.Handled = true;
             return;
         }
@@ -383,9 +386,6 @@ public partial class SearchOverlay : UserControl
             e.Handled = true;
             return;
         }
-        // Q shortlists only while the box is empty; otherwise the view model says no and it types.
-        if (e.Text is "q" or "Q" && Glance is { } glance && glance.TryShortlistKey())
-            e.Handled = true;
     }
 
     // ---- Pointer -------------------------------------------------------------------------------------
@@ -399,9 +399,11 @@ public partial class SearchOverlay : UserControl
 
     private void OnPanelPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
 
-    private void OnTargetClick(object? sender, RoutedEventArgs e)
+    /// <summary>A click on a deck slot loads the highlighted song there; the Glance view model aims at that deck and
+    /// goes through the same replace-confirm as Shift+1 / Shift+2.</summary>
+    private void OnSlotClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is Button { DataContext: IDeckSlotViewModel slot }) Glance?.SetTarget(slot.Number - 1);
+        if (sender is Button { DataContext: IDeckSlotViewModel slot }) Glance?.LoadTo(slot.Number - 1);
         QueryBox.Focus();
     }
 
@@ -472,27 +474,36 @@ public partial class SearchOverlay : UserControl
         });
     }
 
-    /// <summary>Double click on a rail track loads it; crates and tags already acted on the first press.</summary>
-    private void OnRailDoubleTapped(object? sender, TappedEventArgs e)
-    {
-        if (RailItemAt(e.Source) is not GlanceRailTrack) return;
-        Glance?.Activate();
-        e.Handled = true;
-    }
-
     /// <summary>The rail item under a pointer event's source, or null.</summary>
     private object? RailItemAt(object? source) =>
         (source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext;
 
     /// <summary>The × on a chip.</summary>
-    private void OnChipRemovePressed(object? sender, PointerPressedEventArgs e)
+    private void OnChipRemoved(object? sender, RoutedEventArgs e)
     {
         if (sender is Control { DataContext: GlanceChip chip }) Glance?.RemoveChip(chip);
         QueryBox.Focus();
         e.Handled = true;
     }
 
-    /// <summary>The star cell of a row: highlight that row, then toggle its shortlist mark.</summary>
+    /// <summary>A song just joined the Track List: its row, if it is on screen, glows violet for a moment and fades.
+    /// Never under reduced motion.</summary>
+    private void OnAddedToTrackList(string path)
+    {
+        if (Glance is not { AnimateResults: true } glance) return;
+        for (var i = 0; i < glance.Rows.Count; i++)
+        {
+            if (glance.Rows[i].FilePath != path) continue;
+            if (ResultsList.ContainerFromIndex(i) is not ListBoxItem item) return;
+            // Off then on, so a second add mid-flash restarts it.
+            item.Classes.Set("flash", false);
+            item.Classes.Set("flash", true);
+            DispatcherTimer.RunOnce(() => item.Classes.Set("flash", false), TimeSpan.FromMilliseconds(FlashMs));
+            return;
+        }
+    }
+
+    /// <summary>The star cell of a row: highlight that row, then add it to the Track List or remove it.</summary>
     private void OnStarTapped(object? sender, TappedEventArgs e)
     {
         if (Glance is not { } glance || sender is not Control { DataContext: GlanceRow row }) return;
@@ -502,7 +513,7 @@ public partial class SearchOverlay : UserControl
         if (index < 0) return;
         if (glance.Zone != GlanceZone.Table) glance.ToggleZone();
         glance.Move(index - glance.TableIndex);
-        glance.ToggleShortlistOnHighlight();
+        glance.ToggleHighlightedInTrackList();
         e.Handled = true;
         QueryBox.Focus();
     }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Decks;
 using Sholto.App.Library;
 using Sholto.Data;
@@ -5,26 +6,25 @@ using Sholto.Data;
 namespace Sholto.App.Loading;
 
 /// <summary>See <see cref="ILoadGuard"/>. Holds at most one pending confirmation; it lapses after
-/// 3 s, noticed on the frame tick (allocation-free while idle).</summary>
+/// a few seconds (<see cref="LoadOptions.ConfirmWindowSeconds"/>), noticed on the frame tick (allocation-free while idle).</summary>
 public sealed class LoadGuard : ILoadGuard, IFrameTickHandler
 {
-    /// <summary>How long, in seconds, a second request may follow the first.</summary>
-    private const int WindowSeconds = 3;
-
     /// <summary>Where the guard sits on the frame clock: the App core acts first.</summary>
     private const int FrameOrder = 50;
 
     private readonly IFrameClock _clock;
     private readonly IEventPublisher _publisher;
+    private readonly int _windowSeconds;
     private bool _pending;
     private int _deck;
     private string _filePath = "";
     private DateTime _until;
 
-    public LoadGuard(IFrameClock clock, IEventPublisher publisher)
+    public LoadGuard(IFrameClock clock, IEventPublisher publisher, IOptions<LoadOptions> options)
     {
         _clock = clock;
         _publisher = publisher;
+        _windowSeconds = options.Value.ConfirmWindowSeconds;
         clock.Subscribe(this, FrameOrder);
     }
 
@@ -45,7 +45,7 @@ public sealed class LoadGuard : ILoadGuard, IFrameTickHandler
         _pending = true;
         _deck = deck.Index;
         _filePath = incoming.FilePath;
-        _until = now.AddSeconds(WindowSeconds);
+        _until = now.AddSeconds(_windowSeconds);
         _publisher.Publish(new LoadConfirmPending(
             true, deck.Index, incoming.Title, deck.LoadedTrack?.Title, RemainingSeconds(deck)));
         return false;

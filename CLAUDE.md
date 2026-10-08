@@ -144,6 +144,11 @@ Demucs (stems). Absence degrades gracefully.
 - Do not use a primary constructor for: constructors with logic beyond assignment, classes with several constructors, private constructors, XAML-created controls, EF `DbContext`/converters.
 - One top-level type per file, named for the type.
 - Analyzers vs analysis stages: an analyzer (`I*Analyzer`, extends the empty marker `IAnalyzer`, in `Sholto.Analysis/Analyzers/<Thing>/`) computes one result itself. An analysis stage (`*AnalysisStage`, extends the empty marker `IAnalysisStage`, in `Sholto.Analysis/Stages/`) is a composite that runs several analyzers and external-tool steps in a fixed order — e.g. `BasicAnalysisStage` (beats + waveform peaks + beatgrid), `StemAnalysisStage` (demucs + stem peaks + vocal regions). A composite of analyzers is always named `...AnalysisStage`, never `...Analyzer`. `IAnalysisStep` is different again: one external-tool process (madmom, demucs).
+- Tunable values go in options, not magic numbers. Extract anything a DJ or developer might plausibly change — timings, durations, thresholds, limits, capacities — or any constant duplicated in two places, into the options class for its area (e.g. `ScratchOptions`, `MagnetismOptions`, `GlanceOptions`), or a new one, one type per file, each default equal to today's value. Register it in `SholtoOptions` (`Sholto.Host`).
+- Leave as `const`: maths constants, sentinels and guards, format or protocol facts (MIDI notes, buffer layouts), layout pixels in XAML, and theme colours (those belong in theme JSON).
+- A class takes `IOptions<XOptions>` in its constructor and reads `.Value` once there, into a field. Never read options per frame or per sample, and never on the audio thread.
+- Add a test that pins each options class's default values.
+- In new code, reach for an option before a magic number.
 
 ### Architecture: Interface / Data / App
 
@@ -262,7 +267,7 @@ the change, not an afterthought. Internal-only refactors don't get a line.
    `## Unreleased` above it. Commit.
 2. `git tag -a vX.Y.Z -m "vX.Y.Z"` then `git push origin main vX.Y.Z`.
 3. `.github/workflows/release.yml` fires on the tag: it publishes a
-   self-contained linux-x64 single-file build, bundles README + LICENSE +
+   self-contained linux-x64 single-file build, bundles README + LICENSE + THIRD-PARTY-NOTICES + docs/license.md +
    install-deps.sh into `sholto-vX.Y.Z-linux-x64.tar.gz`, extracts the
    `## vX.Y.Z` section from `CHANGELOG.md` as the release body, and creates the
    GitHub Release with the tarball attached. If the changelog section is

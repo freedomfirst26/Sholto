@@ -1,6 +1,7 @@
 namespace Sholto.Data;
 
-/// <summary>The visible library rows were replaced (scan, filter, filter cleared). State: a late subscriber
+/// <summary>The visible library rows were replaced (scan, filter, filter cleared). Once a Track List is loaded
+/// (see <see cref="TrackListChanged"/>), the rows are the Track List, in its manual order. State: a late subscriber
 /// is told the current rows. The rows are an immutable snapshot shared by reference (do not modify); later
 /// per-track changes arrive as <see cref="TrackSummaryChanged"/>.</summary>
 /// <param name="Rows">The visible rows, in display order.</param>

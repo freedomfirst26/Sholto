@@ -25,6 +25,7 @@ public sealed class DeckViewModel :
     IEventHandler<DeckMixChanged>,
     IEventHandler<DeckPlayStateChanged>,
     IEventHandler<StemMuteChanged>,
+    IEventHandler<StemLevelChanged>,
     IEventHandler<EchoChanged>,
     IEventHandler<HeadphoneCueChanged>
 {
@@ -86,6 +87,7 @@ public sealed class DeckViewModel :
     private bool _isMuted;
 
     private bool _drumsActive = true, _vocalsActive = true, _instrumentalActive = true;
+    private double _drumsLevel = 1.0, _vocalsLevel = 1.0, _instrumentalLevel = 1.0;
     private bool _cueActive;
     private bool _echoActive;
 
@@ -112,6 +114,7 @@ public sealed class DeckViewModel :
         subscriber.Subscribe<DeckMixChanged>(this);
         subscriber.Subscribe<DeckPlayStateChanged>(this);
         subscriber.Subscribe<StemMuteChanged>(this);
+        subscriber.Subscribe<StemLevelChanged>(this);
         subscriber.Subscribe<EchoChanged>(this);
         subscriber.Subscribe<HeadphoneCueChanged>(this);
         subscriber.Subscribe<DeckFrame>(this);
@@ -119,7 +122,7 @@ public sealed class DeckViewModel :
 
     // ---- Actions: each one is a command ---------------------------------------------------------
     private Origin Ui(string control, string gesture) =>
-        new(InterfaceIds.MainUI, $"deck{_deck + 1}.{control}", gesture);
+        new(InterfaceIds.MainUI, $"deck{_deck + 1}.{control}", gesture, _deck);
 
     /// <summary>Click the BPM: open the tune editor over the disc, or close it if it is open.</summary>
     public void ToggleEditor() => _sender.Send(new ToggleTuneEditor(_deck, Ui("bpm", "click")));
@@ -332,11 +335,34 @@ public sealed class DeckViewModel :
         var active = !e.Muted;
         switch (e.Stem)
         {
-            case 0: _drumsActive = active; Notify(nameof(DrumsActive)); break;
-            case 1: _vocalsActive = active; Notify(nameof(VocalsActive)); break;
-            case 2: _instrumentalActive = active; Notify(nameof(InstrumentalActive)); break;
+            case 0: _drumsActive = active; Notify(nameof(DrumsActive)); Notify(nameof(DrumsChipOpacity)); break;
+            case 1: _vocalsActive = active; Notify(nameof(VocalsActive)); Notify(nameof(VocalsChipOpacity)); break;
+            case 2: _instrumentalActive = active; Notify(nameof(InstrumentalActive)); Notify(nameof(InstrumentalChipOpacity)); break;
         }
     }
+
+    // A knob sweep sends many levels; the chip only repaints when its opacity actually moves (the App
+    // already drops sub-0.0001 changes before publishing).
+    void IEventHandler<StemLevelChanged>.Handle(in StemLevelChanged e)
+    {
+        if (e.Deck != _deck) return;
+        switch (e.Stem)
+        {
+            case 0: SetLevel(ref _drumsLevel, _drumsActive, e.Level, nameof(DrumsChipOpacity)); break;
+            case 1: SetLevel(ref _vocalsLevel, _vocalsActive, e.Level, nameof(VocalsChipOpacity)); break;
+            case 2: SetLevel(ref _instrumentalLevel, _instrumentalActive, e.Level, nameof(InstrumentalChipOpacity)); break;
+        }
+    }
+
+    private void SetLevel(ref double field, bool active, double level, string property)
+    {
+        var before = ChipOpacity(field, active);
+        field = level;
+        if (ChipOpacity(field, active) != before) Notify(property);
+    }
+
+    private double ChipOpacity(double level, bool active) =>
+        !active ? 1.0 : StemChipMinOpacity + (1.0 - StemChipMinOpacity) * Math.Clamp(level, 0.0, 1.0);
 
     void IEventHandler<EchoChanged>.Handle(in EchoChanged e)
     {
@@ -611,6 +637,18 @@ public sealed class DeckViewModel :
     public bool InstrumentalActive => _instrumentalActive;
 
     public bool DrumsActive => _drumsActive;
+
+    /// <summary>Chip opacity per stem: the level (0..1) mapped to 0.3..1 so a turned-down stem stays readable.
+    /// A muted chip stays at 1 so its hollow look is distinct from a low level.</summary>
+    public double DrumsChipOpacity => ChipOpacity(_drumsLevel, _drumsActive);
+
+    public double VocalsChipOpacity => ChipOpacity(_vocalsLevel, _vocalsActive);
+
+    public double InstrumentalChipOpacity => ChipOpacity(_instrumentalLevel, _instrumentalActive);
+
+    /// <summary>Opacity of a stem chip turned fully down (from <c>DeckViewOptions</c>). Set once at construction by
+    /// the factory.</summary>
+    public double StemChipMinOpacity { get; init; } = 0.3;
 
     // ---- Performance flags --------------------------------------------------------------------
     /// <summary>True while the user is actively turning the jog wheel on this deck. Drives the full-height

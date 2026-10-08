@@ -2,7 +2,9 @@ using SkiaSharp;
 
 namespace Sholto.Interface.MainUI.Controls.WaveformStyles;
 
-/// <summary>Default <see cref="IRgbColourMixer"/>. Only a band's LEAD colours a column: bass and treble
+/// <summary>Default <see cref="IRgbColourMixer"/>. Mostly a band's LEAD (<c>floorShare</c> of the floor is
+/// removed: 1 is pure lead-takes-all, 0 the plain weights, in between a blend that still tints toward the
+/// leading band). A band's LEAD colours a column: bass and treble
 /// each show their excess over the weakest band, and mids show only their excess over the stronger of
 /// the other two. In a loud section every band sits near its own track reference, so the plain weights
 /// are all about 1 and a linear mix is a pale teal-white everywhere; the leads are what differ between
@@ -14,8 +16,10 @@ namespace Sholto.Interface.MainUI.Controls.WaveformStyles;
 /// the band colours per channel, and scaled so the largest channel is 255 (brightness is the style's
 /// business, not the mixer's). A column with no lead at all (every band equal) falls back to the even mix
 /// of the three colours, which is also what the no-band-data bake uses.</summary>
-public sealed class RgbColourMixer : IRgbColourMixer
+public sealed class RgbColourMixer(float floorShare) : IRgbColourMixer
 {
+    private readonly float _floorShare = floorShare;
+
     /// <summary>Exponent applied to each lead before mixing; 2 lets the dominant band win without turning
     /// every column into a pure primary.</summary>
     private const float Sharpness = 2f;
@@ -25,10 +29,10 @@ public sealed class RgbColourMixer : IRgbColourMixer
         low = MathF.Max(0f, low);
         mid = MathF.Max(0f, mid);
         high = MathF.Max(0f, high);
-        float floor = MathF.Min(low, MathF.Min(mid, high));
+        float floor = _floorShare * MathF.Min(low, MathF.Min(mid, high));
         float l = low - floor;
         float h = high - floor;
-        float m = MathF.Max(0f, mid - MathF.Max(low, high));
+        float m = MathF.Max(0f, mid - _floorShare * MathF.Max(low, high));
         if (l <= 0f && m <= 0f && h <= 0f) { l = low; m = mid; h = high; }
 
         l = Sharpen(l);

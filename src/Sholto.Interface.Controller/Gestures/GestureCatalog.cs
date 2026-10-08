@@ -18,6 +18,5 @@ internal sealed class GestureCatalog : IGestureCatalog
         GestureIds.BeatLoopToggle, GestureIds.BeatLoopHalve, GestureIds.BeatLoopDouble,
         GestureIds.GridNudgeBack, GestureIds.GridNudgeForward, GestureIds.BrowseTurn,
         GestureIds.BrowsePressShort, GestureIds.BrowsePressHold, GestureIds.ShiftHold,
-        GestureIds.StemLevelHold,
     ];
 }

@@ -18,7 +18,7 @@ public class KeyboardInputTests
 
         var play = Assert.IsType<TogglePlay>(Assert.Single(_sender.Sent));
         Assert.Equal(0, play.Deck);
-        Assert.Equal(new Origin(InterfaceIds.Keyboard, "key.p", "play.press"), play.Origin);
+        Assert.Equal(new Origin(InterfaceIds.Keyboard, "key.p", "play.press", 0), play.Origin);
         Assert.True(args.Handled);
     }
 
@@ -26,7 +26,9 @@ public class KeyboardInputTests
     public void Shift_P_plays_deck_two()
     {
         _keyboard.Press(Key.P, KeyModifiers.Shift);
-        Assert.Equal(1, Assert.IsType<TogglePlay>(Assert.Single(_sender.Sent)).Deck);
+        var play = Assert.IsType<TogglePlay>(Assert.Single(_sender.Sent));
+        Assert.Equal(1, play.Deck);
+        Assert.Equal(1, play.Origin.Deck);
     }
 
     [Fact]

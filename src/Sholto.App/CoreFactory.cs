@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stems;
@@ -25,7 +26,9 @@ public sealed class CoreFactory(
     ICrossfadeCurve crossfade,
     IAppThread appThread,
     IEventPublisher publisher,
-    IFrameClock frameClock) : ICoreFactory
+    IFrameClock frameClock,
+    IStemSeparator stemSeparator,
+    IOptions<LoadOptions> loadOptions) : ICoreFactory
 {
     private readonly ITrackScanner _trackScanner = trackScanner;
     // The switchable store: a no-op until the database attaches.
@@ -38,6 +41,8 @@ public sealed class CoreFactory(
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
     private readonly IFrameClock _frameClock = frameClock;
+    private readonly IStemSeparator _stemSeparator = stemSeparator;
+    private readonly IOptions<LoadOptions> _loadOptions = loadOptions;
 
     public CoreStack Build(IDeckSession deck1, IDeckSession deck2)
     {
@@ -47,8 +52,8 @@ public sealed class CoreFactory(
         var markers = new DeckMarkers(decks, library, _appThread, _publisher);
         var searchPick = new SearchPick(library);
         var loader = new TrackLoader(library, decks, _decoder, _keyStore, _keyAnalyzer, _reporter, _appThread, _publisher, searchPick,
-            new LoadGuard(_frameClock, _publisher), new LoadUndo(_frameClock, _publisher));
+            new LoadGuard(_frameClock, _publisher, _loadOptions), new LoadUndo(_frameClock, _publisher, _loadOptions), _stemSeparator);
         return new CoreStack(decks, new PlaybackRequests(decks), new MixerSession(decks, _crossfade, _publisher), library, markers, loader,
-            new BackspinFeel(_publisher), searchPick, new Shortlist(library, _publisher), new RecentLoads(loader, library, _publisher));
+            new BackspinFeel(_publisher), searchPick, new TrackList(library, _appThread, _publisher));
     }
 }

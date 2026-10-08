@@ -44,6 +44,9 @@ namespace Sholto.Interface.MainUI.Theming;
 ///     "bridge":    "#RRGGBB",
 ///     "outro":     "#RRGGBB"
 ///   },
+///   "load": {                        // OPTIONAL — every key optional too (default: defaults.json)
+///     "deck1": "#RRGGBB", "deck2": "#RRGGBB", "trackList": "#RRGGBB"
+///   },
 ///   "waveform": {                    // OPTIONAL — every key optional too
 ///     "background":  "#RRGGBB",      // baked waveform background (default: defaults.json)
 ///     "low":         "#RRGGBB",      // bass band   (default: Rekordbox 3-band blue)
@@ -176,7 +179,11 @@ public sealed class SholtoThemeFactory(IWaveformPaletteFactory waveformPalettes,
                 Cap:     ParseColor(root.GetProperty("surfaceRaised").GetString()!),
                 CapEdge: borderColor,
                 Tick:    textMutedColor,
-                Pointer: textBrightColor));
+                Pointer: textBrightColor),
+            Load:            new LoadPalette(
+                Deck1:     Lookup(root, "load", "deck1"),
+                Deck2:     Lookup(root, "load", "deck2"),
+                TrackList: Lookup(root, "load", "trackList")));
     }
 
     /// <summary>Theme JSON (<paramref name="section"/> object, or the root when empty) →

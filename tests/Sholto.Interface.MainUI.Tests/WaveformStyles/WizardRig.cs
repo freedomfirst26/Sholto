@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
 using Sholto.Interface.MainUI.Theming;
@@ -21,7 +22,7 @@ internal sealed class WizardRig
         Bus = new DataBus(new ThrowingFailureSink());
         Bus.Register<ChooseWaveformStyle>(SentStyles);
         Bus.Register<ChooseTheme>(SentThemes);
-        Styles = new WaveformStylesFactory().Create();
+        Styles = new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create();
         Style = new WaveformStyleViewModel(Styles, Bus);
         Themes = new ThemeViewModel(Context, Catalog, Bus);
         Wizard = new LayoutWizardViewModel(Style, new WaveformStyleOptionFactory(), new CountingPreviewRenderer(),

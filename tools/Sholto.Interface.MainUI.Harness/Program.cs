@@ -59,7 +59,7 @@ internal static class Program
         // Disposed when Main returns: deletes the temp library database the scans filled.
         using var demoLibrary = new DemoLibrary(new SholtoStorage(new DatabaseStackFactory(new KeyFactory()), new SholtoDbContextOptionsFactory()));
         var uiHost = new UiHost(
-            new BenchAppFactory(headlessApp, coreFactory, bus, bus, bus, options.Feature, appThread),
+            new BenchAppFactory(headlessApp, coreFactory, bus, bus, bus, options, appThread),
             deckAdvance,
             new GestureHostFactory(options.Controllers),
             new ScenarioGestureFactory(),

@@ -216,6 +216,18 @@ public class LoadGuardAndUndoTests
     }
 
     [Fact]
+    public async Task A_longer_configured_undo_window_still_undoes_at_fifteen_seconds()
+    {
+        var rig = new TrackLoaderRig(new FakeAudioFileDecoder(), load: new LoadOptions { UndoWindowSeconds = 20 });
+        var deck = await ReplaceAlphaWithBravoAsync(rig);
+
+        rig.Clock.Now += TimeSpan.FromSeconds(15);
+        rig.Loader.Handle(new UndoLastLoad(From));
+
+        Assert.Equal(Alpha, deck.LoadedTrack);
+    }
+
+    [Fact]
     public async Task Undo_after_ten_seconds_does_nothing()
     {
         var rig = NewRig();

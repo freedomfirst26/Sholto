@@ -5,7 +5,7 @@ namespace Sholto.Interface.Controller.Gestures;
 /// <summary>Turns device-neutral <see cref="ControllerEvent"/>s into intent, in one
 /// place, for every consumer.
 ///
-/// <para><b>It reads device state only</b> — Shift, the stem-level modifier, platter touch, press duration. It must never see app state such as
+/// <para><b>It reads device state only</b> — Shift, platter touch, press duration. It must never see app state such as
 /// <c>Player.CanScratch</c> or <c>ActiveLoop</c>. <c>jog.top.turn</c> is what the DJ
 /// did; deciding to scratch or to seek is what Sholto does about it, and that stays
 /// in the Orchestrator.</para>
@@ -24,14 +24,12 @@ internal sealed class GestureRecognizer : IGestureRecognizer
 
     private readonly bool[] _shiftHeld = new bool[2];
     private readonly bool[] _platterTouched = new bool[2];
-    private bool _stemLevelHeld;
 
     private DateTime? _browsePressedAt;
     private ControllerEvent? _browsePressEvent;
     private bool _browseHoldFired;
 
     public bool IsShiftHeld(int deck) => deck is 0 or 1 && _shiftHeld[deck];
-    public bool IsStemLevelHeld => _stemLevelHeld;
     public bool IsPlatterTouched(int deck) => deck is 0 or 1 && _platterTouched[deck];
 
     /// <summary>Resolve one event. Returns null when the event carries no gesture —
@@ -46,10 +44,6 @@ internal sealed class GestureRecognizer : IGestureRecognizer
             case ControllerEvent.DeckShift ds:
                 if (ds.Deck is 0 or 1) _shiftHeld[ds.Deck] = ds.Pressed;
                 return new Gesture(GestureIds.ShiftHold, ds.Deck, evt);
-
-            case ControllerEvent.StemLevelMode sm:
-                _stemLevelHeld = sm.Pressed;
-                return new Gesture(GestureIds.StemLevelHold, -1, evt);
 
             case ControllerEvent.JogTouch jt:
                 if (jt.Deck is 0 or 1) _platterTouched[jt.Deck] = jt.Touching;
@@ -122,7 +116,7 @@ internal sealed class GestureRecognizer : IGestureRecognizer
             // ---- continuous controls
             case ControllerEvent.EqMoved eq:
                 return new Gesture(
-                    _stemLevelHeld ? GestureIds.EqStemLevelTurn : GestureIds.EqTurn,
+                    IsShiftHeld(eq.Deck) ? GestureIds.EqStemLevelTurn : GestureIds.EqTurn,
                     eq.Deck, evt);
 
             case ControllerEvent.FilterMoved f:

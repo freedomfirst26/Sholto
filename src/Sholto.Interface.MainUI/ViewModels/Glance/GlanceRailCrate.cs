@@ -8,7 +8,8 @@ namespace Sholto.Interface.MainUI.ViewModels.Glance;
 /// <param name="Count">Tracks you would get by adding it: the chip scope's overlap with the crate while any chip
 /// is active, otherwise the crate's own size. Follows the applied result, not the request.</param>
 /// <param name="IsZero">Adding it would leave nothing. Never set on an active item.</param>
-public sealed record GlanceRailCrate(CrateRef Crate, bool IsActive, int Count, bool IsZero)
+/// <param name="IsInTrackList">Its source is already in the Track List.</param>
+public sealed record GlanceRailCrate(CrateRef Crate, bool IsActive, int Count, bool IsZero, bool IsInTrackList = false)
 {
     public int Id => Crate.Id;
 

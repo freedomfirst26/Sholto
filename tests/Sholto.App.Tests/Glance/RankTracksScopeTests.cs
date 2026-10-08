@@ -58,7 +58,7 @@ public class RankTracksScopeTests(ITestOutputHelper output)
         {
             Rig = rig,
             Handler = new RankTracksHandler(lib.Library, rig.Decks,
-                new GlanceRanker(new FitScorer(), new GlanceQueryFactory(), new GlanceMatcher()), new GlanceScope(), cache,
+                new GlanceRanker(new FitScorer(Options.Create(new GlanceOptions())), new GlanceQueryFactory(), new GlanceMatcher()), new GlanceScope(), cache,
                 Options.Create(new GlanceOptions { MaxResults = maxResults })),
             Commands = new LibraryCommandHandlers(lib.Library, new ImmediateAppThread(), lib.Bus, cache),
             Peak = peak, Warm = warm, AllTracks = all, Ids = ids,
@@ -166,7 +166,7 @@ public class RankTracksScopeTests(ITestOutputHelper output)
     public async Task Ranked_rows_can_come_from_outside_the_visible_library_rows()
     {
         var s = await BuildAsync();
-        await s.Rig.Library.Library.FilterByCrateAsync(new CrateSummary(s.Warm, "Warm", 2));
+        s.Rig.Library.Library.ShowTrackList(s.Rig.Library.Library.Catalog.Where(x => x.Title is "B" or "C").Select(x => x.FilePath).ToList());
         Assert.Equal(["B", "C"], s.Rig.Library.Library.Rows.Select(x => x.Title).Order());
 
         var r = await s.Handler.Handle(new RankTracks("", 0) { CrateIds = [s.Peak] });
@@ -178,7 +178,7 @@ public class RankTracksScopeTests(ITestOutputHelper output)
     public async Task The_order_inside_the_scope_is_the_rankers_order_over_that_subset()
     {
         var s = await BuildAsync();
-        var ranker = new GlanceRanker(new FitScorer(), new GlanceQueryFactory(), new GlanceMatcher());
+        var ranker = new GlanceRanker(new FitScorer(Options.Create(new GlanceOptions())), new GlanceQueryFactory(), new GlanceMatcher());
         var subset = s.Rig.Library.Library.Catalog.Where(x => x.Title is "A" or "B").ToList();
 
         var r = await s.Handler.Handle(new RankTracks("", 0) { CrateIds = [s.Peak] });
@@ -280,7 +280,7 @@ public class RankTracksScopeTests(ITestOutputHelper output)
         rig.Seed(tracks.Select((t, i) => (t, i)).ToDictionary(x => x.t.FilePath, x => ($"{1 + x.i % 12}A", 100.0 + x.i % 60)));
         rig.Load(0, tracks[0], sourceBpm: 126, camelot: "8A", playing: true);
         var handler = new RankTracksHandler(lib.Library, rig.Decks,
-            new GlanceRanker(new FitScorer(), new GlanceQueryFactory(), new GlanceMatcher()), new GlanceScope(),
+            new GlanceRanker(new FitScorer(Options.Create(new GlanceOptions())), new GlanceQueryFactory(), new GlanceMatcher()), new GlanceScope(),
             new CrateMembershipCache(lib.Library), Options.Create(new GlanceOptions()));
         var query = new RankTracks("", 1) { CrateIds = [crateIds[0]], Tags = ["tag0"] };
 

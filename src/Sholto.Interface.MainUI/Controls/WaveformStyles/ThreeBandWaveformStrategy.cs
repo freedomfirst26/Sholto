@@ -9,10 +9,10 @@ namespace Sholto.Interface.MainUI.Controls.WaveformStyles;
 /// from <c>WaveformControl.BakeWaveform</c> (pre-C63) and pinned pixel-for-pixel by a test.</summary>
 public sealed class ThreeBandWaveformStrategy(
     IWaveformEnvelopeBuilder envelopes,
-    IWaveformEnvelopePainter painter) : IWaveformStyleStrategy
+    IWaveformEnvelopeRenderer renderer) : IWaveformStyleStrategy
 {
     private readonly IWaveformEnvelopeBuilder _envelopes = envelopes;
-    private readonly IWaveformEnvelopePainter _painter = painter;
+    private readonly IWaveformEnvelopeRenderer _renderer = renderer;
 
     public string Id => "three-band";
 
@@ -43,7 +43,7 @@ public sealed class ThreeBandWaveformStrategy(
 
         if (env.Mono is { } amp)
         {
-            _painter.Fill(canvas, amp, env.BinPx, env.Width, env.MidY, lowPaint);
+            _renderer.Fill(canvas, amp, env.BinPx, env.Width, env.MidY, lowPaint);
             return surface.Snapshot();
         }
 
@@ -63,9 +63,9 @@ public sealed class ThreeBandWaveformStrategy(
             lowE[b] = MathF.Min(midY, env.High[b] + env.Mid[b] + env.Low[b]);
         }
 
-        _painter.Fill(canvas, lowE,     env.BinPx, env.Width, midY, lowPaint);   // blue  — outer ring
-        _painter.Fill(canvas, midE,     env.BinPx, env.Width, midY, midPaint);   // orange — middle ring
-        _painter.Fill(canvas, env.High, env.BinPx, env.Width, midY, highPaint);  // white — core
+        _renderer.Fill(canvas, lowE,     env.BinPx, env.Width, midY, lowPaint);   // blue  — outer ring
+        _renderer.Fill(canvas, midE,     env.BinPx, env.Width, midY, midPaint);   // orange — middle ring
+        _renderer.Fill(canvas, env.High, env.BinPx, env.Width, midY, highPaint);  // white — core
 
         // Beat ticks + downbeat grid are drawn live by WaveformControl so they
         // keep scrolling even when this baked body is empty (all stems muted).

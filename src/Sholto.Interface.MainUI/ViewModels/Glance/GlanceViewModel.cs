@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Options;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Controls.CollapseToIcon;
 
@@ -18,14 +19,11 @@ namespace Sholto.Interface.MainUI.ViewModels.Glance;
 public sealed class GlanceViewModel :
     IGlanceViewModel,
     IFrameTickHandler,
-    IEventHandler<SearchRequested>,
-    IEventHandler<SearchCursorMoved>,
     IEventHandler<LoadConfirmPending>,
     IEventHandler<LoadAccepted>,
     IEventHandler<LibraryRowsChanged>,
     IEventHandler<TrackSummaryChanged>,
-    IEventHandler<ShortlistChanged>,
-    IEventHandler<RecentLoadsChanged>,
+    IEventHandler<TrackListChanged>,
     IEventHandler<LibraryDatabaseAttached>,
     IEventHandler<DeckContentChanged>,
     IEventHandler<DeckTempoChanged>
@@ -33,13 +31,10 @@ public sealed class GlanceViewModel :
     /// <summary>Frame order for the re-rank tick.</summary>
     public const int ClockOrder = 100;
 
-    private const int RailLimit = 10;
-
-    /// <summary>How long a person-asked ranking may run before the indicator shows.</summary>
-    private const int IndicatorDelayMs = 150;
-
-    /// <summary>The shortest time the indicator stays on once shown.</summary>
-    private const int IndicatorMinimumMs = 300;
+    private readonly int _railLimit;
+    private readonly int _indicatorDelayMs;
+    private readonly int _indicatorMinimumMs;
+    private readonly int _clearArmMs;
 
     private readonly ICommandSender _sender;
     private readonly IQueryAsker _asker;
@@ -49,12 +44,14 @@ public sealed class GlanceViewModel :
     private readonly IFrameClock _clock;
     private readonly IMotionPreference _motion;
 
-    private IReadOnlyList<TrackSummary> _shortlist = [];
-    private HashSet<string> _shortlistPaths = [];
-    private IReadOnlyList<TrackSummary> _recent = [];
     private IReadOnlyList<CrateRef> _crates = [];
     private IReadOnlyList<TagHit> _tags = [];
     private bool _databaseUp;
+
+    private HashSet<string> _trackListKeys = [];
+    private HashSet<string> _trackListPaths = [];
+    private int _trackListCount;
+    private DateTime? _clearArmedAt;
 
     private IReadOnlyList<GlanceChip> _chips = [];
     private IReadOnlyList<GlanceChip> _appliedChips = [];
@@ -84,8 +81,13 @@ public sealed class GlanceViewModel :
     public GlanceViewModel(
         ICommandSender sender, IQueryAsker asker, IEventSubscriber subscriber, IAppThread appThread,
         IFrameClock clock, IGlanceRowSource rowSource, ITagRecency tagRecency, IGlanceHeaderViewModel header,
-        IMotionPreference motion)
+        IMotionPreference motion, IOptions<GlanceViewOptions> options)
     {
+        var view = options.Value;
+        _railLimit = view.TagRailLimit;
+        _indicatorDelayMs = view.IndicatorDelayMs;
+        _indicatorMinimumMs = view.IndicatorMinimumMs;
+        _clearArmMs = view.ClearArmMs;
         _sender = sender;
         _asker = asker;
         _appThread = appThread;
@@ -95,14 +97,11 @@ public sealed class GlanceViewModel :
         _motion = motion;
         Header = header;
         clock.Subscribe(this, ClockOrder);
-        subscriber.Subscribe<SearchRequested>(this);
-        subscriber.Subscribe<SearchCursorMoved>(this);
         subscriber.Subscribe<LoadConfirmPending>(this);
         subscriber.Subscribe<LoadAccepted>(this);
         subscriber.Subscribe<LibraryRowsChanged>(this);
         subscriber.Subscribe<TrackSummaryChanged>(this);
-        subscriber.Subscribe<ShortlistChanged>(this);
-        subscriber.Subscribe<RecentLoadsChanged>(this);
+        subscriber.Subscribe<TrackListChanged>(this);
         subscriber.Subscribe<LibraryDatabaseAttached>(this);
         subscriber.Subscribe<DeckContentChanged>(this);
         subscriber.Subscribe<DeckTempoChanged>(this);
@@ -167,21 +166,53 @@ public sealed class GlanceViewModel :
 
     public string? HighlightedPath => Zone == GlanceZone.Table
         ? TableIndex >= 0 && TableIndex < Rows.Count ? Rows[TableIndex].FilePath : null
-        : RailIndex >= 0 && RailIndex < RailItems.Count && RailItems[RailIndex] is GlanceRailTrack t ? t.FilePath : null;
+        : null;
 
     public string ActionText => Zone == GlanceZone.Table
         ? HighlightedPath is null ? "" : $"Load to Deck {Target + 1}"
         : RailIndex >= 0 && RailIndex < RailItems.Count
             ? RailItems[RailIndex] switch
             {
-                GlanceRailTrack => $"Load to Deck {Target + 1}",
                 GlanceRailCrate { IsActive: true } or GlanceRailTag { IsActive: true } => "Remove filter",
                 GlanceRailCrate or GlanceRailTag => "Add filter",
                 _ => "",
             }
             : "";
 
-    public string AlternateActionText => Zone == GlanceZone.Rail && HighlightedRailFilter() is not null ? "Show in library" : "";
+    public event Action<string>? AddedToTrackList;
+
+    public int TrackListCount => _trackListCount;
+
+    public GlanceLoadState Deck1LoadState => DeckLoadState();
+
+    public GlanceLoadState Deck2LoadState => DeckLoadState();
+
+    public GlanceLoadState TrackListLoadState => HighlightedLoadable() switch
+    {
+        null => GlanceLoadState.Off,
+        { InList: true } => GlanceLoadState.InList,
+        _ => GlanceLoadState.Ready,
+    };
+
+    public int TrackListLoadCount => HighlightedLoadable() is { InList: false, Count: var n } ? n : 0;
+
+    public string? ClearArmedText => _clearArmedAt is null ? null : $"Ctrl Del again: clear {_trackListCount}";
+
+    private GlanceLoadState DeckLoadState() => HighlightedPath is null ? GlanceLoadState.Off : GlanceLoadState.Ready;
+
+    /// <summary>What Ctrl+L would add: the highlighted song, crate or tag, and whether it is already in the list.</summary>
+    private (string? Path, int CrateId, string? Name, bool IsTag, bool InList, int Count)? HighlightedLoadable()
+    {
+        if (HighlightedPath is { } path)
+            return (path, 0, null, false, _trackListPaths.Contains(path), 0);
+        if (Zone != GlanceZone.Rail || RailIndex < 0 || RailIndex >= RailItems.Count) return null;
+        return RailItems[RailIndex] switch
+        {
+            GlanceRailCrate c => (null, c.Id, c.Name, false, c.IsInTrackList, c.Count),
+            GlanceRailTag t => (null, 0, t.Name, true, t.IsInTrackList, t.Count),
+            _ => null,
+        };
+    }
 
     // ---- Open, close, target ------------------------------------------------------------------
 
@@ -208,6 +239,7 @@ public sealed class GlanceViewModel :
     public void Close()
     {
         if (!IsOpen) return;
+        SetClearArmed(null);
         IsOpen = false;
         Notify(nameof(IsOpen));
         FlushHeld();
@@ -231,7 +263,6 @@ public sealed class GlanceViewModel :
         Target = deck;
         Notify(nameof(Target));
         Notify(nameof(ActionText));
-        Notify(nameof(AlternateActionText));
         if (!IsOpen) return;
         if (resetHighlight)
         {
@@ -318,22 +349,37 @@ public sealed class GlanceViewModel :
         ChipsChanged();
     }
 
-    public void ActivateAlternate()
+    public void LoadToTrackList()
     {
-        if (!IsOpen) return;
-        if (Zone == GlanceZone.Rail && HighlightedRailFilter() is { } chip)
+        if (!IsOpen || HighlightedLoadable() is not { InList: false } item) return;
+        if (item.Path is { } path)
+            _sender.Send(new LoadSongToTrackList(path, Ui("load-track-list")));
+        else if (item.IsTag)
         {
-            if (chip.Kind == GlanceChipKind.Crate)
-                _sender.Send(new FilterLibraryByCrate(chip.CrateId, chip.Name, Ui("activate-crate")));
-            else
-            {
-                _tagRecency.MarkUsed(chip.Name);
-                _sender.Send(new FilterLibraryByTag(chip.Name, Ui("activate-tag")));
-            }
-            Close();
+            _tagRecency.MarkUsed(item.Name!);
+            _sender.Send(new LoadTagToTrackList(item.Name!, Ui("load-track-list")));
+        }
+        else
+            _sender.Send(new LoadCrateToTrackList(item.CrateId, item.Name!, Ui("load-track-list")));
+    }
+
+    public void ClearTrackList()
+    {
+        if (!IsOpen || _trackListCount == 0) return;
+        if (_clearArmedAt is { } armed && (_clock.Now - armed).TotalMilliseconds <= _clearArmMs)
+        {
+            SetClearArmed(null);
+            _sender.Send(new ClearTrackList(Ui("clear-track-list")));
             return;
         }
-        Activate();
+        SetClearArmed(_clock.Now);
+    }
+
+    private void SetClearArmed(DateTime? at)
+    {
+        if (_clearArmedAt is null && at is null) return;
+        _clearArmedAt = at;
+        Notify(nameof(ClearArmedText));
     }
 
     public bool AcceptTagCompletion()
@@ -436,7 +482,7 @@ public sealed class GlanceViewModel :
         IReadOnlyList<TagHit> hits = [];
         try
         {
-            hits = await _asker.AskAsync<SearchTags, IReadOnlyList<TagHit>>(new SearchTags(fragment, RailLimit)) ?? [];
+            hits = await _asker.AskAsync<SearchTags, IReadOnlyList<TagHit>>(new SearchTags(fragment, _railLimit)) ?? [];
         }
         catch (Exception ex) { Console.WriteLine($"[Glance] tag completion failed: {ex.Message}"); }
         _appThread.Post(() =>
@@ -483,28 +529,14 @@ public sealed class GlanceViewModel :
         _sender.Send(new LoadSelectedIntoDeck(deck, Ui("load")));
     }
 
-    public void ToggleShortlistOnHighlight()
+    public void ToggleHighlightedInTrackList()
     {
         if (!IsOpen || HighlightedPath is not { } path) return;
-        _sender.Send(new ToggleShortlist(path, Ui("shortlist")));
-    }
-
-    public bool TryShortlistKey()
-    {
-        if (_query.Length > 0 || !IsOpen) return false;
-        ToggleShortlistOnHighlight();
-        return true;
+        if (_trackListPaths.Contains(path)) _sender.Send(new RemoveFromTrackList(path, Ui("star")));
+        else _sender.Send(new LoadSongToTrackList(path, Ui("star")));
     }
 
     // ---- Events --------------------------------------------------------------------------------
-
-    public void Handle(in SearchRequested e)
-    {
-        if (IsOpen) ToggleZone();
-        else Open();
-    }
-
-    public void Handle(in SearchCursorMoved e) => Move(e.Delta);
 
     public void Handle(in LoadConfirmPending e)
     {
@@ -526,17 +558,20 @@ public sealed class GlanceViewModel :
 
     public void Handle(in DeckTempoChanged e) => _dirty = true;
 
-    public void Handle(in ShortlistChanged e)
+    public void Handle(in TrackListChanged e)
     {
-        _shortlist = e.Tracks;
-        _shortlistPaths = [.. e.Tracks.Select(t => t.FilePath)];
-        foreach (var row in Rows) row.IsShortlisted = _shortlistPaths.Contains(row.FilePath);
-        RebuildRail();
-    }
-
-    public void Handle(in RecentLoadsChanged e)
-    {
-        _recent = e.Tracks;
+        _trackListCount = e.Count;
+        _trackListKeys = [.. e.Sources.Select(s => s.Key)];
+        _trackListPaths = [.. e.Paths];
+        foreach (var row in Rows)
+        {
+            var wasIn = row.IsInTrackList;
+            row.IsInTrackList = _trackListPaths.Contains(row.FilePath);
+            if (IsOpen && !wasIn && row.IsInTrackList) AddedToTrackList?.Invoke(row.FilePath);
+        }
+        NotifyLoadStates();
+        Notify(nameof(TrackListCount));
+        if (_clearArmedAt is not null && e.Count == 0) SetClearArmed(null);
         RebuildRail();
     }
 
@@ -548,13 +583,14 @@ public sealed class GlanceViewModel :
 
     public void OnFrame(DateTime now)
     {
+        if (_clearArmedAt is { } armed && (now - armed).TotalMilliseconds > _clearArmMs) SetClearArmed(null);
         if (!IsOpen) return;
-        if (_held is not null && IsReassessing && (now - _shownAt).TotalMilliseconds >= IndicatorMinimumMs)
+        if (_held is not null && IsReassessing && (now - _shownAt).TotalMilliseconds >= _indicatorMinimumMs)
         {
             FlushHeld();
             SetReassessing(false);
         }
-        if (_staleSince is { } since && !IsReassessing && (now - since).TotalMilliseconds >= IndicatorDelayMs)
+        if (_staleSince is { } since && !IsReassessing && (now - since).TotalMilliseconds >= _indicatorDelayMs)
         {
             SetReassessing(true);
             _shownAt = now;
@@ -600,7 +636,7 @@ public sealed class GlanceViewModel :
             SetReassessing(false);
             return;
         }
-        if (IsReassessing && (_clock.Now - _shownAt).TotalMilliseconds < IndicatorMinimumMs)
+        if (IsReassessing && (_clock.Now - _shownAt).TotalMilliseconds < _indicatorMinimumMs)
         {
             _held = (request, chips, ranked);
             return;
@@ -623,7 +659,7 @@ public sealed class GlanceViewModel :
         var previous = _resetHighlight ? null : HighlightedTablePath();
         var rows = new List<GlanceRow>(ranked.Rows.Count);
         foreach (var r in ranked.Rows)
-            rows.Add(new GlanceRow(_rowSource.RowFor(r.Summary), r, _shortlistPaths.Contains(r.Summary.FilePath)));
+            rows.Add(new GlanceRow(_rowSource.RowFor(r.Summary), r, _trackListPaths.Contains(r.Summary.FilePath)));
         var index = 0;
         if (previous is not null)
         {
@@ -710,16 +746,16 @@ public sealed class GlanceViewModel :
             if (text.Length == 0)
             {
                 // Tags picked earlier this session lead, newest first; the most-used tags fill the rest.
-                var recentNames = _tagRecency.RecentNames(RailLimit);
+                var recentNames = _tagRecency.RecentNames(_railLimit);
                 var recentHits = await _asker.AskAsync<TagsByName, IReadOnlyList<TagHit>>(new TagsByName(recentNames)) ?? [];
                 var byName = recentHits.ToDictionary(h => h.Name, StringComparer.OrdinalIgnoreCase);
                 var ordered = recentNames.Where(byName.ContainsKey).Select(n => byName[n]);
-                var top = await _asker.AskAsync<TopTags, IReadOnlyList<TagHit>>(new TopTags(RailLimit)) ?? [];
-                tags = [.. ordered.Concat(top).DistinctBy(h => h.Name, StringComparer.OrdinalIgnoreCase).Take(RailLimit)];
+                var top = await _asker.AskAsync<TopTags, IReadOnlyList<TagHit>>(new TopTags(_railLimit)) ?? [];
+                tags = [.. ordered.Concat(top).DistinctBy(h => h.Name, StringComparer.OrdinalIgnoreCase).Take(_railLimit)];
             }
             else
             {
-                var matches = await _asker.AskAsync<SearchTags, IReadOnlyList<TagHit>>(new SearchTags(text, RailLimit)) ?? [];
+                var matches = await _asker.AskAsync<SearchTags, IReadOnlyList<TagHit>>(new SearchTags(text, _railLimit)) ?? [];
                 tags = _tagRecency.OrderRecentFirst(matches, h => h.Name);
             }
         }
@@ -738,12 +774,8 @@ public sealed class GlanceViewModel :
         var selected = RailIndex >= 0 && RailIndex < RailItems.Count ? RailKey(RailItems[RailIndex]) : null;
         var items = new List<object>
         {
-            new GlanceRailHeader("SHORTLIST", _shortlist.Count),
+            new GlanceRailHeader("CRATES", _crates.Count),
         };
-        items.AddRange(_shortlist.Select(RailTrack));
-        items.Add(new GlanceRailHeader("RECENT LOADS", _recent.Count));
-        items.AddRange(_recent.Select(RailTrack));
-        items.Add(new GlanceRailHeader("CRATES", _crates.Count));
         items.AddRange(_crates.Select(RailCrate));
         items.Add(new GlanceRailHeader("TAGS", _tags.Count));
         items.AddRange(_tags.Select(RailTag));
@@ -761,7 +793,7 @@ public sealed class GlanceViewModel :
     {
         var active = _chips.Any(c => c.Kind == GlanceChipKind.Crate && c.CrateId == crate.Id);
         var count = _crateCounts is { } counts ? counts.GetValueOrDefault(crate.Id) : crate.TrackCount;
-        return new GlanceRailCrate(crate, active, count, count == 0 && !active);
+        return new GlanceRailCrate(crate, active, count, count == 0 && !active, _trackListKeys.Contains($"crate:{crate.Id}"));
     }
 
     private GlanceRailTag RailTag(TagHit tag)
@@ -769,14 +801,12 @@ public sealed class GlanceViewModel :
         var active = _chips.Any(c => c.Kind == GlanceChipKind.Tag
                                      && string.Equals(c.Name, tag.Name, StringComparison.OrdinalIgnoreCase));
         var count = _tagCounts is { } counts ? counts.GetValueOrDefault(tag.Name) : tag.TrackCount;
-        return new GlanceRailTag(tag, active, count, count == 0 && !active);
+        return new GlanceRailTag(tag, active, count, count == 0 && !active,
+            _trackListKeys.Contains("tag:" + tag.Name.ToLowerInvariant()));
     }
-
-    private GlanceRailTrack RailTrack(TrackSummary summary) => new(summary, _rowSource.RowFor(summary.FilePath));
 
     private string? RailKey(object item) => item switch
     {
-        GlanceRailTrack t => "t:" + t.FilePath,
         GlanceRailCrate c => "c:" + c.Id,
         GlanceRailTag g => "g:" + g.Name,
         _ => null,
@@ -814,7 +844,15 @@ public sealed class GlanceViewModel :
     {
         Notify(nameof(HighlightedPath));
         Notify(nameof(ActionText));
-        Notify(nameof(AlternateActionText));
+        NotifyLoadStates();
+    }
+
+    private void NotifyLoadStates()
+    {
+        Notify(nameof(Deck1LoadState));
+        Notify(nameof(Deck2LoadState));
+        Notify(nameof(TrackListLoadState));
+        Notify(nameof(TrackListLoadCount));
     }
 
     private Origin Ui(string gesture) => new(InterfaceIds.MainUI, "glance", gesture);

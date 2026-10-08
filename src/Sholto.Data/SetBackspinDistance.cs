@@ -13,7 +13,4 @@ public readonly record struct SetBackspinDistance(double Beats, Origin Origin) :
 
     /// <summary>The stock rewind, in beats (half a bar).</summary>
     public const double Default = 2.0;
-
-    /// <summary>Not a deck command: it applies to both platters.</summary>
-    public int Deck => -1;
 }

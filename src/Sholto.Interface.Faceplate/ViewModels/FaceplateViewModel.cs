@@ -8,7 +8,7 @@ namespace Sholto.Interface.Faceplate.ViewModels;
 /// <summary>What the controller guide is currently showing. Holds the loaded document,
 /// which control is selected and on which deck, and whether the side panel is open.
 /// <para>The panel is per-control throughout: it shows what the selected control is
-/// INVOLVED IN, not only what it owns. Clicking SHIFT lists the three shift chords even
+/// INVOLVED IN, not only what it owns. Clicking SHIFT lists the shift chords even
 /// though none of them belongs to SHIFT — each one belongs to the control it acts on,
 /// and simply names SHIFT as a partner. While Inspect mode is on the App echoes every command the
 /// physical unit and the keyboard send as <see cref="CommandReceived"/>; this view model follows
@@ -20,8 +20,6 @@ public sealed class FaceplateViewModel
     // them on ReportControl: the hold on press, the release name on the matching release.
     private const string ShiftHoldId = "shift.hold";
     private const string ShiftReleaseId = "shift.release";
-    private const string StemLevelHoldId = "stemlevel.hold";
-    private const string StemLevelReleaseId = "stemlevel.release";
 
     private readonly ICommandSender _sender;
 
@@ -129,7 +127,7 @@ public sealed class FaceplateViewModel
 
     /// <summary>Everything else the selected control is involved in: its own gestures
     /// (bar the one already promoted to <see cref="Headline"/>), plus any gesture owned
-    /// by ANOTHER control that names this one as a partner — so SHIFT lists the three
+    /// by ANOTHER control that names this one as a partner — so SHIFT lists the
     /// chords it unlocks even though it owns only "hold". Empty for a control with
     /// nothing at all (TRIM); the summary explains why.</summary>
     public IReadOnlyList<GestureRow> Rows
@@ -225,7 +223,7 @@ public sealed class FaceplateViewModel
 
     private string _activeLayerId = "plain";
     /// <summary>Which layer the board currently reads as, driven by whichever modifier
-    /// (Shift, the stem-level button, …) is physically held right now. "plain" when
+    /// (Shift, …) is physically held right now. "plain" when
     /// nothing is held.</summary>
     public string ActiveLayerId
     {
@@ -274,7 +272,7 @@ public sealed class FaceplateViewModel
     }
 
     /// <summary>Follow a command the App received but did not run (Inspect mode). Two jobs:
-    /// <para>1. A modifier (<c>shift.hold</c>, <c>stemlevel.hold</c>, reported by the controller as
+    /// <para>1. A modifier (<c>shift.hold</c>, reported by the controller as
     /// <c>ReportControl</c>) never selects anything — a DJ holding Shift to try a chord does not
     /// want the panel to jump to the SHIFT button itself. It only flips <see cref="ActiveLayerId"/>:
     /// the hold gesture name switches to that layer, the release name back to "plain".</para>
@@ -289,9 +287,9 @@ public sealed class FaceplateViewModel
     public void Handle(in CommandReceived e)
     {
         var gesture = e.Origin.GestureName;
-        if (gesture is ShiftHoldId or ShiftReleaseId or StemLevelHoldId or StemLevelReleaseId)
+        if (gesture is ShiftHoldId or ShiftReleaseId)
         {
-            var held = gesture is ShiftHoldId or StemLevelHoldId;
+            var held = gesture is ShiftHoldId;
             ActiveLayerId = held ? LayerFor(gesture) : "plain";
             return;
         }
@@ -302,8 +300,8 @@ public sealed class FaceplateViewModel
         ActiveRowId = gesture;
 
         // A global control (crossfader, browse, the shared BEAT arrows) shows no deck, whichever
-        // deck the command happened to name.
-        var deck = control.Scope == "per-deck" ? e.Deck : -1;
+        // deck the origin happened to name.
+        var deck = control.Scope == "per-deck" ? e.Origin.Deck : -1;
         var changed = _selected?.Id != control.Id || _selectedDeck != deck;
         if (!changed) return;
 
