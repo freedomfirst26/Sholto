@@ -112,8 +112,7 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<ChooseTheme>(lifecycle);
         registry.Register<ChooseWaveformStyle>(lifecycle);
 
-        // How often each one-time hint has been shown, saved across launches.
+        // Each one-time hint shown is saved across launches. The count query is answered earlier, by the composition root.
         registry.Register<RecordHintShown>(_hintCounter);
-        queries.Register<GetHintShownCount, Task<int>>(_hintCounter);
     }
 }

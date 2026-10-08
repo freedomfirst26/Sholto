@@ -61,7 +61,7 @@ The archive holds the `Sholto` program, `README.md`, `LICENSE`, `THIRD-PARTY-NOT
 git clone https://github.com/freedomfirst26/Sholto.git
 cd Sholto
 bash install.sh
-dotnet run -c Release --project src/Sholto.Interface.MainUI
+dotnet run -c Release --project src/Sholto.Host
 ```
 
 `install.sh` sets up everything Sholto needs — including .NET and all the tools

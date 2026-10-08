@@ -18,6 +18,20 @@
     <Project Path="src/Sholto.App.Storage/Sholto.App.Storage.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Sholto.App.Analysis.Tests/Sholto.App.Analysis.Tests.csproj" />
+    <Project Path="tests/Sholto.App.Audio.Golden/Sholto.App.Audio.Golden.csproj" />
+    <Project Path="tests/Sholto.App.Audio.Tests/Sholto.App.Audio.Tests.csproj" />
+    <Project Path="tests/Sholto.App.ExternalTools.Tests/Sholto.App.ExternalTools.Tests.csproj" />
+    <Project Path="tests/Sholto.App.Library.Tests/Sholto.App.Library.Tests.csproj" />
+    <Project Path="tests/Sholto.App.Storage.Tests/Sholto.App.Storage.Tests.csproj" />
+    <Project Path="tests/Sholto.App.Tests/Sholto.App.Tests.csproj" />
+    <Project Path="tests/Sholto.Architecture.Tests/Sholto.Architecture.Tests.csproj" />
+    <Project Path="tests/Sholto.Data.Tests/Sholto.Data.Tests.csproj" />
+    <Project Path="tests/Sholto.Host.Tests/Sholto.Host.Tests.csproj" />
+    <Project Path="tests/Sholto.Interface.Bench.Tests/Sholto.Interface.Bench.Tests.csproj" />
+    <Project Path="tests/Sholto.Interface.Controller.Tests/Sholto.Interface.Controller.Tests.csproj" />
+    <Project Path="tests/Sholto.Interface.Faceplate.Tests/Sholto.Interface.Faceplate.Tests.csproj" />
+    <Project Path="tests/Sholto.Interface.Keyboard.Tests/Sholto.Interface.Keyboard.Tests.csproj" />
     <Project Path="tests/Sholto.Interface.MainUI.Tests/Sholto.Interface.MainUI.Tests.csproj" />
     <Project Path="tests/Sholto.TestSupport/Sholto.TestSupport.csproj" />
   </Folder>
@@ -25,9 +39,4 @@
     <Project Path="tools/Sholto.Interface.Bench/Sholto.Interface.Bench.csproj" />
     <Project Path="tools/Sholto.Interface.MainUI.Harness/Sholto.Interface.MainUI.Harness.csproj" />
   </Folder>
-  <!-- Test projects detached 2026-09-12 for the ports-and-composition refactor.
-       Files are untouched on disk; re-add a <Project Path="..."/> line per project to
-       restore. Detached: Sholto.App.Audio.Golden, Sholto.Interface.Bench.Tests, Sholto.Interface.MainUI.Tests,
-       Sholto.App.Audio.Tests, Sholto.Interface.Controller.Tests, Sholto.Interface.Faceplate.Tests,
-       Sholto.App.Library.Tests, Sholto.App.Storage.Tests. -->
 </Solution>

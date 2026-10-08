@@ -123,7 +123,7 @@ public sealed class SholtoStackFactory(
             flacStrategy,
             decoder,
             new MiniAudioOutputEnumerator(),
-            new PipeWireRouter(),
+            new PipeWireRouter(new PipeWireOwnPorts(), Environment.ProcessId),
             libraryDatabase,
             new TrackScanner(),
             analysisStack,

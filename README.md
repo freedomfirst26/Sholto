@@ -39,7 +39,7 @@ No .NET needed — the download is self-contained.
 git clone https://github.com/freedomfirst26/Sholto.git
 cd Sholto
 bash install.sh
-dotnet run -c Release --project src/Sholto.Interface.MainUI
+dotnet run -c Release --project src/Sholto.Host
 ```
 
 More options, what gets installed, and how to check it all works: [docs/install.md](docs/install.md).

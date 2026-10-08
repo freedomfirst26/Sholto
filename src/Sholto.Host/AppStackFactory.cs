@@ -34,6 +34,10 @@ public sealed class AppStackFactory : IAppStackFactory
         var stack = stackFactory.Build();
         // The one bus: the App side publishes onto it, the interfaces subscribe to it.
         var bus = new DataBus(new ConsoleHandlerFailureSink());
+        // The hint count is asked while the window is being built (the faceplate dock's hint policy), before the
+        // input stack registers the other handlers, so it is answered from here.
+        var hintCounter = new HintCounter(stack.LibraryDatabase);
+        bus.Register<GetHintShownCount, Task<int>>(hintCounter);
         // Its frame clock, shared by the entities and the input stack.
         var frameClock = new DispatcherFrameClock();
         // MASTER CUE reaches the audio engine through this once the engine exists.
@@ -53,7 +57,7 @@ public sealed class AppStackFactory : IAppStackFactory
         return new AppStack(new LiveEntities(bus, bus, bus, bus, frameClock, appThread, iconFactory), stack, options,
             coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread),
             new ThemeStackFactory(), new ControllerStackFactory(),
-            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, new HintCounter(stack.LibraryDatabase), options.Glance), new PerformanceFactory(),
+            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, hintCounter, options.Glance), new PerformanceFactory(),
                 new ControllerInputFactory(), new KeyboardInputFactory()),
             masterCueOutput, frameClock, appThread, bus, new TrayFactory(iconFactory));
     }

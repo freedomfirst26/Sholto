@@ -1,5 +1,6 @@
 using Sholto.App.Audio;
 using Sholto.App.Decks;
+using Sholto.Data;
 using SoundFlow.Structs;
 
 namespace Sholto.App.Lifecycle;
@@ -23,44 +24,59 @@ public sealed class AudioOutput(
     private readonly IMasterCueEngineSink _masterCue = masterCue;
     private AudioEngine? _engine;
 
-    public Task StartAsync(string? deviceName) => Task.Run(() =>
+    public Task<MasterRoute> StartAsync(string? deviceName) => Task.Run(() =>
     {
         try
         {
             var engine = CreateEngine();
-            engine.Start(deviceName);
+            var route = engine.Start(deviceName);
             Attach(engine);
-            Console.WriteLine($"Audio engine started; master speaker={(deviceName ?? "(controller, no separate speaker chosen)")}");
+            Console.WriteLine("Audio engine started");
+            LogRoute(route);
+            return route;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Audio engine failed to start: {ex.Message}");
+            return FailedToStart(ex);
         }
     });
 
-    public Task SwitchAsync(string deviceName) => Task.Run(() =>
+    public Task<MasterRoute> SwitchAsync(string deviceName) => Task.Run(() =>
     {
         try
         {
+            MasterRoute route;
             if (_engine is null)
             {
                 var engine = CreateEngine();
-                engine.Start(deviceName);
+                route = engine.Start(deviceName);
                 Attach(engine);
             }
             else
             {
-                _engine.SwitchDevice(deviceName);
+                route = _engine.SwitchDevice(deviceName);
             }
             Console.WriteLine($"Audio engine switched to: {deviceName}");
+            LogRoute(route);
+            return route;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Audio engine failed to start: {ex.Message}");
+            return FailedToStart(ex);
         }
     });
 
     public void Stop() => _engine?.Stop();
+
+    private static void LogRoute(MasterRoute route) =>
+        Console.WriteLine(route.DeviceName is null
+            ? $"[Audio] master silent: {route.Reason}"
+            : $"[Audio] master on '{route.DeviceName}': {route.Reason}");
+
+    private MasterRoute FailedToStart(Exception ex) =>
+        new(null, $"the audio engine failed to start: {ex.Message}");
 
     private AudioEngine CreateEngine() =>
         _engineFactory.Create(_engineDependents, _pipeWireRouter, _controllerSoundCard, _deckFormat,

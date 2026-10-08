@@ -82,6 +82,8 @@ public sealed class AppLifecycle(
     // The question currently put to the user, if any: completed by the matching Choose command.
     private TaskCompletionSource<string?>? _musicFolderAnswer;
     private TaskCompletionSource<string?>? _deviceAnswer;
+    // The device master really plays on, from the last route the audio output reported (app thread only). Null until the engine starts.
+    private string? _masterDevice;
     // True once the saved theme was restored on a database that opened: from then on a chosen theme is saved.
     private bool _themePersistence;
     // Same rule for the waveform style.
@@ -132,7 +134,10 @@ public sealed class AppLifecycle(
         _ = StartAudioAsync();
     }
 
-    public void Stop() => _audioOutput.Stop();
+    public void Stop()
+    {
+        _audioOutput.Stop();
+    }
 
     // ---- Database ------------------------------------------------------------------------------
 
@@ -511,7 +516,8 @@ public sealed class AppLifecycle(
         if (chosen is not null)
             await _outputDevicePreference.SetAsync(chosen.Name).ConfigureAwait(false);
 
-        await _audioOutput.StartAsync(chosen?.Name).ConfigureAwait(false);
+        var route = await _audioOutput.StartAsync(chosen?.Name).ConfigureAwait(false);
+        await _appThread.InvokeAsync(() => _masterDevice = route.DeviceName).ConfigureAwait(false);
     }
 
     /// <summary>Menu entry point: ask which device master should play through and switch to it. Nothing
@@ -528,13 +534,18 @@ public sealed class AppLifecycle(
         var devices = allDevices.Where(d => !_controllerSoundCard.Matches(d.Name)).ToList();
         if (devices.Count == 0) return;
 
-        var currentName = await _outputDevicePreference.GetAsync().ConfigureAwait(false);
+        // Where master really plays (not the saved wish), if it is one of the devices on offer. A failed route
+        // leaves it on the controller, which is not in the list: then nothing reads as in use and the speakers
+        // can be picked again.
+        var masterDevice = await _appThread.InvokeAsync(() => _masterDevice).ConfigureAwait(false);
+        var currentName = devices.Any(d => d.Name == masterDevice) ? masterDevice : null;
         var chosen = await RequestDeviceAsync(devices, currentName).ConfigureAwait(false);
         if (chosen is null || chosen.Name == currentName) return;
 
         await _outputDevicePreference.SetAsync(chosen.Name).ConfigureAwait(false);
 
-        await _audioOutput.SwitchAsync(chosen.Name).ConfigureAwait(false);
+        var route = await _audioOutput.SwitchAsync(chosen.Name).ConfigureAwait(false);
+        await _appThread.InvokeAsync(() => _masterDevice = route.DeviceName).ConfigureAwait(false);
     }
 
     public void Handle(in ChooseOutputDevice command)

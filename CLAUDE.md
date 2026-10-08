@@ -6,30 +6,41 @@ analysis, no cloud.
 
 ## Repository layout
 
-`Sholto.slnx` builds src and tools; the app project also builds standalone.
+`Sholto.slnx` builds src, tools and tests; the app project also builds standalone.
 
 | Project | Role |
 |---|---|
-| `src/Sholto.Interface.MainUI` | Avalonia UI: `Views/` (`.axaml` + `.axaml.cs`), `ViewModels/`, custom-drawn `Controls/`. Entry point. |
-| `src/Sholto.App.Audio` | Decoding + playback. NAudio/NLayer/SoundFlow. `AudioFileDecoder.TargetSampleRate = 48000`. Also owns per-deck track-lifetime state such as `TrackAnalysis`, the results bag a deck holds for the life of a loaded track; `TrackAnalysis` fires per-type events (see below). |
+| `src/Sholto.Host` | The exe (`WinExe`, assembly `Sholto.dll`) and composition root: `Program`, `SholtoStartup`, `AppStackFactory` and the `*StackFactory`s build everything; `SholtoOptions` registers the options. References every other `src/` project. |
+| `src/Sholto.Interface.MainUI` | Avalonia UI **library** (not an exe): `Views/` (`.axaml` + `.axaml.cs`), `ViewModels/`, custom-drawn `Controls/`, `Theming/`, `Themes/`. |
+| `src/Sholto.Data` | The bus: Commands, Queries, Events, `IAppThread`, `IFrameClock`. References nothing. |
+| `src/Sholto.App` | Headless core: decks (`DeckSession`), command handlers, mixer, Glance search, cue routing; the per-area `*Options` (`ScratchOptions`, `MagnetismOptions`, `GlanceOptions`). |
+| `src/Sholto.App.Audio` | Decoding + playback. NAudio/NLayer/SoundFlow. `AudioFileDecoder.TargetSampleRate` = `EngineAudio.SampleRate` (48000, defined in `Sholto.App.Analysis`). Also owns per-deck track-lifetime state such as `TrackAnalysis`, the results bag a deck holds for the life of a loaded track; `TrackAnalysis` fires per-type events (see below). |
 | `src/Sholto.App.Analysis` | Analysis domain + orchestration — the analysers that fill `TrackAnalysis`. |
 | `src/Sholto.App.Storage` | EF Core + SQLite persistence, caches, crates, markers, tags. |
-| `src/Sholto.Interface.Controller` | DDJ-FLX4 HID/MIDI mapping. |
+| `src/Sholto.App.Settings` | Settings store interface and keys (`ISettingsStore`, `SettingsKeys`); implemented in Storage. |
+| `src/Sholto.Interface.Controller` | DDJ-FLX4 HID/MIDI input and output. |
+| `src/Sholto.Interface.Controller.Mappings` | Controller gesture→Command mappings (`DdjFlx4/`, `ControllerMappingCatalog`). |
+| `src/Sholto.Interface.Keyboard` | Keyboard gestures and their translation to Commands. |
 | `src/Sholto.App.Library` | Library/file metadata (z440.atl.core tag reading). |
 | `src/Sholto.App.Dsp` | Shared DSP primitives: crossover frequencies, crossfade curve. |
 | `src/Sholto.App.ExternalTools` | Boundary to madmom/demucs/ffmpeg subprocesses. |
 | `src/Sholto.Interface.Faceplate` | On-screen controller guide; joined to `Sholto.Interface.Controller` by gesture name only. |
+| `src/Sholto.Interface.Faceplate.Devices` | Per-device faceplate layouts (`DdjFlx4/`). |
 | `tools/Sholto.Interface.Bench` | Dev-only headless interface (no Avalonia, no MainUI): renders decks to WAV, measures it, runs scripted scan/gesture/midi scenarios as Commands on the bus (`render`, `measure`, `state`, `headless`, `latency`). |
 | `tools/Sholto.Interface.MainUI.Harness` | Dev-only MainUI test harness: drives the real window with no screen via Avalonia.Headless (`ui`, `screenshot`). Run: `dotnet run --project tools/Sholto.Interface.MainUI.Harness -- ui --scenario x.json`. |
+| `tests/` | 15 test projects plus `Sholto.TestSupport` (see Tests below). |
 
 ## Build / run / test
 
 ```bash
-cd /home/s/projects/open-dj
-dotnet build src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj -nologo      # build (also builds refs)
-dotnet run   --project src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj    # build + run
-dotnet run   --project src/Sholto.Interface.MainUI/Sholto.Interface.MainUI.csproj --no-build   # run last build
+# from the repo root (the main checkout or any worktree)
+dotnet build src/Sholto.Host/Sholto.Host.csproj -nologo      # build (also builds refs)
+dotnet run   --project src/Sholto.Host/Sholto.Host.csproj    # build + run (same as `just run`)
+dotnet run   --project src/Sholto.Host/Sholto.Host.csproj --no-build   # run last build
 ```
+
+`src/Sholto.Interface.MainUI` is a library; it cannot be run. Tests: `dotnet test Sholto.slnx`
+(or `just test`) runs every test project.
 
 ### ⚠️ The dll-not-rebuilding trap (read this before trusting a screenshot)
 
@@ -43,11 +54,10 @@ The main cause: **an app instance was still running / holding the dll when you b
 
 **Always do this:**
 
-1. **Kill every running instance before building.** (See kill recipe below — do NOT
-   use `pkill -f Sholto.Interface.MainUI`, it self-matches the launch command and exits 144.)
+1. **Stop the instance you started before building** (see below; never one you did not start).
 2. **Verify the dll timestamp advanced after every build:**
    ```bash
-   stat -c '%y' src/Sholto.Interface.MainUI/bin/Debug/net10.0/Sholto.dll
+   stat -c '%y' src/Sholto.Host/bin/Debug/net10.0/Sholto.dll
    ```
    If the timestamp did not move, the build was a no-op — rebuild (run `dotnet build`
    on its own, not buried in a `;`-chain), and if still stale, `touch` the changed
@@ -58,13 +68,11 @@ Do not conclude anything from a screenshot until you've confirmed the dll is fre
 
 ### Killing instances safely
 
-```bash
-pkill -9 -f "Sholto.dll"        # matches the running app, NOT the build/run command
-pgrep -af "Sholto.dll"          # confirm none remain (ignore the pgrep line itself)
-```
+Kill only PIDs you started: record the PID at launch (`src/Sholto.Host/bin/Debug/net10.0/Sholto & APP=$!`)
+and `kill $APP` later. Never kill an instance you did not start — it may be the user's own running app
+(`pkill -9 -f "Sholto.dll"` once killed it). To see what is running: `pgrep -af "Sholto.dll"`.
 `ps` will still show `MSBuild.dll` / `VBCSCompiler` daemons — those are the build
-server, leave them. `pkill -f "Sholto.Interface.MainUI"` (no `.dll`) matches `dotnet run …Sholto.Interface.MainUI…`
-and kills the launcher / returns exit 144 — avoid it.
+server, leave them. `pkill -f "Sholto.Interface.MainUI"` self-matches the launching command and exits 144 — avoid it.
 
 ## Seeing the app on screen (headless verification)
 
@@ -76,20 +84,21 @@ terminal — unreliable. Capture the app **by its geometry** instead:
 IFS=, read x y w h <<< "$(wmctrl -lG | awk '/[[:space:]]Sholto$/{print $3","$4","$5","$6}')"
 ffmpeg -y -f x11grab -video_size ${w}x${h} -i :0.0+${x},${y} -frames:v 1 shot.png -loglevel error
 ```
-Then Read `shot.png`. (`ffmpeg` is the only image tool installed — no ImageMagick/scrot.)
+Launch with `src/Sholto.Host/bin/Debug/net10.0/Sholto` (or `just run`). `wmctrl -lG` geometry excludes the menu/title bar. Then Read `shot.png`. (`ffmpeg` is the only image tool installed — no ImageMagick/scrot.)
 X11, `DISPLAY=:0`. To bring the app forward: `wmctrl -i -a <id>` (id from `wmctrl -l`).
+Audio goes to the DDJ-FLX4 over OSS when it is connected, so to prove sound record that sink's monitor (`pactl list sinks short` to find it), not the default sink. `xdotool` is not installed; python3 python-xlib (`Xlib.ext.xtest`) can send keys.
 
 ## Analysis pipeline (event-driven)
 
-`Sholto.Audio/TrackAnalysis.cs` fires a **typed event per analysis stage**, then a
+`Sholto.App.Audio/TrackAnalysis.cs` fires a **typed event per analysis stage**, then a
 generic `AnyReady`. UI ViewModels subscribe to only the events they depend on and
 re-notify just the affected bindings (cause→effect is explicit):
 
-`BasicReady` (peaks, BPM, downbeats) · `KeyReady` · `StemsReady` / `StemPeaksReady`
+`BasicReady` (peaks, BPM, downbeats) · `KeyReady` · `StemsReady`
 (Demucs) · `VocalRegionsReady`.
 
-Song sections: madmom beats/downbeats → `BasicReady` → `DeckSession` runs
-`PhraseSectionAnalyzer` (`Sholto.App.Analysis/Analyzers/Segments/`, an in-house
+Song sections: madmom beats/downbeats → `BasicReady` → `DeckSession` builds sections via
+`SectionLayoutFactory` (`Sholto.App/Decks/`) using `PhraseSectionAnalyzer` (`Sholto.App.Analysis/Analyzers/Segments/`, an in-house
 heuristic) → `PhraseGrid` + `SongSection` list → `DeckSectionsChanged` (`Sholto.Data`)
 → minimap. `SongSegmentsReady` / `SongSegmentAnalyzer` no longer exist.
 
@@ -100,7 +109,7 @@ a labelled run of whole bars (intro/build/drop/…).
 External analyzers are subprocesses expected on `PATH`: madmom-onnx (beats/downbeats),
 Demucs (stems). Absence degrades gracefully.
 
-## Storage gotchas (`Sholto.Storage`)
+## Storage gotchas (`Sholto.App.Storage`)
 
 - **Guids are stored lowercase TEXT.** `LowercaseGuidConverter` + matching
   `ConfigureConventions` — a case mismatch silently breaks lookups (this caused
@@ -143,7 +152,7 @@ Demucs (stems). Absence degrades gracefully.
 - Prefer primary constructors: `public sealed class TagService(IDbContextFactory<SholtoDbContext> factory, TagNameNormalizer normalizer)` with `private readonly IDbContextFactory<SholtoDbContext> _factory = factory;`. Members use the `_field`, never the bare parameter (avoids the CS9124 capture-plus-store shape).
 - Do not use a primary constructor for: constructors with logic beyond assignment, classes with several constructors, private constructors, XAML-created controls, EF `DbContext`/converters.
 - One top-level type per file, named for the type.
-- Analyzers vs analysis stages: an analyzer (`I*Analyzer`, extends the empty marker `IAnalyzer`, in `Sholto.Analysis/Analyzers/<Thing>/`) computes one result itself. An analysis stage (`*AnalysisStage`, extends the empty marker `IAnalysisStage`, in `Sholto.Analysis/Stages/`) is a composite that runs several analyzers and external-tool steps in a fixed order — e.g. `BasicAnalysisStage` (beats + waveform peaks + beatgrid), `StemAnalysisStage` (demucs + stem peaks + vocal regions). A composite of analyzers is always named `...AnalysisStage`, never `...Analyzer`. `IAnalysisStep` is different again: one external-tool process (madmom, demucs).
+- Analyzers vs analysis stages: an analyzer (`I*Analyzer`, extends the empty marker `IAnalyzer`, in `Sholto.App.Analysis/Analyzers/<Thing>/`) computes one result itself. An analysis stage (`*AnalysisStage`, extends the empty marker `IAnalysisStage`, in `Sholto.App.Analysis/Stages/`) is a composite that runs several analyzers and external-tool steps in a fixed order — e.g. `BasicAnalysisStage` (beats + waveform peaks + beatgrid), `StemAnalysisStage` (demucs + stem peaks + vocal regions). A composite of analyzers is always named `...AnalysisStage`, never `...Analyzer`. `IAnalysisStep` is different again: one external-tool process (madmom, demucs).
 - Tunable values go in options, not magic numbers. Extract anything a DJ or developer might plausibly change — timings, durations, thresholds, limits, capacities — or any constant duplicated in two places, into the options class for its area (e.g. `ScratchOptions`, `MagnetismOptions`, `GlanceOptions`), or a new one, one type per file, each default equal to today's value. Register it in `SholtoOptions` (`Sholto.Host`).
 - Leave as `const`: maths constants, sentinels and guards, format or protocol facts (MIDI notes, buffer layouts), layout pixels in XAML, and theme colours (those belong in theme JSON).
 - A class takes `IOptions<XOptions>` in its constructor and reads `.Value` once there, into a field. Never read options per frame or per sample, and never on the audio thread.
@@ -154,8 +163,8 @@ Demucs (stems). Absence degrades gracefully.
 
 Target; migration in progress.
 
-- Three layers by package name: `Sholto.Interface.*` (MainUI — the exe and composition root, Controller(+Mappings), Faceplate(+Devices), Keyboard, Bench) · `Sholto.Data` (the bus) · `Sholto.App.*` (headless core; no Avalonia).
-- Dependency rule: `Interface.*` → `Data` only; `App.*` → `Data` + its own sub-projects; `Data` → nothing. Only MainUI's composition root references everything.
+- Three layers by package name: `Sholto.Interface.*` (MainUI — the Avalonia UI library, Controller(+Mappings), Faceplate(+Devices), Keyboard; Bench is a tool) · `Sholto.Data` (the bus) · `Sholto.App.*` (headless core; no Avalonia).
+- Dependency rule: `Interface.*` → `Data` only; `App.*` → `Data` + its own sub-projects; `Data` → nothing. Only `Sholto.Host` (the exe and composition root: `SholtoStartup`, `AppStackFactory`) references everything.
 - `Sholto.Data` carries exactly three message kinds, all strongly typed `readonly record struct`s: Commands in ("do this", no result); Queries in ("I want to know", typed result to the caller, never changes state); Events out ("this thing happened"; interfaces subscribe opt-in; state events replay their last value to late subscribers, facts don't).
 - Gestures exist only inside an interface: its mapping from buttons/keys (or on-screen buttons) to the Command intended. Modifiers like Shift and platter-touch stay inside the interface.
 - The App is the only source of truth for domain state (incl. cue, master-cue, pad page, Inspect mode). Interfaces may keep transient caches built from Events. Presentation state (overlay open, typed text, hover) stays in MainUI.
@@ -201,7 +210,7 @@ the change, not an afterthought:
 
 Do it in the same commit that adds the feature/dependency. Don't overclaim —
 only list formats/features that actually work (e.g. the decoder strategies in
-`Sholto.Audio` define which audio formats are really supported).
+`Sholto.App.Audio` define which audio formats are really supported).
 
 README/docs screenshots (`pictures/*.webp`) are captured with the MainUI harness, not
 by hand — see "Documentation screenshots" in `docs/developers.md`.

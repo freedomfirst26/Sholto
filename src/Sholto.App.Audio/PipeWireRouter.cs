@@ -15,8 +15,11 @@ namespace Sholto.App.Audio;
 /// method here is guarded: a missing tool, an absent sink, or a shell failure
 /// degrades to "master stays on the controller" and is logged, never thrown.
 /// </summary>
-public sealed class PipeWireRouter : IPipeWireRouter
+public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId) : IPipeWireRouter
 {
+    private readonly PipeWireOwnPorts _ownPorts = ownPorts;
+    private readonly int _processId = processId;
+
     /// <summary>True if <c>pw-link</c> is on PATH. Everything else here no-ops
     /// (returns null/false/empty) when this is false.</summary>
     public bool IsAvailable()
@@ -79,7 +82,7 @@ public sealed class PipeWireRouter : IPipeWireRouter
 
     /// <summary>Re-link Sholto's master FL/FR output ports from the controller to
     /// <paramref name="speakerNode"/>. RL/RR (cue) are left connected to the
-    /// controller. Polls for Sholto's ports for ~3s since they only exist once the
+    /// controller. Polls for this process's ports for ~3s since they only exist once the
     /// device is actively streaming (call this after <c>Start()</c>).
     /// Never throws; returns false + a log line on any failure.</summary>
     public bool ApplyMasterRoute(string controllerNode, string speakerNode, out string log)
@@ -94,10 +97,10 @@ public sealed class PipeWireRouter : IPipeWireRouter
             return false;
         }
 
-        var (fl, fr) = FindSholtoOutputPorts();
+        var (fl, fr) = FindOwnOutputPorts();
         if (fl is null || fr is null)
         {
-            Log("Sholto's PipeWire output ports never appeared — master stays on the controller");
+            Log("this process's PipeWire output ports never appeared — master stays on the controller");
             log = string.Join("; ", logLines);
             return false;
         }
@@ -129,10 +132,10 @@ public sealed class PipeWireRouter : IPipeWireRouter
     public void ResetMasterRoute(string controllerNode, IControllerSoundCard card)
     {
         if (!IsAvailable()) return;
-        var (fl, fr) = FindSholtoOutputPorts();
+        var (fl, fr) = FindOwnOutputPorts();
         if (fl is null || fr is null)
         {
-            Console.WriteLine("[PipeWire] reset: Sholto's output ports not found — nothing to relink");
+            Console.WriteLine("[PipeWire] reset: own output ports not found — nothing to relink");
             return;
         }
 
@@ -146,30 +149,26 @@ public sealed class PipeWireRouter : IPipeWireRouter
         }
     }
 
-    /// <summary>Finds Sholto's own output FL/FR ports via <c>pw-link -o</c>.
-    /// These only exist while the playback device is actively streaming, so
-    /// this polls for up to ~3s. Tolerant of the port suffix being
-    /// "output_FL"/"output_FR" or "playback_FL"/"playback_FR" — only the
-    /// trailing "_FL"/"_FR" and a case-insensitive "sholto" in the client name
-    /// are required.</summary>
-    private (string? FL, string? FR) FindSholtoOutputPorts()
+    /// <summary>Finds this process's output FL/FR ports: resolves our stream's node name from
+    /// <c>pactl list sink-inputs</c> by process id (the node is named after the binary, not
+    /// necessarily "sholto"), then lists its ports via <c>pw-link -o</c>. They only exist while the
+    /// playback device is actively streaming, so this polls for up to ~3s.</summary>
+    private (string? FL, string? FR) FindOwnOutputPorts()
     {
         const int attempts = 10;
         const int delayMs = 300; // 10 × 300ms ≈ 3s total
         for (int attempt = 0; attempt < attempts; attempt++)
         {
-            var text = RunCapture("pw-link", "-o");
-            if (text is not null)
+            var inputs = RunCapture("pactl", "list", "sink-inputs");
+            var node = inputs is null ? null : _ownPorts.NodeNameForProcess(inputs, _processId);
+            if (node is not null)
             {
-                string? fl = null, fr = null;
-                foreach (var rawLine in text.Split('\n'))
+                var text = RunCapture("pw-link", "-o");
+                if (text is not null)
                 {
-                    var line = rawLine.Trim();
-                    if (!line.Contains("sholto", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (line.EndsWith("_FL", StringComparison.Ordinal)) fl = line;
-                    else if (line.EndsWith("_FR", StringComparison.Ordinal)) fr = line;
+                    var (fl, fr) = _ownPorts.PortsForNode(text, node);
+                    if (fl is not null && fr is not null) return (fl, fr);
                 }
-                if (fl is not null && fr is not null) return (fl, fr);
             }
             if (attempt < attempts - 1) Thread.Sleep(delayMs);
         }

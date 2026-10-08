@@ -326,7 +326,8 @@ public class AppLifecycleTests
             _ => rig.Lifecycle.Handle(new ChooseOutputDevice(reply, Answer))));
         // The preference reads wait for the database, which opens when the lifecycle starts.
         rig.Lifecycle.Start();
-        await Eventually(() => rig.Audio.Started);
+        await Eventually(() => rig.Audio.StartedOn is not null);
+        await Task.Delay(100);  // the route is recorded just after the engine starts
         rig.DeviceAsked.Received.Clear();
 
         rig.Lifecycle.Handle(new ChangeOutputDevice(Answer));
@@ -342,6 +343,46 @@ public class AppLifecycleTests
         Assert.Equal("Headphones", rig.Audio.SwitchedTo);
         Assert.Equal("Headphones", rig.Settings.Peek(SettingsKeys.OutputDevice));
     }
+
+    [Fact]
+    public async Task A_failed_route_marks_nothing_in_use_and_the_speakers_can_be_picked_again()
+    {
+        var rig = new AppLifecycleRig(devices: [Speakers, Headphones, ControllerCard], musicDirOverride: NewMusicDir());
+        await rig.Settings.SetAsync(SettingsKeys.OutputDevice, "Speakers");
+        rig.Audio.NextRoute = FailedRoute;
+        rig.Library.Bus.Subscribe(new ActionEventHandler<OutputDeviceNeeded>(
+            _ => rig.Lifecycle.Handle(new ChooseOutputDevice("Speakers", Answer))));
+        rig.Lifecycle.Start();
+        await Eventually(() => rig.Audio.StartedOn is not null);
+        await Task.Delay(100);  // the route is recorded just after the engine starts
+        rig.DeviceAsked.Received.Clear();
+
+        rig.Lifecycle.Handle(new ChangeOutputDevice(Answer));
+
+        await Eventually(() => rig.Audio.SwitchedTo is not null);
+        Assert.Null(rig.DeviceAsked.Received[0].CurrentName);
+        Assert.Equal("Speakers", rig.Audio.SwitchedTo);
+    }
+
+    [Fact]
+    public async Task With_master_on_the_controller_and_no_speaker_chosen_nothing_is_marked_in_use()
+    {
+        var rig = new AppLifecycleRig(devices: [Speakers, ControllerCard], musicDirOverride: NewMusicDir());
+        rig.Library.Bus.Subscribe(new ActionEventHandler<OutputDeviceNeeded>(
+            _ => rig.Lifecycle.Handle(new ChooseOutputDevice(null, Answer))));
+        rig.Lifecycle.Start();
+        await Eventually(() => rig.DeviceAsked.Received.Count == 1);
+        await Task.Delay(100);  // the route is recorded just after the engine starts
+        rig.DeviceAsked.Received.Clear();
+
+        rig.Lifecycle.Handle(new ChangeOutputDevice(Answer));
+
+        await Eventually(() => rig.DeviceAsked.Received.Count == 1);
+        Assert.Null(rig.DeviceAsked.Received[0].CurrentName);
+    }
+
+    private static readonly MasterRoute FailedRoute =
+        new(AppLifecycleRig.ControllerCard, "route to 'Speakers' failed");
 
     // ---- Theme ----------------------------------------------------------------------------------
 

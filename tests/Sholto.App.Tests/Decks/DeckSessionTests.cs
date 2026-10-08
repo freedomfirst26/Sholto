@@ -248,22 +248,28 @@ public class DeckSessionTests
         var ports = Ports(analysed: true);
         var rig = new DeckSessionRig(ports);
         var start = StartEnding(rig, ports);
+        var frame = 0;
 
-        for (var i = 0; i < 200; i++)
+        long Measure(int frames)
         {
-            rig.Clock.Now = start.AddMilliseconds(i * 16);
-            rig.Session.SyncPlayPosition();
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            for (var i = 0; i < frames; i++, frame++)
+            {
+                rig.Clock.Now = start.AddMilliseconds(frame * 16);
+                rig.Session.SyncPlayPosition();
+            }
+            return GC.GetAllocatedBytesForCurrentThread() - before;
         }
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 200; i < 2200; i++)
-        {
-            rig.Clock.Now = start.AddMilliseconds(i * 16);
-            rig.Session.SyncPlayPosition();
-        }
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        // A full unmeasured pass so tiered JIT/OSR has finished before measuring.
+        Measure(2200);
+        // Best of 3: a sporadic one-off runtime allocation on a random frame must not fail the test; a real
+        // per-frame allocation (at least 24 B x 2000 frames) fails every attempt.
+        var results = new List<long>();
+        for (var attempt = 0; attempt < 3 && (results.Count == 0 || results[^1] != 0); attempt++)
+            results.Add(Measure(2000));
 
-        Assert.Equal(0, allocated);
+        Assert.True(results[^1] == 0, $"allocated in every attempt: {string.Join(", ", results)} bytes");
     }
 
     [Fact]

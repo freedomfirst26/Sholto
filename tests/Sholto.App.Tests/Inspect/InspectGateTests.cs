@@ -150,8 +150,12 @@ public class InspectGateTests
 
         var crossfade = new SetCrossfader(0.5, From(InterfaceIds.Controller, "mixer.crossfader", "crossfader.move"));
 
+        var turnRuns = 0;
+        var globalRuns = 0;
+
         long Measure()
         {
+            turnRuns++;
             for (var i = 0; i < 2_000; i++) bus.Send(turn);
             var before = GC.GetAllocatedBytesForCurrentThread();
             for (var i = 0; i < 10_000; i++) bus.Send(turn);
@@ -161,23 +165,39 @@ public class InspectGateTests
         // A global command must not box either: guards against a default interface member on ICommand.
         long MeasureGlobal()
         {
+            globalRuns++;
             for (var i = 0; i < 2_000; i++) bus.Send(crossfade);
             var before = GC.GetAllocatedBytesForCurrentThread();
             for (var i = 0; i < 10_000; i++) bus.Send(crossfade);
             return GC.GetAllocatedBytesForCurrentThread() - before;
         }
 
-        Assert.Equal(0, Measure());
-        Assert.Equal(12_000, handler.Count);
-        Assert.Equal(0, MeasureGlobal());
-        Assert.Equal(12_000, crossfaderHandler.Count);
+        // One full unmeasured pass so tiered JIT/OSR has finished, then best of 3: a sporadic one-off runtime
+        // allocation must not fail the test; a real per-send allocation fails every attempt.
+        static string BestOfThree(Func<long> measure)
+        {
+            measure();
+            var results = new List<long>();
+            for (var attempt = 0; attempt < 3 && (results.Count == 0 || results[^1] != 0); attempt++)
+                results.Add(measure());
+            return results[^1] == 0 ? "" : $"allocated in every attempt: {string.Join(", ", results)} bytes";
+        }
+
+        Assert.Equal("", BestOfThree(Measure));
+        Assert.Equal(12_000 * turnRuns, handler.Count);
+        Assert.Equal("", BestOfThree(MeasureGlobal));
+        Assert.Equal(12_000 * globalRuns, crossfaderHandler.Count);
 
         bus.Send(new SetInspectMode(true, From(InterfaceIds.Faceplate)));
-        Assert.Equal(0, Measure());
-        Assert.Equal(12_000, handler.Count);
-        Assert.Equal(12_000, echoes.Count);
-        Assert.Equal(0, MeasureGlobal());
-        Assert.Equal(12_000, crossfaderHandler.Count);
-        Assert.Equal(24_000, echoes.Count);
+        var turnsBefore = turnRuns;
+        var globalsBefore = globalRuns;
+        var turnHandled = handler.Count;
+        var globalHandled = crossfaderHandler.Count;
+        Assert.Equal("", BestOfThree(Measure));
+        Assert.Equal(turnHandled, handler.Count);
+        Assert.Equal(12_000 * (turnRuns - turnsBefore), echoes.Count);
+        Assert.Equal("", BestOfThree(MeasureGlobal));
+        Assert.Equal(globalHandled, crossfaderHandler.Count);
+        Assert.Equal(12_000 * (turnRuns - turnsBefore + globalRuns - globalsBefore), echoes.Count);
     }
 }

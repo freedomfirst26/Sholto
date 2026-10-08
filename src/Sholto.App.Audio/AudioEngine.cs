@@ -1,3 +1,4 @@
+using Sholto.Data;
 using SoundFlow.Abstracts.Devices;
 using SoundFlow.Backends.MiniAudio;
 using SoundFlow.Backends.MiniAudio.Devices;
@@ -90,8 +91,9 @@ public sealed class AudioEngine : IAudioOutput
     /// <item>If the controller is NOT connected, <paramref name="masterSpeakerName"/>
     /// is opened directly (2ch, no cue bus) — no PipeWire routing involved.</item>
     /// </list>
+    /// Returns where master really plays and why (the route above can fail and leave it on the controller).
     /// </summary>
-    public void Start(string? masterSpeakerName)
+    public MasterRoute Start(string? masterSpeakerName)
     {
         var devices = RefreshPlaybackDevices();
         var controller = ResolveControllerCard(devices);
@@ -127,53 +129,54 @@ public sealed class AudioEngine : IAudioOutput
         string mode = channels >= 4 ? "master 1-2 + headphone cue 3-4" : "stereo master (no cue bus)";
         Console.WriteLine($"[AudioEngine] device={target.Name} started; {channels}ch — {mode}; buffer={cfg.PeriodSizeInMilliseconds}ms × {cfg.Periods}");
 
+        if (!haveController)
+        {
+            string why = masterSpeakerName is null || masterSpeakerName == target.Name
+                ? "no controller connected"
+                : $"no controller connected and '{masterSpeakerName}' not found, so the default device";
+            return new MasterRoute(target.Name, "opened directly: " + why);
+        }
+        if (masterSpeakerName is null)
+            return new MasterRoute(target.Name, "on the controller: no separate speaker chosen");
+        if (_controllerCard.Matches(masterSpeakerName))
+            return new MasterRoute(target.Name, "on the controller: it was chosen");
+
         // Controller open + a distinct master speaker chosen → re-link master FL/FR
         // onto that speaker via PipeWire (best-effort; see PipeWireRouter).
-        if (haveController && masterSpeakerName is not null && !_controllerCard.Matches(masterSpeakerName))
-            ApplyPipeWireMasterRoute(masterSpeakerName);
+        return ApplyPipeWireMasterRoute(target.Name, masterSpeakerName);
     }
 
     /// <summary>Best-effort: finds the controller's and the chosen speaker's PipeWire
     /// sink node names and asks PipeWireRouter to relink master FL/FR between
-    /// them. Any failure just logs and leaves master on the controller — never
-    /// throws, never blocks longer than PipeWireRouter's own ~3s port poll.</summary>
-    private void ApplyPipeWireMasterRoute(string masterSpeakerName)
+    /// them. Any failure leaves master on the controller and says why in the result —
+    /// never throws, never blocks longer than PipeWireRouter's own port poll.</summary>
+    private MasterRoute ApplyPipeWireMasterRoute(string controllerName, string masterSpeakerName)
     {
         if (!_pipeWireRouter.IsAvailable())
-        {
-            Console.WriteLine("[AudioEngine] pw-link not available — master stays on the controller (not on PipeWire?)");
-            return;
-        }
+            return StayedOnController("pw-link not available (not on PipeWire?)");
         var controllerNode = _pipeWireRouter.FindControllerSink(_controllerCard);
         if (controllerNode is null)
-        {
-            Console.WriteLine("[AudioEngine] controller not found via pactl — master stays on the controller");
-            return;
-        }
+            return StayedOnController("controller not found via pactl");
         var speaker = _pipeWireRouter.EnumerateSpeakerSinks(_controllerCard).FirstOrDefault(s => s.Desc == masterSpeakerName);
         if (speaker.Node is null)
-        {
-            Console.WriteLine($"[AudioEngine] master speaker '{masterSpeakerName}' not found among PipeWire sinks — master stays on the controller");
-            return;
-        }
-        if (_pipeWireRouter.ApplyMasterRoute(controllerNode, speaker.Node, out var log))
-        {
-            _routedControllerNode = controllerNode;
-            Console.WriteLine($"[AudioEngine] master routed to '{masterSpeakerName}': {log}");
-        }
-        else
-        {
-            Console.WriteLine($"[AudioEngine] master route to '{masterSpeakerName}' failed: {log}");
-        }
+            return StayedOnController($"'{masterSpeakerName}' not found among PipeWire sinks");
+        if (!_pipeWireRouter.ApplyMasterRoute(controllerNode, speaker.Node, out var log))
+            return StayedOnController($"route to '{masterSpeakerName}' failed: {log}");
+
+        _routedControllerNode = controllerNode;
+        return new MasterRoute(masterSpeakerName, $"routed to speakers: {log}");
+
+        MasterRoute StayedOnController(string why) => new(controllerName, $"on the controller: {why}");
     }
 
-    public void SwitchDevice(string masterSpeakerName)
+    /// <summary>Stop, then <see cref="Start(string)"/> on <paramref name="masterSpeakerName"/>; returns its result.</summary>
+    public MasterRoute SwitchDevice(string masterSpeakerName)
     {
         // Rebuild the graph so the new device's channel count (and therefore cue
         // availability) takes effect — a 2ch device has no ch3-4. Start() below
         // re-applies (or skips) the PipeWire master route as appropriate.
         Stop();
-        Start(masterSpeakerName);
+        return Start(masterSpeakerName);
     }
 
     /// <summary>MASTER CUE toggle — fold the master mix into the headphone cue

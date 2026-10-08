@@ -52,6 +52,8 @@ changed at the decks, not which class moved.
 
 ### Fixed
 
+- **The controller-guide hint now stops after its first few showings** instead of coming back every time you launch Sholto.
+- **Settings > Output device... no longer marks the speakers in use when master could not be routed there, and picking them again retries.**
 - **Key chips are easier to read.** Key chips now have white text and stem chips black text, and a theme can set each one. Dimmu Borgir's key chips are coloured instead of all the same grey.
 - **Waveform bands are no longer identical.** Since 1.0 the bass, mid and high bands came out the same, so 3-BAND looked like nested copies and RGB was a single colour. Fixed; each track is re-analysed once the first time you load it.
 
