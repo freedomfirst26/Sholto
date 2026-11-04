@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Stems;
 using Xunit;
 
@@ -21,7 +22,7 @@ public class StemMixSeekTests
     public void A_seek_issued_while_the_reader_runs_is_never_lost()
     {
         var zeros = new float[TrackFrames * 2];
-        var provider = new StemMixDataProvider(new StemSamples(zeros, zeros, zeros, zeros), 48000);
+        var provider = new StemMixDataProvider(new StemSamples(zeros, zeros, zeros, zeros), 48000, Options.Create(new LoopOptions()));
 
         var reader = new Thread(() =>
         {

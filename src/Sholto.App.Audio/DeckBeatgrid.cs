@@ -48,7 +48,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
     // never exist without one. Never null: the composition root hands in
     // NullGridAdjustmentStore / DeferredGridAdjustmentStore while the DB
     // isn't open yet, so this class never has to ask "is there a cache".
-    private readonly IGridAdjustmentStore _gridCache;
+    private readonly IGridAdjustmentStore _gridStore;
     // The one "no grid" value, handed in rather than spelled out here.
     private readonly Beatgrid _emptyGrid;
 
@@ -58,7 +58,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         Func<TrackAnalysis> analysis,
         Action raiseAnalysisUpdated,
         Action<double> shiftLoop,
-        IGridAdjustmentStore gridCache,
+        IGridAdjustmentStore gridStore,
         IBeatgridFactory beatgrids)
     {
         _sampleCount = sampleCount;
@@ -66,7 +66,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         _analysis = analysis;
         _raiseAnalysisUpdated = raiseAnalysisUpdated;
         _shiftLoop = shiftLoop;
-        _gridCache = gridCache;
+        _gridStore = gridStore;
         _emptyGrid = beatgrids.None();
         _detected = _emptyGrid;
         _effective = _emptyGrid;
@@ -152,7 +152,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         {
             try
             {
-                var adj = await _gridCache.TryGetAsync(path);
+                var adj = await _gridStore.TryGetAsync(path);
                 // Bail if the user swapped tracks while we were reading.
                 if (adj is not null && path == _currentFilePath())
                     ApplyGridAdjustment(adj.Value.BpmOverride, adj.Value.OffsetSec);
@@ -283,7 +283,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         SetGridNudged(false);
         string? path = _currentFilePath();
         if (path is not null)
-            _ = _gridCache.PutAsync(path, null, 0.0);
+            _ = _gridStore.PutAsync(path, null, 0.0);
         Console.WriteLine("[Deck] grid reset to detected");
     }
 
@@ -296,6 +296,6 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         SetGridNudged(adjusted);
         string? path = _currentFilePath();
         if (path is not null)
-            _ = _gridCache.PutAsync(path, _bpmOverride, _offsetSec);
+            _ = _gridStore.PutAsync(path, _bpmOverride, _offsetSec);
     }
 }

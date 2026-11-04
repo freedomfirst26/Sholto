@@ -30,7 +30,8 @@ public sealed class AppStackFactory : IAppStackFactory
             new ExternalToolStackFactory(new ExternalToolFinderFactory(), new MadmomBeatAnalysisStepFactory(), options.StemSeparation),
             new AnalysisStackFactory(keyFactory, options.WaveformBands),
             new SholtoStorage(new DatabaseStackFactory(keyFactory), new SholtoDbContextOptionsFactory()),
-            appThread);
+            appThread,
+            options.Loop);
         var stack = stackFactory.Build();
         // The one bus: the App side publishes onto it, the interfaces subscribe to it.
         var bus = new DataBus(new ConsoleHandlerFailureSink());

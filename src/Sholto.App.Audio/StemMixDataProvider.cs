@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using System.Threading;
 using Sholto.App.Analysis;
 using Sholto.App.Analysis.Stems;
@@ -87,7 +88,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
 
     /// <summary>
     /// Per-stem snapshot of the audio just past <c>loopEnd</c>, captured at
-    /// loop-engage time. Mixed into the first <see cref="LoopFadeFrames"/>
+    /// loop-engage time. Mixed into the first the loop fade length
     /// frames after every wrap with a linear ramp so the wrap is inaudible
     /// — at frame f, output = tail[f]·(1 − f/N) + freshAudio[f]·(f/N). At
     /// f=0 the listener hears the natural continuation past loopEnd (which
@@ -100,37 +101,20 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     private sealed class LoopTail(float[][] stems, int frames)
     {
         public readonly float[][] Stems = stems;   // [4][frames*2], interleaved stereo per stem
-        public readonly int Frames = frames;       // actual frames captured (may be < LoopFadeFrames near track end)
+        public readonly int Frames = frames;       // actual frames captured (may be < the loop fade length near track end)
     }
 
-    // Crossfade length at the loop wrap. 256 frames ≈ 5.3 ms at 48 kHz —
-    // short enough that transients aren't smeared, long enough to hide
-    // spectral mismatch across the seam. Overridable via env var
-    // SHOLTO_LOOP_FADE_MS (default 5 ms; range 0.5–100 ms) for A/B testing
-    // whether a longer fade hides remaining seam audibility.
-    private static readonly int LoopFadeFrames = ResolveLoopFadeFrames();
-    private static int ResolveLoopFadeFrames()
-    {
-        var s = Environment.GetEnvironmentVariable("SHOLTO_LOOP_FADE_MS");
-        if (s is not null && double.TryParse(s, out double ms) && ms > 0.0 && ms < 100.0)
-        {
-            // 48 frames per ms at 48 kHz. Clamp so the audio thread never
-            // mixes a fade longer than 100 ms (would smear transients badly).
-            int frames = (int)(ms * 48);
-            if (frames < 24) frames = 24;
-            if (frames > 4800) frames = 4800;
-            Console.WriteLine($"[StemMix] LoopFadeFrames overridden via SHOLTO_LOOP_FADE_MS={ms} → {frames} frames (~{frames/48.0:F1} ms at 48 kHz)");
-            return frames;
-        }
-        return 256;
-    }
+    // Crossfade length at the loop wrap, from LoopOptions.FadeMs (default 256 frames, ~5.3 ms at
+    // 48 kHz). Clamped to 24..4800 frames (0.5-100 ms) so the audio thread never mixes a fade
+    // longer than 100 ms (would smear transients badly).
+    private readonly int _loopFadeFrames;
 
     private LoopTail? _loopTail;          // published by UI thread (Volatile)
     private LoopTail? _activeFadeTail;    // captured at wrap-time by audio thread; only audio thread touches
     private int _loopFadeRemaining;       // frames left to crossfade; only audio thread touches
 
     /// <summary>Build the crossfade tail for the current loop. Reads
-    /// <see cref="LoopFadeFrames"/> frames of source audio starting at
+    /// the loop fade length frames of source audio starting at
     /// <paramref name="loopEndSample"/> (per stem, no gain applied — gains
     /// are baked in at fade-mix time so mutes are respected). Call from the
     /// UI thread immediately BEFORE <see cref="SetLoop"/>, and again on any
@@ -145,7 +129,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
             return;
         }
         long available = Math.Max(0, _length - loopEndSample) / 2;
-        int frames = (int)Math.Min(LoopFadeFrames, available);
+        int frames = (int)Math.Min(_loopFadeFrames, available);
         if (frames <= 0)
         {
             Volatile.Write(ref _loopTail, null);
@@ -170,7 +154,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     private int _fadeRemaining;
     private float _lastOutL, _lastOutR;
 
-    public StemMixDataProvider(StemSamples stems, int sampleRate)
+    public StemMixDataProvider(StemSamples stems, int sampleRate, IOptions<LoopOptions> loopOptions)
     {
         if (stems is null || stems.Drums is null || stems.Vocals is null || stems.Bass is null || stems.Other is null)
             throw new ArgumentNullException();
@@ -179,6 +163,8 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         _length = Math.Min(Math.Min(stems.Drums.Length, stems.Vocals.Length),
                            Math.Min(stems.Bass.Length, stems.Other.Length));
         SampleRate = sampleRate;
+        // 48 frames per ms at 48 kHz.
+        _loopFadeFrames = Math.Clamp((int)(loopOptions.Value.FadeMs * 48 + 1e-6), 24, 4800);
     }
 
     /// <summary>Set a stem's gain (0 = mute, 1 = unity). Lock-free.</summary>
@@ -288,7 +274,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
 
                 // Arm a fade for the NEXT chunk (which will read fresh audio
                 // from loopStart). Skip if a fade is already running — for a
-                // loop short enough that we wrap twice within `LoopFadeFrames`
+                // loop short enough that we wrap twice within the loop fade length
                 // (< 5 ms at default settings, which would mean a loop length
                 // < 5 ms — vanishingly unlikely in DJ use) we'd otherwise
                 // restart the ramp mid-fade and click.

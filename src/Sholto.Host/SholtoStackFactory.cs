@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.Data;
 using Sholto.App.Analysis.Stages;
 using Sholto.App.Analysis.Stems;
@@ -27,12 +28,14 @@ public sealed class SholtoStackFactory(
     IExternalToolStackFactory toolStackFactory,
     IAnalysisStackFactory analysisStackFactory,
     SholtoStorage storage,
-    IAppThread appThread)
+    IAppThread appThread,
+    IOptions<LoopOptions> loopOptions)
 {
     private readonly IExternalToolStackFactory _toolStackFactory = toolStackFactory;
     private readonly IAnalysisStackFactory _analysisStackFactory = analysisStackFactory;
     private readonly SholtoStorage _storage = storage;
     private readonly IAppThread _appThread = appThread;
+    private readonly IOptions<LoopOptions> _loopOptions = loopOptions;
 
     public SholtoStack Build()
     {
@@ -112,8 +115,9 @@ public sealed class SholtoStackFactory(
             // inside Deck/DeckFactory. See DeckEffectFactory's doc:
             // a 4th effect is one more entry in that list, no change here.
             new DeckEffectFactory(new TempoMath()).Chain,
-            new PlaybackProviderFactory(),
-            _appThread);
+            new PlaybackProviderFactory(_loopOptions),
+            _appThread,
+            _loopOptions);
 
         // Pass 1 chunk 7: the rest of the world-touching statics, composed once
         // here rather than reached through a static type name from wherever

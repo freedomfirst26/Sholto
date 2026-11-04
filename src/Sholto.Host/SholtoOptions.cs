@@ -1,3 +1,4 @@
+using Sholto.App.Audio;
 using Sholto.App;
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers.Waveform;
@@ -33,6 +34,7 @@ public sealed class SholtoOptions
     public IOptions<DeckViewOptions> DeckView { get; }
     public IOptions<WaveformStyleOptions> WaveformStyle { get; }
     public IOptions<StemSeparationOptions> StemSeparation { get; }
+    public IOptions<LoopOptions> Loop { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down.</summary>
@@ -51,5 +53,7 @@ public sealed class SholtoOptions
         DeckView = Options.Create(new DeckViewOptions());
         WaveformStyle = Options.Create(new WaveformStyleOptions());
         StemSeparation = Options.Create(new StemSeparationOptions());
+        // The one place the SHOLTO_LOOP_* environment overrides are read.
+        Loop = Options.Create(new LoopOptionsFactory().Create());
     }
 }

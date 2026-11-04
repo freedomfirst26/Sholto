@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Beats;
@@ -53,19 +54,21 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
         IStemStage stemStage,
         IAnalysisReporter reporter,
         IAnalysisProvider analysisProvider,
-        IKeyAnalysisStore keyCache,
-        IGridAdjustmentStore gridCache,
+        IKeyAnalysisStore keyStore,
+        IGridAdjustmentStore gridStore,
         IKeyAnalyzer keyAnalyzer,
         IBeatgridFactory beatgrids,
         IReadOnlyList<Func<SfEngine, AudioFormat, SoundModifier>> effectFactories,
         IPlaybackProviderFactory playbackProviders,
-        IAppThread appThread)
+        IAppThread appThread,
+        IOptions<LoopOptions> loopOptions)
     {
         _loops = new DeckLooping(
             stemProvider: () => _loading.StemProvider,
             analysis: () => _loading.Analysis,
             positionFrames: () => PositionFrames,
-            sampleCount: () => _loading.SampleCount);
+            sampleCount: () => _loading.SampleCount,
+            options: loopOptions);
         _loops.LoopChanged += region => LoopChanged?.Invoke(region);
 
         _grid = new DeckBeatgrid(
@@ -74,7 +77,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
             analysis: () => _loading.Analysis,
             raiseAnalysisUpdated: () => AnalysisUpdated?.Invoke(),
             shiftLoop: _loops.ShiftLoop,
-            gridCache: gridCache,
+            gridStore: gridStore,
             beatgrids: beatgrids);
         _grid.GridNudgedChanged += v => GridNudgedChanged?.Invoke(v);
 
@@ -114,7 +117,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
         // (async, well after this constructor returns) _loading is set.
         _analysisRun = new TrackAnalysisRun(
             analysisProvider: analysisProvider,
-            keyCache: keyCache,
+            keyStore: keyStore,
             keyAnalyzer: keyAnalyzer,
             stems: stemStage,
             reporter: reporter,

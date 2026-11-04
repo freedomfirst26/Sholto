@@ -26,7 +26,7 @@ internal sealed class TrackAnalysisRunRig
         Pipeline.CanOverlap = stemsOverlap;
         Run = new TrackAnalysisRun(
             analysisProvider: Pipeline,
-            keyCache: new NullKeyAnalysisStore(),
+            keyStore: new NullKeyAnalysisStore(),
             keyAnalyzer: Pipeline,
             stems: Pipeline,
             reporter: new AnalysisReporter(Array.Empty<string>()),

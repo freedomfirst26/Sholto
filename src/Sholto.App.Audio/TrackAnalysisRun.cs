@@ -46,7 +46,7 @@ namespace Sholto.App.Audio;
 /// </summary>
 internal sealed class TrackAnalysisRun(
     IAnalysisProvider analysisProvider,
-    IKeyAnalysisStore keyCache,
+    IKeyAnalysisStore keyStore,
     IKeyAnalyzer keyAnalyzer,
     IStemStage stems,
     IAnalysisReporter reporter,
@@ -57,7 +57,7 @@ internal sealed class TrackAnalysisRun(
     Action<StemSamples> onStemsReady) : ITrackAnalysisRun
 {
     private readonly IAudioFileDecoder _decoder = decoder;
-    private readonly IKeyAnalysisStore _keyCache = keyCache;
+    private readonly IKeyAnalysisStore _keyStore = keyStore;
     private readonly IKeyAnalyzer _keyAnalyzer = keyAnalyzer;
     private readonly IStemStage _stems = stems;
     private readonly IAppThread _appThread = appThread;
@@ -226,12 +226,12 @@ internal sealed class TrackAnalysisRun(
     {
         try
         {
-            try { var cached = await _keyCache.TryGetAsync(track.FilePath); if (cached is not null) return cached; }
+            try { var cached = await _keyStore.TryGetAsync(track.FilePath); if (cached is not null) return cached; }
             catch (Exception ex) { Console.WriteLine($"[Deck] key cache lookup failed: {ex.Message}"); }
 
             var key = await _keyAnalyzer.AnalyzeAsync(track, reporter: Reporter, ct: ct);
 
-            try { await _keyCache.PutAsync(track.FilePath, key); }
+            try { await _keyStore.PutAsync(track.FilePath, key); }
             catch (Exception ex) { Console.WriteLine($"[Deck] key cache write failed: {ex.Message}"); }
 
             return key;

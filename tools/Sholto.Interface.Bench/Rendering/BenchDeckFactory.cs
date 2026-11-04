@@ -45,7 +45,7 @@ public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisSte
     IOptions<WaveformBandOptions> waveformBands, IAppThread appThread) : IBenchDeckFactory
 {
     private readonly BeatgridFactory _beatgrids = new();
-    private readonly PlaybackProviderFactory _playbackProviders = new();
+    private readonly PlaybackProviderFactory _playbackProviders = new(Options.Create(new LoopOptions()));
 
     // The same effect chain the real app composes (SholtoStackFactory), built here
     // so Bench renders through identical EQ -> filter -> echo -> beat-repeat.
@@ -85,11 +85,12 @@ public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisSte
             new SemaphoreStemGate()),
         reporter: new AnalysisReporter(Array.Empty<string>()),
         analysisProvider: analysisProvider,
-        keyCache: new NullKeyAnalysisStore(),
-        gridCache: new NullGridAdjustmentStore(),
+        keyStore: new NullKeyAnalysisStore(),
+        gridStore: new NullGridAdjustmentStore(),
         keyAnalyzer: new KeyAnalyzer(),
         beatgrids: _beatgrids,
         effectFactories: _effects.Chain,
         playbackProviders: _playbackProviders,
-        appThread: appThread);
+        appThread: appThread,
+        loopOptions: Options.Create(new LoopOptions()));
 }

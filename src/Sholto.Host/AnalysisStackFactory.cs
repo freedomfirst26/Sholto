@@ -49,8 +49,8 @@ public sealed class AnalysisStackFactory(IKeyFactory keyFactory, IOptions<Wavefo
         async Task<IKeyAnalysisStore?> Key() => (await opened)?.KeyAnalyses;
         async Task<IGridAdjustmentStore?> Grid() => (await opened)?.GridAdjustments;
         var deferredBasicCache = new DeferredBasicAnalysisStore(Basic());
-        var deferredKeyCache = new DeferredKeyAnalysisStore(Key());
-        var deferredGridCache = new DeferredGridAdjustmentStore(Grid());
+        var deferredKeyStore = new DeferredKeyAnalysisStore(Key());
+        var deferredGridStore = new DeferredGridAdjustmentStore(Grid());
 
         var reporter = new AnalysisReporter(new[] { AnalysisSteps.Beats });
 
@@ -72,8 +72,8 @@ public sealed class AnalysisStackFactory(IKeyFactory keyFactory, IOptions<Wavefo
         return new AnalysisStack(
             reporter,
             provider,
-            deferredKeyCache,
-            deferredGridCache,
+            deferredKeyStore,
+            deferredGridStore,
             peaks,
             _keyFactory,
             keyAnalyzer,

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace Sholto.App.Audio;
 
 /// <summary>
@@ -21,7 +23,8 @@ internal sealed class DeckLooping(
     Func<StemMixDataProvider?> stemProvider,
     Func<TrackAnalysis> analysis,
     Func<long> positionFrames,
-    Func<long> sampleCount) : IDeckLooping
+    Func<long> sampleCount,
+    IOptions<LoopOptions> options) : IDeckLooping
 {
     /// <summary>Shortest allowed loop, in interleaved samples. Below this the
     /// wrap-crossfade tail has nowhere to fit.</summary>
@@ -31,6 +34,7 @@ internal sealed class DeckLooping(
     private readonly Func<TrackAnalysis> _analysis = analysis;
     private readonly Func<long> _positionFrames = positionFrames;
     private readonly Func<long> _sampleCount = sampleCount;
+    private readonly string _mode = options.Value.Mode;
 
     private LoopRegion? _activeLoop;
 
@@ -79,17 +83,16 @@ internal sealed class DeckLooping(
         // and deriving the period from N×4 consecutive beats — sample-exact
         // to madmom's beat grid, with no dependence on downbeat phase.
         //
-        // SHOLTO_LOOP_MODE values:
+        // LoopOptions.Mode values (SHOLTO_LOOP_MODE overrides at the composition root):
         //   beat-snap  (DEFAULT) loop-in = nearest beat; period = beatTimes[bidx+bars*4] − beatTimes[bidx]
         //                        Falls back to downbeat-grid if BeatTimes is empty.
         //   downbeat             loop-in = nearest downbeat; period = downbeats[idx+bars]
         //                        The old default — kept for A/B testing.
         //   bpm                  loop-in = nearest downbeat; period = bars × 60/bpm × 4
         //   no-snap / tap        loop-in = current play position; period = bars × 60/bpm × 4
-        var mode = Environment.GetEnvironmentVariable("SHOLTO_LOOP_MODE") ?? "beat-snap";
-        double inSec, outSec;
+                double inSec, outSec;
         string source;
-        switch (mode)
+        switch (_mode)
         {
             case "downbeat":
             {
@@ -170,7 +173,7 @@ internal sealed class DeckLooping(
         stemProvider.SetLoop(region);
         double actualLen = (outSample - inSample) / 2.0 / AudioFileDecoder.TargetSampleRate;
         double expectedLen = bars * secondsPerBar;
-        Console.WriteLine($"[Deck] loop ON [{mode}]: {bars} bars @ {bpm:F1} BPM, {inSec:F3}s → {outSec:F3}s, length {actualLen:F3}s (expected {expectedLen:F3}s, source: {source})");
+        Console.WriteLine($"[Deck] loop ON [{_mode}]: {bars} bars @ {bpm:F1} BPM, {inSec:F3}s → {outSec:F3}s, length {actualLen:F3}s (expected {expectedLen:F3}s, source: {source})");
         LoopChanged?.Invoke(region);
     }
 

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Beats;
@@ -39,20 +40,21 @@ public sealed class DeckFactory(
     IStemStage stemStage,
     IAnalysisReporter reporter,
     IAnalysisProvider analysisProvider,
-    IKeyAnalysisStore keyCache,
-    IGridAdjustmentStore gridCache,
+    IKeyAnalysisStore keyStore,
+    IGridAdjustmentStore gridStore,
     IKeyAnalyzer keyAnalyzer,
     IBeatgridFactory beatgrids,
     IReadOnlyList<Func<SfEngine, AudioFormat, SoundModifier>> effectFactories,
     IPlaybackProviderFactory playbackProviders,
-    IAppThread appThread) : IDeckFactory
+    IAppThread appThread,
+    IOptions<LoopOptions> loopOptions) : IDeckFactory
 {
     private readonly IAudioFileDecoder _decoder = decoder;
     private readonly IStemStage _stemStage = stemStage;
     private readonly IAnalysisReporter _reporter = reporter;
     private readonly IAnalysisProvider _analysisProvider = analysisProvider;
-    private readonly IKeyAnalysisStore _keyCache = keyCache;
-    private readonly IGridAdjustmentStore _gridCache = gridCache;
+    private readonly IKeyAnalysisStore _keyStore = keyStore;
+    private readonly IGridAdjustmentStore _gridStore = gridStore;
     private readonly IKeyAnalyzer _keyAnalyzer = keyAnalyzer;
     private readonly IBeatgridFactory _beatgrids = beatgrids;
     // Ordered post-mix effect chain, handed in rather than defaulted here so
@@ -62,6 +64,7 @@ public sealed class DeckFactory(
     private readonly IReadOnlyList<Func<SfEngine, AudioFormat, SoundModifier>> _effectFactories = effectFactories;
     private readonly IPlaybackProviderFactory _playbackProviders = playbackProviders;
     private readonly IAppThread _appThread = appThread;
+    private readonly IOptions<LoopOptions> _loopOptions = loopOptions;
 
-    public IDeckPorts Create() => new DeckPorts(new Deck(_decoder, _stemStage, _reporter, _analysisProvider, _keyCache, _gridCache, _keyAnalyzer, _beatgrids, _effectFactories, _playbackProviders, _appThread));
+    public IDeckPorts Create() => new DeckPorts(new Deck(_decoder, _stemStage, _reporter, _analysisProvider, _keyStore, _gridStore, _keyAnalyzer, _beatgrids, _effectFactories, _playbackProviders, _appThread, _loopOptions));
 }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Stems;
 using Xunit;
 
@@ -11,7 +12,7 @@ public class StemMixLoopRegionTests
     [Fact]
     public void A_reader_never_sees_a_loop_start_paired_with_another_regions_end()
     {
-        var provider = new StemMixDataProvider(new StemSamples([], [], [], []), 48000);
+        var provider = new StemMixDataProvider(new StemSamples([], [], [], []), 48000, Options.Create(new LoopOptions()));
         provider.SetLoop(new LoopRegion(0, Length));
 
         bool done = false;

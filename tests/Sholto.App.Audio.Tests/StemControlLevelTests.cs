@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Stems;
 using Xunit;
 
@@ -14,7 +15,7 @@ public class StemControlLevelTests
         var drums = new float[Frames * 2];
         Array.Fill(drums, 1f);
         var silent = new float[Frames * 2];
-        var provider = new StemMixDataProvider(new StemSamples(drums, silent, silent, silent), 48000);
+        var provider = new StemMixDataProvider(new StemSamples(drums, silent, silent, silent), 48000, Options.Create(new LoopOptions()));
         new StemControl(() => provider).SetStemGroupLevel(0, level);
         var buffer = new float[64];
         provider.ReadBytes(buffer);
