@@ -91,7 +91,7 @@ public sealed class BasicAnalysisStage(
             // small beat ticks always coincide with the tall downbeat bars, and
             // gives sync / quantised-loops a single canonical grid.
             double durationSec = stereoSamples.Length / (double)Math.Max(channels, 1) / Math.Max(sampleRate, 1);
-            (beats, downbeats) = _beatgridAnalyzer.FromDetections(bpm, rawBeats, rawDownbeats, durationSec);
+            (beats, downbeats) = _beatgridAnalyzer.FromDetections(bpm, rawBeats, rawDownbeats, durationSec).Materialise();
 
             _reporter.Complete(filePath, AnalysisSteps.Beats,
                 $"{bpm:F1} BPM, {downbeats.Length} downbeats / {beats.Length} beats (from {rawDownbeats.Length}/{rawBeats.Length} raw)");

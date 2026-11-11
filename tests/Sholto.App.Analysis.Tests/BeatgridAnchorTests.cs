@@ -33,7 +33,7 @@ public class BeatgridAnchorTests
         }
         double dur = beats[^1] + 2.0;
 
-        var (_, gridDownbeats) = _analyzer.FromDetections(bpm, beats.ToArray(), downbeats.ToArray(), dur);
+        var (_, gridDownbeats) = _analyzer.FromDetections(bpm, beats.ToArray(), downbeats.ToArray(), dur).Materialise();
 
         Assert.NotEmpty(gridDownbeats);
         // First grid downbeat lines up with the opening downbeats, not the

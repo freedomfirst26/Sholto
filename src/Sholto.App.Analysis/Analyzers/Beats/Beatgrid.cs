@@ -234,14 +234,4 @@ public sealed record Beatgrid(
     /// <summary>The per-bar (downbeat) times. Allocates — see
     /// <see cref="Materialise"/>.</summary>
     public double[] DownbeatTimes() => Materialise().Downbeats;
-
-    /// <summary>Two-element deconstruction into the materialised
-    /// <c>(beats, downbeats)</c> pair — identical to <see cref="Materialise"/>,
-    /// and the reason <c>var (beats, downbeats) = analyzer.FromDetections…(…)</c>
-    /// still reads the way it always did at the array boundary in
-    /// <see cref="Stages.BasicAnalysisStage.RunAsync"/>. It ALLOCATES, unlike the
-    /// four-element deconstruction the record generates for its own components;
-    /// prefer naming <see cref="Materialise"/> where that matters.</summary>
-    public void Deconstruct(out double[] Beats, out double[] Downbeats)
-        => (Beats, Downbeats) = Materialise();
 }
