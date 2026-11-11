@@ -60,22 +60,12 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     private float _speed = 1f;
     public void SetSpeed(float speed) => Volatile.Write(ref _speed, speed);
 
-    // Active loop region in interleaved-sample units. Published as one
-    // immutable reference (same pattern as LoopTail) so the audio thread can
-    // never see a start from one region paired with an end from another.
-    // The holder is allocated on the control thread in SetLoop; the audio
-    // thread only reads it, once per buffer. null = no loop.
-    private sealed class LoopBounds(long start, long end)
-    {
-        public readonly long Start = start;
-        public readonly long End = end;
-    }
-
-    private LoopBounds? _loopBounds;      // published by control thread (Volatile)
+    // Active loop region (see StemLoopBounds), published by the control thread; null = no loop.
+    private StemLoopBounds? _loopBounds;      // published by control thread (Volatile)
     public void SetLoop(LoopRegion? loop)
     {
         Volatile.Write(ref _loopBounds,
-            loop is { } r ? new LoopBounds(r.StartSample, r.EndSample) : null);
+            loop is { } r ? new StemLoopBounds(r.StartSample, r.EndSample) : null);
     }
     public LoopRegion? ActiveLoop
     {
@@ -86,32 +76,13 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         }
     }
 
-    /// <summary>
-    /// Per-stem snapshot of the audio just past <c>loopEnd</c>, captured at
-    /// loop-engage time. Mixed into the first the loop fade length
-    /// frames after every wrap with a linear ramp so the wrap is inaudible
-    /// — at frame f, output = tail[f]·(1 − f/N) + freshAudio[f]·(f/N). At
-    /// f=0 the listener hears the natural continuation past loopEnd (which
-    /// IS continuous with the last pre-wrap sample), at f=N they hear pure
-    /// loop content. Modeled on Ardour's <c>setup_preloop_buffer</c> +
-    /// <c>maybe_xfade_loop</c> and Mixxx's <c>ReadAheadManager</c>
-    /// crossfade. Both fields immutable; published as a single reference
-    /// so the audio thread sees them atomically.
-    /// </summary>
-    private sealed class LoopTail(float[][] stems, int frames)
-    {
-        public readonly float[][] Stems = stems;   // [4][frames*2], interleaved stereo per stem
-        public readonly int Frames = frames;       // actual frames captured (may be < the loop fade length near track end)
-    }
-
     // Crossfade length at the loop wrap, from LoopOptions.FadeMs (default 256 frames, ~5.3 ms at
     // 48 kHz). Clamped to 24..4800 frames (0.5-100 ms) so the audio thread never mixes a fade
     // longer than 100 ms (would smear transients badly).
     private readonly int _loopFadeFrames;
 
-    private LoopTail? _loopTail;          // published by UI thread (Volatile)
-    private LoopTail? _activeFadeTail;    // captured at wrap-time by audio thread; only audio thread touches
-    private int _loopFadeRemaining;       // frames left to crossfade; only audio thread touches
+    private StemLoopTail? _loopTail;          // published by UI thread (Volatile)
+    private StemLoopCrossfade _loopCrossfade; // wrap crossfade state; only audio thread touches
 
     /// <summary>Build the crossfade tail for the current loop. Reads
     /// the loop fade length frames of source audio starting at
@@ -141,18 +112,11 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
             tail[s] = new float[frames * 2];
             Array.Copy(stems[s], loopEndSample, tail[s], 0, frames * 2);
         }
-        Volatile.Write(ref _loopTail, new LoopTail(tail, frames));
+        Volatile.Write(ref _loopTail, new StemLoopTail(tail, frames));
     }
 
-    // Declick on Seek. Naïve "fade in from 0" produces its OWN click at the
-    // start of the fade because the previous buffer ended at some non-zero
-    // value. So we remember the last output sample per channel and crossfade
-    // from it to the new audio over a few ms — no step at either end.
-    // ~5 ms at 48 kHz is short enough to be inaudible as a gap but long
-    // enough to smooth the discontinuity.
-    private const int FadeFrames = 256;
-    private int _fadeRemaining;
-    private float _lastOutL, _lastOutR;
+    // Seek declick and loop-wrap crossfade: audio-thread-only mutable structs, called in place.
+    private StemFadeIn _fadeIn;
 
     public StemMixDataProvider(StemSamples stems, int sampleRate, IOptions<LoopOptions> loopOptions)
     {
@@ -210,7 +174,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         if (pendingSeek != NoPendingSeek)
         {
             Volatile.Write(ref _position, (double)pendingSeek);
-            Volatile.Write(ref _fadeRemaining, FadeFrames);
+            _fadeIn.Arm();
         }
 
         // Snapshot speed + gains + loop once per buffer.
@@ -225,7 +189,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         bool looping = loopBoundsSnap is not null && loopEndSnap > loopStartSnap;
         // Latest tail published by UI thread; used to ARM a new fade. The
         // audio thread, once a fade is in flight, holds the chosen tail in
-        // `_activeFadeTail` so a concurrent BuildLoopTail can't shift the
+        // the crossfade so a concurrent BuildLoopTail can't shift the
         // ramp mid-fade.
         var loopTailSnap = Volatile.Read(ref _loopTail);
 
@@ -254,9 +218,9 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
             // the fresh post-wrap audio (already in `buffer`) ramps IN, so the
             // first frame after a wrap is sample-continuous with what played
             // just before it.
-            if (_loopFadeRemaining > 0 && _activeFadeTail is not null)
+            if (_loopCrossfade.IsActive)
             {
-                MixLoopFade(buffer.Slice(sampleOffset, produced * 2),
+                _loopCrossfade.Mix(buffer.Slice(sampleOffset, produced * 2),
                     g0, g1, g2, g3);
             }
 
@@ -278,11 +242,8 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
                 // (< 5 ms at default settings, which would mean a loop length
                 // < 5 ms — vanishingly unlikely in DJ use) we'd otherwise
                 // restart the ramp mid-fade and click.
-                if (loopTailSnap is not null && _loopFadeRemaining == 0)
-                {
-                    _activeFadeTail = loopTailSnap;
-                    _loopFadeRemaining = loopTailSnap.Frames;
-                }
+                if (loopTailSnap is not null)
+                    _loopCrossfade.ArmIfIdle(loopTailSnap);
             }
         }
 
@@ -291,7 +252,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         // Seek-armed declick fade (jog wheel / manual seeks only — wrap doesn't
         // arm this any more). Applied at end of buffer because Seek happens
         // between buffers, so the fade always lands at the buffer start.
-        ApplyFadeIn(buffer[..producedSamples]);
+        _fadeIn.Apply(buffer[..producedSamples]);
         return producedSamples;
     }
 
@@ -438,84 +399,11 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         outBuf[o + 1] = right;
     }
 
-    /// <summary>Crossfade the loop-tail samples into the start of
-    /// <paramref name="freshChunk"/>. Called immediately after a chunk-read
-    /// when <see cref="_loopFadeRemaining"/> &gt; 0 — the listener has just
-    /// crossed the loop seam and the first <c>_loopFadeRemaining</c> frames
-    /// of fresh audio need to be blended with the natural continuation past
-    /// loopEnd (captured in <see cref="_activeFadeTail"/>). Decrements
-    /// <see cref="_loopFadeRemaining"/> by the frames mixed and releases the
-    /// tail reference when the fade completes so the GC can reclaim it.
-    /// Stem gains are applied to the tail at mix time so a stem muted
-    /// during playback stays muted across the seam.</summary>
-    private void MixLoopFade(Span<float> freshChunk, float g0, float g1, float g2, float g3)
-    {
-        var tail = _activeFadeTail!;
-        int totalFade = tail.Frames;
-        int chunkFrames = freshChunk.Length / 2;
-        int framesToMix = Math.Min(_loopFadeRemaining, chunkFrames);
-
-        // `tailStart` is where in the tail buffer this chunk continues from
-        // — for a fade that straddles a buffer boundary, we resume mid-tail.
-        int tailFramesConsumed = totalFade - _loopFadeRemaining;
-        int tailStart = tailFramesConsumed * 2;
-
-        var t0 = tail.Stems[0];
-        var t1 = tail.Stems[1];
-        var t2 = tail.Stems[2];
-        var t3 = tail.Stems[3];
-
-        float invTotal = 1f / totalFade;
-        for (int f = 0; f < framesToMix; f++)
-        {
-            int outIdx = f * 2;
-            int tIdx = tailStart + f * 2;
-            float tL = t0[tIdx]     * g0 + t1[tIdx]     * g1 + t2[tIdx]     * g2 + t3[tIdx]     * g3;
-            float tR = t0[tIdx + 1] * g0 + t1[tIdx + 1] * g1 + t2[tIdx + 1] * g2 + t3[tIdx + 1] * g3;
-            // ramp = (frames already mixed) / total — goes 0 → 1 across the fade
-            float ramp = (tailFramesConsumed + f) * invTotal;
-            float oneMinus = 1f - ramp;
-            freshChunk[outIdx]     = tL * oneMinus + freshChunk[outIdx]     * ramp;
-            freshChunk[outIdx + 1] = tR * oneMinus + freshChunk[outIdx + 1] * ramp;
-        }
-        _loopFadeRemaining -= framesToMix;
-        if (_loopFadeRemaining == 0) _activeFadeTail = null;
-    }
-
     public void Seek(int offset)
     {
         var clamped = Math.Clamp(offset, 0, _length);
         Interlocked.Exchange(ref _pendingSeek, clamped);
         PositionChanged?.Invoke(this, new PositionChangedEventArgs(clamped));
-    }
-
-    /// <summary>Crossfade out of the last output sample into the new audio whenever
-    /// a Seek has armed the fade counter — pure declick, no audible gap. Also keeps
-    /// <c>_lastOut*</c> up to date with whatever the final sample of this buffer
-    /// ended up being, so the next seek has a continuous starting point.</summary>
-    private void ApplyFadeIn(Span<float> samples)
-    {
-        int frames = samples.Length / 2;
-        if (frames == 0) return;
-
-        int fade = Volatile.Read(ref _fadeRemaining);
-        if (fade > 0)
-        {
-            float lastL = _lastOutL, lastR = _lastOutR;
-            for (int f = 0; f < frames && fade > 0; f++)
-            {
-                float t = 1f - (float)fade / FadeFrames;   // 0 → 1 across the ramp
-                samples[f * 2]     = lastL + (samples[f * 2]     - lastL) * t;
-                samples[f * 2 + 1] = lastR + (samples[f * 2 + 1] - lastR) * t;
-                fade--;
-            }
-            Volatile.Write(ref _fadeRemaining, fade);
-        }
-
-        // Remember where this buffer ended so the next post-seek crossfade has
-        // somewhere continuous to start from.
-        _lastOutL = samples[(frames - 1) * 2];
-        _lastOutR = samples[(frames - 1) * 2 + 1];
     }
 
     public void Dispose()
