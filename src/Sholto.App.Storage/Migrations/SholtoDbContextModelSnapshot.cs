@@ -134,6 +134,9 @@ namespace Sholto.App.Storage.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("Colour")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -147,6 +150,9 @@ namespace Sholto.App.Storage.Migrations
                     b.Property<double>("PositionSecs")
                         .HasColumnType("REAL");
 
+                    b.Property<int?>("Slot")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("TrackId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -154,6 +160,8 @@ namespace Sholto.App.Storage.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("TrackId");
+
+                    b.HasIndex("TrackId", "Slot");
 
                     b.ToTable("Markers");
                 });

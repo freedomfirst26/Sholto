@@ -18,6 +18,7 @@ public sealed class DatabaseStackFactory(IKeyFactory keyFactory) : IDatabaseStac
             tags: new TagService(contexts, new TagNameNormalizer()),
             crates: new CrateService(contexts),
             markers: new MarkerService(contexts),
+            hotCues: new HotCueService(contexts),
             tracks: new SqliteTrackCatalog(contexts),
             settings: new SqliteSettingsStore(contexts),
             tempoMultipliers: new SqliteTempoMultiplierStore(contexts),

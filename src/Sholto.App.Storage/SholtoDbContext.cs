@@ -135,6 +135,7 @@ internal sealed class SholtoDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             e.Property(m => m.Kind).HasConversion<string>();
             e.HasIndex(m => m.TrackId);
+            e.HasIndex(m => new { m.TrackId, m.Slot });
         });
 
         mb.Entity<MarkerLink>(e =>

@@ -10,6 +10,10 @@ internal sealed class Marker
     /// <summary>Position in track seconds.</summary>
     public double PositionSecs { get; set; }
     public MarkerKind Kind { get; set; } = MarkerKind.Memory;
+    /// <summary>Hot-cue pad 0-7; set only for <see cref="MarkerKind.Hot"/>.</summary>
+    public int? Slot { get; set; }
+    /// <summary>Hot-cue <c>CueColour</c> as an int; set only for <see cref="MarkerKind.Hot"/>.</summary>
+    public int? Colour { get; set; }
     public string? Label { get; set; }
     public DateTime CreatedAt { get; set; }
 

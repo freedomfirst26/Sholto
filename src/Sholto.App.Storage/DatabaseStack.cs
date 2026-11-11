@@ -16,6 +16,7 @@ public sealed class DatabaseStack(
     ITagService tags,
     ICrateService crates,
     IMarkerService markers,
+    IHotCueStore hotCues,
     ITrackCatalog tracks,
     ISettingsStore settings,
     ITempoMultiplierStore tempoMultipliers,
@@ -26,6 +27,7 @@ public sealed class DatabaseStack(
     public ITagService Tags { get; } = tags;
     public ICrateService Crates { get; } = crates;
     public IMarkerService Markers { get; } = markers;
+    public IHotCueStore HotCues { get; } = hotCues;
     public ITrackCatalog Tracks { get; } = tracks;
     public ISettingsStore Settings { get; } = settings;
     public ITempoMultiplierStore TempoMultipliers { get; } = tempoMultipliers;
