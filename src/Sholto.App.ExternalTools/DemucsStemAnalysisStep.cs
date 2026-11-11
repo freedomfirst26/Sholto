@@ -22,10 +22,11 @@ namespace Sholto.App.ExternalTools;
 /// A run is slow (~30–180 s on CPU). The demucs binary must be on <c>PATH</c>
 /// (install.sh installs it via uv).
 /// </summary>
-public sealed class DemucsStemAnalysisStep(IExternalTool tool, Func<string, string> workspaceFor, IStemDevice device)
+public sealed class DemucsStemAnalysisStep(IExternalTool tool, Func<string, string> workspaceFor, IStemDevice device, IToolOutcomeFactory outcomes)
     : ExternalToolAnalysisStep(tool), IStemAnalysisStep
 {
     private readonly IStemDevice _device = device;
+    private readonly IToolOutcomeFactory _outcomes = outcomes;
 
     public override string StepName => AnalysisSteps.Stems;
 
@@ -53,7 +54,7 @@ public sealed class DemucsStemAnalysisStep(IExternalTool tool, Func<string, stri
         // exists before running — filesystem policy for THAT lives there, not here.
         var device = await _device.ResolveAsync(ct);
         var outcome = await Tool.RunAsync(
-            new Sholto.App.ExternalTools.DemucsTool(paths, device), new ToolInput(filePath, workDir), reporter, ct);
+            new Sholto.App.ExternalTools.DemucsTool(paths, device, _outcomes), new ToolInput(filePath, workDir), reporter, ct);
         if (!outcome.IsSuccess)
             throw new InvalidOperationException(outcome.Reason);
 

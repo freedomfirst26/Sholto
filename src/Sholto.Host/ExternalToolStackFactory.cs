@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Processing;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stems;
+using Sholto.App.Analysis.ToolBoundary;
 using Sholto.App.ExternalTools;
 
 namespace Sholto.Host;
@@ -22,17 +23,19 @@ namespace Sholto.Host;
 public sealed class ExternalToolStackFactory(
     IExternalToolFinderFactory finderFactory,
     IBeatAnalysisStepFactory beatSteps,
+    IToolOutcomeFactory outcomes,
     IOptions<StemSeparationOptions> stemOptions) : IExternalToolStackFactory
 {
     private readonly IExternalToolFinderFactory _finderFactory = finderFactory;
     private readonly IBeatAnalysisStepFactory _beatSteps = beatSteps;
+    private readonly IToolOutcomeFactory _outcomes = outcomes;
     private readonly StemSeparationOptions _stemOptions = stemOptions.Value;
 
     public ExternalToolStack Build()
     {
         var catalog = new ExternalToolCatalog();
         var toolOptions = new ExternalToolOptionsFactory(catalog).FromEnvironment();
-        var toolRunner = new ExternalToolRunner();
+        var toolRunner = new ExternalToolRunner(_outcomes);
         // ToolSet (Sholto.App.ExternalTools) resolves every tool's binary path once.
         // It knows nothing about per-tool output/cache layout any more — that
         // policy lives with whoever needs a deterministic work directory. Demucs
@@ -75,7 +78,7 @@ public sealed class ExternalToolStackFactory(
         var demucsCache = new DemucsStemPresence(DemucsWorkspaceFor);
         // Confirmed once, cached; shared by the step (the -d flag) and the stage (overlap decision).
         var stemDevice = new CudaProbingStemDevice(tools.PathOrName(ExternalToolNames.Demucs), _stemOptions.CudaProbeTimeout);
-        var demucsRaw = new DemucsStemAnalysisStep(tools.For(ExternalToolNames.Demucs), DemucsWorkspaceFor, stemDevice);
+        var demucsRaw = new DemucsStemAnalysisStep(tools.For(ExternalToolNames.Demucs), DemucsWorkspaceFor, stemDevice, _outcomes);
         var demucs = new CachingStemAnalysisStep(demucsRaw, demucsCache);
         var madmom = _beatSteps.Create(tools.For(ExternalToolNames.Madmom), new NullAnalysisReporter());
 

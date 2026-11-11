@@ -21,17 +21,11 @@ public sealed class ToolOutcome<T>
     /// was not met.</summary>
     public string? Reason { get; }
 
-    private ToolOutcome(bool isSuccess, T? value, string? message, string? reason)
+    internal ToolOutcome(bool isSuccess, T? value, string? message, string? reason)
     {
         IsSuccess = isSuccess;
         Value = value;
         Message = message;
         Reason = reason;
     }
-
-    public static ToolOutcome<T> Success(T value, string? message = null) =>
-        new(true, value, message, null);
-
-    public static ToolOutcome<T> Failure(string reason) =>
-        new(false, default, null, reason);
 }

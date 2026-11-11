@@ -14,11 +14,7 @@ public sealed class NoStaticsTests
     // FROZEN: today's real hits ("Namespace.Type.Member"), sorted. It may only shrink: remove an entry when
     // its static goes away (the stale-entry test fails until you do). Never add one.
     private static readonly string[] Allowed =
-    [
-        "Sholto.App.Analysis.ToolBoundary.ToolOutcome`1.Failure",
-        "Sholto.App.Analysis.ToolBoundary.ToolOutcome`1.Success",
-        "Sholto.App.Audio.DjFilter.FilterCoeffs.Bypass",
-    ];
+    [];
 
     [Fact]
     public void NoStaticsOutsideTheAllowlist()

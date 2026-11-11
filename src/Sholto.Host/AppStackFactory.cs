@@ -1,5 +1,6 @@
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Analysis.Stems;
+using Sholto.App.Analysis.ToolBoundary;
 using Sholto.Data;
 using Sholto.App.Audio;
 using Sholto.App.ExternalTools;
@@ -27,8 +28,9 @@ public sealed class AppStackFactory : IAppStackFactory
         var options = new SholtoOptions();
         // The app thread (the UI thread), shared by the decks, the entities and the input stack.
         var appThread = new AvaloniaAppThread();
+        var toolOutcomes = new ToolOutcomeFactory();
         var stackFactory = new SholtoStackFactory(
-            new ExternalToolStackFactory(new ExternalToolFinderFactory(), new MadmomBeatAnalysisStepFactory(), options.StemSeparation),
+            new ExternalToolStackFactory(new ExternalToolFinderFactory(), new MadmomBeatAnalysisStepFactory(toolOutcomes), toolOutcomes, options.StemSeparation),
             new AnalysisStackFactory(keyFactory, options.WaveformBands),
             new SholtoStorage(new DatabaseStackFactory(keyFactory), new SholtoDbContextOptionsFactory()),
             appThread,

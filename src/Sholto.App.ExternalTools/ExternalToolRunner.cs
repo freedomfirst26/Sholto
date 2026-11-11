@@ -24,8 +24,10 @@ namespace Sholto.App.ExternalTools;
 /// <c>Sholto.App.Analysis</c>), so a cache hit costs nothing beyond a filesystem stat and
 /// never touches the process machinery, and this runner stays unaware caching exists.
 /// </summary>
-public sealed class ExternalToolRunner : IExternalToolRunner
+public sealed class ExternalToolRunner(IToolOutcomeFactory outcomes) : IExternalToolRunner
 {
+    private readonly IToolOutcomeFactory _outcomes = outcomes;
+
     public async Task<ToolOutcome<TResult>> RunAsync<TResult>(
         IToolDefinition<TResult> tool,
         string? binaryPath,
@@ -39,7 +41,7 @@ public sealed class ExternalToolRunner : IExternalToolRunner
         {
             var reason = $"{tool.BinaryName} not found";
             reporter.Failed(input, tool.Name, reason);
-            return ToolOutcome<TResult>.Failure(reason);
+            return _outcomes.Failure<TResult>(reason);
         }
 
         reporter.Running(input, tool.Name, 0, $"{tool.BinaryName} starting");
@@ -87,14 +89,14 @@ public sealed class ExternalToolRunner : IExternalToolRunner
         {
             var reason = $"could not start {tool.BinaryName}: {ex.Message}";
             reporter.Failed(input, tool.Name, reason);
-            return ToolOutcome<TResult>.Failure(reason);
+            return _outcomes.Failure<TResult>(reason);
         }
 
         if (!started)
         {
             var reason = $"could not start {tool.BinaryName}";
             reporter.Failed(input, tool.Name, reason);
-            return ToolOutcome<TResult>.Failure(reason);
+            return _outcomes.Failure<TResult>(reason);
         }
 
         proc.BeginOutputReadLine();
@@ -129,6 +131,6 @@ public sealed class ExternalToolRunner : IExternalToolRunner
 
         var msg = tail.Annotate(outcome.Reason ?? $"{tool.BinaryName} failed");
         reporter.Failed(input, tool.Name, msg);
-        return ToolOutcome<TResult>.Failure(msg);
+        return _outcomes.Failure<TResult>(msg);
     }
 }

@@ -16,8 +16,9 @@ namespace Sholto.App.ExternalTools;
 /// <summary>Takes the expected output paths by value (computed once by the caller)
 /// rather than a back-reference to the analyser that owns them — Verify only ever
 /// needed the paths for this one call, not the whole collaborator.</summary>
-internal sealed class DemucsTool(StemPaths expectedPaths, StemDevice device) : IToolDefinition<StemPaths>
+internal sealed class DemucsTool(StemPaths expectedPaths, StemDevice device, IToolOutcomeFactory outcomes) : IToolDefinition<StemPaths>
 {
+    private readonly IToolOutcomeFactory _outcomes = outcomes;
     private readonly StemPaths _expectedPaths = expectedPaths;
     private readonly StemDevice _device = device;
 
@@ -61,13 +62,13 @@ internal sealed class DemucsTool(StemPaths expectedPaths, StemDevice device) : I
     public ToolOutcome<StemPaths> Verify(ToolInput toolInput, string stdout, int exitCode)
     {
         if (exitCode != 0)
-            return ToolOutcome<StemPaths>.Failure($"demucs exited with code {exitCode}");
+            return _outcomes.Failure<StemPaths>($"demucs exited with code {exitCode}");
 
         var paths = _expectedPaths;
         if (!paths.All.All(p => File.Exists(p) && new FileInfo(p).Length > 0))
-            return ToolOutcome<StemPaths>.Failure(
+            return _outcomes.Failure<StemPaths>(
                 "demucs exited 0 but expected stem files are missing or empty");
 
-        return ToolOutcome<StemPaths>.Success(paths);
+        return _outcomes.Success(paths);
     }
 }

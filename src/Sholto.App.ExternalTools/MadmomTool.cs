@@ -9,8 +9,10 @@ namespace Sholto.App.ExternalTools;
 
 /// <summary>Descriptor for madmom's DBNDownBeatTracker. Required — no fallback if
 /// this fails or isn't installed. Postcondition: stdout parses to at least one beat.</summary>
-internal sealed class MadmomTool : IToolDefinition<DetectedBeats>
+internal sealed class MadmomTool(IToolOutcomeFactory outcomes) : IToolDefinition<DetectedBeats>
 {
+    private readonly IToolOutcomeFactory _outcomes = outcomes;
+
     public string Name => AnalysisSteps.Beats;
     public string BinaryName => ExternalToolNames.Madmom;
     public bool IsRequired => true;
@@ -22,7 +24,7 @@ internal sealed class MadmomTool : IToolDefinition<DetectedBeats>
         ToolInput toolInput, string stdout, int exitCode)
     {
         if (exitCode != 0)
-            return ToolOutcome<DetectedBeats>.Failure(
+            return _outcomes.Failure<DetectedBeats>(
                 $"madmom exited with code {exitCode}");
 
         // DBNDownBeatTracker output: each line is "TIME\tBEAT_NUMBER" where
@@ -39,11 +41,11 @@ internal sealed class MadmomTool : IToolDefinition<DetectedBeats>
         }
 
         if (beats.Count == 0)
-            return ToolOutcome<DetectedBeats>.Failure(
+            return _outcomes.Failure<DetectedBeats>(
                 "madmom exited 0 but produced no beats");
 
         double bpm = BpmFromBeats(beats);
-        return ToolOutcome<DetectedBeats>.Success(new DetectedBeats(bpm, beats.ToArray(), downbeats.ToArray()));
+        return _outcomes.Success(new DetectedBeats(bpm, beats.ToArray(), downbeats.ToArray()));
     }
 
     /// <summary>Tempo (BPM, 0.1 resolution) from beat times. Uses the MEAN of the

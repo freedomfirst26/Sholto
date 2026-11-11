@@ -1,5 +1,6 @@
 using Sholto.App.Analysis.Stems;
 using System.Diagnostics;
+using Sholto.App.Analysis.ToolBoundary;
 using Sholto.App.Analysis.Reporting;
 
 namespace Sholto.App.ExternalTools.Tests;
@@ -13,7 +14,7 @@ public class RealToolIntegrationTests
 {
     private readonly ExternalToolFinder _finder =
         new(new ExternalToolOptionsFactory(new ExternalToolCatalog()).ForCurrentPlatform());
-    private readonly ExternalToolRunner _runner = new();
+    private readonly ExternalToolRunner _runner = new(new ToolOutcomeFactory());
 
     private string CreateSineWavFixture(double seconds = 2.0)
     {
@@ -44,7 +45,7 @@ public class RealToolIntegrationTests
         // Built as ExternalToolStackFactory builds it. The step now derives madmom's
         // workspace (the source file's own directory) itself.
         var madmomSession = new ConfiguredTool(_runner, _finder.Locate(ExternalToolNames.Madmom));
-        var madmom = new MadmomBeatAnalysisStepFactory().Create(madmomSession, new NullAnalysisReporter());
+        var madmom = new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory()).Create(madmomSession, new NullAnalysisReporter());
         if (!madmom.IsAvailable) return;
 
         var fixture = CreateSineWavFixture(6.0);
@@ -71,7 +72,7 @@ public class RealToolIntegrationTests
 
         var cacheRoot = Path.Combine(Path.GetTempPath(), $"sholto_test_stems_{Guid.NewGuid():N}");
         var demucsSession = new ConfiguredTool(_runner, demucsPath);
-        var demucs = new DemucsStemAnalysisStep(demucsSession, _ => cacheRoot, new FixedStemDevice(StemDevice.Cpu));
+        var demucs = new DemucsStemAnalysisStep(demucsSession, _ => cacheRoot, new FixedStemDevice(StemDevice.Cpu), new ToolOutcomeFactory());
         var fixture = CreateSineWavFixture(3.0);
         try
         {

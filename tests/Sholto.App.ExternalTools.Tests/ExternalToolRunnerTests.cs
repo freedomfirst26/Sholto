@@ -6,12 +6,14 @@ namespace Sholto.App.ExternalTools.Tests;
 
 public class ExternalToolRunnerTests
 {
-    private readonly ExternalToolRunner _runner = new();
+    private readonly IToolOutcomeFactory _outcomes = new ToolOutcomeFactory();
+    private readonly ExternalToolRunner _runner;
     private readonly string? _shPath;
     private readonly bool _shAvailable;
 
     public ExternalToolRunnerTests()
     {
+        _runner = new ExternalToolRunner(_outcomes);
         var finder = new ExternalToolFinder(new ExternalToolOptionsFactory(new ExternalToolCatalog()).ForCurrentPlatform());
         _shPath = finder.Locate("sh");
         _shAvailable = _shPath is not null;
@@ -19,8 +21,10 @@ public class ExternalToolRunnerTests
 
     /// <summary>A minimal descriptor that runs a real /bin/sh process so the runner's
     /// process-pumping machinery is exercised end to end.</summary>
-    private sealed class ShTool : IToolDefinition<string>
+    private sealed class ShTool(IToolOutcomeFactory outcomes) : IToolDefinition<string>
     {
+        private readonly IToolOutcomeFactory _outcomes = outcomes;
+
         public required string Script { get; init; }
         public Func<ToolInput, string, int, ToolOutcome<string>>? VerifyOverride { get; init; }
 
@@ -34,8 +38,8 @@ public class ExternalToolRunnerTests
             VerifyOverride is not null
                 ? VerifyOverride(toolInput, stdout, exitCode)
                 : (exitCode == 0
-                    ? ToolOutcome<string>.Success(stdout)
-                    : ToolOutcome<string>.Failure($"exited {exitCode}"));
+                    ? _outcomes.Success(stdout)
+                    : _outcomes.Failure<string>($"exited {exitCode}"));
     }
 
     [Fact]
@@ -48,10 +52,10 @@ public class ExternalToolRunnerTests
 
         // Exits 0 (echo always succeeds) but Verify always says the postcondition
         // failed — exactly the shape of the 5 Sep 2026 demucs incident.
-        var tool = new ShTool
+        var tool = new ShTool(_outcomes)
         {
             Script = "echo hello",
-            VerifyOverride = (_, _, exitCode) => ToolOutcome<string>.Failure("postcondition not met"),
+            VerifyOverride = (_, _, exitCode) => _outcomes.Failure<string>("postcondition not met"),
         };
 
         var outcome = await _runner.RunAsync(tool, _shPath, new ToolInput(path, "/tmp"), reporter);
@@ -70,7 +74,7 @@ public class ExternalToolRunnerTests
 
         var reporter = new AnalysisReporter(Array.Empty<string>());
         const string path = "/music/track.mp3";
-        var tool = new ShTool { Script = "sleep 30" };
+        var tool = new ShTool(_outcomes) { Script = "sleep 30" };
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
@@ -96,10 +100,10 @@ public class ExternalToolRunnerTests
 
         // A line that contains a '%' but is NOT a progress line (no tqdm-style
         // "NN%|" prefix) must still end up in the failure tail, not be swallowed.
-        var tool = new ShTool
+        var tool = new ShTool(_outcomes)
         {
             Script = "echo 'Only 50% of the checkpoint weights were loaded'; exit 1",
-            VerifyOverride = (_, _, exitCode) => ToolOutcome<string>.Failure($"exited {exitCode}"),
+            VerifyOverride = (_, _, exitCode) => _outcomes.Failure<string>($"exited {exitCode}"),
         };
 
         var outcome = await _runner.RunAsync(tool, _shPath, new ToolInput(path, "/tmp"), reporter);
@@ -115,7 +119,7 @@ public class ExternalToolRunnerTests
 
         var reporter = new AnalysisReporter(Array.Empty<string>());
         const string path = "/music/track.mp3";
-        var tool = new ShTool { Script = "echo ok" };
+        var tool = new ShTool(_outcomes) { Script = "echo ok" };
 
         var outcome = await _runner.RunAsync(tool, _shPath, new ToolInput(path, "/tmp"), reporter);
 
@@ -134,7 +138,7 @@ public class ExternalToolRunnerTests
 
         // A tool whose progress parser reports an out-of-range fraction (e.g. from a
         // 3-digit percentage like "999%") must still end up clamped in the reporter.
-        var tool = new ClampingTool();
+        var tool = new ClampingTool(_outcomes);
 
         await _runner.RunAsync(tool, _shPath, new ToolInput(path, "/tmp"), reporter);
 
@@ -142,8 +146,10 @@ public class ExternalToolRunnerTests
         Assert.InRange(step.Progress, 0.0, 1.0);
     }
 
-    private sealed class ClampingTool : IToolDefinition<string>
+    private sealed class ClampingTool(IToolOutcomeFactory outcomes) : IToolDefinition<string>
     {
+        private readonly IToolOutcomeFactory _outcomes = outcomes;
+
         public string Name => "clamp-tool";
         public string BinaryName => "sh";
         public bool IsRequired => false;
@@ -152,7 +158,7 @@ public class ExternalToolRunnerTests
             new[] { "-c", "echo '999%|xxx'" };
 
         public ToolOutcome<string> Verify(ToolInput toolInput, string stdout, int exitCode) =>
-            ToolOutcome<string>.Success(stdout);
+            _outcomes.Success(stdout);
 
         public bool TryParseProgress(string line, out double progress)
         {
@@ -174,7 +180,7 @@ public class ExternalToolRunnerTests
 
         var pidFile = Path.Combine(Path.GetTempPath(), $"sholto-kill-{Guid.NewGuid():N}.pid");
         // exec makes the shell's pid the pid of the long-running process itself.
-        var tool = new ShTool { Script = $"echo $$ > '{pidFile}'; exec sleep 60" };
+        var tool = new ShTool(_outcomes) { Script = $"echo $$ > '{pidFile}'; exec sleep 60" };
         using var cts = new CancellationTokenSource();
 
         var run = _runner.RunAsync(tool, _shPath, new ToolInput("/music/track.mp3", "/tmp"),
@@ -196,7 +202,7 @@ public class ExternalToolRunnerTests
     {
         var reporter = new AnalysisReporter(Array.Empty<string>());
         const string path = "/music/track.mp3";
-        var tool = new MissingBinaryTool();
+        var tool = new MissingBinaryTool(_outcomes);
 
         var outcome = await _runner.RunAsync(tool, binaryPath: null, new ToolInput(path, "/tmp"), reporter);
 
@@ -206,13 +212,15 @@ public class ExternalToolRunnerTests
         Assert.Equal(AnalysisState.Failed, step.State);
     }
 
-    private sealed class MissingBinaryTool : IToolDefinition<string>
+    private sealed class MissingBinaryTool(IToolOutcomeFactory outcomes) : IToolDefinition<string>
     {
+        private readonly IToolOutcomeFactory _outcomes = outcomes;
+
         public string Name => "missing-tool";
         public string BinaryName => "sholto_definitely_does_not_exist_xyz";
         public bool IsRequired => false;
         public IReadOnlyList<string> BuildArgs(ToolInput toolInput) => Array.Empty<string>();
         public ToolOutcome<string> Verify(ToolInput toolInput, string stdout, int exitCode) =>
-            ToolOutcome<string>.Success("unreachable");
+            _outcomes.Success("unreachable");
     }
 }

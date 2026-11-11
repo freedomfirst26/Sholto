@@ -12,7 +12,7 @@ public class DemucsDeviceTests
     public async Task Demucs_is_always_told_its_device_explicitly(StemDevice device, string expected)
     {
         var tool = new ArgsRecordingTool();
-        var step = new DemucsStemAnalysisStep(tool, _ => "/work", new FixedStemDevice(device));
+        var step = new DemucsStemAnalysisStep(tool, _ => "/work", new FixedStemDevice(device), new ToolOutcomeFactory());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => step.AnalyzeAsync("/music/a.mp3", new NullAnalysisReporter()));
 

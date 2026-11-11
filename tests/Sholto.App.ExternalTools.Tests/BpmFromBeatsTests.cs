@@ -1,5 +1,6 @@
 using System.Globalization;
 using Xunit;
+using Sholto.App.Analysis.ToolBoundary;
 using Sholto.App.Analysis.Reporting;
 
 namespace Sholto.App.ExternalTools.Tests;
@@ -12,7 +13,7 @@ public class BpmFromBeatsTests
     private async Task<double> BpmFromBeats(double[] beats)
     {
         var stdout = string.Join('\n', beats.Select(b => b.ToString("R", CultureInfo.InvariantCulture) + "\t1"));
-        var step = new MadmomBeatAnalysisStepFactory().Create(new StdoutReplayTool(stdout), new NullAnalysisReporter());
+        var step = new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory()).Create(new StdoutReplayTool(stdout), new NullAnalysisReporter());
         return (await step.AnalyzeAsync("/music/track.mp3")).Bpm;
     }
 

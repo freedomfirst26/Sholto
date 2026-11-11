@@ -8,6 +8,7 @@ using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stages;
 using Sholto.App.Analysis.Stores;
+using Sholto.App.Analysis.ToolBoundary;
 using Sholto.App.Audio;
 using Sholto.Data;
 
@@ -28,7 +29,7 @@ internal sealed class TestDeckFactory : IDeckFactory
             new WaveformBandSplitterFactory(new BiquadFactory(), Options.Create(new WaveformBandOptions())),
             new WaveformPeaksFactory());
         var stemStage = new StemAnalysisStage(
-            new DemucsStemAnalysisStep(new NullExternalTool(), _ => Path.GetTempPath(), new FixedStemDevice(StemDevice.Cpu)),
+            new DemucsStemAnalysisStep(new NullExternalTool(), _ => Path.GetTempPath(), new FixedStemDevice(StemDevice.Cpu), new ToolOutcomeFactory()),
             new StemDecoder(decoder), peaks, new VocalRegionAnalyzer(), reporter,
             new FixedStemDevice(StemDevice.Cpu), new SemaphoreStemGate());
         var decks = new DeckFactory(
