@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Gestures;
 
 /// <summary>The controller as an input interface: turns what the DJ does on the hardware into commands
 /// on the data bus. Gestures are private to it.</summary>
