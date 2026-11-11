@@ -11,6 +11,7 @@ using Sholto.Interface.Bench.Rendering;
 using Sholto.Interface.Bench.Scenario;
 using Sholto.Interface.Controller;
 using Sholto.Interface.Controller.Mappings;
+using Sholto.Interface.Controller.Gestures;
 
 namespace Sholto.Interface.Bench.Headless;
 

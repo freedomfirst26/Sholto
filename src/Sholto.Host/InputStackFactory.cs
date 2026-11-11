@@ -4,6 +4,7 @@ using Sholto.App;
 using Sholto.App.Lifecycle;
 using Sholto.App.Performance;
 using Sholto.Interface.Keyboard;
+using Sholto.Interface.Controller.Gestures;
 
 namespace Sholto.Host;
 

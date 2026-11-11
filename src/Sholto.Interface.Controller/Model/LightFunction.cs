@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>A lightable function on a controller. Logical — the per-device
 /// mapping (IControllerMapping.RenderLight) turns it into actual MIDI bytes.</summary>

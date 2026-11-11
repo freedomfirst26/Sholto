@@ -5,6 +5,7 @@ using Sholto.App.Performance;
 using Sholto.Data;
 using Sholto.Interface.Bench.Controller;
 using Sholto.Interface.Controller;
+using Sholto.Interface.Controller.Gestures;
 
 namespace Sholto.Interface.Bench.Headless;
 

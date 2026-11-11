@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>A discrete on/off physical control — a button or pad. The pressable
 /// behaviour lives in <see cref="Button"/>; a button that also has an LED is a

@@ -1,6 +1,7 @@
 using Sholto.Data;
 using Sholto.Interface.Controller;
 using Xunit;
+using Sholto.Interface.Controller.Gestures;
 
 namespace Sholto.App.Tests;
 

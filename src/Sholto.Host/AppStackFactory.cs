@@ -13,6 +13,7 @@ using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.Views;
 
 using Sholto.Interface.MainUI;
+using Sholto.Interface.Controller.Gestures;
 
 namespace Sholto.Host;
 

@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>A physical control on the controller (button, fader, jog…). The
 /// Controller owns a set of these and can reset them all to a known state. Input

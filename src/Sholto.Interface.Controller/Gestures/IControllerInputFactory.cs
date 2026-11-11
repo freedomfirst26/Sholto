@@ -1,6 +1,6 @@
 using Sholto.Data;
 
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Gestures;
 
 /// <summary>Builds the <see cref="IControllerInput"/> over a control surface.</summary>
 public interface IControllerInputFactory

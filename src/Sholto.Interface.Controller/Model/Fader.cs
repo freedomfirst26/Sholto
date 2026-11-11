@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>A fader whose value is <c>null</c> until it has been measured. The
 /// FLX-4 only reports a fader's position when it is moved, so at startup we

@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>A continuous physical control — a fader, knob, or jog. Its state IS
 /// its physical position, so <see cref="Reset"/> is a no-op: you never force an

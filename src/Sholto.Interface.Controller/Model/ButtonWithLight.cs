@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>A <see cref="Button"/> that also has an LED. The Controller supplies an
 /// <c>applyLight</c> callback (which renders the device-specific MIDI), so the

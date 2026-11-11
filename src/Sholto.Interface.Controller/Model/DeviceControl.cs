@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>A control the DJ physically interacts with. Splits into
 /// <see cref="AnalogueControl"/> (continuous — faders, knobs, jogs) and

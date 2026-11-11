@@ -17,6 +17,7 @@ using Sholto.Interface.MainUI.Harness.Ui;
 using Sholto.Interface.MainUI.Harness.Showcase;
 using Sholto.App.Analysis.Harmony;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
+using Sholto.Interface.Controller.Gestures;
 
 namespace Sholto.Interface.MainUI.Harness;
 

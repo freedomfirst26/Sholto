@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>A pressable button with no light. Input bubbles up via
 /// <see cref="Clicked"/> when the physical button is pressed. A button that also

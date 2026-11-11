@@ -1,4 +1,5 @@
 using Sholto.Data;
+using Sholto.Interface.Controller.Gestures;
 
 namespace Sholto.Interface.Controller.Tests;
 

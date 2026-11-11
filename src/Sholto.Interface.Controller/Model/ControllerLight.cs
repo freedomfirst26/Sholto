@@ -1,4 +1,4 @@
-namespace Sholto.Interface.Controller;
+namespace Sholto.Interface.Controller.Model;
 
 /// <summary>Addresses one lightable control: which deck (0 = Deck 1, 1 = Deck 2;
 /// ignored for device-wide lights like MasterCue) and which function. Used as a

@@ -3,6 +3,7 @@ using Sholto.Interface.Controller;
 using Sholto.Interface.Controller.Mappings;
 using Sholto.Interface.Controller.Mappings.DdjFlx4;
 using Xunit;
+using Sholto.Interface.Controller.Model;
 
 namespace Sholto.Interface.Controller.Tests;
 
