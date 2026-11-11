@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Controls.CollapseToIcon;
@@ -68,43 +67,17 @@ public sealed class MainViewModel :
     public void LoadSelectedToDeck(int deckIndex) =>
         _sender.Send(new LoadSelectedIntoDeck(deckIndex, new Origin(InterfaceIds.MainUI, "search", "load", deckIndex)));
 
-    public TagEditorViewModel? TagEditor { get; private set; }
+    public TagEditorViewModel? TagEditor => _trackActions.TagEditor;
+    public bool IsTagEditorOpen => _trackActions.IsTagEditorOpen;
 
-    private bool _isTagEditorOpen;
-    public bool IsTagEditorOpen
-    {
-        get => _isTagEditorOpen;
-        private set { if (_isTagEditorOpen == value) return; _isTagEditorOpen = value; Notify(); }
-    }
+    /// <summary>The database is up (the App announces it): the track actions build the tag editor and crate picker.</summary>
+    void IEventHandler<LibraryDatabaseAttached>.Handle(in LibraryDatabaseAttached e) => _trackActions.AttachLibrary(e.Available);
 
-    /// <summary>The database is up (the App announces it): build the tag editor and the crate picker, which
-    /// read and edit through queries and commands. (The search overlay follows the same event itself.)</summary>
-    void IEventHandler<LibraryDatabaseAttached>.Handle(in LibraryDatabaseAttached e)
-    {
-        if (!e.Available || TagEditor is not null) return;
-
-        TagEditor = _overlays.TagEditor();
-        TagEditor.RequestClose += () => IsTagEditorOpen = false;
-        Notify(nameof(TagEditor));
-
-        CratePicker = _overlays.CratePicker();
-        CratePicker.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(CratePickerViewModel.IsOpen)) Notify(nameof(IsCratePickerOpen));
-        };
-        Notify(nameof(CratePicker));
-    }
-
-    public async Task OpenTagEditorAsync(TrackRow row)
-    {
-        if (TagEditor is null) return;
-        await TagEditor.OpenForAsync(row.TrackId, row.Artist, row.Title);
-        IsTagEditorOpen = true;
-    }
+    public Task OpenTagEditorAsync(TrackRow row) => _trackActions.OpenTagEditorAsync(row);
 
     // ---- Enter-mode: the track action menu + crate picker ----------------------
 
-    public TrackActionsViewModel TrackActions { get; }
+    public TrackActionsViewModel TrackActions => _trackActions.TrackActions;
     public OutputPickerViewModel OutputPicker { get; }
 
     private bool _isOutputPickerOpen;
@@ -113,102 +86,41 @@ public sealed class MainViewModel :
         get => _isOutputPickerOpen;
         private set { if (_isOutputPickerOpen == value) return; _isOutputPickerOpen = value; Notify(); }
     }
-    public CratePickerViewModel? CratePicker { get; private set; }
-
-    private bool _isTrackActionsOpen;
-    public bool IsTrackActionsOpen
-    {
-        get => _isTrackActionsOpen;
-        private set { if (_isTrackActionsOpen == value) return; _isTrackActionsOpen = value; Notify(); }
-    }
+    public CratePickerViewModel? CratePicker => _trackActions.CratePicker;
+    public bool IsTrackActionsOpen => _trackActions.IsTrackActionsOpen;
 
     /// <summary>Whether the crate picker is showing (a pass-through to <see cref="CratePicker"/>).</summary>
-    public bool IsCratePickerOpen => CratePicker?.IsOpen ?? false;
+    public bool IsCratePickerOpen => _trackActions.IsCratePickerOpen;
 
     // ---- Controller guide (Faceplate) -------------------------------------------
 
-    /// <summary>The controller guide's own state. Null until <see cref="AttachFaceplate"/>
-    /// runs (MainWindow's code-behind does this once the mounted overlay has built its
-    /// own view model from <c>FaceplateDocLoader.Load(IDeviceFaceplate)</c>) — there is
-    /// deliberately no second, separately-constructed instance here; see the MainWindow
-    /// constructor for why that would silently break the panel.</summary>
-    public Sholto.Interface.Faceplate.ViewModels.FaceplateViewModel? Faceplate { get; private set; }
+    /// <summary>The controller guide's own state; null until <see cref="AttachFaceplate"/> runs.</summary>
+    public Sholto.Interface.Faceplate.ViewModels.FaceplateViewModel? Faceplate => _faceplate.Faceplate;
 
-    /// <summary>Wires up the guide's own view model (see <see cref="Faceplate"/>) once
-    /// the overlay hosting it exists. Mirrors <see cref="AttachTagService"/>: state
-    /// owned by another part of the app, handed in after construction.</summary>
-    public void AttachFaceplate(Sholto.Interface.Faceplate.ViewModels.FaceplateViewModel faceplate)
-    {
-        if (ReferenceEquals(Faceplate, faceplate)) return;
-        Faceplate = faceplate;
-        Faceplate.RequestClose += () => IsFaceplateOpen = false;
-        Notify(nameof(Faceplate));
-    }
+    /// <summary>Hand in the guide's own view model once the overlay hosting it exists.</summary>
+    public void AttachFaceplate(Sholto.Interface.Faceplate.ViewModels.FaceplateViewModel faceplate) =>
+        _faceplate.AttachFaceplate(faceplate);
 
-    /// <summary>When the controller guide is open, collapsing into its top-bar icon, hinting or idle. The
-    /// view reads it to animate; <see cref="Mount"/> drives it.</summary>
-    public ICollapseToIconSequence FaceplateDock { get; }
+    /// <summary>When the controller guide is open, collapsing into its top-bar icon, hinting or idle.</summary>
+    public ICollapseToIconSequence FaceplateDock => _faceplate.FaceplateDock;
 
-    private Sholto.Interface.Faceplate.FaceplateMount _mount = Sholto.Interface.Faceplate.FaceplateMount.Hidden;
-    /// <summary>Where the controller guide is shown — see
-    /// <see cref="Sholto.Interface.Faceplate.FaceplateMount"/>. <see cref="IsFaceplateOpen"/>
-    /// derives from this (anything but <c>Hidden</c> counts as open) rather than being
-    /// independent state. Opening sets <c>Full</c>; closing sets <c>Hidden</c>.
-    /// <c>Embedded</c> is wired but not built — selecting it behaves exactly like
-    /// <c>Full</c> until a real embedded layout exists, so it is never a
-    /// half-built layout and never a dead value nothing shows.</summary>
+    /// <summary>Where the controller guide is shown.</summary>
     public Sholto.Interface.Faceplate.FaceplateMount Mount
     {
-        get => _mount;
-        set
-        {
-            if (_mount == value) return;
-            var wasOpen = _mount != Sholto.Interface.Faceplate.FaceplateMount.Hidden;
-            _mount = value;
-            var isOpen = _mount != Sholto.Interface.Faceplate.FaceplateMount.Hidden;
-            Notify();
-            Notify(nameof(IsFaceplateOpen));
-            if (wasOpen == isOpen) return;
-            // The guide tells the App whether Inspect mode is on (SetInspectMode); the App owns that state.
-            Faceplate?.SetMounted(isOpen);
-            // Drop any standing selection without re-raising RequestClose — that event
-            // is how the overlay's OWN close button tells us to close; looping back into
-            // it here would just re-enter this setter (safely, since the equality check
-            // above short-circuits it, but needlessly).
-            if (!isOpen) Faceplate?.ClearSelection();
-            // Inspect is already off and the selection gone: only now does the guide start shrinking into its icon.
-            if (isOpen) FaceplateDock.Open();
-            else FaceplateDock.Collapse();
-        }
+        get => _faceplate.Mount;
+        set => _faceplate.Mount = value;
     }
 
-    /// <summary>Whether the controller guide overlay is showing. The only way in is the
-    /// top-bar button. Three ways set it back to false: Esc, the overlay's own visible
-    /// close button, and the same top-bar button — deliberately NOT a backdrop click,
-    /// which would dismiss the whole guide (and whatever was selected) on a click that
-    /// merely missed a small control by a few pixels. A thin bool view over
-    /// <see cref="Mount"/>: true sets <c>Full</c>, false sets <c>Hidden</c>. Mounting the guide
-    /// turns Inspect mode on (Mount's setter tells the Faceplate view model, which sends
-    /// <c>SetInspectMode</c>): that is what lets pressing PLAY on the physical unit explain PLAY
-    /// instead of starting a deck.</summary>
+    /// <summary>Whether the controller guide overlay is showing; a bool view over <see cref="Mount"/>.</summary>
     public bool IsFaceplateOpen
     {
-        get => Mount != Sholto.Interface.Faceplate.FaceplateMount.Hidden;
-        set
-        {
-            if (IsFaceplateOpen == value) return;
-            Mount = value ? Sholto.Interface.Faceplate.FaceplateMount.Full : Sholto.Interface.Faceplate.FaceplateMount.Hidden;
-        }
+        get => _faceplate.IsFaceplateOpen;
+        set => _faceplate.IsFaceplateOpen = value;
     }
 
-    private string? _toast;
     /// <summary>Brief confirmation text (e.g. "Added to Warmup Set"); null = hidden.</summary>
-    public string? Toast
-    {
-        get => _toast;
-        private set { _toast = value; Notify(); Notify(nameof(HasToast)); }
-    }
-    public bool HasToast => !string.IsNullOrEmpty(_toast);
+    public string? Toast => _toast.Toast;
+    public bool HasToast => _toast.HasToast;
 
     private void WireOutputPicker()
     {
@@ -216,58 +128,21 @@ public sealed class MainViewModel :
         OutputPicker.RequestClose += () => IsOutputPickerOpen = false;
     }
 
-    private void WireTrackActions()
-    {
-        TrackActions.RequestClose += () => IsTrackActionsOpen = false;
-        TrackActions.Invoked += kind =>
-        {
-            var row = TrackActions.Row;
-            IsTrackActionsOpen = false;
-            if (row is null) return;
-            switch (kind)
-            {
-                case TrackActionKind.Tag:        _ = OpenTagEditorAsync(row); break;
-                case TrackActionKind.AddToCrate: _ = OpenCratePickerAsync(row); break;
-            }
-        };
-    }
-
     /// <summary>Enter on a library row opens the action menu for it.</summary>
-    public void OpenTrackActions(TrackRow row)
-    {
-        TrackActions.Open(row);
-        IsTrackActionsOpen = true;
-    }
+    public void OpenTrackActions(TrackRow row) => _trackActions.OpenTrackActions(row);
 
-    public async Task OpenCratePickerAsync(TrackRow row)
-    {
-        if (CratePicker is null) return;
-        await CratePicker.OpenAsync(row);
-    }
+    public Task OpenCratePickerAsync(TrackRow row) => _trackActions.OpenCratePickerAsync(row);
 
     /// <summary>A marker was dropped on a deck (M key; Shift = Deck 2): confirm it with a toast.</summary>
     void IEventHandler<MarkerAdded>.Handle(in MarkerAdded e) =>
-        ShowToast($"Marker · Deck {e.Deck + 1} · {TimeSpan.FromSeconds(e.Seconds):m\\:ss}");
+        _toast.Show($"Marker · Deck {e.Deck + 1} · {TimeSpan.FromSeconds(e.Seconds):m\\:ss}");
 
     /// <summary>A track went into a crate (from the crate picker): confirm it with a toast.</summary>
-    void IEventHandler<TrackAddedToCrate>.Handle(in TrackAddedToCrate e) => ShowToast($"Added to {e.CrateName}");
+    void IEventHandler<TrackAddedToCrate>.Handle(in TrackAddedToCrate e) => _toast.Show($"Added to {e.CrateName}");
 
     /// <summary>A track could not be loaded: the deck stays usable; say so.</summary>
     void IEventHandler<TrackLoadFailed>.Handle(in TrackLoadFailed e) =>
-        ShowToast($"Couldn't load {e.Title} · Deck {e.Deck + 1}");
-
-    private void ShowToast(string text)
-    {
-        Toast = text;
-        _ = HideToastLaterAsync();
-    }
-
-    /// <summary>The wait runs off the app thread; clearing the toast comes back onto it.</summary>
-    private async Task HideToastLaterAsync()
-    {
-        await Task.Delay(1800).ConfigureAwait(false);
-        _appThread.Post(() => Toast = null);
-    }
+        _toast.Show($"Couldn't load {e.Title} · Deck {e.Deck + 1}");
 
     public DeckViewModel Deck1 { get; }
     public DeckViewModel Deck2 { get; }
@@ -322,18 +197,15 @@ public sealed class MainViewModel :
 
     // ---- Boot-time tool check: amber dot + system report ------------------------
 
-    private SystemHealth? _systemHealth;
-
     /// <summary>The system report modal (the amber status dot): one row per external tool and a headline.</summary>
-    public ISystemReportViewModel SystemReportModal { get; }
+    public ISystemReportViewModel SystemReportModal => _systemReport.SystemReportModal;
 
     /// <summary>The boot-time tool probe's result, published once at startup by the App side. Nothing here
     /// re-probes the filesystem, and availability deliberately never goes live (see ExternalToolFinder: a
     /// tool installed mid-session needs a restart).</summary>
     void IEventHandler<SystemCheckReported>.Handle(in SystemCheckReported e)
     {
-        _systemHealth = e.Health;
-        SystemReportModal.Report(e);
+        _systemReport.Report(e);
         Notify(nameof(SystemDegraded));
     }
 
@@ -342,11 +214,11 @@ public sealed class MainViewModel :
     /// colour. Both <c>Degraded</c> and <c>Offline</c> land here; the severity shows
     /// up in the report's headline, not in the colour.</summary>
     public bool SystemDegraded =>
-        _controllerConnected && _systemHealth is { } h && h != SystemHealth.Healthy;
+        _controllerConnected && _systemReport.ToolsMissing;
 
     /// <summary>Whether the system report is showing (a pass-through to <see cref="SystemReportModal"/>).
     /// The only way in is a click on the amber dot.</summary>
-    public bool IsSystemReportOpen => SystemReportModal.IsOpen;
+    public bool IsSystemReportOpen => _systemReport.IsSystemReportOpen;
 
     /// <summary>Click handler's entry point. No-ops unless the dot is actually amber,
     /// so a green (or red) dot is not a hidden button.</summary>
@@ -388,29 +260,30 @@ public sealed class MainViewModel :
 
     public void OpenSettings() => Settings.Open();
 
-    private readonly IOverlayViewModelFactory _overlays;
     private readonly IThemeViewModel _themes;
     private readonly ICommandSender _sender;
-    private readonly IAppThread _appThread;
+    private readonly IToastViewModel _toast;
+    private readonly ITrackActionsCoordinator _trackActions;
+    private readonly ISystemReportCoordinator _systemReport;
+    private readonly IFaceplateGuideCoordinator _faceplate;
 
     public MainViewModel(IThemeViewModel themes,
-                         IOverlayViewModelFactory overlays,
                          LibraryRowsViewModel rows,
                          ICommandSender sender,
                          IEventSubscriber subscriber,
-                         IAppThread appThread,
                          IGlanceViewModel glance,
                          ILoadFeedbackViewModel loadFeedback,
-                         TrackActionsViewModel trackActions,
                          OutputPickerViewModel outputPicker,
                          DeckViewModel deck1,
                          DeckViewModel deck2,
                          IWaveformStyleViewModel waveformStyle,
                          ILayoutWizardViewModel layoutWizard,
                          ISettingsViewModel settings,
-                         ISystemReportViewModel systemReport,
-                         ICollapseToIconSequence faceplateDock,
-                         ITrackListViewModel trackList)
+                         ITrackListViewModel trackList,
+                         IToastViewModel toast,
+                         ITrackActionsCoordinator trackActions,
+                         ISystemReportCoordinator systemReport,
+                         IFaceplateGuideCoordinator faceplate)
     {
         TrackList = trackList;
         TrackList.PropertyChanged += (_, e) =>
@@ -418,22 +291,23 @@ public sealed class MainViewModel :
             if (e.PropertyName == nameof(ITrackListViewModel.IsEmpty)) Notify(nameof(ShowTrackListEmpty));
         };
         rows.Items.CollectionChanged += (_, _) => Notify(nameof(ShowTrackListEmpty));
-        SystemReportModal = systemReport;
-        SystemReportModal.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(ISystemReportViewModel.IsOpen)) Notify(nameof(IsSystemReportOpen));
-        };
-        FaceplateDock = faceplateDock;
         WaveformStyle = waveformStyle;
         LayoutWizard = layoutWizard;
         Settings = settings;
         _themes = themes;
-        _overlays = overlays;
         _sender = sender;
-        _appThread = appThread;
         _rows = rows;
-        TrackActions = trackActions;
         OutputPicker = outputPicker;
+        _toast = toast;
+        _trackActions = trackActions;
+        _systemReport = systemReport;
+        _faceplate = faceplate;
+        // The collaborators raise only names this view model has; relay them before the first Subscribe,
+        // since state events replay on subscribe.
+        _toast.PropertyChanged += (_, e) => Notify(e.PropertyName);
+        _trackActions.PropertyChanged += (_, e) => Notify(e.PropertyName);
+        _systemReport.PropertyChanged += (_, e) => Notify(e.PropertyName);
+        _faceplate.PropertyChanged += (_, e) => Notify(e.PropertyName);
 
         // A theme worn for any reason (menu pick, restore, the wizard's live try-on) re-emits the theme-derived
         // bindings; only a choice is sent to the App.
@@ -454,7 +328,6 @@ public sealed class MainViewModel :
         {
             if (e.PropertyName == nameof(ILoadFeedbackViewModel.HasWarning)) Notify(nameof(ShowLoadWarning));
         };
-        WireTrackActions();
         WireOutputPicker();
 
         Deck1 = deck1;

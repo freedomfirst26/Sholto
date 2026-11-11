@@ -37,7 +37,10 @@ public sealed class MainViewModelFactory(
 
     /// <summary>Call once: the handed-in view models are wired by each call.</summary>
     public MainViewModel Create() => new(
-        _themes, _overlays, _rows, _sender, _subscriber, _appThread, _glance, _loadFeedback, _trackActions,
-        _outputPicker, _deck1, _deck2, _waveformStyle, _layoutWizard, _settings, _systemReport, _faceplateDock,
-        _trackList);
+        _themes, _rows, _sender, _subscriber, _glance, _loadFeedback, _outputPicker, _deck1, _deck2,
+        _waveformStyle, _layoutWizard, _settings, _trackList,
+        new ToastViewModel(_appThread),
+        new TrackActionsCoordinator(_overlays, _trackActions),
+        new SystemReportCoordinator(_systemReport),
+        new FaceplateGuideCoordinator(_faceplateDock));
 }
