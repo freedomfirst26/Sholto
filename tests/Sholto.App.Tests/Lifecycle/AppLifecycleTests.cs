@@ -736,6 +736,42 @@ public class AppLifecycleTests
     }
 
     [Fact]
+    public async Task A_cancelled_first_run_picker_does_not_load_All_Tracks()
+    {
+        var rig = new AppLifecycleRig();   // no saved track list = first launch, no saved folder
+        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
+            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(null, Answer))));
+
+        rig.Lifecycle.Start();
+
+        await Eventually(() => rig.MusicFolderAsked.Received.Count == 1);
+        await rig.Database.Opened;
+        await Task.Delay(300);
+        Assert.Empty(rig.TrackList.Entries);
+        Assert.Empty(rig.TrackList.Sources);
+    }
+
+    [Fact]
+    public async Task A_menu_rescan_on_first_launch_does_not_load_All_Tracks()
+    {
+        var rig = new AppLifecycleRig();
+        var dir = NewMusicDir();
+        // The first question (FirstRun) is cancelled, the second (Change) is answered with the folder.
+        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
+            e => rig.Lifecycle.Handle(new ChooseMusicFolder(e.Reason == MusicFolderReason.Change ? dir : null, Answer))));
+        rig.Lifecycle.Start();
+        await Eventually(() => rig.MusicFolderAsked.Received.Count == 1);
+        await Task.Delay(100);   // let the cancel land: a menu request is ignored while a question is open
+
+        rig.Lifecycle.Handle(new ChangeMusicFolder(Answer));
+
+        await Eventually(() => rig.Library.Library.Catalog.Count == 3);
+        await Task.Delay(300);
+        Assert.Empty(rig.TrackList.Entries);
+        Assert.Empty(rig.TrackList.Sources);
+    }
+
+    [Fact]
     public async Task A_track_list_change_is_saved_as_json_the_codec_reads_back()
     {
         var rig = new AppLifecycleRig(musicDirOverride: NewMusicDir());
