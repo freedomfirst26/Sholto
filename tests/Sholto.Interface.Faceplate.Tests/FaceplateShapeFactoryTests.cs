@@ -7,7 +7,10 @@ namespace Sholto.Interface.Faceplate.Tests;
 
 public sealed class FaceplateShapeFactoryTests
 {
-    private readonly FaceplateShapeFactory _factory = new(new FaceplateBrushes());
+    private readonly FakeFaceplateBrushes _brushes = new();
+    private readonly FaceplateShapeFactory _factory;
+
+    public FaceplateShapeFactoryTests() => _factory = new(_brushes);
 
     [Fact]
     public void CreatePiece_on_a_30px_rounded_border_builds_rectangles_sized_by_the_bloom()
@@ -70,5 +73,13 @@ public sealed class FaceplateShapeFactoryTests
 
         Assert.Null(piece.Tint.Fill);
         Assert.False(piece.Implemented);
+    }
+
+    [Fact]
+    public void CreatePiece_fills_the_tint_with_the_brushes_rest_colour()
+    {
+        var piece = _factory.CreatePiece(new Border(), new Rect(0, 0, 30, 30), implemented: true);
+
+        Assert.Same(_brushes.AmberRest, piece.Tint.Fill);
     }
 }

@@ -6,9 +6,9 @@ using Avalonia.Media;
 namespace Sholto.Interface.Faceplate.Views;
 
 /// <summary>Builds the circled step badge that numbers a control in a combination.</summary>
-public sealed class FaceplateStepBadgeFactory(FaceplateBrushes brushes) : IFaceplateStepBadgeFactory
+public sealed class FaceplateStepBadgeFactory(IFaceplateBrushes brushes) : IFaceplateStepBadgeFactory
 {
-    private readonly FaceplateBrushes _brushes = brushes;
+    private readonly IFaceplateBrushes _brushes = brushes;
 
     public Control Create(Shape tint, int step)
     {

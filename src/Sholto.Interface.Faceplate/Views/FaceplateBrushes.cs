@@ -11,7 +11,7 @@ namespace Sholto.Interface.Faceplate.Views;
 /// at rest; a control it never hears from carries no colour at all. That way the board
 /// answers "what does this thing actually do?" before anyone clicks or reads a
 /// legend — which is why there is no legend.</para></summary>
-public sealed class FaceplateBrushes
+public sealed class FaceplateBrushes : IFaceplateBrushes
 {
     private Visual? _host;
 

@@ -6,7 +6,7 @@ namespace Sholto.Interface.Faceplate.Tests;
 
 public sealed class FaceplateStepBadgeFactoryTests
 {
-    private readonly FaceplateStepBadgeFactory _badges = new(new FaceplateBrushes());
+    private readonly FaceplateStepBadgeFactory _badges = new(new FakeFaceplateBrushes());
 
     private static Rectangle Tint()
     {
@@ -35,5 +35,14 @@ public sealed class FaceplateStepBadgeFactoryTests
         var badge = Assert.IsType<Border>(_badges.Create(Tint(), 25));
 
         Assert.Equal("25", Assert.IsType<TextBlock>(badge.Child).Text);
+    }
+
+    [Fact]
+    public void Create_paints_the_badge_with_the_brushes_glow_colour()
+    {
+        var badge = Assert.IsType<Border>(_badges.Create(Tint(), 1));
+
+        var fill = Assert.IsType<Avalonia.Media.SolidColorBrush>(badge.Background);
+        Assert.Equal(new FakeFaceplateBrushes().AmberGlow, fill.Color);
     }
 }

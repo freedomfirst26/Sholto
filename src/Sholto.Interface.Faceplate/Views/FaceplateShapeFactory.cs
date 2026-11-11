@@ -8,7 +8,7 @@ namespace Sholto.Interface.Faceplate.Views;
 
 /// <summary>Builds the shapes the board paints over each control of the drawing: the glow
 /// rings, the fill tint, and the transparent hit target. Never adds them to a canvas.</summary>
-public sealed class FaceplateShapeFactory(FaceplateBrushes brushes) : IFaceplateShapeFactory
+public sealed class FaceplateShapeFactory(IFaceplateBrushes brushes) : IFaceplateShapeFactory
 {
     /// <summary>How far the bloom reaches beyond a control's edge, as a fraction of the
     /// control's short side. A fixed width swamped a 20px button and smeared into brown
@@ -21,7 +21,7 @@ public sealed class FaceplateShapeFactory(FaceplateBrushes brushes) : IFaceplate
     /// </summary>
     private const double HaloMultiple = 1.6;
 
-    private readonly FaceplateBrushes _brushes = brushes;
+    private readonly IFaceplateBrushes _brushes = brushes;
 
     public FaceplatePiece CreatePiece(Control shape, Rect rect, bool implemented)
     {
