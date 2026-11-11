@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sholto.App.Library.Markers;
-using Sholto.Storage.Entities;
+using Sholto.App.Storage.Entities;
 
 namespace Sholto.App.Storage;
 

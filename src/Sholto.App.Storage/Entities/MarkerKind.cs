@@ -1,4 +1,4 @@
-namespace Sholto.Storage.Entities;
+namespace Sholto.App.Storage.Entities;
 
 /// <summary>What a marker is used for. Memory = a plain saved position (Rekordbox
 /// "memory cue"); In/Out designate transition points that a <see cref="MarkerLink"/>

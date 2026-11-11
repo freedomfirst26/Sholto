@@ -1,4 +1,4 @@
-namespace Sholto.Storage.Entities;
+namespace Sholto.App.Storage.Entities;
 
 /// <summary>A named collection of tracks — the DJ "crate" (Serato's term for a
 /// user-organised track group). Named <c>Crate</c> rather than <c>Set</c> because

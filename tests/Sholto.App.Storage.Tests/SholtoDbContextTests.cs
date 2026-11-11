@@ -1,7 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Sholto.App.Storage;
-using Sholto.Storage.Entities;
+using Sholto.App.Storage.Entities;
 
 namespace Sholto.App.Storage.Tests;
 

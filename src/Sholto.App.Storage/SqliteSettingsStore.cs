@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sholto.App.Settings;
-using Sholto.Storage.Entities;
+using Sholto.App.Storage.Entities;
 
 namespace Sholto.App.Storage;
 

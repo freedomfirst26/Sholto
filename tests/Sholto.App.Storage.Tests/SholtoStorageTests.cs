@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.App.Storage;
-using Sholto.Storage.Entities;
+using Sholto.App.Storage.Entities;
 using Sholto.Data;
 
 namespace Sholto.App.Storage.Tests;

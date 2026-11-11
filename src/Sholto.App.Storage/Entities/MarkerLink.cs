@@ -1,4 +1,4 @@
-namespace Sholto.Storage.Entities;
+namespace Sholto.App.Storage.Entities;
 
 /// <summary>Links an OUT <see cref="Marker"/> on one deck's track to an IN marker on
 /// another track, defining a transition: when playback crosses the out point, deck 2

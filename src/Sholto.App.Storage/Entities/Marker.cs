@@ -1,4 +1,4 @@
-namespace Sholto.Storage.Entities;
+namespace Sholto.App.Storage.Entities;
 
 /// <summary>A saved position on a track — our equivalent of a Rekordbox memory cue.
 /// A track can have many. Rendered on the waveform and reachable for quick jumps;

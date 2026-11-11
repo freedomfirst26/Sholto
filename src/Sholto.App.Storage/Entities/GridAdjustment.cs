@@ -1,4 +1,4 @@
-namespace Sholto.Storage.Entities;
+namespace Sholto.App.Storage.Entities;
 
 /// <summary>
 /// Per-track manual beatgrid correction. Kept SEPARATE from the immutable

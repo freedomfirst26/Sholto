@@ -17,7 +17,7 @@ namespace Sholto.App.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
 
-            modelBuilder.Entity("Sholto.Storage.Entities.BasicAnalysisRecord", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.BasicAnalysisRecord", b =>
                 {
                     b.Property<string>("TrackId")
                         .HasColumnType("TEXT");
@@ -37,7 +37,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("BasicAnalyses");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.BpmOverride", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.BpmOverride", b =>
                 {
                     b.Property<string>("TrackId")
                         .HasColumnType("TEXT");
@@ -50,7 +50,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("BpmOverrides");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Crate", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Crate", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -74,7 +74,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("Crates");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.CrateTrack", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.CrateTrack", b =>
                 {
                     b.Property<int>("CrateId")
                         .HasColumnType("INTEGER");
@@ -92,7 +92,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("CrateTracks");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.GridAdjustment", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.GridAdjustment", b =>
                 {
                     b.Property<string>("TrackId")
                         .HasColumnType("TEXT");
@@ -108,7 +108,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("GridAdjustments");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.KeyAnalysisRecord", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.KeyAnalysisRecord", b =>
                 {
                     b.Property<string>("TrackId")
                         .HasColumnType("TEXT");
@@ -128,7 +128,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("KeyAnalyses");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Marker", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Marker", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -158,7 +158,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("Markers");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.MarkerLink", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.MarkerLink", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -189,7 +189,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("MarkerLinks");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Setting", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Setting", b =>
                 {
                     b.Property<string>("Key")
                         .HasColumnType("TEXT");
@@ -203,7 +203,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("Settings");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Tag", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Tag", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -227,7 +227,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("Tags");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Track", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Track", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -262,7 +262,7 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("Tracks");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.TrackTag", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.TrackTag", b =>
                 {
                     b.Property<string>("TrackId")
                         .HasColumnType("TEXT");
@@ -277,37 +277,37 @@ namespace Sholto.App.Storage.Migrations
                     b.ToTable("TrackTags");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.BasicAnalysisRecord", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.BasicAnalysisRecord", b =>
                 {
-                    b.HasOne("Sholto.Storage.Entities.Track", "Track")
+                    b.HasOne("Sholto.App.Storage.Entities.Track", "Track")
                         .WithOne("BasicAnalysis")
-                        .HasForeignKey("Sholto.Storage.Entities.BasicAnalysisRecord", "TrackId")
+                        .HasForeignKey("Sholto.App.Storage.Entities.BasicAnalysisRecord", "TrackId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Track");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.BpmOverride", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.BpmOverride", b =>
                 {
-                    b.HasOne("Sholto.Storage.Entities.Track", "Track")
+                    b.HasOne("Sholto.App.Storage.Entities.Track", "Track")
                         .WithOne("BpmOverride")
-                        .HasForeignKey("Sholto.Storage.Entities.BpmOverride", "TrackId")
+                        .HasForeignKey("Sholto.App.Storage.Entities.BpmOverride", "TrackId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Track");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.CrateTrack", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.CrateTrack", b =>
                 {
-                    b.HasOne("Sholto.Storage.Entities.Crate", "Crate")
+                    b.HasOne("Sholto.App.Storage.Entities.Crate", "Crate")
                         .WithMany("CrateTracks")
                         .HasForeignKey("CrateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Sholto.Storage.Entities.Track", "Track")
+                    b.HasOne("Sholto.App.Storage.Entities.Track", "Track")
                         .WithMany("CrateTracks")
                         .HasForeignKey("TrackId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -318,31 +318,31 @@ namespace Sholto.App.Storage.Migrations
                     b.Navigation("Track");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.GridAdjustment", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.GridAdjustment", b =>
                 {
-                    b.HasOne("Sholto.Storage.Entities.Track", "Track")
+                    b.HasOne("Sholto.App.Storage.Entities.Track", "Track")
                         .WithOne("GridAdjustment")
-                        .HasForeignKey("Sholto.Storage.Entities.GridAdjustment", "TrackId")
+                        .HasForeignKey("Sholto.App.Storage.Entities.GridAdjustment", "TrackId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Track");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.KeyAnalysisRecord", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.KeyAnalysisRecord", b =>
                 {
-                    b.HasOne("Sholto.Storage.Entities.Track", "Track")
+                    b.HasOne("Sholto.App.Storage.Entities.Track", "Track")
                         .WithOne("KeyAnalysis")
-                        .HasForeignKey("Sholto.Storage.Entities.KeyAnalysisRecord", "TrackId")
+                        .HasForeignKey("Sholto.App.Storage.Entities.KeyAnalysisRecord", "TrackId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Track");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Marker", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Marker", b =>
                 {
-                    b.HasOne("Sholto.Storage.Entities.Track", "Track")
+                    b.HasOne("Sholto.App.Storage.Entities.Track", "Track")
                         .WithMany("Markers")
                         .HasForeignKey("TrackId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -351,15 +351,15 @@ namespace Sholto.App.Storage.Migrations
                     b.Navigation("Track");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.MarkerLink", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.MarkerLink", b =>
                 {
-                    b.HasOne("Sholto.Storage.Entities.Marker", "FromMarker")
+                    b.HasOne("Sholto.App.Storage.Entities.Marker", "FromMarker")
                         .WithMany()
                         .HasForeignKey("FromMarkerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Sholto.Storage.Entities.Marker", "ToMarker")
+                    b.HasOne("Sholto.App.Storage.Entities.Marker", "ToMarker")
                         .WithMany()
                         .HasForeignKey("ToMarkerId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -370,15 +370,15 @@ namespace Sholto.App.Storage.Migrations
                     b.Navigation("ToMarker");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.TrackTag", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.TrackTag", b =>
                 {
-                    b.HasOne("Sholto.Storage.Entities.Tag", "Tag")
+                    b.HasOne("Sholto.App.Storage.Entities.Tag", "Tag")
                         .WithMany("TrackTags")
                         .HasForeignKey("TagId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Sholto.Storage.Entities.Track", "Track")
+                    b.HasOne("Sholto.App.Storage.Entities.Track", "Track")
                         .WithMany("TrackTags")
                         .HasForeignKey("TrackId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -389,17 +389,17 @@ namespace Sholto.App.Storage.Migrations
                     b.Navigation("Track");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Crate", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Crate", b =>
                 {
                     b.Navigation("CrateTracks");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Tag", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Tag", b =>
                 {
                     b.Navigation("TrackTags");
                 });
 
-            modelBuilder.Entity("Sholto.Storage.Entities.Track", b =>
+            modelBuilder.Entity("Sholto.App.Storage.Entities.Track", b =>
                 {
                     b.Navigation("BasicAnalysis");
 

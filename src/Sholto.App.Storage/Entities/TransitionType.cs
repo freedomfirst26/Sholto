@@ -1,4 +1,4 @@
-namespace Sholto.Storage.Entities;
+namespace Sholto.App.Storage.Entities;
 
 /// <summary>How the deck-to-deck transition plays out when a link fires.</summary>
 internal enum TransitionType

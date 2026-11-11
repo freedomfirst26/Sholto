@@ -1,4 +1,4 @@
-namespace Sholto.Storage.Entities;
+namespace Sholto.App.Storage.Entities;
 
 /// <summary>Join row placing a <see cref="Track"/> in a <see cref="Crate"/> at a
 /// given <see cref="Position"/> (0-based order within that crate). A track may
