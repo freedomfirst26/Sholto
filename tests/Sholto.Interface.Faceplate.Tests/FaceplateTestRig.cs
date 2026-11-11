@@ -13,8 +13,10 @@ internal sealed class FaceplateTestRig
     {
         var doc = new FaceplateDocLoader().Load(new DdjFlx4Faceplate());
         ViewModel = new FaceplateViewModel(doc, new RecordingCommandSender());
+        var brushes = new FaceplateBrushes();
         var board = new FaceplateBoard(new Grid(), new ContentControl(), new Canvas(),
-            _ => true, () => 0, (_, _) => { }, _ => false, new FaceplateBrushes());
+            _ => true, () => 0, (_, _) => { }, _ => false, brushes,
+            new FaceplateShapeFactory(brushes), new FaceplateStepBadgeFactory(brushes));
         Context = new FaceplatePanelContext(new Border(), ViewModel, board);
         Parts = new FaceplatePanelPartsFactory(new ProseInlinesFactory());
     }

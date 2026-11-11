@@ -1,8 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
-using Avalonia.Input;
-using Avalonia.Media;
 using Avalonia.VisualTree;
 using Sholto.Interface.Faceplate.Model;
 
@@ -28,19 +26,9 @@ namespace Sholto.Interface.Faceplate.Views;
 public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas overlayCanvas,
                                    Func<string, bool> isImplemented, Func<int> selectedDeck,
                                    Action<string, int> select, Func<string, bool> isPerDeckControl,
-                                   FaceplateBrushes brushes)
+                                   FaceplateBrushes brushes, IFaceplateShapeFactory shapes,
+                                   IFaceplateStepBadgeFactory badges)
 {
-    /// <summary>How far the bloom reaches beyond a control's edge, as a fraction of the
-    /// control's short side. A fixed width swamped a 20px button and smeared into brown
-    /// haze around the 440px platter, so the rings are cut to the control they belong to
-    /// and clamped at both ends.</summary>
-    private const double BloomFraction = 0.16;
-    private const double BloomMin = 4, BloomMax = 10;
-    /// <summary>The wider, softer ring, as a multiple of the bloom. Selection only — it
-    /// is what makes the held state read as stronger than hover from across the board.
-    /// </summary>
-    private const double HaloMultiple = 1.6;
-
     private readonly Grid _stage = stage;
     private readonly ContentControl _layoutHost = layoutHost;
     private readonly Canvas _overlayCanvas = overlayCanvas;
@@ -49,8 +37,10 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
     private readonly Action<string, int> _select = select;
     private readonly Func<string, bool> _isPerDeckControl = isPerDeckControl;
     private readonly FaceplateBrushes _brushes = brushes;
+    private readonly IFaceplateShapeFactory _shapes = shapes;
+    private readonly IFaceplateStepBadgeFactory _badges = badges;
 
-    private readonly Dictionary<(string Id, int Deck), Piece> _pieces = new();
+    private readonly Dictionary<(string Id, int Deck), FaceplatePiece> _pieces = new();
     private bool _built;
     private (string Id, int Deck)? _lit;
     private CancellationTokenSource? _blink;
@@ -96,31 +86,12 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
         // a click: z-order in a Canvas is declaration order.
         foreach (var (shape, id, deck, rect) in found)
         {
-            var radius = CornerRadiusOf(shape);
             var implemented = _isImplemented(id);
-
-            var t = Math.Clamp(Math.Min(rect.Width, rect.Height) * BloomFraction, BloomMin, BloomMax);
-            var halo = Ring(rect, t * HaloMultiple, t, radius, blur: t * HaloMultiple);
-            var bloom = Ring(rect, t, 0, radius, blur: t * 0.8);
-            var tint = Solid(rect, radius, animated: true);
-            var outline = Outline(rect, radius);
-            // The eye integrates a wash over its area, so the same alpha that reads as a
-            // hint on a 30px button reads as paint across a 440px platter and flattens
-            // the drawing under it. Big faces get proportionally less.
-            var wash = WashScale(rect);
-            tint.Opacity = wash;
-            tint.Fill = implemented ? _brushes.AmberRest : null;
-
-            _overlayCanvas.Children.Add(halo);
-            _overlayCanvas.Children.Add(bloom);
-            _overlayCanvas.Children.Add(tint);
-            _overlayCanvas.Children.Add(outline);
-
-            // What the wash gives up on a big face, the rim takes back: the jog would
-            // otherwise be the least-marked control on the board despite being the most
-            // used one.
-            var piece = new Piece(halo, bloom, tint, outline, implemented,
-                                  RestBloom: 0.20 + (1.0 - wash) * 0.40);
+            var piece = _shapes.CreatePiece(shape, rect, implemented);
+            _overlayCanvas.Children.Add(piece.Halo);
+            _overlayCanvas.Children.Add(piece.Bloom);
+            _overlayCanvas.Children.Add(piece.Tint);
+            _overlayCanvas.Children.Add(piece.Outline);
             // Put it in its resting state explicitly rather than relying on the shapes'
             // construction values. They are not the same thing, and when they drifted
             // apart only the controls a pointer had swept over ever looked "at rest".
@@ -140,7 +111,7 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
             // HitFor, which is otherwise silent.
             if (!_pieces.Keys.Any(k => k.Id == id)) continue;
 
-            var hit = BuildHit(rect, CornerRadiusOf(shape), id);
+            var hit = _shapes.CreateHit(shape, rect, _isImplemented(id));
             // The deck is resolved at the moment of the gesture, not here: an unset deck
             // means "whichever deck is live", and that changes while the guide is open.
             // Latched on enter so the exit un-hovers exactly what the enter lit, even if
@@ -170,7 +141,7 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
 
         foreach (var (shape, id, deck, rect) in found)
         {
-            var hit = BuildHit(rect, CornerRadiusOf(shape), id);
+            var hit = _shapes.CreateHit(shape, rect, _isImplemented(id));
             var key = (id, deck);
             hit.PointerEntered += (_, _) => ApplyHover(key, true);
             hit.PointerExited += (_, _) => ApplyHover(key, false);
@@ -183,24 +154,6 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
         }
 
         _built = true;
-    }
-
-    /// <summary>The transparent shape that answers the pointer for a control. Shared by
-    /// a control's own body and by a legend that speaks for it, so the two are the same
-    /// target in every respect but where they sit.</summary>
-    private Shape BuildHit(Rect rect, double radius, string id)
-    {
-        var hit = Solid(rect, radius, animated: false);
-        hit.Fill = Brushes.Transparent;
-        hit.IsHitTestVisible = true;
-        // A hand over a control Sholto never hears from contradicts the board's own
-        // language: the paint says "nothing here", the pointer says "button". They
-        // stay clickable — the panel explains why they do nothing, which is worth
-        // reading — but the cursor no longer promises an action.
-        hit.Cursor = new Cursor(_isImplemented(id)
-            ? StandardCursorType.Hand
-            : StandardCursorType.Arrow);
-        return hit;
     }
 
     /// <summary>A chip in the gesture panel's prose named this control — lights or
@@ -217,7 +170,7 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
 
     /// <summary>Rest: a control Sholto acts on is tinted. One it does not is left with no
     /// colour at all — that absence IS the signal.</summary>
-    private void ApplyRest(Piece p)
+    private void ApplyRest(FaceplatePiece p)
     {
         p.Tint.Fill = p.Implemented ? _brushes.AmberRest : null;
         // A live control also carries a faint bloom at rest. The wash alone reads by
@@ -270,7 +223,7 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
     /// say "this is the one the panel is about" when clicked — but not by lighting up
     /// amber, which would contradict its own summary text saying it never lights up
     /// here. It gets a plain ring instead, with no fill and no amber bloom.</para></summary>
-    private void ApplySelected(Piece p)
+    private void ApplySelected(FaceplatePiece p)
     {
         // The stroke is what says "this one", and it says it identically at every size
         // and on both kinds of control. What still separates them is everything else:
@@ -332,7 +285,7 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
     /// <para>The pulses ride the shapes' own opacity transitions — it breathes rather
     /// than strobes, so it acknowledges the click without reading as a warning.</para>
     /// </summary>
-    private async Task BlinkThenSelect(Piece p, CancellationToken ct)
+    private async Task BlinkThenSelect(FaceplatePiece p, CancellationToken ct)
     {
         try
         {
@@ -391,7 +344,12 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
         {
             ApplyHover(key, true);
             _highlighted.Add(key);
-            if (step > 0) _highlightLabels.Add(AddStepLabel(key, step));
+            if (step > 0)
+            {
+                var badge = _badges.Create(_pieces[key].Tint, step);
+                _overlayCanvas.Children.Add(badge);
+                _highlightLabels.Add(badge);
+            }
         }
     }
 
@@ -404,131 +362,4 @@ public sealed class FaceplateBoard(Grid stage, ContentControl layoutHost, Canvas
         return selectedDeck >= 0 ? selectedDeck : 0;
     }
 
-    private Control AddStepLabel((string Id, int Deck) key, int step)
-    {
-        var tint = _pieces[key].Tint;
-        var left = Canvas.GetLeft(tint);
-        var top = Canvas.GetTop(tint);
-        // Top-CENTRE of the shape's bounding box, not its corner: the jog is a 440px
-        // circle, and a badge planted at the box corner lands off in empty space,
-        // nowhere near the ring it is meant to number. Top-centre sits just above the
-        // shape for every size, round or square.
-        var centerX = left + tint.Width / 2;
-        // U+2460 ① … circled digits read as ordered steps without competing with the
-        // amber glow underneath.
-        var glyph = step is >= 1 and <= 20 ? char.ConvertFromUtf32(0x2460 + step - 1) : step.ToString();
-        var label = new Border
-        {
-            Width = 22,
-            Height = 22,
-            CornerRadius = new CornerRadius(11),
-            Background = _brushes.AmberGlowBrush,
-            IsHitTestVisible = false,
-            Child = new TextBlock
-            {
-                Text = glyph,
-                FontSize = 14,
-                FontWeight = FontWeight.Bold,
-                Foreground = Brushes.Black,
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            },
-        };
-        Canvas.SetLeft(label, centerX - 11);
-        Canvas.SetTop(label, top - 11);
-        _overlayCanvas.Children.Add(label);
-        return label;
-    }
-
-    // ---- overlay geometry ------------------------------------------------------
-
-    /// <summary>A blurred ring hugging the control. <paramref name="thickness"/> is how
-    /// far it reaches out; <paramref name="inset"/> pushes it further out so two rings
-    /// can sit concentrically without overlapping.</summary>
-    private Shape Ring(Rect r, double thickness, double inset, double radius, double blur)
-    {
-        var outer = r.Inflate(thickness + inset);
-        var s = Build(outer, radius < 0 ? radius : radius + thickness + inset);
-        s.Fill = null;
-        s.Stroke = _brushes.AmberGlowBrush;
-        s.StrokeThickness = thickness;
-        s.Effect = new BlurEffect { Radius = blur };
-        s.Opacity = 0;
-        Fade(s);
-        Place(s, outer);
-        return s;
-    }
-
-    /// <summary>The selection stroke: a 2px solid ring hugging the control, amber, no
-    /// blur. Every other mark on this board is soft — washes, blurred rings, blooms —
-    /// so a hard edge is a change of KIND rather than of degree, and that is the whole
-    /// point of it. Selection used to be "the same glow, a bit stronger", which a
-    /// 440px platter could carry and a 30px pad could not: against a field where every
-    /// implemented control already blooms, one more increment of bloom is invisible.
-    /// </summary>
-    private Shape Outline(Rect r, double radius)
-    {
-        var outer = r.Inflate(3);
-        var s = Build(outer, radius < 0 ? radius : radius + 3);
-        s.Fill = null;
-        s.Stroke = _brushes.AmberGlowBrush;
-        s.StrokeThickness = 2;
-        s.Opacity = 0;
-        Fade(s);
-        Place(s, outer);
-        return s;
-    }
-
-    /// <summary>How much of the resting wash a control of this size should carry: full
-    /// for anything button-sized, tapering to just over half for the jog platter.</summary>
-    private double WashScale(Rect r)
-    {
-        var side = Math.Min(r.Width, r.Height);
-        if (side <= 70) return 1.0;
-        return Math.Max(0.70, 1.0 - (side - 70) / 1200.0);
-    }
-
-    /// <summary>A shape filling the control exactly. <paramref name="animated"/> is false
-    /// for the hit target, whose opacity never changes.</summary>
-    private Shape Solid(Rect r, double radius, bool animated)
-    {
-        var s = Build(r, radius);
-        if (animated) Fade(s);
-        Place(s, r);
-        return s;
-    }
-
-    /// <summary>A negative radius means "circle" — see <see cref="CornerRadiusOf"/>. A
-    /// square-cornered Border reports 0 and still wants a Rectangle, which is why the
-    /// caller passes the radius rather than this guessing from the bounds.</summary>
-    private Shape Build(Rect r, double radius) => radius < 0
-        ? new Ellipse { Width = r.Width, Height = r.Height }
-        : new Rectangle { Width = r.Width, Height = r.Height, RadiusX = radius, RadiusY = radius };
-
-    private void Place(Control c, Rect r)
-    {
-        Canvas.SetLeft(c, r.X);
-        Canvas.SetTop(c, r.Y);
-        c.IsHitTestVisible = false;
-    }
-
-    private void Fade(Avalonia.Animation.Animatable c) => c.Transitions =
-    [
-        new Avalonia.Animation.DoubleTransition
-        {
-            Property = Visual.OpacityProperty,
-            Duration = TimeSpan.FromMilliseconds(170),
-            Easing = new Avalonia.Animation.Easings.CubicEaseOut(),
-        },
-    ];
-
-    private double CornerRadiusOf(Control c) => c switch
-    {
-        Ellipse => -1,                            // circle: no radius, use an Ellipse
-        Border b => b.CornerRadius.TopLeft,
-        _ => 0,
-    };
-
-    private sealed record Piece(Shape Halo, Shape Bloom, Shape Tint, Shape Outline,
-                                bool Implemented, double RestBloom);
 }

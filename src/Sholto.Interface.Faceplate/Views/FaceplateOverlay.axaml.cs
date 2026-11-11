@@ -60,12 +60,13 @@ public partial class FaceplateOverlay : UserControl
     private readonly Dictionary<string, Border> _rowIndicators = new();
     private Border? _headlineIndicator;
 
-    /// <summary>The device drawing, view model, headline and row factories, chrome painter
-    /// and brushes are handed in, already built, so this control names no hardware and
+    /// <summary>The device drawing, view model, headline and row factories, chrome painter,
+    /// shape and step-badge factories and brushes are handed in, already built, so this control names no hardware and
     /// builds none of its collaborators; <c>FaceplateOverlayFactory</c> pairs a doc with its
     /// layout. The view model and brushes are concrete classes; the factories and chrome are interfaces.</summary>
     public FaceplateOverlay(FaceplateViewModel viewModel, IFaceplateHeadlineFactory headlines,
                             IFaceplateRowVisualFactory rows, IFaceplateChrome chrome,
+                            IFaceplateShapeFactory shapes, IFaceplateStepBadgeFactory badges,
                             FaceplateBrushes brushes, Control layout)
     {
         AvaloniaXamlLoader.Load(this);
@@ -92,7 +93,7 @@ public partial class FaceplateOverlay : UserControl
         _board = new FaceplateBoard(_stage, _layoutHost, _overlayCanvas,
             _vm.IsImplemented, () => _vm.SelectedDeck, _vm.Select,
             id => _vm.Doc.Controls.FirstOrDefault(c => c.Id == id)?.Scope == "per-deck",
-            _brushes);
+            _brushes, shapes, badges);
         _panelContext = new FaceplatePanelContext(this, _vm, _board);
         DataContext = _vm;
         _layoutHost.Content = layout;

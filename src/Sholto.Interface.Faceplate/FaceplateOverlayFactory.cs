@@ -22,8 +22,9 @@ public sealed class FaceplateOverlayFactory(
         _subscriber.Subscribe<CommandReceived>(viewModel);
         _subscriber.Subscribe<InspectModeChanged>(viewModel);
         var parts = new FaceplatePanelPartsFactory(new ProseInlinesFactory());
+        var brushes = new FaceplateBrushes();
         return new FaceplateOverlay(viewModel, new FaceplateHeadlineFactory(parts),
             new FaceplateRowVisualFactory(parts, new ComboMarkerFormatter()), new FaceplateChrome(),
-            new FaceplateBrushes(), device.CreateLayout());
+            new FaceplateShapeFactory(brushes), new FaceplateStepBadgeFactory(brushes), brushes, device.CreateLayout());
     }
 }
