@@ -51,7 +51,7 @@ public sealed class AppStackFactory : IAppStackFactory
             stack.LibraryDatabase, stack.ThemePreference, stack.MusicDirPreference, stack.OutputDevicePreference,
             stack.WaveformStylePreference, stack.BackspinTimePreference, stack.BackspinDistancePreference, stack.LegacyShortlistPreference,
             stack.TrackListPreference, new SavedTrackListCodec(),
-            stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory()), [stack.FlacStrategy],
+            stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory(options.AudioTiming)), [stack.FlacStrategy],
             stack.PipeWireRouter, stack.DeckFormat, masterCueOutput, stack.ToolStack.Check, appThread, bus,
             Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR"));
         var iconFactory = new AppIconFactory();

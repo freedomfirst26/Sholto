@@ -26,7 +26,7 @@ public sealed class BenchRenderRig
             new AnalysisProvider((_, _) => throw new NotSupportedException("not used")),
             Options.Create(new WaveformBandOptions()),
             new Sholto.Data.ImmediateAppThread());
-        _renderer = new OfflineRenderer(new BenchDeck(factory), new EqualPowerCrossfade(), new CueOutputRouterFactory());
+        _renderer = new OfflineRenderer(new BenchDeck(factory), new EqualPowerCrossfade(), new CueOutputRouterFactory(Options.Create(new AudioTimingOptions())));
     }
 
     public RenderedWav Render(string sourceWavPath, double seconds, string outWavPath)

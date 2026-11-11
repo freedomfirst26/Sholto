@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Audio;
 using Sholto.Interface.Bench.Rendering;
@@ -25,7 +26,7 @@ internal sealed class Scenarios
 {
     private readonly IBenchDeckFactory _deckFactory;
     private readonly IBenchDeck _benchDeck;
-    private readonly ICueOutputRouterFactory _routers = new CueOutputRouterFactory();
+    private readonly ICueOutputRouterFactory _routers = new CueOutputRouterFactory(Options.Create(new AudioTimingOptions()));
     private readonly IOfflineRenderer _renderer;
 
     /// <summary>Composes the render path the way Sholto.Interface.Bench's Program does. The

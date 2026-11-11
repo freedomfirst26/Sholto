@@ -48,7 +48,7 @@ public sealed class HeadlessHostFactory(IBenchDeck benchDeck, IBenchDeckFactory 
             Options.Create(new MagnetismOptions()),
             new MasterCueOutput(),
             new NullAppLifecycle());
-        var routers = new CueOutputRouterFactory();
+        var routers = new CueOutputRouterFactory(Options.Create(new AudioTimingOptions()));
         return new HeadlessHost(
             coreFactory,
             new GestureHostFactory(Options.Create(new ControllerMappingsOptions())),

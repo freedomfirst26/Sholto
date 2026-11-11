@@ -75,9 +75,10 @@ public sealed class ScratchOptions
 
     // --- Diagnostics and recency ---------------------------------------------------
 
-    /// <summary>SHOLTO_SCRATCH_LOG=1 prints per-frame scratch velocity and play position,
-    /// so the platter's actual motion (and any position jumps) are visible in the log.</summary>
-    public bool Log { get; set; } = Environment.GetEnvironmentVariable("SHOLTO_SCRATCH_LOG") == "1";
+    /// <summary>Prints per-frame scratch velocity and play position,
+    /// so the platter's actual motion (and any position jumps) are visible in the log. The Host sets it from the
+    /// SHOLTO_SCRATCH_LOG=1 environment variable.</summary>
+    public bool Log { get; set; } = false;
 
     /// <summary>How recently a jog event must have arrived for a deck to count as
     /// "actively being adjusted right now" (the IsScrubbing window, and the

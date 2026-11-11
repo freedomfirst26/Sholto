@@ -46,7 +46,7 @@ internal static class Program
 
         return new BenchCli(
             new ScenarioFactory(),
-            new OfflineRenderer(benchDeck, crossfade, new CueOutputRouterFactory()),
+            new OfflineRenderer(benchDeck, crossfade, new CueOutputRouterFactory(Options.Create(new AudioTimingOptions()))),
             new FfmpegSoundMeter(),
             benchDeck,
             deckAdvance,

@@ -32,8 +32,8 @@ internal sealed class CueOutputRouter : SoundComponent
     /// <summary>CALLBACK TIMING HISTOGRAM: measures how long <see cref="GenerateAudio"/>
     /// actually takes, bucketed against the real deadline (48 kHz, 20 ms period × 3
     /// buffers ≈ 20 ms average budget, ~40 ms of one-shot slack before an audible
-    /// dropout — see AudioEngine.Start). Gated behind the SHOLTO_AUDIO_TIMING env var
-    /// (checked once, at construction, off the audio path) so it costs nothing when
+    /// dropout — see AudioEngine.Start). Gated behind <see cref="AudioTimingOptions.Enabled"/>
+    /// (the Host sets it from the SHOLTO_AUDIO_TIMING env var; stored once, at construction) so it costs nothing when
     /// off: no Stopwatch, no bucket array, and the per-call check is a single readonly
     /// bool test.
     ///
@@ -50,10 +50,9 @@ internal sealed class CueOutputRouter : SoundComponent
     /// The bucket at index i holds callbacks with duration &lt; TimingBucketBoundsMs[i]
     /// (and &gt;= the previous bound); the last (overflow) bucket holds everything at
     /// or past the final bound, i.e. the "you just glitched" bucket.</summary>
-    private static readonly double[] TimingBoundsMs = [5, 10, 15, 18, 20, 22, 25, 30, 35, 40];
+    private readonly double[] _timingBoundsMs = [5, 10, 15, 18, 20, 22, 25, 30, 35, 40];
 
-    private static readonly bool TimingEnabled =
-        Environment.GetEnvironmentVariable("SHOLTO_AUDIO_TIMING") == "1";
+    private readonly bool _timingEnabled;
 
     private readonly Stopwatch? _timingStopwatch;
     private readonly long[]? _timingBuckets;
@@ -69,15 +68,16 @@ internal sealed class CueOutputRouter : SoundComponent
     /// while a router is live, so a toggle takes effect immediately.</summary>
     public volatile bool MasterCueActive;
 
-    public CueOutputRouter(SfEngine engine, AudioFormat format, IReadOnlyList<IMixSource> decks, bool masterCueActive = false)
+    public CueOutputRouter(SfEngine engine, AudioFormat format, IReadOnlyList<IMixSource> decks, bool timingEnabled, bool masterCueActive = false)
         : base(engine, format)
     {
+        _timingEnabled = timingEnabled;
         _decks = decks;
         MasterCueActive = masterCueActive;
-        if (TimingEnabled)
+        if (_timingEnabled)
         {
             _timingStopwatch = new Stopwatch();
-            _timingBuckets = new long[TimingBoundsMs.Length + 1]; // +1 overflow bucket
+            _timingBuckets = new long[_timingBoundsMs.Length + 1]; // +1 overflow bucket
         }
     }
 
@@ -85,8 +85,8 @@ internal sealed class CueOutputRouter : SoundComponent
 
     /// <summary>Read-only snapshot of the timing bucket boundaries, in milliseconds,
     /// paired with <see cref="GetTimingSnapshot"/>'s bucket order. Null when timing
-    /// is not enabled (SHOLTO_AUDIO_TIMING != "1").</summary>
-    public static IReadOnlyList<double>? TimingBucketBoundsMs => TimingEnabled ? TimingBoundsMs : null;
+    /// is not enabled (<see cref="AudioTimingOptions.Enabled"/> is false).</summary>
+    public IReadOnlyList<double>? TimingBucketBoundsMs => _timingEnabled ? _timingBoundsMs : null;
 
     /// <summary>Snapshot copy of the callback-timing histogram, safe to call from any
     /// thread (e.g. a UI timer or diagnostics view) without blocking or perturbing the
@@ -106,7 +106,7 @@ internal sealed class CueOutputRouter : SoundComponent
 
     protected override void GenerateAudio(Span<float> buffer, int channels)
     {
-        if (TimingEnabled) _timingStopwatch!.Restart();
+        if (_timingEnabled) _timingStopwatch!.Restart();
 
         buffer.Clear();
         if (channels <= 0)
@@ -148,10 +148,10 @@ internal sealed class CueOutputRouter : SoundComponent
     /// No-op (branch-and-return) when timing is disabled.</summary>
     private void RecordTiming()
     {
-        if (!TimingEnabled) return;
+        if (!_timingEnabled) return;
 
         double elapsedMs = _timingStopwatch!.Elapsed.TotalMilliseconds;
-        double[] bounds = TimingBoundsMs;
+        double[] bounds = _timingBoundsMs;
         int idx = bounds.Length; // default: overflow bucket (>= last bound)
         for (int i = 0; i < bounds.Length; i++)
         {
