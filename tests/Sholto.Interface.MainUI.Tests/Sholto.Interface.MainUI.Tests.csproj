@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Sholto.TestSupport.Allocation\Sholto.TestSupport.Allocation.csproj" />
     <ProjectReference Include="..\..\src\Sholto.Interface.MainUI\Sholto.Interface.MainUI.csproj" />
     <ProjectReference Include="..\Sholto.TestSupport\Sholto.TestSupport.csproj" />
   </ItemGroup>

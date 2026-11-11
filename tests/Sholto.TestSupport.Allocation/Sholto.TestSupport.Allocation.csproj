@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Allocation measuring shared by test projects; references nothing so Data.Tests and Controller.Tests can use it. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Sholto.TestSupport.Allocation</RootNamespace>
+  </PropertyGroup>
+
+</Project>
