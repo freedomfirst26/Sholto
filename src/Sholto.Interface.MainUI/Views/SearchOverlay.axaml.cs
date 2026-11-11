@@ -21,20 +21,13 @@ namespace Sholto.Interface.MainUI.Views;
 /// </summary>
 public partial class SearchOverlay : UserControl
 {
-    /// <summary>How long the "fresh" class stays on the table after a result: past the 160 ms fade.</summary>
-    private const int SettleHoldMs = 260;
-
-    /// <summary>How long a row that joined the Track List glows.</summary>
-    private const int FlashMs = 600;
-
     private const string DefaultWatermark = "Name, initials (bsn), bpm:128, key:8A, #tag";
     private const string ChipWatermark = "Filter further…";
 
     private MainViewModel? _vm;
-    private bool _syncing;
-    private readonly DispatcherTimer _settleTimer;
     private readonly ISearchOverlayKeyHandler _keys;
     private readonly ISearchOverlayRailSync _rail;
+    private readonly ISearchOverlayResultsSync _results;
 
     public SearchOverlay()
     {
@@ -42,6 +35,7 @@ public partial class SearchOverlay : UserControl
         // Forced: XAML constructs this control, and the named controls only exist after InitializeComponent (as WaveformControl).
         _keys = new SearchOverlayKeyHandler(QueryBox);
         _rail = new SearchOverlayRailSync(RailList);
+        _results = new SearchOverlayResultsSync(ResultsList, FitShimmer, EmptyHint, ScopeEmptyHint);
         // Tunnel, so the box's own handling of arrows, Tab and Enter never sees these keys.
         QueryBox.AddHandler(KeyDownEvent, (_, e) => _keys.OnKeyDown(Glance, e), RoutingStrategies.Tunnel);
         QueryBox.AddHandler(TextInputEvent, (_, e) => _keys.OnTextInput(e), RoutingStrategies.Tunnel);
@@ -53,13 +47,6 @@ public partial class SearchOverlay : UserControl
         };
         // Tunnel: the list selects on press and marks it handled, so a click on a crate or tag is read before that.
         RailList.AddHandler(PointerPressedEvent, OnRailPressed, RoutingStrategies.Tunnel);
-        ResultsList.AddHandler(ScrollViewer.ScrollChangedEvent, OnResultsScrolled);
-        _settleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SettleHoldMs) };
-        _settleTimer.Tick += (_, _) =>
-        {
-            _settleTimer.Stop();
-            ResultsList.Classes.Set("fresh", false);
-        };
         DataContextChanged += (_, _) => Attach();
         // Focus the input every time the overlay becomes visible so the person can type at once.
         PropertyChanged += (_, e) =>
@@ -89,11 +76,12 @@ public partial class SearchOverlay : UserControl
         // Chips slide in only when motion is wanted; the styles key off this class.
         Classes.Set("motion", _vm.Glance.AnimateResults);
         FitShimmer.Animated = _vm.Glance.AnimateResults;
-        SyncRows();
-        _rail.Sync(_vm.Glance);
+        var glance = _vm.Glance;
+        _results.Sync(glance);
+        _rail.Sync(glance);
         SyncZone();
         SyncChips();
-        SyncReassessing();
+        _results.SyncReassessing(glance);
         SyncCompletion();
         SyncClearHint();
     }
@@ -102,16 +90,22 @@ public partial class SearchOverlay : UserControl
 
     private void OnGlanceChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (Glance is { } g)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(IGlanceViewModel.Rows): _results.Sync(g); break;
+                case nameof(IGlanceViewModel.TableIndex): _results.SyncHighlight(g); break;
+                case nameof(IGlanceViewModel.RailItems): _rail.Sync(g); break;
+                case nameof(IGlanceViewModel.RailIndex): _rail.SyncHighlight(g); break;
+                case nameof(IGlanceViewModel.Zone): SyncZone(); break;
+                case nameof(IGlanceViewModel.Chips): SyncChips(); break;
+                case nameof(IGlanceViewModel.IsReassessing): _results.SyncReassessing(g); break;
+                case nameof(IGlanceViewModel.ScopeEmptyText): _results.SyncEmpty(g); break;
+            }
+        }
         switch (e.PropertyName)
         {
-            case nameof(IGlanceViewModel.Rows): SyncRows(); break;
-            case nameof(IGlanceViewModel.TableIndex): SyncTableHighlight(); break;
-            case nameof(IGlanceViewModel.RailItems): if (Glance is { } g) _rail.Sync(g); break;
-            case nameof(IGlanceViewModel.RailIndex): if (Glance is { } h) _rail.SyncHighlight(h); break;
-            case nameof(IGlanceViewModel.Zone): SyncZone(); break;
-            case nameof(IGlanceViewModel.Chips): SyncChips(); break;
-            case nameof(IGlanceViewModel.IsReassessing): SyncReassessing(); break;
-            case nameof(IGlanceViewModel.ScopeEmptyText): SyncEmpty(); break;
             case nameof(IGlanceViewModel.ClearArmedText): SyncClearHint(); break;
             case nameof(IGlanceViewModel.CompletionSuffix):
             case nameof(IGlanceViewModel.Query): SyncCompletion(); break;
@@ -150,108 +144,13 @@ public partial class SearchOverlay : UserControl
         });
     }
 
-    private void SyncRows()
-    {
-        if (Glance is not { } glance) return;
-        _syncing = true;
-        try
-        {
-            ResultsList.ItemsSource = glance.Rows;
-            FitShimmer.RowCount = glance.Rows.Count;
-            SyncEmpty();
-            ResultsList.SelectedIndex = glance.Rows.Count == 0 ? -1 : glance.TableIndex;
-        }
-        finally { _syncing = false; }
-        ScrollTableToHighlight();
-    }
-
-    /// <summary>With chips and no rows, one centred line from the view model; otherwise the usual no-match hint.</summary>
-    private void SyncEmpty()
-    {
-        if (Glance is not { } glance) return;
-        var none = glance.Rows.Count == 0;
-        var scoped = glance.ScopeEmptyText;
-        EmptyHint.IsVisible = none && scoped is null;
-        ScopeEmptyHint.IsVisible = none && scoped is not null;
-        if (!ScopeEmptyHint.IsVisible) return;
-
-        // The names in bright text: every chip's name and the quoted free text.
-        var names = new List<string>();
-        foreach (var chip in glance.Chips) names.Add(chip.Name);
-        var open = scoped!.IndexOf('“');
-        var close = open < 0 ? -1 : scoped.IndexOf('”', open + 1);
-        if (open >= 0 && close > open) names.Add(scoped.Substring(open + 1, close - open - 1));
-
-        ScopeEmptyHint.Inlines ??= new InlineCollection();
-        ScopeEmptyHint.Inlines.Clear();
-        var at = 0;
-        while (at < scoped.Length)
-        {
-            var next = -1;
-            var length = 0;
-            foreach (var name in names)
-            {
-                if (name.Length == 0) continue;
-                var found = scoped.IndexOf(name, at, StringComparison.Ordinal);
-                if (found >= 0 && (next < 0 || found < next)) { next = found; length = name.Length; }
-            }
-            if (next < 0) { ScopeEmptyHint.Inlines.Add(new Run(scoped[at..])); break; }
-            if (next > at) ScopeEmptyHint.Inlines.Add(new Run(scoped[at..next]));
-            var bright = new Run(scoped.Substring(next, length)) { FontWeight = FontWeight.SemiBold };
-            bright.Bind(TextElement.ForegroundProperty, this.GetResourceObservable("SholtoTextBright"));
-            ScopeEmptyHint.Inlines.Add(bright);
-            at = next + length;
-        }
-    }
-
     /// <summary>The chips changed: the box's watermark and the Backspace hint follow, and focus stays on the box.</summary>
     private void SyncChips()
     {
         if (Glance is not { } glance) return;
         QueryBox.Watermark = glance.Chips.Count > 0 ? ChipWatermark : DefaultWatermark;
         RemoveChipHint.IsVisible = glance.Chips.Count > 0;
-        SyncEmpty();
-    }
-
-    /// <summary>The slow indicator: rows dim, the real bars hide and the fit column's own neutral bars carry the
-    /// light. Under reduced motion the control draws the neutral bars alone.</summary>
-    private void SyncReassessing()
-    {
-        if (Glance is not { } glance) return;
-        ResultsList.Classes.Set("reassessing", glance.IsReassessing);
-        FitShimmer.IsVisible = glance.IsReassessing;
-        FitShimmer.Classes.Set("running", glance.IsReassessing && glance.AnimateResults);
-    }
-
-    /// <summary>A result replaced the rows: the table fades in for a moment.</summary>
-    private void OnResultsReplaced()
-    {
-        if (Glance is not { AnimateResults: true }) return;
-        // Off then on, so a result landing mid-settle restarts it.
-        ResultsList.Classes.Set("fresh", false);
-        ResultsList.Classes.Set("fresh", true);
-        _settleTimer.Stop();
-        _settleTimer.Start();
-    }
-
-    private void OnResultsScrolled(object? sender, ScrollChangedEventArgs e)
-    {
-        if (e.Source is ScrollViewer scroll) FitShimmer.ScrollOffset = scroll.Offset.Y;
-    }
-
-    private void SyncTableHighlight()
-    {
-        if (Glance is not { } glance) return;
-        _syncing = true;
-        try { ResultsList.SelectedIndex = glance.Rows.Count == 0 ? -1 : glance.TableIndex; }
-        finally { _syncing = false; }
-        ScrollTableToHighlight();
-    }
-
-    private void ScrollTableToHighlight()
-    {
-        if (Glance is { } glance && glance.TableIndex >= 0 && glance.TableIndex < glance.Rows.Count)
-            ResultsList.ScrollIntoView(glance.TableIndex);
+        _results.SyncEmpty(glance);
     }
 
     /// <summary>The list that is not driven right now is dimmed: its highlight turns neutral.</summary>
@@ -285,14 +184,7 @@ public partial class SearchOverlay : UserControl
     /// already moved); a click while the rail was driving hands the keys back to the table.</summary>
     private void OnResultsSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_syncing || Glance is not { } glance) return;
-        var picked = ResultsList.SelectedIndex;
-        if (picked >= 0)
-        {
-            if (glance.Zone != GlanceZone.Table) glance.ToggleZone();
-            glance.Move(picked - glance.TableIndex);
-        }
-        QueryBox.Focus();
+        if (Glance is { } glance && _results.Pick(glance)) QueryBox.Focus();
     }
 
     private void OnRailSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -333,21 +225,14 @@ public partial class SearchOverlay : UserControl
         e.Handled = true;
     }
 
-    /// <summary>A song just joined the Track List: its row, if it is on screen, glows violet for a moment and fades.
-    /// Never under reduced motion.</summary>
+    private void OnResultsReplaced()
+    {
+        if (Glance is { } g) _results.Settle(g);
+    }
+
     private void OnAddedToTrackList(string path)
     {
-        if (Glance is not { AnimateResults: true } glance) return;
-        for (var i = 0; i < glance.Rows.Count; i++)
-        {
-            if (glance.Rows[i].FilePath != path) continue;
-            if (ResultsList.ContainerFromIndex(i) is not ListBoxItem item) return;
-            // Off then on, so a second add mid-flash restarts it.
-            item.Classes.Set("flash", false);
-            item.Classes.Set("flash", true);
-            DispatcherTimer.RunOnce(() => item.Classes.Set("flash", false), TimeSpan.FromMilliseconds(FlashMs));
-            return;
-        }
+        if (Glance is { } g) _results.Flash(g, path);
     }
 
     /// <summary>The star cell of a row: highlight that row, then add it to the Track List or remove it.</summary>
