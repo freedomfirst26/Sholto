@@ -66,6 +66,7 @@ public class DeckHotCuesCorrectnessTests
         _rig.HotCues.Press(0, 0, true);
 
         Assert.DoesNotContain("set 0", store.Calls);
+        Assert.Equal(20, Assert.Single(_rig.Transports[0].Seeks), 6);
     }
 
     [Fact]
