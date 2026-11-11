@@ -5,6 +5,7 @@ namespace Sholto.App.Audio.Tests;
 public class TrackAnalysisRunStemSchedulingTests
 {
     private const string TrackA = "/music/a.mp3";
+    private static readonly TimeSpan SignalCap = TimeSpan.FromSeconds(30);
 
     [Fact]
     public async Task On_cuda_stems_start_before_basic_analysis_completes()
@@ -13,10 +14,11 @@ public class TrackAnalysisRunStemSchedulingTests
 
         rig.Load(TrackA);
 
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.StemsRequested(TrackA), 2000));
-        Assert.True(rig.Pipeline.BasicRequested(TrackA));
+        // Basic is still gated once both have started, so stems really started before basic completed.
+        await rig.Pipeline.StemsStarted(TrackA).WaitAsync(SignalCap);
+        await rig.Pipeline.BasicStarted(TrackA).WaitAsync(SignalCap);
         rig.Pipeline.CompleteAll(TrackA, bpm: 120);
-        await rig.Settle();
+        await rig.SettleUntil(() => rig.DetectedBasic.Count == 1 && rig.StemsReady.Count == 1);
         Assert.Single(rig.DetectedBasic);
         Assert.Single(rig.StemsReady);
     }
@@ -27,12 +29,12 @@ public class TrackAnalysisRunStemSchedulingTests
         var rig = new TrackAnalysisRunRig(stemsOverlap: false);
 
         rig.Load(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.BasicRequested(TrackA), 2000));
+        await rig.Pipeline.BasicStarted(TrackA).WaitAsync(SignalCap);
         await Task.Delay(300);
         Assert.False(rig.Pipeline.StemsRequested(TrackA));
 
         rig.Pipeline.CompleteBasicAndKey(TrackA, bpm: 120);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.StemsRequested(TrackA), 2000));
+        await rig.Pipeline.StemsStarted(TrackA).WaitAsync(SignalCap);
         await rig.Settle();
     }
 
@@ -42,7 +44,7 @@ public class TrackAnalysisRunStemSchedulingTests
         const string trackB = "/music/b.mp3";
         var rig = new TrackAnalysisRunRig(stemsOverlap: true);
         rig.Load(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.StemsRequested(TrackA), 2000));
+        await rig.Pipeline.StemsStarted(TrackA).WaitAsync(SignalCap);
 
         rig.Load(trackB);
         rig.Pipeline.CompleteAll(TrackA, bpm: 123);
@@ -58,10 +60,10 @@ public class TrackAnalysisRunStemSchedulingTests
     {
         var rig = new TrackAnalysisRunRig();
         rig.Load(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.BasicRequested(TrackA), 2000));
+        await rig.Pipeline.BasicStarted(TrackA).WaitAsync(SignalCap);
 
         rig.Pipeline.CompleteKey(TrackA);
-        await rig.Settle();
+        await rig.SettleUntil(() => rig.Run.Analysis.Get<KeyAnalysis>() is not null);
 
         Assert.NotNull(rig.Run.Analysis.Get<KeyAnalysis>());
         Assert.Null(rig.Run.Analysis.Basic);

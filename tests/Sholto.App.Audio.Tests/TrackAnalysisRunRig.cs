@@ -56,6 +56,19 @@ internal sealed class TrackAnalysisRunRig
     /// <summary>Run what the analysis posted to the app thread, on the calling (test) thread.</summary>
     public void Drain() => AppThread.Drain();
 
+    /// <summary>Drain the app thread until <paramref name="done"/> holds; throws after 30 s.</summary>
+    public async Task SettleUntil(Func<bool> done)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        Drain();
+        while (!done())
+        {
+            if (DateTime.UtcNow > deadline) throw new TimeoutException("the analysis result was not applied within 30 s");
+            await Task.Delay(5);
+            Drain();
+        }
+    }
+
     /// <summary>Give an in-flight run time to apply whatever it is going to apply.</summary>
     public async Task Settle()
     {

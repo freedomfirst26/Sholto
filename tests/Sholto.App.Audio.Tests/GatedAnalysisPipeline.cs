@@ -21,6 +21,8 @@ internal sealed class GatedAnalysisPipeline : IAnalysisProvider, IKeyAnalyzer, I
     private readonly ConcurrentDictionary<string, CancellationToken> _begun = new();
     private readonly ConcurrentDictionary<string, int> _beginCounts = new();
     private readonly ConcurrentDictionary<string, int> _stemCounts = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource> _basicStarted = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource> _stemsStarted = new();
 
     public bool IsAvailable => true;
 
@@ -42,6 +44,13 @@ internal sealed class GatedAnalysisPipeline : IAnalysisProvider, IKeyAnalyzer, I
 
     /// <summary>How many times the stem stage ran for <paramref name="path"/>.</summary>
     public int StemsCount(string path) => _stemCounts.GetValueOrDefault(path);
+
+    /// <summary>Completes when the code under test reaches the basic gate for <paramref name="path"/>
+    /// (<see cref="GetAsync"/>, or the request <see cref="Begin"/> returned). Never from the test's own Complete* calls.</summary>
+    public Task BasicStarted(string path) => Started(_basicStarted, path).Task;
+
+    /// <summary>Completes when the stem stage is run for <paramref name="path"/>.</summary>
+    public Task StemsStarted(string path) => Started(_stemsStarted, path).Task;
 
     public bool StemsRequested(string path) => _stemTokens.ContainsKey(path);
 
@@ -72,13 +81,13 @@ internal sealed class GatedAnalysisPipeline : IAnalysisProvider, IKeyAnalyzer, I
     }
 
     public Task<BasicAnalysis> GetAsync(DecodedTrack track, CancellationToken ct = default) =>
-        Gate(_basic, track.FilePath).Task;
+        AwaitBasic(track.FilePath);
 
     public IBasicAnalysisRequest Begin(string filePath, CancellationToken ct = default)
     {
         _begun[filePath] = ct;
         _beginCounts.AddOrUpdate(filePath, 1, (_, n) => n + 1);
-        return new BasicAnalysisRequest(track => Gate(_basic, track.FilePath).Task);
+        return new BasicAnalysisRequest(track => AwaitBasic(track.FilePath));
     }
 
     public Task<BasicAnalysis> RecomputeAsync(DecodedTrack track, CancellationToken ct = default) =>
@@ -94,8 +103,19 @@ internal sealed class GatedAnalysisPipeline : IAnalysisProvider, IKeyAnalyzer, I
     {
         _stemTokens[filePath] = ct;
         _stemCounts.AddOrUpdate(filePath, 1, (_, n) => n + 1);
+        Started(_stemsStarted, filePath).TrySetResult();
         return Gate(_stems, filePath).Task;
     }
+
+    private Task<BasicAnalysis> AwaitBasic(string path)
+    {
+        Started(_basicStarted, path).TrySetResult();
+        return Gate(_basic, path).Task;
+    }
+
+    private TaskCompletionSource Started(
+        ConcurrentDictionary<string, TaskCompletionSource> signals, string path) =>
+        signals.GetOrAdd(path, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
 
     private static TaskCompletionSource<T> Gate<T>(
         ConcurrentDictionary<string, TaskCompletionSource<T>> gates, string path) =>
