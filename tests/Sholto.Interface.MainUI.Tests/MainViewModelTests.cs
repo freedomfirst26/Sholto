@@ -651,4 +651,98 @@ public class MainViewModelTests
         Assert.False(_vm.IsOutputPickerOpen);
         Assert.Equal("Speakers", await ask);
     }
+
+    // ---- Notification order ---------------------------------------------------------------------
+
+    private Sholto.Interface.Faceplate.ViewModels.FaceplateViewModel NewFaceplate() =>
+        new(new Sholto.Interface.Faceplate.Model.FaceplateDocLoader().Load(
+            new Sholto.Interface.Faceplate.Devices.DdjFlx4.DdjFlx4Faceplate()), _bus);
+
+    [Fact]
+    public void A_toast_announces_Toast_then_HasToast()
+    {
+        _changed.Clear();
+
+        _bus.Publish(new MarkerAdded(0, 5.0));
+
+        Assert.Equal([nameof(MainViewModel.Toast), nameof(MainViewModel.HasToast)], _changed);
+    }
+
+    [Fact]
+    public void An_attached_database_announces_TagEditor_then_CratePicker()
+    {
+        _changed.Clear();
+
+        _bus.Publish(new LibraryDatabaseAttached(true));
+
+        Assert.Equal([nameof(MainViewModel.TagEditor), nameof(MainViewModel.CratePicker)], _changed);
+    }
+
+    [Fact]
+    public void Opening_and_closing_the_guide_announces_Mount_then_IsFaceplateOpen()
+    {
+        _vm.AttachFaceplate(NewFaceplate());
+        string?[] expected = [nameof(MainViewModel.Mount), nameof(MainViewModel.IsFaceplateOpen)];
+        _changed.Clear();
+
+        _vm.IsFaceplateOpen = true;
+        Assert.Equal(expected, _changed);
+
+        _changed.Clear();
+        _vm.IsFaceplateOpen = false;
+        Assert.Equal(expected, _changed);
+    }
+
+    [Fact]
+    public void Attaching_the_same_faceplate_twice_announces_once()
+    {
+        var faceplate = NewFaceplate();
+        _changed.Clear();
+
+        _vm.AttachFaceplate(faceplate);
+        Assert.Equal([nameof(MainViewModel.Faceplate)], _changed);
+
+        _changed.Clear();
+        _vm.AttachFaceplate(faceplate);
+        Assert.Empty(_changed);
+    }
+
+    [Fact]
+    public void Opening_track_actions_announces_IsTrackActionsOpen()
+    {
+        ShowRows("Alpha");
+        _changed.Clear();
+
+        _vm.OpenTrackActions(_vm.Tracks[0]);
+        Assert.Equal([nameof(MainViewModel.IsTrackActionsOpen)], _changed);
+
+        _changed.Clear();
+        _vm.TrackActions.Close();
+        Assert.Equal([nameof(MainViewModel.IsTrackActionsOpen)], _changed);
+    }
+
+    [Fact]
+    public void The_output_picker_announces_IsOutputPickerOpen_on_open_and_close()
+    {
+        _changed.Clear();
+
+        _ = _vm.OutputPicker.AskAsync([new OutputDeviceChoice("Speakers", true)], null);
+        Assert.Equal([nameof(MainViewModel.IsOutputPickerOpen)], _changed);
+
+        _changed.Clear();
+        _vm.OutputPicker.Cancel();
+        Assert.Equal([nameof(MainViewModel.IsOutputPickerOpen)], _changed);
+    }
+
+    [Fact]
+    public void Opening_the_system_report_announces_IsSystemReportOpen()
+    {
+        _bus.Publish(new DeviceConnectionChanged(true));
+        _bus.Publish(MissingTool());
+        _changed.Clear();
+
+        _vm.OpenSystemReport();
+
+        Assert.Equal([nameof(MainViewModel.IsSystemReportOpen)], _changed);
+    }
 }
