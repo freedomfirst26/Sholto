@@ -24,11 +24,10 @@ internal sealed class ScriptedLoading(ITrackLoading inner, IAnalysisProvider? an
 
     public IAnalysisReporter Reporter => _inner.Reporter;
 
-    public event Action? AnalysisUpdated
-    {
-        add { }
-        remove { }
-    }
+    public event Action? AnalysisUpdated;
+
+    /// <summary>Fires <see cref="AnalysisUpdated"/>, as a deck's analysis landing would.</summary>
+    public void RaiseAnalysisUpdated() => AnalysisUpdated?.Invoke();
 
     public void BeginLoad(string filePath)
     {
