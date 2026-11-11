@@ -27,13 +27,13 @@ namespace Sholto.Host;
 public sealed class SholtoStackFactory(
     IExternalToolStackFactory toolStackFactory,
     IAnalysisStackFactory analysisStackFactory,
-    SholtoStorage storage,
+    ISholtoStorage storage,
     IAppThread appThread,
     IOptions<LoopOptions> loopOptions)
 {
     private readonly IExternalToolStackFactory _toolStackFactory = toolStackFactory;
     private readonly IAnalysisStackFactory _analysisStackFactory = analysisStackFactory;
-    private readonly SholtoStorage _storage = storage;
+    private readonly ISholtoStorage _storage = storage;
     private readonly IAppThread _appThread = appThread;
     private readonly IOptions<LoopOptions> _loopOptions = loopOptions;
 

@@ -3,11 +3,11 @@ using Sholto.App.Library;
 
 namespace Sholto.App.Lifecycle;
 
-/// <summary>Opens the library database through <see cref="SholtoStorage"/> and publishes
+/// <summary>Opens the library database through <see cref="ISholtoStorage"/> and publishes
 /// the result to everything awaiting <see cref="Opened"/>.</summary>
-public sealed class LibraryDatabase(SholtoStorage storage) : ILibraryDatabase
+public sealed class LibraryDatabase(ISholtoStorage storage) : ILibraryDatabase
 {
-    private readonly SholtoStorage _storage = storage;
+    private readonly ISholtoStorage _storage = storage;
     // Other startup tasks (music-dir resolution, audio init) need the DB to read
     // settings. They await this so they don't race the DB open task.
     private readonly TaskCompletionSource<DatabaseStack?> _ready =

@@ -10,7 +10,7 @@ namespace Sholto.App.Storage;
 /// short-lived <see cref="SholtoDbContext"/> from a pooled factory with no
 /// shared mutable state.
 /// </summary>
-public sealed class SholtoStorage(IDatabaseStackFactory databases, ISholtoDbContextOptionsFactory contextOptions)
+public sealed class SholtoStorage(IDatabaseStackFactory databases, ISholtoDbContextOptionsFactory contextOptions) : ISholtoStorage
 {
     private readonly IDatabaseStackFactory _databases = databases;
     private readonly ISholtoDbContextOptionsFactory _contextOptions = contextOptions;
