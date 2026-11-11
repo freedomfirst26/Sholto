@@ -18,7 +18,7 @@ public sealed class ThemeStackFactory : IThemeStackFactory
         IThemeDefaults defaults = new ThemeDefaults(
             new ThemeDefaultColoursFactory().Create(ReadAsset("defaults.json")));
         var catalog = new ThemeCatalogFactory(
-            new SholtoThemeJson(
+            new SholtoThemeLoader(
                 new SholtoThemeFactory(new WaveformPaletteFactory(presets, defaults), new MinimapPaletteFactory(), defaults))).Build();
         var context = new ThemeContext(catalog);
         return new ThemeStack(catalog, context, defaults);

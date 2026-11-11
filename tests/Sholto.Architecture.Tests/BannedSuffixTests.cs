@@ -17,11 +17,9 @@ public sealed partial class BannedSuffixTests
         "CachingAnalysisProvider",
         "DbAnalysisProvider",
         "IAnalysisProvider",
-        "ISholtoThemeJson",
         "IVarispeedProvider",
         "LowercaseGuidConverter",
         "ScratchDataProvider",
-        "SholtoThemeJson",
         "StagedAnalysisProvider",
         "StemMixDataProvider",
     ];

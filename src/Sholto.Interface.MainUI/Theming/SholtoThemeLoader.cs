@@ -12,7 +12,7 @@ namespace Sholto.Interface.MainUI.Theming;
 ///      and they're merged with the bundled list, no rebuild required.
 /// The JSON schema is documented on <see cref="SholtoThemeFactory"/>.
 /// </summary>
-public sealed class SholtoThemeJson(ISholtoThemeFactory themeFactory) : ISholtoThemeJson
+public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory) : ISholtoThemeLoader
 {
     private readonly ISholtoThemeFactory _themeFactory = themeFactory;
 
