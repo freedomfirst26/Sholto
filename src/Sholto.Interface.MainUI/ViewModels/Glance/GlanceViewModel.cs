@@ -1,21 +1,15 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.Options;
 using Sholto.Data;
 using Sholto.Interface.MainUI.Controls.CollapseToIcon;
 
 namespace Sholto.Interface.MainUI.ViewModels.Glance;
 
 /// <summary>Port of the mockup's Glance overlay onto the bus. Ranking is the App's (<see cref="RankTracks"/>);
-/// this class keeps the query, the target deck, the zone and the highlight, tells the App which track the
-/// highlight points at (<see cref="SetSearchPick"/>) so the controller's LOAD and knob follow it, and shows
-/// the answers.
-/// <para>A change the person makes (query, chips, target, open) ranks at once; several may be in flight and only
-/// the newest result is shown. A change that arrives as an event (a summary, the rows, a deck) only marks the
-/// list dirty, and one more ranking runs on the next frame once none is in flight.</para>
-/// <para>The slow indicator (<see cref="IsReassessing"/>) comes on when a ranking the person asked for has not
-/// landed after 150 ms, and once on it stays at least 300 ms: a result that arrives sooner is held back until
-/// then. Rankings the person did not ask for never start it.</para></summary>
+/// this class keeps the target deck, the zone and the highlight, tells the App which track the highlight
+/// points at (<see cref="SetSearchPick"/>) so the controller's LOAD and knob follow it, and shows the answers.
+/// The query and chips, the ranking requests, the rail's content and the Track List state are its
+/// collaborators', handed in through the constructor.</summary>
 public sealed class GlanceViewModel :
     IGlanceViewModel,
     IFrameTickHandler,
@@ -31,71 +25,42 @@ public sealed class GlanceViewModel :
     /// <summary>Frame order for the re-rank tick.</summary>
     public const int ClockOrder = 100;
 
-    private readonly int _railLimit;
-    private readonly int _indicatorDelayMs;
-    private readonly int _indicatorMinimumMs;
-    private readonly int _clearArmMs;
-
     private readonly ICommandSender _sender;
     private readonly IQueryAsker _asker;
-    private readonly IAppThread _appThread;
     private readonly IGlanceRowSource _rowSource;
-    private readonly ITagRecency _tagRecency;
-    private readonly IFrameClock _clock;
     private readonly IMotionPreference _motion;
+    private readonly IGlanceChipEditor _editor;
+    private readonly IGlanceRankPipeline _pipeline;
+    private readonly IGlanceRail _rail;
+    private readonly IGlanceTrackList _trackList;
 
-    private IReadOnlyList<CrateRef> _crates = [];
-    private IReadOnlyList<TagHit> _tags = [];
     private bool _databaseUp;
-
-    private HashSet<string> _trackListKeys = [];
-    private HashSet<string> _trackListPaths = [];
-    private int _trackListCount;
-    private DateTime? _clearArmedAt;
-
-    private IReadOnlyList<GlanceChip> _chips = [];
-    private IReadOnlyList<GlanceChip> _appliedChips = [];
-    private string _appliedQuery = "";
     private int _libraryCount;
-    private int _resultScopeCount;
-    private Dictionary<int, int>? _crateCounts;
-    private Dictionary<string, int>? _tagCounts;
-
-    private DateTime? _staleSince;
-    private DateTime _shownAt;
-    private (RankTracks Request, IReadOnlyList<GlanceChip> Chips, RankedTracks Ranked)? _held;
-
-    private int _rankGen;
-    private int _inFlight;
-    private bool _dirty;
     private bool _resetHighlight;
-    private int _railGen;
-
-    private string? _completionToken;
-    private string? _completionTag;
-    private int _completionGen;
 
     private bool _sentActive;
     private string? _sentPath;
 
     public GlanceViewModel(
-        ICommandSender sender, IQueryAsker asker, IEventSubscriber subscriber, IAppThread appThread,
-        IFrameClock clock, IGlanceRowSource rowSource, ITagRecency tagRecency, IGlanceHeaderViewModel header,
-        IMotionPreference motion, IOptions<GlanceViewOptions> options)
+        ICommandSender sender, IQueryAsker asker, IEventSubscriber subscriber, IFrameClock clock,
+        IGlanceRowSource rowSource, IGlanceHeaderViewModel header, IMotionPreference motion,
+        IGlanceChipEditor editor, IGlanceRankPipeline pipeline, IGlanceRail rail, IGlanceTrackList trackList)
     {
-        var view = options.Value;
-        _railLimit = view.TagRailLimit;
-        _indicatorDelayMs = view.IndicatorDelayMs;
-        _indicatorMinimumMs = view.IndicatorMinimumMs;
-        _clearArmMs = view.ClearArmMs;
         _sender = sender;
         _asker = asker;
-        _appThread = appThread;
         _rowSource = rowSource;
-        _tagRecency = tagRecency;
-        _clock = clock;
         _motion = motion;
+        _editor = editor;
+        _pipeline = pipeline;
+        _rail = rail;
+        _trackList = trackList;
         Header = header;
+        _editor.QueryChanged += () => Notify(nameof(Query));
+        _editor.CompletionChanged += () => Notify(nameof(CompletionSuffix));
+        _pipeline.ReassessingChanged += () => Notify(nameof(IsReassessing));
+        _pipeline.Shown += OnShown;
+        _rail.Changed += RebuildRail;
+        _trackList.ClearArmedChanged += () => Notify(nameof(ClearArmedText));
         clock.Subscribe(this, ClockOrder);
         subscriber.Subscribe<LoadConfirmPending>(this);
         subscriber.Subscribe<LoadAccepted>(this);
@@ -117,42 +82,40 @@ public sealed class GlanceViewModel :
 
     public bool IsOpen { get; private set; }
 
-    private bool _scopeChipsActive;
-
-    private string _query = "";
     public string Query
     {
-        get => _query;
+        get => _editor.Query;
         set
         {
-            if (_query == value) return;
-            var railChanged = RailText(_query) != RailText(value);
-            _query = value;
-            Notify();
+            if (_editor.Query == value) return;
+            var railChanged = _editor.RailText(_editor.Query) != _editor.RailText(value);
+            _editor.SetQuery(value);
             if (!IsOpen) return;
             _resetHighlight = true;
             TableIndex = 0;
             Rank(personInitiated: true);
             if (railChanged) RefreshRail();
-            RefreshCompletion();
+            _editor.RefreshCompletion(_databaseUp);
         }
     }
 
-    public string? CompletionSuffix { get; private set; }
+    public string? CompletionSuffix => _editor.CompletionSuffix;
 
     public int Target { get; private set; }
 
     public IReadOnlyList<GlanceRow> Rows { get; private set; } = [];
 
-    public int ScopeCount => _scopeChipsActive || _resultScopeCount > 0 ? _resultScopeCount : _libraryCount;
+    public int ScopeCount => _pipeline.ScopeChipsActive || _pipeline.ResultScopeCount > 0
+        ? _pipeline.ResultScopeCount
+        : _libraryCount;
 
-    public IReadOnlyList<GlanceChip> Chips => _chips;
+    public IReadOnlyList<GlanceChip> Chips => _editor.Chips;
 
-    public bool IsReassessing { get; private set; }
+    public bool IsReassessing => _pipeline.IsReassessing;
 
     public bool AnimateResults => !_motion.Reduced;
 
-    public string? ScopeEmptyText => ScopeEmptyTextFor(_appliedChips, _appliedQuery);
+    public string? ScopeEmptyText => _pipeline.ScopeEmptyText;
 
     public IReadOnlyList<string> FilterChips { get; private set; } = [];
 
@@ -168,51 +131,35 @@ public sealed class GlanceViewModel :
         ? TableIndex >= 0 && TableIndex < Rows.Count ? Rows[TableIndex].FilePath : null
         : null;
 
+    /// <summary>The rail item at <see cref="RailIndex"/>, in either zone.</summary>
+    private object? RailItem => RailIndex >= 0 && RailIndex < RailItems.Count ? RailItems[RailIndex] : null;
+
+    private object? HighlightedRailItem => Zone == GlanceZone.Rail ? RailItem : null;
+
     public string ActionText => Zone == GlanceZone.Table
         ? HighlightedPath is null ? "" : $"Load to Deck {Target + 1}"
-        : RailIndex >= 0 && RailIndex < RailItems.Count
-            ? RailItems[RailIndex] switch
-            {
-                GlanceRailCrate { IsActive: true } or GlanceRailTag { IsActive: true } => "Remove filter",
-                GlanceRailCrate or GlanceRailTag => "Add filter",
-                _ => "",
-            }
-            : "";
+        : RailItem switch
+        {
+            GlanceRailCrate { IsActive: true } or GlanceRailTag { IsActive: true } => "Remove filter",
+            GlanceRailCrate or GlanceRailTag => "Add filter",
+            _ => "",
+        };
 
     public event Action<string>? AddedToTrackList;
 
-    public int TrackListCount => _trackListCount;
+    public int TrackListCount => _trackList.Count;
 
     public GlanceLoadState Deck1LoadState => DeckLoadState();
 
     public GlanceLoadState Deck2LoadState => DeckLoadState();
 
-    public GlanceLoadState TrackListLoadState => HighlightedLoadable() switch
-    {
-        null => GlanceLoadState.Off,
-        { InList: true } => GlanceLoadState.InList,
-        _ => GlanceLoadState.Ready,
-    };
+    public GlanceLoadState TrackListLoadState => _trackList.LoadState(HighlightedPath, HighlightedRailItem);
 
-    public int TrackListLoadCount => HighlightedLoadable() is { InList: false, Count: var n } ? n : 0;
+    public int TrackListLoadCount => _trackList.LoadCount(HighlightedPath, HighlightedRailItem);
 
-    public string? ClearArmedText => _clearArmedAt is null ? null : $"Ctrl Del again: clear {_trackListCount}";
+    public string? ClearArmedText => _trackList.ClearArmedText;
 
     private GlanceLoadState DeckLoadState() => HighlightedPath is null ? GlanceLoadState.Off : GlanceLoadState.Ready;
-
-    /// <summary>What Ctrl+L would add: the highlighted song, crate or tag, and whether it is already in the list.</summary>
-    private (string? Path, int CrateId, string? Name, bool IsTag, bool InList, int Count)? HighlightedLoadable()
-    {
-        if (HighlightedPath is { } path)
-            return (path, 0, null, false, _trackListPaths.Contains(path), 0);
-        if (Zone != GlanceZone.Rail || RailIndex < 0 || RailIndex >= RailItems.Count) return null;
-        return RailItems[RailIndex] switch
-        {
-            GlanceRailCrate c => (null, c.Id, c.Name, false, c.IsInTrackList, c.Count),
-            GlanceRailTag t => (null, 0, t.Name, true, t.IsInTrackList, t.Count),
-            _ => null,
-        };
-    }
 
     // ---- Open, close, target ------------------------------------------------------------------
 
@@ -228,7 +175,7 @@ public sealed class GlanceViewModel :
         Notify(nameof(Target));
         _resetHighlight = true;
         TableIndex = 0;
-        RailIndex = FirstSelectable();
+        RailIndex = _rail.FirstSelectable(RailItems);
         SelectAllOnOpen?.Invoke();
         Rank(personInitiated: true);
         RefreshRail();
@@ -239,12 +186,10 @@ public sealed class GlanceViewModel :
     public void Close()
     {
         if (!IsOpen) return;
-        SetClearArmed(null);
+        _trackList.Disarm();
         IsOpen = false;
         Notify(nameof(IsOpen));
-        FlushHeld();
-        _staleSince = null;
-        SetReassessing(false);
+        _pipeline.Close();
         Header.SetOpen(false);
         SyncPick();
     }
@@ -324,7 +269,7 @@ public sealed class GlanceViewModel :
     public void Activate()
     {
         if (!IsOpen) return;
-        if (Zone == GlanceZone.Rail && HighlightedRailFilter() is not null)
+        if (Zone == GlanceZone.Rail && RailItem is GlanceRailCrate or GlanceRailTag)
         {
             ActivateRailItem();
             return;
@@ -334,82 +279,39 @@ public sealed class GlanceViewModel :
 
     public void ActivateRailItem()
     {
-        if (!IsOpen || HighlightedRailFilter() is not { } chip) return;
-        var existing = _chips.FirstOrDefault(c => SameFilter(c, chip));
-        if (existing is not null)
-        {
-            _chips = [.. _chips.Where(c => !ReferenceEquals(c, existing))];
-        }
-        else
-        {
-            if (chip.Kind == GlanceChipKind.Tag) _tagRecency.MarkUsed(chip.Name);
-            _chips = [.. _chips, chip];
-            ClearFreeWords();
-        }
+        if (!IsOpen || !_editor.Toggle(RailItem)) return;
         ChipsChanged();
     }
 
     public void LoadToTrackList()
     {
-        if (!IsOpen || HighlightedLoadable() is not { InList: false } item) return;
-        if (item.Path is { } path)
-            _sender.Send(new LoadSongToTrackList(path, Ui("load-track-list")));
-        else if (item.IsTag)
-        {
-            _tagRecency.MarkUsed(item.Name!);
-            _sender.Send(new LoadTagToTrackList(item.Name!, Ui("load-track-list")));
-        }
-        else
-            _sender.Send(new LoadCrateToTrackList(item.CrateId, item.Name!, Ui("load-track-list")));
+        if (!IsOpen) return;
+        _trackList.Load(HighlightedPath, HighlightedRailItem);
     }
 
     public void ClearTrackList()
     {
-        if (!IsOpen || _trackListCount == 0) return;
-        if (_clearArmedAt is { } armed && (_clock.Now - armed).TotalMilliseconds <= _clearArmMs)
-        {
-            SetClearArmed(null);
-            _sender.Send(new ClearTrackList(Ui("clear-track-list")));
-            return;
-        }
-        SetClearArmed(_clock.Now);
-    }
-
-    private void SetClearArmed(DateTime? at)
-    {
-        if (_clearArmedAt is null && at is null) return;
-        _clearArmedAt = at;
-        Notify(nameof(ClearArmedText));
+        if (!IsOpen) return;
+        _trackList.Clear();
     }
 
     public bool AcceptTagCompletion()
     {
-        if (!IsOpen || _completionTag is not { } tag || _completionToken is not { } token
-            || TrailingTagToken(_query) != token) return false;
-        _query = _query[..^token.Length].TrimEnd();
-        Notify(nameof(Query));
-        SetCompletion(null, null, null);
-        _completionGen++;
-        _tagRecency.MarkUsed(tag);
-        _chips = [.. _chips, new GlanceChip(GlanceChipKind.Tag, 0, tag)];
+        if (!IsOpen || !_editor.AcceptCompletion()) return false;
         ChipsChanged();
         return true;
     }
 
     public bool RemoveLastChip()
     {
-        if (_query.Length > 0 || _chips.Count == 0) return false;
-        _chips = [.. _chips.Take(_chips.Count - 1)];
+        if (!_editor.RemoveLast()) return false;
         ChipsChanged();
         return true;
     }
 
     public void RemoveChip(GlanceChip chip)
     {
-        var existing = _chips.FirstOrDefault(c => SameFilter(c, chip));
-        if (existing is null) return;
-        _chips = [.. _chips.Where(c => !ReferenceEquals(c, existing))];
-        ChipsChanged();
+        if (_editor.Remove(chip)) ChipsChanged();
     }
 
     /// <summary>A chip change ranks at once from the top of the list; the rail's active marks follow now, its
@@ -423,96 +325,9 @@ public sealed class GlanceViewModel :
         if (IsOpen) Rank(personInitiated: true);
         RebuildRail();
         RefreshRail();
-        RefreshCompletion();
+        _editor.RefreshCompletion(_databaseUp);
         NotifyHighlight();
     }
-
-    /// <summary>The query without its plain words; <c>bpm:</c>, <c>key:</c> and <c>#</c> tokens stay.</summary>
-    private void ClearFreeWords()
-    {
-        var kept = string.Join(' ', _query
-            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.StartsWith('#')
-                        || w.StartsWith("bpm:", StringComparison.OrdinalIgnoreCase)
-                        || w.StartsWith("key:", StringComparison.OrdinalIgnoreCase)));
-        if (kept == _query) return;
-        _query = kept;
-        Notify(nameof(Query));
-    }
-
-    // ---- Tag completion ------------------------------------------------------------------------
-
-    /// <summary>The last word of the query when it is a <c>#</c> fragment of at least two characters and the
-    /// query does not end in whitespace; otherwise null.</summary>
-    private string? TrailingTagToken(string query)
-    {
-        if (query.Length == 0 || char.IsWhiteSpace(query[^1])) return null;
-        var word = query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[^1];
-        return word.StartsWith('#') && word.Length >= 2 ? word : null;
-    }
-
-    private void SetCompletion(string? token, string? tag, string? suffix)
-    {
-        _completionToken = token;
-        _completionTag = tag;
-        if (CompletionSuffix == suffix) return;
-        CompletionSuffix = suffix;
-        Notify(nameof(CompletionSuffix));
-    }
-
-    private void RefreshCompletion()
-    {
-        var gen = ++_completionGen;
-        var token = TrailingTagToken(_query);
-        if (token is null || !_databaseUp)
-        {
-            SetCompletion(null, null, null);
-            return;
-        }
-        var fragment = token[1..];
-        if (_completionTag is { } kept && kept.StartsWith(fragment, StringComparison.OrdinalIgnoreCase))
-            SetCompletion(token, kept, kept[fragment.Length..]);
-        else
-            SetCompletion(token, null, null);
-        _ = RefreshCompletionAsync(gen, token, fragment);
-    }
-
-    private async Task RefreshCompletionAsync(int gen, string token, string fragment)
-    {
-        IReadOnlyList<TagHit> hits = [];
-        try
-        {
-            hits = await _asker.AskAsync<SearchTags, IReadOnlyList<TagHit>>(new SearchTags(fragment, _railLimit)) ?? [];
-        }
-        catch (Exception ex) { Console.WriteLine($"[Glance] tag completion failed: {ex.Message}"); }
-        _appThread.Post(() =>
-        {
-            if (gen != _completionGen || TrailingTagToken(_query) != token) return;
-            var tag = _tagRecency.OrderRecentFirst(
-                    hits.Where(h => h.Name.StartsWith(fragment, StringComparison.OrdinalIgnoreCase)
-                                    && !_chips.Any(c => c.Kind == GlanceChipKind.Tag
-                                                        && string.Equals(c.Name, h.Name, StringComparison.OrdinalIgnoreCase))),
-                    h => h.Name)
-                .FirstOrDefault()?.Name;
-            SetCompletion(token, tag, tag?[fragment.Length..]);
-        });
-    }
-
-    private bool SameFilter(GlanceChip a, GlanceChip b) => a.Kind == b.Kind
-        && (a.Kind == GlanceChipKind.Crate
-            ? a.CrateId == b.CrateId
-            : string.Equals(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>The chip the highlighted rail item would add or remove, or null on anything else.</summary>
-    private GlanceChip? HighlightedRailFilter() =>
-        RailIndex >= 0 && RailIndex < RailItems.Count
-            ? RailItems[RailIndex] switch
-            {
-                GlanceRailCrate c => new GlanceChip(GlanceChipKind.Crate, c.Id, c.Name),
-                GlanceRailTag t => new GlanceChip(GlanceChipKind.Tag, 0, t.Name),
-                _ => null,
-            }
-            : null;
 
     public void LoadTo(int deck)
     {
@@ -532,8 +347,7 @@ public sealed class GlanceViewModel :
     public void ToggleHighlightedInTrackList()
     {
         if (!IsOpen || HighlightedPath is not { } path) return;
-        if (_trackListPaths.Contains(path)) _sender.Send(new RemoveFromTrackList(path, Ui("star")));
-        else _sender.Send(new LoadSongToTrackList(path, Ui("star")));
+        _trackList.Toggle(path);
     }
 
     // ---- Events --------------------------------------------------------------------------------
@@ -548,30 +362,28 @@ public sealed class GlanceViewModel :
     public void Handle(in LibraryRowsChanged e)
     {
         _libraryCount = e.Rows.Count;
-        NotifyScopeCount();
-        _dirty = true;
+        Notify(nameof(ScopeCount));
+        _pipeline.MarkDirty();
     }
 
-    public void Handle(in TrackSummaryChanged e) => _dirty = true;
+    public void Handle(in TrackSummaryChanged e) => _pipeline.MarkDirty();
 
-    public void Handle(in DeckContentChanged e) => _dirty = true;
+    public void Handle(in DeckContentChanged e) => _pipeline.MarkDirty();
 
-    public void Handle(in DeckTempoChanged e) => _dirty = true;
+    public void Handle(in DeckTempoChanged e) => _pipeline.MarkDirty();
 
     public void Handle(in TrackListChanged e)
     {
-        _trackListCount = e.Count;
-        _trackListKeys = [.. e.Sources.Select(s => s.Key)];
-        _trackListPaths = [.. e.Paths];
+        _trackList.Apply(e);
         foreach (var row in Rows)
         {
             var wasIn = row.IsInTrackList;
-            row.IsInTrackList = _trackListPaths.Contains(row.FilePath);
+            row.IsInTrackList = _trackList.Contains(row.FilePath);
             if (IsOpen && !wasIn && row.IsInTrackList) AddedToTrackList?.Invoke(row.FilePath);
         }
         NotifyLoadStates();
         Notify(nameof(TrackListCount));
-        if (_clearArmedAt is not null && e.Count == 0) SetClearArmed(null);
+        _trackList.DisarmIfEmpty();
         RebuildRail();
     }
 
@@ -583,83 +395,22 @@ public sealed class GlanceViewModel :
 
     public void OnFrame(DateTime now)
     {
-        if (_clearArmedAt is { } armed && (now - armed).TotalMilliseconds > _clearArmMs) SetClearArmed(null);
+        _trackList.Tick(now);
         if (!IsOpen) return;
-        if (_held is not null && IsReassessing && (now - _shownAt).TotalMilliseconds >= _indicatorMinimumMs)
-        {
-            FlushHeld();
-            SetReassessing(false);
-        }
-        if (_staleSince is { } since && !IsReassessing && (now - since).TotalMilliseconds >= _indicatorDelayMs)
-        {
-            SetReassessing(true);
-            _shownAt = now;
-        }
-        if (!_dirty || _inFlight > 0) return;
-        Rank(personInitiated: false);
+        if (_pipeline.Tick(now)) Rank(personInitiated: false);
     }
 
     // ---- Ranking -------------------------------------------------------------------------------
 
-    /// <summary>Ask for a ranking. Only one the person asked for can start the slow indicator's clock, so a
-    /// fader sweep re-ranking a big library never makes it flicker.</summary>
-    private void Rank(bool personInitiated)
-    {
-        _dirty = false;
-        _held = null;
-        if (personInitiated) _staleSince ??= _clock.Now;
-        var gen = ++_rankGen;
-        _inFlight++;
-        var request = new RankTracks(_query, Target)
-        {
-            CrateIds = [.. _chips.Where(c => c.Kind == GlanceChipKind.Crate).Select(c => c.CrateId)],
-            Tags = [.. _chips.Where(c => c.Kind == GlanceChipKind.Tag).Select(c => c.Name)],
-        };
-        _ = RankAsync(gen, request, _chips);
-    }
+    private void Rank(bool personInitiated) =>
+        _pipeline.Rank(_editor.Query, Target, _editor.Chips, personInitiated);
 
-    private async Task RankAsync(int gen, RankTracks request, IReadOnlyList<GlanceChip> chips)
+    private void OnShown(RankTracks request, RankedTracks ranked)
     {
-        RankedTracks? result = null;
-        try { result = await _asker.AskAsync<RankTracks, RankedTracks>(request); }
-        catch (Exception ex) { Console.WriteLine($"[Glance] ranking failed: {ex.Message}"); }
-        _appThread.Post(() => Apply(gen, request, chips, result));
-    }
-
-    private void Apply(int gen, RankTracks request, IReadOnlyList<GlanceChip> chips, RankedTracks? ranked)
-    {
-        _inFlight--;
-        if (gen != _rankGen) return;
-        _staleSince = null;
-        if (ranked is null)
-        {
-            SetReassessing(false);
-            return;
-        }
-        if (IsReassessing && (_clock.Now - _shownAt).TotalMilliseconds < _indicatorMinimumMs)
-        {
-            _held = (request, chips, ranked);
-            return;
-        }
-        Show(request, chips, ranked);
-        SetReassessing(false);
-    }
-
-    private void FlushHeld()
-    {
-        if (_held is not { } held) return;
-        _held = null;
-        Show(held.Request, held.Chips, held.Ranked);
-    }
-
-    private void Show(RankTracks request, IReadOnlyList<GlanceChip> chips, RankedTracks ranked)
-    {
-        _appliedChips = chips;
-        _appliedQuery = request.Query;
         var previous = _resetHighlight ? null : HighlightedTablePath();
         var rows = new List<GlanceRow>(ranked.Rows.Count);
         foreach (var r in ranked.Rows)
-            rows.Add(new GlanceRow(_rowSource.RowFor(r.Summary), r, _trackListPaths.Contains(r.Summary.FilePath)));
+            rows.Add(new GlanceRow(_rowSource.RowFor(r.Summary), r, _trackList.Contains(r.Summary.FilePath)));
         var index = 0;
         if (previous is not null)
         {
@@ -668,11 +419,6 @@ public sealed class GlanceViewModel :
         }
         _resetHighlight = false;
 
-        _scopeChipsActive = _appliedChips.Count > 0;
-        _resultScopeCount = ranked.ScopeCount;
-        _crateCounts = ranked.ScopeCrateCounts is { } cc ? new Dictionary<int, int>(cc) : null;
-        _tagCounts = ranked.ScopeTagCounts is { } tc ? new Dictionary<string, int>(tc, StringComparer.OrdinalIgnoreCase) : null;
-
         Rows = rows;
         FilterChips = ranked.FilterChips;
         TableIndex = index;
@@ -680,7 +426,7 @@ public sealed class GlanceViewModel :
         Notify(nameof(Rows));
         Notify(nameof(FilterChips));
         Notify(nameof(TableIndex));
-        NotifyScopeCount();
+        Notify(nameof(ScopeCount));
         Notify(nameof(ScopeEmptyText));
         RebuildRail();
         NotifyHighlight();
@@ -688,144 +434,23 @@ public sealed class GlanceViewModel :
         ResultsReplaced?.Invoke();
     }
 
-    private void SetReassessing(bool value)
-    {
-        if (IsReassessing == value) return;
-        IsReassessing = value;
-        Notify(nameof(IsReassessing));
-    }
-
-    private void NotifyScopeCount()
-    {
-        Notify(nameof(ScopeCount));
-    }
-
-    /// <summary>"No tracks in Peak time tagged Vocal", or with text "No “bsn” in Peak time tagged Vocal".</summary>
-    private string? ScopeEmptyTextFor(IReadOnlyList<GlanceChip> chips, string query)
-    {
-        if (chips.Count == 0) return null;
-        var crates = chips.Where(c => c.Kind == GlanceChipKind.Crate).Select(c => c.Name).ToList();
-        var tags = chips.Where(c => c.Kind == GlanceChipKind.Tag).Select(c => c.Name).ToList();
-        var text = query.Trim();
-        var text0 = text.Length == 0 ? "No tracks" : $"No “{text}”";
-        var result = text0;
-        if (crates.Count > 0) result += " in " + JoinNames(crates);
-        if (tags.Count > 0) result += " tagged " + JoinNames(tags);
-        return result;
-    }
-
-    private string JoinNames(List<string> names) => names.Count == 1
-        ? names[0]
-        : string.Join(", ", names.Take(names.Count - 1)) + " and " + names[^1];
-
     private string? HighlightedTablePath() =>
         TableIndex >= 0 && TableIndex < Rows.Count ? Rows[TableIndex].FilePath : null;
 
     // ---- Rail ----------------------------------------------------------------------------------
 
-    private void RefreshRail()
-    {
-        var gen = ++_railGen;
-        if (!_databaseUp)
-        {
-            _crates = [];
-            _tags = [];
-            RebuildRail();
-            return;
-        }
-        _ = RefreshRailAsync(gen, RailText(_query));
-    }
-
-    private async Task RefreshRailAsync(int gen, string text)
-    {
-        IReadOnlyList<CrateRef> crates = [];
-        IReadOnlyList<TagHit> tags = [];
-        try
-        {
-            crates = await _asker.AskAsync<SearchCrates, IReadOnlyList<CrateRef>>(new SearchCrates(text)) ?? [];
-            if (text.Length == 0)
-            {
-                // Tags picked earlier this session lead, newest first; the most-used tags fill the rest.
-                var recentNames = _tagRecency.RecentNames(_railLimit);
-                var recentHits = await _asker.AskAsync<TagsByName, IReadOnlyList<TagHit>>(new TagsByName(recentNames)) ?? [];
-                var byName = recentHits.ToDictionary(h => h.Name, StringComparer.OrdinalIgnoreCase);
-                var ordered = recentNames.Where(byName.ContainsKey).Select(n => byName[n]);
-                var top = await _asker.AskAsync<TopTags, IReadOnlyList<TagHit>>(new TopTags(_railLimit)) ?? [];
-                tags = [.. ordered.Concat(top).DistinctBy(h => h.Name, StringComparer.OrdinalIgnoreCase).Take(_railLimit)];
-            }
-            else
-            {
-                var matches = await _asker.AskAsync<SearchTags, IReadOnlyList<TagHit>>(new SearchTags(text, _railLimit)) ?? [];
-                tags = _tagRecency.OrderRecentFirst(matches, h => h.Name);
-            }
-        }
-        catch (Exception ex) { Console.WriteLine($"[Glance] rail search failed: {ex.Message}"); }
-        _appThread.Post(() =>
-        {
-            if (gen != _railGen) return;
-            _crates = crates;
-            _tags = tags;
-            RebuildRail();
-        });
-    }
+    private void RefreshRail() => _rail.Refresh(_editor.RailText(_editor.Query), _databaseUp);
 
     private void RebuildRail()
     {
-        var selected = RailIndex >= 0 && RailIndex < RailItems.Count ? RailKey(RailItems[RailIndex]) : null;
-        var items = new List<object>
-        {
-            new GlanceRailHeader("CRATES", _crates.Count),
-        };
-        items.AddRange(_crates.Select(RailCrate));
-        items.Add(new GlanceRailHeader("TAGS", _tags.Count));
-        items.AddRange(_tags.Select(RailTag));
+        var items = _rail.Items(_editor.Chips, _pipeline.CrateCounts, _pipeline.TagCounts, _trackList.Keys);
+        RailIndex = _rail.IndexAfterRebuild(RailItems, RailIndex, items);
         RailItems = items;
-
-        var index = selected is null ? -1 : items.FindIndex(i => RailKey(i) == selected);
-        RailIndex = index >= 0 ? index : FirstSelectable();
         Notify(nameof(RailItems));
         Notify(nameof(RailIndex));
         NotifyHighlight();
         SyncPick();
     }
-
-    private GlanceRailCrate RailCrate(CrateRef crate)
-    {
-        var active = _chips.Any(c => c.Kind == GlanceChipKind.Crate && c.CrateId == crate.Id);
-        var count = _crateCounts is { } counts ? counts.GetValueOrDefault(crate.Id) : crate.TrackCount;
-        return new GlanceRailCrate(crate, active, count, count == 0 && !active, _trackListKeys.Contains($"crate:{crate.Id}"));
-    }
-
-    private GlanceRailTag RailTag(TagHit tag)
-    {
-        var active = _chips.Any(c => c.Kind == GlanceChipKind.Tag
-                                     && string.Equals(c.Name, tag.Name, StringComparison.OrdinalIgnoreCase));
-        var count = _tagCounts is { } counts ? counts.GetValueOrDefault(tag.Name) : tag.TrackCount;
-        return new GlanceRailTag(tag, active, count, count == 0 && !active,
-            _trackListKeys.Contains("tag:" + tag.Name.ToLowerInvariant()));
-    }
-
-    private string? RailKey(object item) => item switch
-    {
-        GlanceRailCrate c => "c:" + c.Id,
-        GlanceRailTag g => "g:" + g.Name,
-        _ => null,
-    };
-
-    private int FirstSelectable()
-    {
-        for (var i = 0; i < RailItems.Count; i++)
-            if (RailItems[i] is not GlanceRailHeader) return i;
-        return 0;
-    }
-
-    /// <summary>The free words of the query: what a crate or a tag is matched against. Operators such as
-    /// <c>bpm:128</c>, <c>key:8A</c> and <c>#techno</c> are left out.</summary>
-    private string RailText(string query) => string.Join(' ', query
-        .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-        .Where(w => !w.StartsWith('#')
-                    && !w.StartsWith("bpm:", StringComparison.OrdinalIgnoreCase)
-                    && !w.StartsWith("key:", StringComparison.OrdinalIgnoreCase)));
 
     // ---- Pick sync -----------------------------------------------------------------------------
 
