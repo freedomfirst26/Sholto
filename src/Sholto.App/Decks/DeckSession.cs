@@ -1,9 +1,7 @@
 using Sholto.App.Analysis;
-using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Beats;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Analyzers.Segments;
-using Sholto.App.Analysis.Analyzers.Vocals;
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Analysis.Stems;
 using Sholto.App.Audio;
@@ -24,23 +22,18 @@ public sealed class DeckSession : IDeckSession
     private readonly IDeckTuneEditor _tuneEditor;
     private readonly IDeckTempoControl _tempoControl;
     private readonly IDeckPlayPhase _playPhase;
-    private readonly ISectionLayoutFactory _sectionLayouts;
+    private readonly IDeckAnalysisEvents _analysisEvents;
     private readonly IAppThread _appThread;
     private readonly IEventPublisher _publisher;
 
-    private SectionLayout _layout;
-
     private Track? _loadedTrack;
     private DeckLoadState _loadState = DeckLoadState.Idle;
-    // The TrackAnalysis instance we are subscribed to, so we can unsubscribe when Loading.Analysis is
-    // replaced (each BeginLoad creates a fresh TrackAnalysis on the player).
-    private TrackAnalysis? _subscribedAnalysis;
 
     private bool _isScrubbing;
     private bool _isScratching;
     private double _magneticGlowSec = -1;
 
-    public DeckSession(int index, IDeckPorts ports, IDeckGain gain, IDeckStemMix stemMix, IDeckTuneEditor tuneEditor, IDeckTempoControl tempoControl, IDeckPlayPhase playPhase, ISectionLayoutFactory sectionLayouts,
+    public DeckSession(int index, IDeckPorts ports, IDeckGain gain, IDeckStemMix stemMix, IDeckTuneEditor tuneEditor, IDeckTempoControl tempoControl, IDeckPlayPhase playPhase, IDeckAnalysisEvents analysisEvents,
         IAppThread appThread, IEventPublisher publisher)
     {
         Index = index;
@@ -56,12 +49,12 @@ public sealed class DeckSession : IDeckSession
         _tempoControl.BpmMultiplierChosen += OnBpmMultiplierChosen;
         _playPhase = playPhase;
         _playPhase.Changed += Raise;
-        _sectionLayouts = sectionLayouts;
-        _layout = sectionLayouts.Empty();
+        _analysisEvents = analysisEvents;
+        _analysisEvents.Changed += Raise;
         _appThread = appThread;
         _publisher = publisher;
 
-        RebindAnalysisSubscription();
+        _analysisEvents.Rebind();
         Looping.LoopChanged += OnLoopChanged;
         Beatgrid.GridNudgedChanged += OnGridNudgedChanged;
         Mixer.CueChanged += OnCueChanged;
@@ -108,49 +101,6 @@ public sealed class DeckSession : IDeckSession
     private void RaiseLoop() => Raise(DeckChange.Loop);
     private void RaiseGridNudged() => Raise(DeckChange.GridNudged);
     private void RaiseCue() => Raise(DeckChange.Cue);
-
-    /// <summary>(Re)subscribe to per-type events on <c>Loading.Analysis</c>. Called at construction and
-    /// again after each load, because the player swaps in a fresh <see cref="TrackAnalysis"/> instance per
-    /// track. The previously-subscribed instance is detached, otherwise old completed analyses would still
-    /// notify against the wrong deck state and handlers would leak.</summary>
-    private void RebindAnalysisSubscription()
-    {
-        if (_subscribedAnalysis is not null)
-        {
-            _subscribedAnalysis.BasicReady -= OnBasicReady;
-            _subscribedAnalysis.KeyReady -= OnKeyReady;
-            _subscribedAnalysis.StemsReady -= OnStemsReady;
-            _subscribedAnalysis.VocalRegionsReady -= OnVocalRegionsReady;
-        }
-        _subscribedAnalysis = Loading.Analysis;
-        _subscribedAnalysis.BasicReady += OnBasicReady;
-        _subscribedAnalysis.KeyReady += OnKeyReady;
-        _subscribedAnalysis.StemsReady += OnStemsReady;
-        _subscribedAnalysis.VocalRegionsReady += OnVocalRegionsReady;
-    }
-
-    // Each per-type handler re-raises only what DEPENDS on that analysis type.
-    private void OnBasicReady(BasicAnalysis _) => _appThread.Post(ApplyBasicReady);
-    private void OnKeyReady(KeyAnalysis _) => _appThread.Post(RaiseKeyReady);
-    private void OnStemsReady(StemPaths _) => _appThread.Post(RaiseStemsReady);
-    private void OnVocalRegionsReady(IReadOnlyList<VocalRegion> _) => _appThread.Post(RaiseVocalRegionsReady);
-
-    private void ApplyBasicReady()
-    {
-        // Recompute the phrase grid and sections from the peaks and the CURRENT grid. BasicReady also fires
-        // for a grid nudge or BPM edit, so sections follow the grid; none are persisted.
-        var basic = Analysis.Basic;
-        if (basic is not null)
-        {
-            _layout = _sectionLayouts.Create(basic);
-            Raise(DeckChange.Sections);
-        }
-        Raise(DeckChange.BasicReady);
-    }
-
-    private void RaiseKeyReady() => Raise(DeckChange.KeyReady);
-    private void RaiseStemsReady() => Raise(DeckChange.StemsReady);
-    private void RaiseVocalRegionsReady() => Raise(DeckChange.VocalRegionsReady);
 
     // ---- Load ----------------------------------------------------------------------------------
     public Track? LoadedTrack
@@ -213,14 +163,13 @@ public sealed class DeckSession : IDeckSession
         Loading.BeginLoad(track.FilePath);
         // Loading.Analysis was just replaced with a fresh instance; hook onto it so the new track's
         // analyses reach this session, not the previous track's stale subscription.
-        RebindAnalysisSubscription();
+        _analysisEvents.Rebind();
         LoadedTrack = track;
         _tempoControl.RestoreMultiplier(bpmMultiplier);
         IsPlaying = false;
         PlayPosition = 0;
         SetMarkers([]);                 // clear the old track's markers
-        _layout = _sectionLayouts.Empty();
-        Raise(DeckChange.Sections);
+        _analysisEvents.ClearLayout();
         Raise(DeckChange.AnalysisReset);
     }
 
@@ -230,7 +179,7 @@ public sealed class DeckSession : IDeckSession
     public void LoadStreaming(Track track, string filePath, double bpmMultiplier = 1.0)
     {
         Loading.LoadStreaming(filePath);
-        RebindAnalysisSubscription();
+        _analysisEvents.Rebind();
         LoadedTrack = track;
         LoadState = DeckLoadState.Loaded;
         _tempoControl.RestoreMultiplier(bpmMultiplier);
@@ -245,7 +194,7 @@ public sealed class DeckSession : IDeckSession
         Loading.Load(filePath, samples, sampleRate: AudioFileDecoder.TargetSampleRate);
         // Loading.Load replaces TrackAnalysis again (in case the caller skipped BeginLoad). Resubscribe so
         // per-type events from the new instance reach the session.
-        RebindAnalysisSubscription();
+        _analysisEvents.Rebind();
         LoadedTrack = track;
         LoadState = DeckLoadState.Loaded;
         // Apply any persisted half / double override for this track. RestoreMultiplier does not raise
@@ -342,11 +291,11 @@ public sealed class DeckSession : IDeckSession
     }
 
 
-    public IReadOnlyList<SongSection> Sections => _layout.Sections;
+    public IReadOnlyList<SongSection> Sections => _analysisEvents.Layout.Sections;
 
-    public PhraseGrid PhraseGrid => _layout.Phrases;
+    public PhraseGrid PhraseGrid => _analysisEvents.Layout.Phrases;
 
-    public Beatgrid SectionGrid => _layout.Grid;
+    public Beatgrid SectionGrid => _analysisEvents.Layout.Grid;
 
     // ---- BPM multiplier ------------------------------------------------------------------------
     public double SourceBpm => _tempoControl.SourceBpm;
