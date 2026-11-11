@@ -32,8 +32,8 @@ namespace Sholto.Host;
 /// when it has them (<see cref="UseViewModelStack"/> during framework init,
 /// <see cref="UseMidi"/> once the MIDI stack is up after first paint) and the factory
 /// decides how leaves become entities. Deliberately NOT on
-/// <see cref="ISholtoEntities"/>: that interface stays three factory methods, and a
-/// scripted implementation has an entirely different set of leaves.</para>
+/// <see cref="ISholtoEntities"/>: that interface stays the factory methods, and the
+/// seeders live on <see cref="ILiveEntitySeeds"/>, which a scripted world replaces with its own.</para>
 ///
 /// <para>Each Create… is idempotent — repeated calls return the SAME entity. That is
 /// what makes the three consistent: <see cref="CreateKeyboard"/> returns the window
@@ -47,7 +47,7 @@ public sealed class LiveEntities(
     IEventPublisher publisher,
     IFrameClock clock,
     IAppThread appThread,
-    IAppIconFactory iconFactory) : ISholtoEntities
+    IAppIconFactory iconFactory) : ISholtoEntities, ILiveEntitySeeds
 {
     private readonly ICommandSender _sender = sender;
     private readonly IQueryAsker _asker = asker;

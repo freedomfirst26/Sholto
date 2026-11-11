@@ -33,6 +33,7 @@ public sealed class SholtoStartup : IApplicationStartup
     // factory only ASSEMBLES the three entities Orchestrator binds — every leaf
     // collaborator below is still built by this class. See ISholtoEntities.
     private readonly ISholtoEntities _entities;
+    private readonly ILiveEntitySeeds _seeds;
 
     // The plain-.NET leaves (tool stack, decoder, analysis stack, deck factory,
     // storage, device enumeration, track scanner) — built in Program.BuildAvaloniaApp,
@@ -61,6 +62,7 @@ public sealed class SholtoStartup : IApplicationStartup
     public SholtoStartup(AppStack appStack)
     {
         _entities = appStack.Entities;
+        _seeds = appStack.Seeds;
         _stack = appStack.Stack;
         _options = appStack.Options;
         _coreFactory = appStack.CoreFactory;
@@ -90,19 +92,16 @@ public sealed class SholtoStartup : IApplicationStartup
         // IT assemble the application + window pair — that pairing (the window's
         // DataContext IS the application view model) is the factory's
         // whole reason to exist.
-        // The leaves only mean anything to the live assembly; a scripted one
-        // brings its own, which is why this is not on ISholtoEntities.
-        if (_entities is LiveEntities live)
-        {
-            live.UseThemeCatalog(_themeCatalog);
-            live.UseViewModelStack(new ViewModelStack(
-                _options.Feature, _options.DeckView, _options.GlanceView, _options.WaveformStyle,
-                _stack.DeckFactory, _themeContext,
-                _stack.AnalysisStack.SongSegments,
-                _stack.TagRecency,
-                _stack.LibrarySearch,
-                _coreFactory));
-        }
+        // The leaves go in through ILiveEntitySeeds, not ISholtoEntities: a scripted
+        // world brings its own seeds.
+        _seeds.UseThemeCatalog(_themeCatalog);
+        _seeds.UseViewModelStack(new ViewModelStack(
+            _options.Feature, _options.DeckView, _options.GlanceView, _options.WaveformStyle,
+            _stack.DeckFactory, _themeContext,
+            _stack.AnalysisStack.SongSegments,
+            _stack.TagRecency,
+            _stack.LibrarySearch,
+            _coreFactory));
 
         var vm = _entities.CreateApplication();
         var core = _entities.CreateCore();
@@ -142,7 +141,7 @@ public sealed class SholtoStartup : IApplicationStartup
         _midiManager = controllerStack.Midi;
         // Leaves again: the MIDI stack is App's to build (mappings + manager above),
         // the control surface made out of it is the factory's to assemble.
-        if (_entities is LiveEntities live) live.UseMidi(_midiManager);
+        _seeds.UseMidi(_midiManager);
         _controller = _entities.CreateControlSurface();
         if (!_controller.Connect())
             Console.WriteLine("No supported controller found — use UI controls.");
