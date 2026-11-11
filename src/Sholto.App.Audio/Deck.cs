@@ -346,12 +346,12 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
         SetFilter(0.5);
         _stems.Reset();
         _loops.ExitLoop();
-        // Flush the echo's delay line too — otherwise its ~4s tail keeps
-        // repeating the OUTGOING track's audio over the incoming one. Unlike
-        // a plain SetEcho(false) (which deliberately lets the tail ring out
-        // when the user toggles echo off mid-track), a fresh track needs a
-        // clean slate.
-        _mixer.ResetEcho();
+        // Flush the echo and the roll on the audio thread too — otherwise the
+        // echo's ~4s tail and a held roll's captured slice keep repeating the
+        // OUTGOING track's audio over the incoming one. Unlike a plain
+        // SetEcho(false) (which deliberately lets the tail ring out when the
+        // user toggles echo off mid-track), a fresh track needs a clean slate.
+        _mixer.ResetEffects();
     }
 
     /// <summary>
@@ -530,7 +530,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
     /// See <see cref="DeckMixer.Effects"/>.</summary>
     public IReadOnlyList<IDeckEffectInfo> Effects => _mixer.Effects;
 
-    /// <summary>Clear the echo tail and switch it off.
+    /// <summary>Switch the echo off and request an audio-thread flush of its tail.
     /// See <see cref="DeckMixer.ResetEcho"/>.</summary>
     public void ResetEcho() => _mixer.ResetEcho();
 }

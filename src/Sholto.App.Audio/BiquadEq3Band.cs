@@ -64,6 +64,7 @@ public sealed class BiquadEq3Band : DeckEffect
     private readonly Biquad _hpA, _hpB;             // 4th-order HP @ 4000 Hz → High band
 
     public BiquadEq3Band(SfEngine engine, AudioFormat format)
+        : base(format)
     {
         _ = engine;  // base is parameterless; param kept for API parity with built-in modifiers
         int sr = format.SampleRate;
@@ -104,7 +105,19 @@ public sealed class BiquadEq3Band : DeckEffect
     // knob twist but slow enough that a bass-energy band doesn't pop.
     private const float GainSmoothAlpha = 0.00045f;
 
-    public override void Process(Span<float> buffer, int channels)
+    /// <inheritdoc/>
+    protected override void ResetState()
+    {
+        _gain0 = Volatile.Read(ref _targetGain0);
+        _gain1 = Volatile.Read(ref _targetGain1);
+        _gain2 = Volatile.Read(ref _targetGain2);
+        _lpA.Clear(); _lpB.Clear();
+        _midHpA.Clear(); _midHpB.Clear();
+        _midLpA.Clear(); _midLpB.Clear();
+        _hpA.Clear(); _hpB.Clear();
+    }
+
+    protected override void ProcessBuffer(Span<float> buffer, int channels)
     {
         float t0 = Volatile.Read(ref _targetGain0);
         float t1 = Volatile.Read(ref _targetGain1);
@@ -165,6 +178,12 @@ public sealed class BiquadEq3Band : DeckEffect
             _z1 = new float[channels];
             _z2 = new float[channels];
             _b0 = 1f;
+        }
+
+        internal void Clear()
+        {
+            Array.Clear(_z1);
+            Array.Clear(_z2);
         }
 
         public float Step(float x, int channel)

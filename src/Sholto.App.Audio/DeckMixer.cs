@@ -58,6 +58,9 @@ internal sealed class DeckMixer(Func<TrackAnalysis> analysis, Func<float> playba
     // plain array with no further type checks, LINQ, or allocation.
     private Action<double>[] _tempoTargets = [];
 
+    // Every DeckEffect in the attached chain, built once for ResetEffects.
+    private DeckEffect[] _resettable = [];
+
     /// <summary>Wire the post-mix chain Deck builds in <c>AttachEngine</c>
     /// from <see cref="DeckEffectFactory"/>, once its mixer exists. Picks
     /// out the 3 modifiers this class knows how to drive by type — anything
@@ -75,6 +78,7 @@ internal sealed class DeckMixer(Func<TrackAnalysis> analysis, Func<float> playba
 
         _effectsById = effects.OfType<DeckEffect>().ToDictionary(e => e.EffectId);
         _effectsList = _effectsById.Values.Cast<IDeckEffectInfo>().ToList();
+        _resettable = effects.OfType<DeckEffect>().ToArray();
 
         // Everything in the dictionary above that also tracks tempo, except
         // the echo (kept on its own path below because it alone needs the
@@ -217,7 +221,18 @@ internal sealed class DeckMixer(Func<TrackAnalysis> analysis, Func<float> playba
     /// <inheritdoc/>
     public void ResetEcho()
     {
-        _echo?.Reset();
+        _echo?.RequestReset();
+        EchoActive = false;
+    }
+
+    /// <summary>Request an audio-thread reset of every <see cref="DeckEffect"/>
+    /// in the chain (EQ, filter, echo, roll) and mark the echo inactive. The
+    /// flush happens on the audio thread after a ~5 ms fade. No-op before
+    /// <see cref="AttachModifiers"/>.</summary>
+    internal void ResetEffects()
+    {
+        var effects = _resettable;
+        for (int i = 0; i < effects.Length; i++) effects[i].RequestReset();
         EchoActive = false;
     }
 

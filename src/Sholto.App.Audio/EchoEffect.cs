@@ -109,6 +109,7 @@ public sealed class EchoEffect : DeckEffect
     private readonly ITempoMath _tempoMath;
 
     public EchoEffect(SfEngine engine, AudioFormat format, ITempoMath tempoMath)
+        : base(format)
     {
         _ = engine;  // base is parameterless; param kept for API parity with the other modifiers
         _tempoMath = tempoMath;
@@ -151,23 +152,18 @@ public sealed class EchoEffect : DeckEffect
         Volatile.Write(ref _delaySamples, samples);
     }
 
-    /// <summary>Disable the echo and flush its delay line — called by
-    /// <see cref="Deck.ResetControls"/> on track load so the previous track's
-    /// tail can't ring into the new one. Does not reallocate: it zeroes the
-    /// existing ring buffers and resets the write cursor / input-gain ramp to
-    /// their startup values. Called from the UI thread while the audio thread
-    /// may concurrently be inside <see cref="Process"/> — same lock-free
-    /// tolerance as every other control write in this class (worst case one
-    /// buffer reads a half-cleared line, never a torn sample).</summary>
-    public void Reset()
+    /// <inheritdoc/>
+    protected override void ResetControlTargets() => SetEnabled(false);
+
+    /// <inheritdoc/>
+    protected override void ResetState()
     {
-        SetEnabled(false);
         _inputGain = 0f;
         _writePos = 0;
         foreach (var line in _delayLine) Array.Clear(line);
     }
 
-    public override void Process(Span<float> buffer, int channels)
+    protected override void ProcessBuffer(Span<float> buffer, int channels)
     {
         bool on = Volatile.Read(ref _enabled) != 0;
         int delaySamples = Volatile.Read(ref _delaySamples);

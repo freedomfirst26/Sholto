@@ -49,9 +49,10 @@ public interface IDeckEffects
     /// <summary>Toggle the beat-synced echo.</summary>
     void SetEcho(bool on);
 
-    /// <summary>Disable the echo and flush its delay line, e.g. on track load
-    /// so the outgoing track's tail can't ring into the incoming one. Unlike
-    /// <see cref="SetEcho"/>(false), which deliberately lets the tail ring
-    /// out, this clears it immediately.</summary>
+    /// <summary>Disable the echo and request a flush of its delay line, e.g.
+    /// on track load so the outgoing track's tail can't ring into the
+    /// incoming one. Unlike <see cref="SetEcho"/>(false), which deliberately
+    /// lets the tail ring out, this requests a reset that the audio thread
+    /// applies after a ~5 ms fade; nothing is cleared on the calling thread.</summary>
     void ResetEcho();
 }

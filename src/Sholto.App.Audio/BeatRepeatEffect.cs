@@ -92,6 +92,7 @@ public sealed class BeatRepeatEffect : DeckEffect
     private readonly ITempoMath _tempoMath;
 
     public BeatRepeatEffect(SfEngine engine, AudioFormat format, ITempoMath tempoMath)
+        : base(format)
     {
         _ = engine; // base is parameterless; param kept for API parity with the other modifiers
         _tempoMath = tempoMath;
@@ -130,20 +131,21 @@ public sealed class BeatRepeatEffect : DeckEffect
         RecomputeDelay();
     }
 
-    /// <summary>Disable the roll and clear its capture state — called by
-    /// <see cref="Deck.ResetControls"/> on track load, mirroring
-    /// <see cref="EchoEffect.Reset"/>. Does not reallocate.</summary>
-    public void Reset()
+    /// <inheritdoc/>
+    protected override void ResetControlTargets() => SetEnabled(false);
+
+    /// <inheritdoc/>
+    protected override void ResetState()
     {
-        SetEnabled(false);
         _repeatGain = 0f;
         _wasEnabled = false;
         _phase = 0;
         _capturing = false;
+        _activePeriod = 1;
         foreach (var line in _captureLine) Array.Clear(line);
     }
 
-    public override void Process(Span<float> buffer, int channels)
+    protected override void ProcessBuffer(Span<float> buffer, int channels)
     {
         bool onTarget = Volatile.Read(ref _enabled) != 0;
         float targetGain = onTarget ? 1f : 0f;

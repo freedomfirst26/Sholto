@@ -99,6 +99,7 @@ public sealed class DjFilter : DeckEffect
     private readonly float[] _ic2eq;
 
     public DjFilter(SfEngine engine, AudioFormat format)
+        : base(format)
     {
         _ = engine;
         _sampleRate = format.SampleRate;
@@ -124,7 +125,14 @@ public sealed class DjFilter : DeckEffect
         }
     }
 
-    public override void Process(Span<float> buffer, int channels)
+    /// <inheritdoc/>
+    protected override void ResetState()
+    {
+        Array.Clear(_ic1eq);
+        Array.Clear(_ic2eq);
+    }
+
+    protected override void ProcessBuffer(Span<float> buffer, int channels)
     {
         FilterCoeffs c = Volatile.Read(ref _coeffs);
 
