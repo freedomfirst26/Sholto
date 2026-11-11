@@ -47,8 +47,10 @@ public partial class FaceplateOverlay : UserControl
 
     private readonly FaceplateViewModel _vm;
     private readonly FaceplateBoard _board;
-    private readonly IProseInlinesFactory _prose;
-    private readonly IComboMarkerFormatter _comboMarkers;
+    private readonly FaceplatePanelContext _panelContext;
+    private readonly IFaceplateHeadlineFactory _headlines;
+    private readonly IFaceplateRowVisualFactory _rows;
+    private readonly IFaceplateChrome _chrome;
     private readonly FaceplateBrushes _brushes;
 
     // Marks which ROW of the panel a live gesture just fired — as opposed to the
@@ -58,11 +60,13 @@ public partial class FaceplateOverlay : UserControl
     private readonly Dictionary<string, Border> _rowIndicators = new();
     private Border? _headlineIndicator;
 
-    /// <summary>The device drawing, view model, prose builder and brushes are handed in,
-    /// already built, so this control names no hardware and builds none of its
-    /// collaborators; <c>FaceplateOverlayFactory</c> pairs a doc with its layout. The
-    /// view model and brushes are concrete classes; the prose factory and combo formatter are interfaces.</summary>
-    public FaceplateOverlay(FaceplateViewModel viewModel, IProseInlinesFactory prose, IComboMarkerFormatter comboMarkers, FaceplateBrushes brushes, Control layout)
+    /// <summary>The device drawing, view model, headline and row factories, chrome painter
+    /// and brushes are handed in, already built, so this control names no hardware and
+    /// builds none of its collaborators; <c>FaceplateOverlayFactory</c> pairs a doc with its
+    /// layout. The view model and brushes are concrete classes; the factories and chrome are interfaces.</summary>
+    public FaceplateOverlay(FaceplateViewModel viewModel, IFaceplateHeadlineFactory headlines,
+                            IFaceplateRowVisualFactory rows, IFaceplateChrome chrome,
+                            FaceplateBrushes brushes, Control layout)
     {
         AvaloniaXamlLoader.Load(this);
         _stage = this.GetControl<Grid>("Stage");
@@ -80,14 +84,16 @@ public partial class FaceplateOverlay : UserControl
         _layerBadge = this.GetControl<Border>("LayerBadge");
         _layerBadgeText = this.GetControl<TextBlock>("LayerBadgeText");
         _vm = viewModel;
-        _prose = prose;
-        _comboMarkers = comboMarkers;
+        _headlines = headlines;
+        _rows = rows;
+        _chrome = chrome;
         _brushes = brushes;
         _brushes.Attach(this);
         _board = new FaceplateBoard(_stage, _layoutHost, _overlayCanvas,
             _vm.IsImplemented, () => _vm.SelectedDeck, _vm.Select,
             id => _vm.Doc.Controls.FirstOrDefault(c => c.Id == id)?.Scope == "per-deck",
             _brushes);
+        _panelContext = new FaceplatePanelContext(this, _vm, _board);
         DataContext = _vm;
         _layoutHost.Content = layout;
         // The device layout is drawn in its reference render's own page space
@@ -232,60 +238,10 @@ public partial class FaceplateOverlay : UserControl
         SyncEmptyState();
         if (headline is null) return;
 
-        _headlinePanel.Children.Add(SectionLabel($"IF YOU JUST {headline.Verb.ToUpperInvariant()} IT"));
-
-        // A plain press that does nothing (transport CUE, BEAT SYNC) says so here,
-        // plainly — that is the honest and useful answer, not a reason to hide it. It
-        // is said the way the DRAWING says it, by withholding rather than by warning:
-        // the board gives an unimplemented control no colour at all, so the panel gives
-        // the sentence no weight — one grey step down, italic, no accent and no red.
-        // Italic carries exactly one meaning anywhere in this panel, "this is a
-        // negative statement", which is what makes the state findable in a glance
-        // without a colour shouting at anyone.
-        var head = BuildProseText(headline.Result, 16, FontWeight.SemiBold,
-            this.ResourceBrush("SholtoTextBright", Brushes.White), lineHeight: 22);
-        if (!headline.Used)
-        {
-            // Same 16px as a working answer, deliberately. The size says "this is the
-            // answer to the question the eyebrow just asked"; the italic and the 0.62
-            // say the answer is a negative. Dropping the size as well made the negative
-            // headline merge with the summary above it into one continuous grey slab,
-            // and the reader could no longer tell which of the two was the answer.
-            head.FontWeight = FontWeight.Normal;
-            head.FontStyle = FontStyle.Italic;
-            head.Opacity = 0.62;
-        }
-        _headlineIndicator = RowIndicator();
-        _headlinePanel.Children.Add(WithRowIndicator(_headlineIndicator, head));
+        var section = _headlines.Create(headline, _panelContext);
+        foreach (var child in section.Children) _headlinePanel.Children.Add(child);
+        _headlineIndicator = section.Indicators[headline.GestureId];
         ApplyActiveRow();
-    }
-
-    /// <summary>The thin accent bar that marks "this is the row a live gesture just
-    /// fired" — the same accent colour the row tags and the new layer badge wear
-    /// (never amber; amber is the drawing's alone). Built invisible and toggled by
-    /// <see cref="ApplyActiveRow"/>, not rebuilt per gesture: a knob can fire many
-    /// times a second and only the opacity needs to move.</summary>
-    private Border RowIndicator() => new()
-    {
-        Width = 3,
-        CornerRadius = new CornerRadius(2),
-        Margin = new Thickness(0, 1, 8, 1),
-        Background = this.ResourceBrush("SholtoAccent", Brushes.Orange),
-        Opacity = 0,
-        IsHitTestVisible = false,
-    };
-
-    /// <summary>Lays the indicator bar and a row's own content side by side without
-    /// disturbing that content's existing hover/click wiring — the indicator is a
-    /// sibling, not a wrapper around it.</summary>
-    private Grid WithRowIndicator(Border indicator, Control content)
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
-        Grid.SetColumn(indicator, 0);
-        Grid.SetColumn(content, 1);
-        grid.Children.Add(indicator);
-        grid.Children.Add(content);
-        return grid;
     }
 
     /// <summary>Sets every row indicator's visibility from
@@ -305,29 +261,6 @@ public partial class FaceplateOverlay : UserControl
         _emptyState.IsVisible =
             _vm.Selected is not null && _vm.Headline is null && _vm.Rows.Count == 0;
 
-    /// <summary>The small all-caps eyebrow over a section. Carries no styling of its
-    /// own: size, weight, tracking, opacity and colour all come from the single
-    /// <c>TextBlock.eyebrow</c> style in the .axaml, which the deck eyebrow above the
-    /// title wears too. See that style for why the colour is what it is.</summary>
-    private TextBlock SectionLabel(string text) => new()
-    {
-        Text = text,
-        Classes = { "eyebrow" },
-    };
-
-    /// <summary>A 1px full-width rule in the theme's border colour. Two weights: 0.55
-    /// for the header rule under the summary (the same device
-    /// <c>TagEditorView.axaml</c> uses), 0.45 for the quieter rules between bullets, so
-    /// a list separator never reads as a section break.</summary>
-    private Border Hairline(double opacity, Thickness margin) => new()
-    {
-        Height = 1,
-        Opacity = opacity,
-        Margin = margin,
-        Background = this.ResourceBrush("SholtoBorder", Brushes.DimGray),
-        IsHitTestVisible = false,
-    };
-
     /// <summary>Rebuilds the bullet list from <see cref="FaceplateViewModel.Rows"/>:
     /// everything the selected control is involved in besides its headline — its own
     /// remaining gestures, and any gesture owned by another control that names this one
@@ -341,226 +274,11 @@ public partial class FaceplateOverlay : UserControl
         SyncEmptyState();
         if (_vm.Rows.Count == 0) return;
 
-        var label = SectionLabel("EVERYTHING ELSE IT DOES");
-        // 10 either side, matching the row card's padding, so the eyebrow and the
-        // hairlines line up with the bullet text they belong to rather than with the
-        // card's outer edge (see BuildRowVisual for why the gutter is split).
-        label.Margin = new Thickness(RowGutter, 0, RowGutter, 3);
-        _rowsPanel.Children.Add(label);
-
-        var first = true;
-        foreach (var row in _vm.Rows)
-        {
-            // A rule between bullets, never above the first one — the section label is
-            // already the boundary there, and a rule under it would fence the label off
-            // from the list it belongs to.
-            if (!first) _rowsPanel.Children.Add(Hairline(0.45, new Thickness(RowGutter, 14, RowGutter, 14)));
-            _rowsPanel.Children.Add(BuildRowVisual(row));
-            first = false;
-        }
+        var section = _rows.Create(_vm.Rows, _panelContext);
+        foreach (var child in section.Children) _rowsPanel.Children.Add(child);
+        foreach (var (gestureId, indicator) in section.Indicators) _rowIndicators[gestureId] = indicator;
         ApplyActiveRow();
     }
-
-    private Control BuildRowVisual(GestureRow row)
-    {
-        // A chord names every participant — "SHIFT + Jog wheel" — as a chip per
-        // control with a plain "+" between them, so the reader never has to guess
-        // which control this bullet is really about, whether it is this control's own
-        // gesture or one it merely takes part in. Built from the gesture's own With
-        // list plus its owner (IComboMarkerFormatter.Format), never by splitting a rendered string on
-        // "+". A plain gesture (no partner) falls back to verb + part, as before —
-        // that phrase names no control, so it stays plain text.
-        var nameForeground = this.ResourceBrush("SholtoTextBright", Brushes.White);
-        Control nameControl = row.Partners.Count > 0
-            ? BuildProseText(_comboMarkers.Format(row.Partners, row.OwnerControlId),
-                              13, FontWeight.SemiBold, nameForeground, lineHeight: 18)
-            : new TextBlock
-              {
-                  Text = row.Part is null ? Capitalize(row.Verb) : $"{Capitalize(row.Verb)} — {row.Part}",
-                  FontSize = 13,
-                  FontWeight = FontWeight.SemiBold,
-                  LineHeight = 18,
-                  TextWrapping = TextWrapping.Wrap,
-                  Foreground = nameForeground,
-              };
-        ((Control)nameControl).Opacity = 0.86;
-
-        var stack = new StackPanel();
-        // A control with two rows on the same layer (a pad, across pages) has nothing
-        // else to tell them apart by, since a page switch names no partner — so a
-        // non-plain layer is tagged. "Plain" itself gets NO tag: everything is plain
-        // unless something overrides it, so a PLAIN label on most rows would be noise
-        // that dilutes the tags that actually mean something (SHIFT, HOT CUE page, …).
-        // Skipping the child entirely — not just hiding it — is what keeps the
-        // untagged rows from showing a gap where the tag would have sat.
-        // The tag now wears the app's own chip form (TagEditorView) rather than floating
-        // as a coloured word: a filled pill in SholtoAccentBg, which is the same brush
-        // the track list, the search overlay and the crate picker all use for "this one
-        // is picked". It is the only colour in the panel, and it only appears when
-        // there is a modifier to name.
-        // …but not when the chord above it already names the modifier: a bullet reading
-        // SHIFT / "SHIFT + JOG WHEEL" says the same word twice in two different forms
-        // one line apart, and the reader has to check whether the second one means
-        // something new. The tag stays for a layered gesture whose modifier is not in
-        // the chord — the pad pages, where the page switch names no partner.
-        var modifier = _vm.Doc.Layers.FirstOrDefault(l => l.Id == row.Layer)?.Modifier;
-        if (row.Layer != "plain" && (modifier is null || !row.Partners.Contains(modifier)))
-        {
-            stack.Children.Add(new Border
-            {
-                CornerRadius = new CornerRadius(9),
-                Padding = new Thickness(7, 1, 7, 2),
-                Margin = new Thickness(0, 0, 0, 6),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Background = this.ResourceBrush("SholtoAccentBg", Brushes.Transparent),
-                Child = new TextBlock
-                {
-                    Text = LayerNameOf(row.Layer).ToUpperInvariant(),
-                    FontSize = 11,
-                    FontWeight = FontWeight.Bold,
-                    LetterSpacing = 0.8,
-                    LineHeight = 13,
-                    Foreground = this.ResourceBrush("SholtoAccent", Brushes.Orange),
-                },
-            });
-        }
-        stack.Children.Add(nameControl);
-
-        // Same 13px as the gesture name above it. Weight and opacity do the separating,
-        // which keeps the whole panel on four sizes: 18 title, 16 answer, 13 body,
-        // 11 eyebrow and cap.
-        var result = BuildProseText(row.Result, 13, FontWeight.Normal,
-            this.ResourceBrush("SholtoTextBright", Brushes.White), lineHeight: 18);
-        // 6, not 4: the gesture name above is 13px on an 18px line, so 4 put the result
-        // closer to its own name than the name's two wrapped lines are to each other and
-        // the pair read as one squashed block. A name carrying chips sits on a 27px
-        // line, which already has more air under it, so the gap is taken off there to
-        // keep the name→result step the same distance in both kinds of bullet.
-        result.Margin = new Thickness(0, nameControl is TextBlock { LineHeight: > 18 } ? 2 : 6, 0, 0);
-        result.Opacity = 0.56;
-        if (!row.Used)
-        {
-            // Same rule as the headline: no red, no accent — italic and a grey step
-            // down, which is the panel's one and only way of saying "not this one".
-            result.FontStyle = FontStyle.Italic;
-            result.Foreground = this.ResourceBrush("SholtoTextMuted", Brushes.Gray);
-            result.Opacity = 0.70;
-        }
-        stack.Children.Add(result);
-
-        // At rest a bullet has no chrome at all — nine bordered boxes in a column is
-        // what made this read as a bolted-on document viewer rather than part of
-        // Sholto, and the hairline rhythm above turns those nine objects into one
-        // list. The box moves to hover, where it MEANS something: it appears exactly
-        // when the pointer is on a row, which is exactly when the matching controls
-        // light up on the board.
-        // The card sits INSIDE the panel's gutter, not across it. It used to carry a
-        // -10 horizontal margin meant to bleed into that gutter, but the ScrollViewer
-        // clips to its viewport, so the bleed was simply cut off: the highlight ended
-        // flush with the first letter of its own text on one side and with the panel's
-        // border on the other, its rounded corners sliced away, reading as a block
-        // bleeding off the edge rather than a card lifting off the page. The gutter is
-        // now split — 12 of panel margin outside the card, 10 of padding inside it —
-        // so nothing is clipped and the text keeps the same 22 the title and summary
-        // sit on (see the ScrollViewer's margin in FaceplateOverlay.axaml).
-        var border = new Border
-        {
-            Padding = new Thickness(RowGutter, 8),
-            CornerRadius = new CornerRadius(6),
-            Background = Brushes.Transparent,
-            Cursor = new Cursor(StandardCursorType.Hand),
-            Child = stack,
-        };
-        border.Transitions = new Avalonia.Animation.Transitions
-        {
-            new Avalonia.Animation.BrushTransition
-            {
-                Property = Border.BackgroundProperty,
-                Duration = TimeSpan.FromMilliseconds(120),
-            },
-        };
-        border.PointerEntered += (_, _) =>
-        {
-            border.Background = this.ResourceBrush("SholtoAccentBg", Brushes.Transparent);
-            _vm.HoverRow(row.GestureId);
-        };
-        border.PointerExited += (_, _) =>
-        {
-            border.Background = Brushes.Transparent;
-            _vm.HoverRow(null);
-        };
-
-        var indicator = RowIndicator();
-        _rowIndicators[row.GestureId] = indicator;
-        return WithRowIndicator(indicator, border);
-    }
-
-    /// <summary>Builds a prose <see cref="TextBlock"/> from marker text, wiring every
-    /// chip it contains to the same hover and selection paths a drawing shape uses:
-    /// hover lights the named control, a click selects it exactly as clicking its
-    /// shape would (see <see cref="ChipHoverOn"/>/<see cref="ChipActivate"/>).</summary>
-    private TextBlock BuildProseText(string markerText, double fontSize, FontWeight weight,
-                                     IBrush foreground, double lineHeight)
-    {
-        var tb = new TextBlock
-        {
-            FontSize = fontSize,
-            FontWeight = weight,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = foreground,
-        };
-        tb.Inlines = _prose.Create(markerText, _vm.Doc, ChipDeck,
-                                          ChipHoverOn, ChipHoverOff, ChipActivate);
-        // A chip is a bordered, padded box roughly 19px tall, so a line height chosen
-        // for 13px or 16px TEXT is shorter than the line it now has to hold. Avalonia
-        // does not grow the line to fit: it lays the lines out at the height it was
-        // given and the chips spill into their neighbours, which is what made a
-        // chip-bearing sentence read as two sentences printed on top of each other.
-        // Prose with chips therefore gets a line tall enough for the cap, and prose
-        // without keeps the tighter rhythm it was tuned for.
-        tb.LineHeight = tb.Inlines.OfType<InlineUIContainer>().Any()
-            ? Math.Max(lineHeight, ChipLineHeight)
-            : lineHeight;
-        return tb;
-    }
-
-    /// <summary>The padding inside a bullet's hover card, and equally the margin the
-    /// section eyebrow and the hairlines carry so everything in the list starts on the
-    /// same left edge as the bullet text.</summary>
-    private const double RowGutter = 10;
-
-    /// <summary>The line height a paragraph needs once it contains a key cap: the cap's
-    /// own height plus the leading that keeps a wrapped line from touching it.</summary>
-    private const double ChipLineHeight = 24;
-
-    /// <summary>Which deck a per-deck control's chip should point at.
-    /// <para><see cref="FaceplateViewModel.SelectedDeck"/> alone is wrong: it is -1
-    /// whenever a GLOBAL control owns the panel, and a per-deck chip built with deck -1
-    /// names a shape that does not exist — the drawing carries (id, 0) and (id, 1), never
-    /// (id, -1). Clicking such a chip took <see cref="FaceplateBoard.OnSelectionChanged"/>'s
-    /// missing-shape path: the panel swapped to the new control while the board dimmed
-    /// and lit nothing at all. Reproduced by selecting FX ON/OFF (global) and clicking
-    /// the HI chip in its prose.</para>
-    /// <para>Deck 0 is the same fallback the board's own ResolveDeck already uses for the
-    /// partner highlight, so hovering a row and clicking a chip inside it now agree —
-    /// before this the hover lit deck 1's knob and the click lit nothing.</para></summary>
-    private int ChipDeck => _vm.SelectedDeck >= 0 ? _vm.SelectedDeck : 0;
-
-    /// <summary>A chip's pointer entered it. Lights exactly the control it names —
-    /// precise, unlike a hovered row, which highlights every participant in a
-    /// combination at once.</summary>
-    private void ChipHoverOn(string controlId, int deck) => _board.SetHover(controlId, deck, true);
-
-    private void ChipHoverOff(string controlId, int deck) => _board.SetHover(controlId, deck, false);
-
-    /// <summary>A chip was clicked. Goes through the exact same path a drawing shape's
-    /// click uses, so an in-flight blink is cancelled the same way and only one
-    /// control is ever held lit — see <see cref="FaceplateBoard.OnSelectionChanged"/>.
-    /// </summary>
-    private void ChipActivate(string controlId, int deck) => _vm.Select(controlId, deck);
-
-    private string LayerNameOf(string layerId) =>
-        _vm.Doc.Layers.FirstOrDefault(l => l.Id == layerId)?.Name ?? layerId;
 
     /// <summary>The one cheap, honest indication that a modifier is being held: name
     /// it in the panel header. Hidden on "plain" — the board's default state needs no
@@ -575,11 +293,8 @@ public partial class FaceplateOverlay : UserControl
         var layerId = _vm.ActiveLayerId;
         var isPlain = layerId == "plain";
         _layerBadge.IsVisible = !isPlain;
-        if (!isPlain) _layerBadgeText.Text = LayerNameOf(layerId).ToUpperInvariant();
+        if (!isPlain) _layerBadgeText.Text = _panelContext.LayerNameOf(layerId).ToUpperInvariant();
     }
-
-    private string Capitalize(string s) =>
-        string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
     private IBrush? _themeStamp;
 
@@ -594,67 +309,8 @@ public partial class FaceplateOverlay : UserControl
         var stamp = this.ResourceBrush("SholtoSurfaceRaised", Brushes.Transparent);
         if (ReferenceEquals(stamp, _themeStamp)) return;
         _themeStamp = stamp;
-        BuildScrim();
+        _chrome.Paint(this, _backdrop, _feather, _panel);
         RebuildHeadline();
         RebuildRows();
     }
-
-    /// <summary>Repaints the backdrop scrim and the feather from the current theme.
-    /// <para>The scrim used to be a flat <c>#C4000000</c>, which is 77% pure black and
-    /// crushed every theme to the same near-zero luminance: Front Line Assembly's warm
-    /// brown ground and The Birthday Massacre's purple both arrived as black, and the guide
-    /// was theme-blind by construction. It is now the theme's own <c>bgDeep</c>
-    /// darkened, so the field keeps the app's hue while still going darker than any
-    /// surface in it — the app behind stays legible as context and stops competing with
-    /// the drawing for attention.</para>
-    /// <para>The edge where the panel meets the board is three layers. The feather
-    /// darkens the board on its approach; the panel's cast shadow gives it depth; and
-    /// the panel's own leading edge is dipped into that shade before it comes up to
-    /// full surface colour. The third one is the one that does the work: every Sholto
-    /// theme is dark, so the field beside the panel is already close to black and a
-    /// darker feather has almost nowhere left to go — but the panel is the LIGHTER of
-    /// the two, so the step is a step UP, and the only place to soften it is on the
-    /// panel's own side. The 1px border still terminates it as a crisp line.</para>
-    /// </summary>
-    private void BuildScrim()
-    {
-        var deep = this.ResourceColor("SholtoBgDeep", Colors.Transparent);
-        Color Shade(byte alpha, double factor) => Color.FromArgb(
-            alpha, (byte)(deep.R * factor), (byte)(deep.G * factor), (byte)(deep.B * factor));
-
-        _backdrop.Background = new SolidColorBrush(Shade(0xF6, 0.55));
-
-        var feather = new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
-        };
-        feather.GradientStops.Add(new GradientStop(Shade(0x00, 0.0), 0.0));
-        feather.GradientStops.Add(new GradientStop(Shade(0x70, 0.0), 0.55));
-        feather.GradientStops.Add(new GradientStop(Shade(0xC8, 0.0), 1.0));
-        _feather.Background = feather;
-
-        var raised = this.ResourceColor("SholtoSurfaceRaised", Colors.Transparent);
-        Color Mix(Color a, Color b, double t) => Color.FromRgb(
-            (byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
-
-        var face = new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
-        };
-        face.GradientStops.Add(new GradientStop(Mix(raised, deep, 0.82), 0.0));
-        face.GradientStops.Add(new GradientStop(raised, 0.10));
-        face.GradientStops.Add(new GradientStop(raised, 1.0));
-        _panel.Background = face;
-
-        // The panel's cast shadow: the theme's shadow colour at the alpha the panel always
-        // had. BoxShadow takes a colour, not a brush, so it cannot be a DynamicResource.
-        var shadow = this.ResourceColor("SholtoShadow", Colors.Transparent);
-        _panel.BoxShadow = new BoxShadows(new BoxShadow
-        {
-            OffsetX = -24, Blur = 64, Color = Color.FromArgb(0xB3, shadow.R, shadow.G, shadow.B),
-        });
-    }
-
 }

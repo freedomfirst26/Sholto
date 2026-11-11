@@ -21,6 +21,9 @@ public sealed class FaceplateOverlayFactory(
         // The guide lives as long as the app, so the subscriptions are never disposed.
         _subscriber.Subscribe<CommandReceived>(viewModel);
         _subscriber.Subscribe<InspectModeChanged>(viewModel);
-        return new FaceplateOverlay(viewModel, new ProseInlinesFactory(), new ComboMarkerFormatter(), new FaceplateBrushes(), device.CreateLayout());
+        var parts = new FaceplatePanelPartsFactory(new ProseInlinesFactory());
+        return new FaceplateOverlay(viewModel, new FaceplateHeadlineFactory(parts),
+            new FaceplateRowVisualFactory(parts, new ComboMarkerFormatter()), new FaceplateChrome(),
+            new FaceplateBrushes(), device.CreateLayout());
     }
 }
