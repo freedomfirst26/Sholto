@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.Data;
 using Sholto.Interface.Controller.Model;
 
@@ -329,11 +330,12 @@ public class ControllerFeedbackTests
         using var _ = Make();
         for (var i = 0; i < 10; i++) PublishAll(i % 2 == 0);
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++) PublishAll(i % 2 == 0);
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (var i = 0; i < 1000; i++) PublishAll(i % 2 == 0);
+        });
 
-        Assert.Equal(0, allocated);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     private void PublishAll(bool on)

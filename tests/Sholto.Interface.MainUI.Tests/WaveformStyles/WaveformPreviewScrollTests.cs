@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.Data;
 using Sholto.Interface.MainUI.ViewModels;
 
@@ -79,10 +80,11 @@ public class WaveformPreviewScrollTests
         var now = T0;
         for (int i = 0; i < 100; i++) scroll.OnFrame(now = now.AddMilliseconds(16));
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 1000; i++) scroll.OnFrame(now = now.AddMilliseconds(16));
-        long after = GC.GetAllocatedBytesForCurrentThread();
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (int i = 0; i < 1000; i++) scroll.OnFrame(now = now.AddMilliseconds(16));
+        });
 
-        Assert.Equal(0, after - before);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 }

@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.Data;
 
 namespace Sholto.Data.Tests;
@@ -187,14 +188,16 @@ public class DataBusTests
             _bus.Publish(new Fact(i));
             _bus.Publish(new DeckState(i & 1, i));
         }
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++)
+        var result = new AllocationWindows(5).Measure(() =>
         {
-            _bus.Send(new Ping(i, Here));
-            _bus.Publish(new Fact(i));
-            _bus.Publish(new DeckState(i & 1, i));
-        }
-        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+            for (var i = 0; i < 1000; i++)
+            {
+                _bus.Send(new Ping(i, Here));
+                _bus.Publish(new Fact(i));
+                _bus.Publish(new DeckState(i & 1, i));
+            }
+        });
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     [Fact]

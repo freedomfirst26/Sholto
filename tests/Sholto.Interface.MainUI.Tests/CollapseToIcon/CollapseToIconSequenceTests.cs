@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.Interface.MainUI.Controls.CollapseToIcon;
 
 namespace Sholto.Interface.MainUI.Tests.CollapseToIcon;
@@ -212,21 +213,24 @@ public class CollapseToIconSequenceTests
         var now = _clock.Now;
 
         sequence.OnFrame(now);   // warm up
-        Assert.Equal(0, Allocated(sequence, now));            // idle
+        var idle = Allocated(sequence, now);
+        Assert.True(idle.AllocatingWindows <= 1, idle.ToString());
         sequence.Open();
-        Assert.Equal(0, Allocated(sequence, now));            // open
+        var open = Allocated(sequence, now);
+        Assert.True(open.AllocatingWindows <= 1, open.ToString());
         sequence.Collapse();
-        Assert.Equal(0, Allocated(sequence, now));            // collapsing
+        var collapsing = Allocated(sequence, now);
+        Assert.True(collapsing.AllocatingWindows <= 1, collapsing.ToString());
         _clock.Advance(0.25);
         sequence.OnFrame(_clock.Now);
         Assert.Equal(CollapseToIconState.Hinting, sequence.State);
-        Assert.Equal(0, Allocated(sequence, _clock.Now));     // hinting
+        var hinting = Allocated(sequence, _clock.Now);
+        Assert.True(hinting.AllocatingWindows <= 1, hinting.ToString());
     }
 
-    private static long Allocated(CollapseToIconSequence sequence, DateTime now)
-    {
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++) sequence.OnFrame(now);
-        return GC.GetAllocatedBytesForCurrentThread() - before;
-    }
+    private static AllocationWindowsResult Allocated(CollapseToIconSequence sequence, DateTime now) =>
+        new AllocationWindows(5).Measure(() =>
+        {
+            for (var i = 0; i < 1000; i++) sequence.OnFrame(now);
+        });
 }

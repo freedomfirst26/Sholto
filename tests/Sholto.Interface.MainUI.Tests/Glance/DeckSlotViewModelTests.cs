@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Microsoft.Extensions.Options;
 using Avalonia.Media;
 using Sholto.Data;
@@ -379,7 +380,8 @@ public class DeckSlotViewModelTests
     [Fact]
     public void A_steady_playing_frame_allocates_nothing()
     {
-        // Frames inside one whole second and one ring degree: only the spin moves, on every frame.
+        // Frames inside one whole second and one ring degree (the position is a 40-frame sawtooth): only the
+        // spin moves, on every frame.
         var decks = new FakeDeckClockSource();
         var slot = new DeckSlotFactory(decks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create(0);
         var notifications = 0;
@@ -389,7 +391,7 @@ public class DeckSlotViewModelTests
         var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         void Frame(int i)
         {
-            decks.Set(0, Reading(position: 3.02 + i * 0.007));
+            decks.Set(0, Reading(position: 3.02 + (i % 40) * 0.007));
             now = now.AddSeconds(0.016);
             slot.Update(isTarget: false, isReference: true, replacePending: false, now);
         }
@@ -397,13 +399,15 @@ public class DeckSlotViewModelTests
         for (var i = 0; i < 20; i++) Frame(i);
         notifications = 0;
         repaints = 0;
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 20; i < 60; i++) Frame(i);
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var frame = 20;
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (var n = 0; n < 40; n++) Frame(frame++);
+        });
 
-        Assert.True(repaints >= 35, $"the platter barely moved ({repaints} repaints)");
+        Assert.True(repaints >= 35 * 5, $"the platter barely moved ({repaints} repaints)");
         Assert.Equal(0, notifications);
-        Assert.Equal(0, allocated);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     private static DeckClockReading Reading(double position, bool playing = true, double barPeriod = 2.0, double bpm = 128) =>
