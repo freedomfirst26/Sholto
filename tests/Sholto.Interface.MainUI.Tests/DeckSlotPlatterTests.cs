@@ -24,13 +24,9 @@ public class DeckSlotPlatterTests
         public IBrush? KeyBrush => null;
         public string BpmText => "";
         public bool IsLow { get; set; }
-        public bool ShowsKeyCap => false;
-        public string KeyCapLabel => "";
         public string CautionText => "";
         public string ArmedText => "";
         public string EmptyTitle => "";
-        public string EmptyHint => "";
-        public string KeyCapText => "";
         public bool IsSweeping => false;
         public bool ShowStats => false;
         public bool ShowCaution => false;

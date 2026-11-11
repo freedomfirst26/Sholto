@@ -57,7 +57,6 @@ public class DeckSlotViewModelTests
         Assert.True(two.IsTarget);
         Assert.False(two.IsReference);
         Assert.Equal("Empty", two.Title);
-        Assert.Equal("Loads here", two.EmptyHint);
         Assert.False(two.ShowStats);
         Assert.False(two.IsCaution);
     }
@@ -83,7 +82,6 @@ public class DeckSlotViewModelTests
 
         Assert.True(Slot(0).IsTarget);
         Assert.False(Slot(0).IsLoaded);
-        Assert.Equal("Loads here", Slot(0).EmptyHint);
         Assert.True(Slot(1).IsReference);
         Assert.False(Slot(1).IsLow);
     }
@@ -138,7 +136,7 @@ public class DeckSlotViewModelTests
     }
 
     [Fact]
-    public void Both_empty_has_no_reference_and_hints_how_to_load()
+    public void Both_empty_has_no_reference()
     {
         Open(Empty, Empty, target: 0);
 
@@ -149,27 +147,15 @@ public class DeckSlotViewModelTests
             Assert.Equal("Empty", s.Title);
             Assert.Equal(0, s.RemainingFraction);
         });
-        Assert.Equal("Loads here", Slot(0).EmptyHint);
-        Assert.Equal("to load", Slot(1).EmptyHint);
     }
 
     [Fact]
-    public void An_empty_slot_reads_deck_N_empty_with_a_key_cap_to_load_and_on_the_target_loads_here()
+    public void An_empty_slot_reads_deck_N_empty()
     {
         Open(Empty, Empty, target: 0);
 
         Assert.Equal("DECK 1 · empty", Slot(0).EmptyTitle);
-        Assert.Equal("Loads here", Slot(0).EmptyHint);
         Assert.Equal("DECK 2 · empty", Slot(1).EmptyTitle);
-        Assert.Equal("⇧2", Slot(1).KeyCapText);
-        Assert.Equal("to load", Slot(1).EmptyHint);
-
-        _rig.Glance.FlipTarget();
-        _rig.Tick();
-
-        Assert.Equal("to load", Slot(0).EmptyHint);
-        Assert.Equal("⇧1", Slot(0).KeyCapText);
-        Assert.Equal("Loads here", Slot(1).EmptyHint);
     }
 
     [Fact]
@@ -301,30 +287,6 @@ public class DeckSlotViewModelTests
         Open(Loaded("A", playing: false, duration: 180, position: 170), Empty, target: 1);
 
         Assert.False(Slot(0).IsLow);
-    }
-
-    [Fact]
-    public void The_target_keycap_label_carries_the_enter_mark()
-    {
-        Open(Loaded("A", playing: false), Loaded("B", playing: false), target: 1);
-
-        Assert.True(Slot(0).ShowsKeyCap);
-        Assert.Equal("⇧1", Slot(0).KeyCapLabel);
-        Assert.Equal("⏎ ⇧2", Slot(1).KeyCapLabel);
-
-        _rig.Glance.FlipTarget();
-        _rig.Tick();
-
-        Assert.Equal("⏎ ⇧1", Slot(0).KeyCapLabel);
-        Assert.Equal("⇧2", Slot(1).KeyCapLabel);
-    }
-
-    [Fact]
-    public void An_empty_slot_shows_no_loaded_keycap()
-    {
-        Open(Empty, Empty, target: 0);
-
-        Assert.False(Slot(0).ShowsKeyCap);
     }
 
     [Fact]

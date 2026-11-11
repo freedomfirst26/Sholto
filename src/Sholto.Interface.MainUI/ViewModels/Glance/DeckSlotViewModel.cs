@@ -63,17 +63,9 @@ public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionP
 
     public string CautionText => "Playing";
 
-    public bool ShowsKeyCap => IsLoaded;
-
-    public string KeyCapLabel => IsTarget ? $"⏎ ⇧{Number}" : $"⇧{Number}";
-
     public string ArmedText => $"⇧{Number} again to replace";
 
     public string EmptyTitle => $"DECK {Number} · empty";
-
-    public string EmptyHint => IsTarget ? "Loads here" : "to load";
-
-    public string KeyCapText => $"⇧{Number}";
 
     public bool IsSweeping => !IsLoaded && IsTarget && !_motion.Reduced;
 
@@ -99,7 +91,6 @@ public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionP
             IsLoaded = r.IsLoaded;
             stateChanged = true;
             Notify(nameof(IsLoaded));
-            Notify(nameof(ShowsKeyCap));
             Notify(nameof(IsSweeping));
         }
         if (IsPlaying != r.IsPlaying)
@@ -114,8 +105,6 @@ public sealed class DeckSlotViewModel(int deck, IDeckClockSource decks, IMotionP
             stateChanged = true;
             Notify(nameof(IsTarget));
             Notify(nameof(IsSweeping));
-            Notify(nameof(EmptyHint));
-            Notify(nameof(KeyCapLabel));
         }
         if (IsReference != isReference)
         {

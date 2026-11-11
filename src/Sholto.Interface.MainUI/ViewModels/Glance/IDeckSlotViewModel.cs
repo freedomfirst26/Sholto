@@ -46,24 +46,11 @@ public interface IDeckSlotViewModel : INotifyPropertyChanged
     /// <summary>"Playing": the caution line, without a time.</summary>
     string CautionText { get; }
 
-    /// <summary>A loaded slot shows its key cap.</summary>
-    bool ShowsKeyCap { get; }
-
-    /// <summary>"⏎ ⇧1" on the target deck, otherwise "⇧1" or "⇧2".</summary>
-    string KeyCapLabel { get; }
-
     /// <summary>"⇧2 again to replace": the armed line.</summary>
     string ArmedText { get; }
 
     /// <summary>"DECK 2 · empty": the empty slot's first line, whole.</summary>
     string EmptyTitle { get; }
-
-    /// <summary>"Loads here" on the target, "to load" otherwise: the empty slot's second line, after the load arrow
-    /// or the key cap.</summary>
-    string EmptyHint { get; }
-
-    /// <summary>"⇧2": the key cap before "to load" on a non-target empty slot.</summary>
-    string KeyCapText { get; }
 
     /// <summary>The slot is the empty target, and motion is allowed: a soft light sweeps across it. Never under
     /// reduced motion.</summary>
