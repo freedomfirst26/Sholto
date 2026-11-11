@@ -57,10 +57,16 @@ public sealed class AppLifecycleFactory(
         var audio = new AudioOutput(
             _audioEngineFactory, _engineDependents, _pipeWireRouter, controllerSoundCard, _deckFormat,
             core.Decks, _masterCue);
+        var trackListPersistence = new TrackListPersistence(
+            _database, core.Library, _trackListPreference, _legacyShortlistPreference, core.TrackList, _trackListCodec, _appThread);
         return new AppLifecycle(
-            _database, core.Library, core.Markers, core.HotCues, _themePreference, _musicDirPreference, _outputDevicePreference,
-            _waveformStylePreference, _backspinTimePreference, _backspinDistancePreference, core.BackspinFeel, _legacyShortlistPreference,
-            _trackListPreference, core.TrackList, _trackListCodec,
-            _outputEnumerator, audio, controllerSoundCard, _systemCheck, _appThread, _publisher, _musicDirOverride);
+            _database, core.Library, core.Markers, core.HotCues,
+            new SettingsRestorer(
+                _database, _themePreference, _waveformStylePreference, _backspinTimePreference, _backspinDistancePreference,
+                core.BackspinFeel, _appThread, _publisher),
+            trackListPersistence,
+            new MusicFolderResolver(_database, core.Library, _musicDirPreference, _appThread, _publisher, _musicDirOverride),
+            new OutputDeviceChooser(_outputEnumerator, audio, controllerSoundCard, _outputDevicePreference, _appThread, _publisher),
+            audio, _systemCheck, _appThread, _publisher);
     }
 }

@@ -75,10 +75,16 @@ internal sealed class AppLifecycleRig
         Enumerator = new FakeAudioOutputEnumerator(devices ?? []);
         DeckMarkers = new DeckMarkers(new DeckPair(Library.Deck1, Library.Deck2), Library.Library, appThread, Library.Bus);
         Lifecycle = new AppLifecycle(
-            Database, Library.Library, DeckMarkers, new NullDeckHotCues(), ThemePreference, MusicDirPreference, OutputDevicePreference,
-            WaveformStylePreference, BackspinTimePreference, BackspinDistancePreference, BackspinFeel, LegacyShortlistPreference,
-            TrackListPreference, TrackList, Codec,
-            Enumerator, Audio, new FakeControllerSoundCard(ControllerCard), systemCheck ?? new SystemCheck([]), appThread, Library.Bus, musicDirOverride);
+            Database, Library.Library, DeckMarkers, new NullDeckHotCues(),
+            new SettingsRestorer(
+                Database, ThemePreference, WaveformStylePreference, BackspinTimePreference, BackspinDistancePreference,
+                BackspinFeel, appThread, Library.Bus),
+            new TrackListPersistence(
+                Database, Library.Library, TrackListPreference, LegacyShortlistPreference, TrackList, Codec, appThread),
+            new MusicFolderResolver(Database, Library.Library, MusicDirPreference, appThread, Library.Bus, musicDirOverride),
+            new OutputDeviceChooser(
+                Enumerator, Audio, new FakeControllerSoundCard(ControllerCard), OutputDevicePreference, appThread, Library.Bus),
+            Audio, systemCheck ?? new SystemCheck([]), appThread, Library.Bus);
         Library.Bus.Subscribe(MusicFolderAsked);
         Library.Bus.Subscribe(DeviceAsked);
         Library.Bus.Subscribe(ThemeFound);
