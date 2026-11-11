@@ -1,4 +1,5 @@
 using Sholto.Data;
+using Sholto.Interface.Controller.Model;
 
 namespace Sholto.Interface.Controller.Tests;
 
@@ -14,8 +15,7 @@ internal sealed class EmittingControlSurface : IControlSurface
 
     public bool Connect() => true;
     public void SetBeatSync(int deck, bool on) { }
-    public void SetPadLight(int deck, int group, bool on) { }
-    public void SetEchoLight(int deck, bool on) { }
+    public void SetPadLight(int deck, PadPage page, int pad, PadLight light) { }
     public void SetHeadphoneCueLight(int deck, bool on) { }
     public void SetMasterCueLight(bool on) { }
     public void SetPadPage(int deck, PadPage page) { }

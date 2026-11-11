@@ -7,6 +7,18 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+### New
+
+- **Hot cues on the controller's pads.** On the HOT CUE page, press an empty pad to save a cue at the playhead, snapped to the nearest beat. Press a saved pad to jump to it: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go. Shift + pad deletes the cue. Each deck keeps up to eight per track, lit in their colours on the pads, and they come back when the track is loaded.
+- **BEAT JUMP pads.** The eight pads jump 1, 2, 4 or 8 beats back or forward, in the track's own tempo.
+
+### Improved
+
+- **All four pad buttons now work.** HOT CUE, PAD FX1, BEAT JUMP and SAMPLER each switch the pads and light, one at a time.
+- **Stems moved to the SAMPLER page.** Pads 1–3 mute drums, vocals and instrumental as before (they no longer do that on the HOT CUE page), and pads 5–7 now solo a stem; press the soloed pad again to bring all three back.
+- **The pads light in colour.** Echo, roll, beat jump and the stems each have a colour, and the pad lights show what is on.
+- **The controller guide describes all four pad pages.** BEAT JUMP and SAMPLER are now buttons you can click in it.
+
 ## v1.1.0
 
 ### Licence

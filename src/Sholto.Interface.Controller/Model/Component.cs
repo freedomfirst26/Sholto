@@ -10,4 +10,8 @@ public abstract class Component
     /// <summary>Return this control to its default state (e.g. a Button's light
     /// off). Called for every component when the controller is disposed.</summary>
     public abstract void Reset();
+
+    /// <summary>Re-send this control's intended LED state to the hardware, unconditionally (after a reconnect
+    /// the device comes up dark). A control with no LED does nothing.</summary>
+    public virtual void Reassert() { }
 }

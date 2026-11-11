@@ -191,18 +191,21 @@ public class ControllerModelTests
     [InlineData(1, PadPage.HotCue, new byte[] { 0x91, 0x1B, 0x7F, 0x91, 0x1B, 0x00 })]
     [InlineData(0, PadPage.PadFx1, new byte[] { 0x90, 0x1E, 0x7F, 0x90, 0x1E, 0x00 })]
     [InlineData(1, PadPage.PadFx1, new byte[] { 0x91, 0x1E, 0x7F, 0x91, 0x1E, 0x00 })]
+    [InlineData(0, PadPage.BeatJump, new byte[] { 0x90, 0x20, 0x7F, 0x90, 0x20, 0x00 })]
+    [InlineData(1, PadPage.BeatJump, new byte[] { 0x91, 0x20, 0x7F, 0x91, 0x20, 0x00 })]
+    [InlineData(0, PadPage.Sampler, new byte[] { 0x90, 0x22, 0x7F, 0x90, 0x22, 0x00 })]
+    [InlineData(1, PadPage.Sampler, new byte[] { 0x91, 0x22, 0x7F, 0x91, 0x22, 0x00 })]
     public void Flx4_RendersPadModePressSimulation(int deck, PadPage page, byte[] expected)
     {
         Assert.Equal(expected, new DdjFlx4Mapping().RenderPadMode(deck, page));
     }
 
     [Fact]
-    public void Flx4_PadModeForPagesWithoutAButton_IsNull()
+    public void Flx4_PadModeForAnUnknownDeckOrPage_IsNull()
     {
         var mapping = new DdjFlx4Mapping();
-        Assert.Null(mapping.RenderPadMode(0, PadPage.BeatJump));
-        Assert.Null(mapping.RenderPadMode(0, PadPage.Sampler));
         Assert.Null(mapping.RenderPadMode(2, PadPage.HotCue));
+        Assert.Null(mapping.RenderPadMode(0, (PadPage)9));
     }
 
     [Fact]
@@ -226,18 +229,90 @@ public class ControllerModelTests
     }
 
     [Fact]
-    public void SetPadPage_lights_the_matching_mode_button_and_darkens_the_other()
+    public void SetPadPage_lights_exactly_one_mode_button()
     {
         var controller = new Controller(new FakeMidiConnection());
 
-        controller.SetPadPage(0, PadPage.PadFx1);
-        Assert.True(controller.Deck1PadModePadFx1.IsLit);
-        Assert.False(controller.Deck1PadModeHotCue.IsLit);
+        foreach (var page in Enum.GetValues<PadPage>())
+        {
+            controller.SetPadPage(0, page);
+            Assert.Equal([page], controller.Deck1PadModes.Select((b, i) => (b, i)).Where(t => t.b.IsLit).Select(t => (PadPage)t.i));
+            Assert.DoesNotContain(controller.Deck2PadModes, b => b.IsLit);
+        }
+    }
 
-        controller.SetPadPage(0, PadPage.HotCue);
-        Assert.True(controller.Deck1PadModeHotCue.IsLit);
-        Assert.False(controller.Deck1PadModePadFx1.IsLit);
-        Assert.False(controller.Deck2PadModeHotCue.IsLit);
+    [Theory]
+    [InlineData(PadPage.BeatJump, 0x20)]
+    [InlineData(PadPage.Sampler, 0x22)]
+    public void SetPadPage_forces_beat_jump_and_sampler_like_the_other_pages(PadPage page, byte note)
+    {
+        var midi = new FakeMidiConnection();
+        var controller = new Controller(midi);
+
+        controller.SetPadPage(0, page);
+
+        Assert.Contains(new byte[] { 0x90, note, 0x7F, 0x90, note, 0x00 }, midi.Sent, new BytesComparer());
+    }
+
+    [Fact]
+    public void SetPadPage_repaints_the_decks_pads_of_every_page()
+    {
+        var midi = new FakeMidiConnection();
+        var controller = new Controller(midi);
+        controller.SetPadLight(0, PadPage.HotCue, 2, PadLight.CueRed);
+        controller.SetPadLight(0, PadPage.Sampler, 4, PadLight.Drums);
+        midi.Sent.Clear();
+
+        controller.SetPadPage(0, PadPage.Sampler);
+
+        Assert.Contains(new byte[] { 0x97, 0x02, 0x01 }, midi.Sent, new BytesComparer());
+        Assert.Contains(new byte[] { 0x97, 0x34, 0x01 }, midi.Sent, new BytesComparer());
+    }
+
+    [Fact]
+    public void A_reconnect_reasserts_the_pad_and_mode_lights()
+    {
+        var midi = new FakeMidiConnection();
+        var controller = new Controller(midi);
+        controller.Connect();
+        controller.SetPadLight(1, PadPage.BeatJump, 3, PadLight.BeatJump);
+        controller.SetPadPage(1, PadPage.BeatJump);
+        midi.Sent.Clear();
+
+        midi.RaiseConnected();
+
+        Assert.Contains(new byte[] { 0x99, 0x23, 0x2D }, midi.Sent, new BytesComparer());   // the pad
+        Assert.Contains(new byte[] { 0x91, 0x20, 0x7F }, midi.Sent, new BytesComparer());   // its mode button
+    }
+
+    [Fact]
+    public void Dispose_darkens_every_pad()
+    {
+        var midi = new FakeMidiConnection();
+        var controller = new Controller(midi);
+        controller.SetPadLight(0, PadPage.HotCue, 0, PadLight.CueGreen);
+        midi.Sent.Clear();
+
+        controller.Dispose();
+
+        Assert.Contains(new byte[] { 0x97, 0x00, 0x00 }, midi.Sent, new BytesComparer());
+        Assert.Contains(new byte[] { 0x99, 0x37, 0x00 }, midi.Sent, new BytesComparer());   // deck 2, last SAMPLER pad
+    }
+
+    [Fact]
+    public void LitButton_Set_applies_on_change_only_and_Reset_goes_dark_unconditionally()
+    {
+        var applied = new List<PadLight>();
+        var b = new LitButton<PadLight>("pad", applied.Add);
+
+        b.Set(PadLight.Echo);
+        b.Set(PadLight.Echo);
+        b.Set(PadLight.Roll);
+        b.Reset();
+        b.Reset();
+
+        Assert.Equal([PadLight.Echo, PadLight.Roll, PadLight.Off, PadLight.Off], applied);
+        Assert.Equal(PadLight.Off, b.Light);
     }
 
     [Fact]

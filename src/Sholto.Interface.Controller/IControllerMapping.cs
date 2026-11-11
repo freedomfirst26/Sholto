@@ -35,6 +35,11 @@ public interface IControllerMapping
     /// This is the output counterpart of <see cref="Translate(NoteEvent)"/>.</summary>
     byte[]? RenderLight(ControllerLight light, bool on) => null;
 
+    /// <summary>Render what a pad shows (<paramref name="light"/>) to the raw MIDI bytes that set it on this
+    /// device, for pad <paramref name="pad"/> (0-7) of <paramref name="page"/> on <paramref name="deck"/>, or
+    /// <c>null</c> if the device has no such pad light. Default: none.</summary>
+    byte[]? RenderPadLight(int deck, PadPage page, int pad, PadLight light) => null;
+
     /// <summary>The raw MIDI bytes to send once, immediately after a successful
     /// connection, to put the device into the state this mapping expects (e.g.
     /// selecting a pad mode) — or <c>null</c> if the device needs no such

@@ -1,4 +1,5 @@
 using Sholto.Data;
+using Sholto.Interface.Controller.Model;
 
 namespace Sholto.Interface.Controller;
 
@@ -37,13 +38,9 @@ public interface IControlSurface : IDisposable
     /// deck's BEAT SYNC LED.</summary>
     void SetBeatSync(int deck, bool on);
 
-    /// <summary>Output command from the App (via the orchestrator): drive a
-    /// deck's stem-mute pad LED (0=Drums, 1=Vocals, 2=Instrumental).</summary>
-    void SetPadLight(int deck, int group, bool on);
-
-    /// <summary>Output command from the App (via the orchestrator): drive a
-    /// deck's echo-toggle pad LED.</summary>
-    void SetEchoLight(int deck, bool on);
+    /// <summary>Output command from the App (via ControllerFeedback): show <paramref name="light"/> on pad
+    /// <paramref name="pad"/> (0-7) of <paramref name="page"/> on a deck.</summary>
+    void SetPadLight(int deck, PadPage page, int pad, PadLight light);
 
     /// <summary>Output command from the App: drive a deck's headphone-CUE LED.</summary>
     void SetHeadphoneCueLight(int deck, bool on);

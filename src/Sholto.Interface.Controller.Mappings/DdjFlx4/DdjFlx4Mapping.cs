@@ -16,6 +16,9 @@ namespace Sholto.Interface.Controller.Mappings.DdjFlx4;
 /// </summary>
 public sealed class DdjFlx4Mapping : IControllerMapping
 {
+    private const int PadsPerPage = 8;
+    private const int PadPageCount = 4;
+
     private readonly DdjFlx4Options _o;
 
     public DdjFlx4Mapping(DdjFlx4Options? options = null) => _o = options ?? new DdjFlx4Options();
@@ -44,14 +47,23 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Key == _o.JogTouchNote && (msg.Channel == _o.Deck0Channel || msg.Channel == _o.Deck1Channel))
             return new ControllerEvent.JogTouch(Deck: msg.Channel == _o.Deck0Channel ? 0 : 1, Touching: msg.IsDown);
 
-        // PAD FX1 page, pad 2 — beat-repeat / roll. Held rather than toggled,
-        // so (unlike the echo toggle on pad 1) both edges matter and this
-        // check has to sit above the press-only filter below.
+        // Pads that need both edges: the HOT CUE pads (a paused jump plays while the pad is held) and
+        // PAD FX1 pad 2 (roll, held rather than toggled like the echo on pad 1). These checks have to sit
+        // above the press-only filter below.
         if (msg.Channel == _o.PadDeck0Channel || msg.Channel == _o.PadDeck1Channel)
         {
+            int deck = msg.Channel == _o.PadDeck0Channel ? 0 : 1;
             if (msg.Key == _o.PadFx1NoteBase + 1)
-                return new ControllerEvent.RollHold(
-                    Deck: msg.Channel == _o.PadDeck0Channel ? 0 : 1, Pressed: msg.IsDown);
+                return new ControllerEvent.RollHold(deck, Pressed: msg.IsDown);
+
+            int pad = msg.Key - _o.PadNoteBase;
+            if ((uint)pad < PadsPerPage)
+                return new ControllerEvent.HotCuePad(deck, pad, Shifted: false, Pressed: msg.IsDown);
+
+            // Shift + pad arrives on its own note range; only the press means anything (it deletes the cue).
+            int shiftedPad = msg.Key - _o.PadHotCueShiftNoteBase;
+            if ((uint)shiftedPad < PadsPerPage)
+                return msg.IsDown ? new ControllerEvent.HotCuePad(deck, shiftedPad, Shifted: true, Pressed: true) : null;
         }
 
         // Everything else is a press-only action — ignore the release edge so the
@@ -95,39 +107,39 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         if (msg.Channel == _o.LoadChannel && msg.Key == _o.LoadDeck1Note)
             return new ControllerEvent.LoadToDeck(Deck: 1);
 
-        // Hot Cue pads — pads 1/2/3 mute Drums / Vocals / Instrumental on the
-        // matching deck. Hot Cue mode emits sequential notes (PadNoteBase +
-        // pad index) on each deck's pad channel; PAD FX1 mode emits a
-        // separate range (PadFx1NoteBase + pad index) on the SAME channel —
-        // the mode buttons below switch which range the hardware sends, but
-        // we don't need to track that here since the ranges don't overlap.
-        // The Controller tracks the active page only to know which pad LEDs
-        // to repaint on a page switch (see Controller.SetPadPage).
+        // The press-only pads. Each page has its own note range on the same pad channel, so the pages
+        // need no tracking here: BEAT JUMP pads jump by their beats, SAMPLER pads 1-3 mute and 5-7 solo
+        // Drums / Vocals / Instrumental, PAD FX1 pad 1 toggles the echo. (HOT CUE and the roll pad are
+        // matched above, since they need both edges.) The Controller tracks the active page only to know
+        // which pad LEDs to repaint on a page switch (see Controller.SetPadPage).
         if (msg.Channel == _o.PadDeck0Channel || msg.Channel == _o.PadDeck1Channel)
         {
             int deck = msg.Channel == _o.PadDeck0Channel ? 0 : 1;
-            int pad = msg.Key - _o.PadNoteBase;
-            if (pad == _o.StemDrumsPad) return new ControllerEvent.StemToggle(Deck: deck, Group: 0);
-            if (pad == _o.StemVocalsPad) return new ControllerEvent.StemToggle(Deck: deck, Group: 1);
-            if (pad == _o.StemInstrumentalPad) return new ControllerEvent.StemToggle(Deck: deck, Group: 2);
 
-            // PAD FX1 page, pad 1 — echo toggle. Pad 2 (roll) is matched above
-            // this block, since it needs both edges. Pads 3-8
-            // (PadFx1NoteBase+2..7) intentionally unmapped for now.
-            if (msg.Key == _o.PadFx1NoteBase) return new ControllerEvent.EchoToggle(Deck: deck);
+            int jumpPad = msg.Key - _o.PadBeatJumpNoteBase;
+            if ((uint)jumpPad < PadsPerPage && jumpPad < _o.BeatJumpPadBeats.Length)
+                return new ControllerEvent.BeatJumpPad(deck, jumpPad, _o.BeatJumpPadBeats[jumpPad]);
+
+            int samplerPad = msg.Key - _o.PadSamplerNoteBase;
+            if (samplerPad == _o.StemDrumsPad) return new ControllerEvent.StemToggle(deck, Group: 0);
+            if (samplerPad == _o.StemVocalsPad) return new ControllerEvent.StemToggle(deck, Group: 1);
+            if (samplerPad == _o.StemInstrumentalPad) return new ControllerEvent.StemToggle(deck, Group: 2);
+            if (samplerPad == _o.StemSoloDrumsPad) return new ControllerEvent.StemSolo(deck, Group: 0);
+            if (samplerPad == _o.StemSoloVocalsPad) return new ControllerEvent.StemSolo(deck, Group: 1);
+            if (samplerPad == _o.StemSoloInstrumentalPad) return new ControllerEvent.StemSolo(deck, Group: 2);
+
+            if (msg.Key == _o.PadFx1NoteBase) return new ControllerEvent.EchoToggle(deck);
         }
 
-        // HOT CUE / PAD FX1 mode buttons — switch the controller's own pad
-        // mode (captured via MIDI dump, on each deck's channel). Press edge
-        // only; the Controller tracks per-deck page state and LEDs.
-        if (msg.Channel == _o.Deck0Channel && msg.Key == _o.PadModeHotCueNote)
-            return new ControllerEvent.PadPageSelected(Deck: 0, Page: PadPage.HotCue);
-        if (msg.Channel == _o.Deck1Channel && msg.Key == _o.PadModeHotCueNote)
-            return new ControllerEvent.PadPageSelected(Deck: 1, Page: PadPage.HotCue);
-        if (msg.Channel == _o.Deck0Channel && msg.Key == _o.PadModePadFx1Note)
-            return new ControllerEvent.PadPageSelected(Deck: 0, Page: PadPage.PadFx1);
-        if (msg.Channel == _o.Deck1Channel && msg.Key == _o.PadModePadFx1Note)
-            return new ControllerEvent.PadPageSelected(Deck: 1, Page: PadPage.PadFx1);
+        // The four pad-mode buttons — switch the controller's own pad mode (on each deck's channel). Press
+        // edge only; the Controller tracks per-deck page state and LEDs.
+        if (msg.Channel == _o.Deck0Channel || msg.Channel == _o.Deck1Channel)
+        {
+            int deck = msg.Channel == _o.Deck0Channel ? 0 : 1;
+            for (int page = 0; page < PadPageCount; page++)
+                if (msg.Key == PadModeNote((PadPage)page))
+                    return new ControllerEvent.PadPageSelected(deck, (PadPage)page);
+        }
 
         // Beat-loop trio: 4 BEAT / EXIT, ½×, 2×. Deck0Channel = deck 0,
         // Deck1Channel = deck 1 on the FLX-4 (confirmed via raw MIDI capture).
@@ -267,20 +279,58 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         ];
 
     /// <summary>The press simulation for a pad-mode button, as in <see cref="StartupInit"/>: NoteOn
-    /// vel 0x7F then NoteOff on the deck's status byte, for HOT CUE (0x1B) or PAD FX1. Other pages have
-    /// no mapped button, so they cannot be forced.</summary>
+    /// vel 0x7F then NoteOff on the deck's status byte, for the page's mode button (HOT CUE 0x1B, PAD FX1
+    /// 0x1E, and the UNVERIFIED BEAT JUMP 0x20 and SAMPLER 0x22).</summary>
     public byte[]? RenderPadMode(int deck, PadPage page)
     {
         if (deck is not (0 or 1)) return null;
-        int note = page switch
-        {
-            PadPage.HotCue => _o.PadModeHotCueNote,
-            PadPage.PadFx1 => _o.PadModePadFx1Note,
-            _ => -1,
-        };
+        int note = PadModeNote(page);
         if (note < 0) return null;
         byte status = (byte)(0x90 + deck);
         return [status, (byte)note, 0x7F, status, (byte)note, 0x00];
+    }
+
+    /// <summary>The note of a page's pad-mode button, or -1 for no such page.</summary>
+    private int PadModeNote(PadPage page) => page switch
+    {
+        PadPage.HotCue => _o.PadModeHotCueNote,
+        PadPage.PadFx1 => _o.PadModePadFx1Note,
+        PadPage.BeatJump => _o.PadModeBeatJumpNote,
+        PadPage.Sampler => _o.PadModeSamplerNote,
+        _ => -1,
+    };
+
+    /// <summary>The note of pad 0 of a page.</summary>
+    private int PadNoteBaseOf(PadPage page) => page switch
+    {
+        PadPage.HotCue => _o.PadNoteBase,
+        PadPage.PadFx1 => _o.PadFx1NoteBase,
+        PadPage.BeatJump => _o.PadBeatJumpNoteBase,
+        _ => _o.PadSamplerNoteBase,
+    };
+
+    /// <summary>The velocity (colour) the hardware shows for a logical pad light.</summary>
+    private byte PadVelocity(PadLight light) => light switch
+    {
+        PadLight.Off => _o.PadLightOffVelocity,
+        >= PadLight.CuePink and <= PadLight.CuePurple => _o.CueVelocities[light - PadLight.CuePink],
+        PadLight.Echo => _o.EchoVelocity,
+        PadLight.Roll => _o.RollVelocity,
+        PadLight.BeatJump => _o.BeatJumpVelocity,
+        PadLight.Drums => _o.DrumsVelocity,
+        PadLight.Vocals => _o.VocalsVelocity,
+        PadLight.Instrumental => _o.InstrumentalVelocity,
+        _ => _o.PadLightOffVelocity,
+    };
+
+    /// <summary>A pad LED — UNVERIFIED ON HARDWARE. We assume the same "echo the note" convention as
+    /// Cue/BeatSync, on the pad's own NoteOn status byte (deck 1 pad channel 8 → 0x97, deck 2 pad channel
+    /// 10 → 0x99), the velocity being the colour.</summary>
+    public byte[]? RenderPadLight(int deck, PadPage page, int pad, PadLight light)
+    {
+        if (deck is not (0 or 1) || (uint)pad >= PadsPerPage || PadModeNote(page) < 0) return null;
+        int channel = deck == 0 ? _o.PadDeck0Channel : _o.PadDeck1Channel;
+        return [(byte)(_o.DeckLightStatusBase + channel - 1), (byte)(PadNoteBaseOf(page) + pad), PadVelocity(light)];
     }
 
     // --- Output / LEDs ---------------------------------------------------------
@@ -302,32 +352,11 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             // per-deck output channel, mirroring the Cue light.
             LightFunction.BeatSync when light.Deck is 0 or 1
                 => [(byte)(_o.DeckLightStatusBase + light.Deck), (byte)_o.BeatSyncLightNote, vel],
-            // Pad LED — UNVERIFIED ON HARDWARE. We assume the same "echo the
-            // note" convention as Cue/BeatSync, on the pad's own NoteOn status
-            // byte (deck0 pad channel 8 → status 0x97, deck1 pad channel 10 →
-            // status 0x99). Needs a real controller check.
-            LightFunction.Pad when light.Deck is 0 or 1
-                => [
-                    (byte)(_o.DeckLightStatusBase + (light.Deck == 0 ? _o.PadDeck0Channel : _o.PadDeck1Channel) - 1),
-                    (byte)(_o.PadNoteBase + light.Pad),
-                    on ? _o.PadLightOnVelocity : _o.PadLightOffVelocity,
-                ],
-            // PAD FX1 page pad LED — same status byte / "echo the note"
-            // convention as the Hot Cue pads above, just in the FX1 note
-            // range. UNVERIFIED ON HARDWARE (see Pad case above).
-            LightFunction.PadFx1 when light.Deck is 0 or 1
-                => [
-                    (byte)(_o.DeckLightStatusBase + (light.Deck == 0 ? _o.PadDeck0Channel : _o.PadDeck1Channel) - 1),
-                    (byte)(_o.PadFx1NoteBase + light.Pad),
-                    on ? _o.PadLightOnVelocity : _o.PadLightOffVelocity,
-                ],
             // Pad-mode button LEDs — UNVERIFIED ON HARDWARE. We assume the
             // same "echo the input note back on the deck's own status byte"
             // convention as Cue/BeatSync; needs a real controller check.
-            LightFunction.PadModeHotCue when light.Deck is 0 or 1
-                => [(byte)(_o.DeckLightStatusBase + light.Deck), (byte)_o.PadModeHotCueNote, vel],
-            LightFunction.PadModePadFx1 when light.Deck is 0 or 1
-                => [(byte)(_o.DeckLightStatusBase + light.Deck), (byte)_o.PadModePadFx1Note, vel],
+            LightFunction.PadMode when light.Deck is 0 or 1 && PadModeNote((PadPage)light.Index) >= 0
+                => [(byte)(_o.DeckLightStatusBase + light.Deck), (byte)PadModeNote((PadPage)light.Index), vel],
             _ => null,
         };
     }

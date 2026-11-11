@@ -31,13 +31,21 @@ internal static class GestureIds
     public const string CrossfaderMove       = "crossfader.move";
 
     // Pads
-    public const string PadStemDrums         = "pad.hotcue.drums";
-    public const string PadStemVocals        = "pad.hotcue.vocals";
-    public const string PadStemInstrumental  = "pad.hotcue.instrumental";
+    public const string PadHotCuePress       = "pad.hotcue.press";
+    public const string PadHotCueDelete      = "pad.hotcue.delete";
     public const string PadEcho              = "pad.padfx1.echo";
     public const string PadRoll              = "pad.padfx1.roll";
+    public const string PadBeatJump          = "pad.beatjump.press";
+    public const string PadStemDrums         = "pad.sampler.drums";
+    public const string PadStemVocals        = "pad.sampler.vocals";
+    public const string PadStemInstrumental  = "pad.sampler.instrumental";
+    public const string PadStemSoloDrums     = "pad.sampler.solo.drums";
+    public const string PadStemSoloVocals    = "pad.sampler.solo.vocals";
+    public const string PadStemSoloInstrumental = "pad.sampler.solo.instrumental";
     public const string PadModeHotCue        = "padmode.hotcue.press";
     public const string PadModePadFx1        = "padmode.padfx1.press";
+    public const string PadModeBeatJump      = "padmode.beatjump.press";
+    public const string PadModeSampler       = "padmode.sampler.press";
 
     // Loops and grid
     public const string BeatLoopToggle       = "beatloop.toggle";

@@ -19,6 +19,16 @@
       "id": "page.padfx1",
       "name": "PAD FX1 page",
       "modifier": "deck.padmode.padfx1"
+    },
+    {
+      "id": "page.beatjump",
+      "name": "BEAT JUMP page",
+      "modifier": "deck.padmode.beatjump"
+    },
+    {
+      "id": "page.sampler",
+      "name": "SAMPLER page",
+      "modifier": "deck.padmode.sampler"
     }
   ],
   "controls": [
@@ -175,7 +185,7 @@
           "id": "padmode.hotcue.press",
           "verb": "press",
           "layer": "plain",
-          "result": "Switches this deck's pads to the HOT CUE page. On this page, pads 1-3 mute and unmute the drums, vocals, and instrumental; pads 4-8 do nothing."
+          "result": "Switches this deck's pads to the HOT CUE page. On this page, each pad saves, jumps to and (with Shift) deletes a hot cue: up to eight per track, each lit in its own colour."
         }
       ]
     },
@@ -194,19 +204,56 @@
       ]
     },
     {
+      "id": "deck.padmode.beatjump",
+      "label": "BEAT JUMP",
+      "scope": "per-deck",
+      "summary": "Switches this deck's performance pads to the BEAT JUMP page.",
+      "gestures": [
+        {
+          "id": "padmode.beatjump.press",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Switches this deck's pads to the BEAT JUMP page. On this page, each pad moves the playhead forwards or back by whole beats, and all eight stay lit."
+        }
+      ]
+    },
+    {
+      "id": "deck.padmode.sampler",
+      "label": "SAMPLER",
+      "scope": "per-deck",
+      "summary": "Switches this deck's performance pads to the SAMPLER page.",
+      "gestures": [
+        {
+          "id": "padmode.sampler.press",
+          "verb": "press",
+          "layer": "plain",
+          "result": "Switches this deck's pads to the SAMPLER page. On this page, pads 1-3 mute the drums, vocals and instrumental and pads 5-7 solo them; pads 4 and 8 do nothing."
+        }
+      ]
+    },
+    {
       "id": "deck.pad.1",
       "label": "Pad 1",
       "scope": "per-deck",
-      "summary": "The first performance pad. What it does depends on the pad page.",
+      "summary": "The first performance pad. What it does depends on the pad page: a hot cue, an effect, a beat jump or a stem control.",
       "gestures": [
         {
-          "id": "pad.hotcue.drums",
+          "id": "pad.hotcue.press",
           "verb": "press",
           "layer": "page.hotcue",
           "with": [
             "deck.padmode.hotcue"
           ],
-          "result": "Mutes or brings back the drums for this deck, once its stems are ready. Hold [[deck.shift]] and turn [[mixer.eq.hi]] to set the drums' volume."
+          "result": "Saves a hot cue on this pad at the playhead, snapped to the nearest beat, if the pad is empty. If it already holds a cue, jumps there: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go."
+        },
+        {
+          "id": "pad.hotcue.delete",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "While [[deck.shift]] is held, deletes the hot cue saved on this pad."
         },
         {
           "id": "pad.padfx1.echo",
@@ -215,7 +262,25 @@
           "with": [
             "deck.padmode.padfx1"
           ],
-          "result": "Turns a beat-synced echo on or off for this deck. Switching it off lets the echo tail ring out rather than cutting it dead."
+          "result": "Turns a beat-synced echo on or off for this deck. Switching it off lets the echo tail ring out rather than cutting it dead. Lit while the echo is on."
+        },
+        {
+          "id": "pad.beatjump.press",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "Moves the playhead 1 beat back, counted in beats of this track's own tempo."
+        },
+        {
+          "id": "pad.sampler.drums",
+          "verb": "press",
+          "layer": "page.sampler",
+          "with": [
+            "deck.padmode.sampler"
+          ],
+          "result": "Mutes or brings back the drums for this deck, once its stems are ready. It is lit while the stem is audible. Hold [[deck.shift]] and turn [[mixer.eq.hi]] to set the drums' volume."
         }
       ]
     },
@@ -223,16 +288,25 @@
       "id": "deck.pad.2",
       "label": "Pad 2",
       "scope": "per-deck",
-      "summary": "The second performance pad. Mutes vocals on the HOT CUE page; rolls on the PAD FX1 page.",
+      "summary": "The second performance pad. What it does depends on the pad page: a hot cue, an effect, a beat jump or a stem control.",
       "gestures": [
         {
-          "id": "pad.hotcue.vocals",
+          "id": "pad.hotcue.press",
           "verb": "press",
           "layer": "page.hotcue",
           "with": [
             "deck.padmode.hotcue"
           ],
-          "result": "Mutes or brings back the vocals for this deck, once its stems are ready. Hold [[deck.shift]] and turn [[mixer.eq.mid]] to set the vocals' volume."
+          "result": "Saves a hot cue on this pad at the playhead, snapped to the nearest beat, if the pad is empty. If it already holds a cue, jumps there: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go."
+        },
+        {
+          "id": "pad.hotcue.delete",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "While [[deck.shift]] is held, deletes the hot cue saved on this pad."
         },
         {
           "id": "pad.padfx1.roll",
@@ -242,6 +316,24 @@
             "deck.padmode.padfx1"
           ],
           "result": "Repeats a short beat-synced slice of this deck for as long as you hold it. Let go and the track comes back in where it would have been \u2014 it kept playing underneath."
+        },
+        {
+          "id": "pad.beatjump.press",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "Moves the playhead 1 beat forward, counted in beats of this track's own tempo."
+        },
+        {
+          "id": "pad.sampler.vocals",
+          "verb": "press",
+          "layer": "page.sampler",
+          "with": [
+            "deck.padmode.sampler"
+          ],
+          "result": "Mutes or brings back the vocals for this deck, once its stems are ready. It is lit while the stem is audible. Hold [[deck.shift]] and turn [[mixer.eq.mid]] to set the vocals' volume."
         }
       ]
     },
@@ -249,16 +341,43 @@
       "id": "deck.pad.3",
       "label": "Pad 3",
       "scope": "per-deck",
-      "summary": "The third performance pad. Only does something on the HOT CUE page.",
+      "summary": "The third performance pad. What it does depends on the pad page: a hot cue, an effect, a beat jump or a stem control.",
       "gestures": [
         {
-          "id": "pad.hotcue.instrumental",
+          "id": "pad.hotcue.press",
           "verb": "press",
           "layer": "page.hotcue",
           "with": [
             "deck.padmode.hotcue"
           ],
-          "result": "Mutes or brings back the instrumental \u2014 everything except vocals and drums \u2014 for this deck, once its stems are ready. Hold [[deck.shift]] and turn [[mixer.eq.low]] to set the instrumental's volume."
+          "result": "Saves a hot cue on this pad at the playhead, snapped to the nearest beat, if the pad is empty. If it already holds a cue, jumps there: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go."
+        },
+        {
+          "id": "pad.hotcue.delete",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "While [[deck.shift]] is held, deletes the hot cue saved on this pad."
+        },
+        {
+          "id": "pad.beatjump.press",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "Moves the playhead 2 beats back, counted in beats of this track's own tempo."
+        },
+        {
+          "id": "pad.sampler.instrumental",
+          "verb": "press",
+          "layer": "page.sampler",
+          "with": [
+            "deck.padmode.sampler"
+          ],
+          "result": "Mutes or brings back the instrumental \u2014 everything except vocals and drums \u2014 for this deck, once its stems are ready. It is lit while the stem is audible. Hold [[deck.shift]] and turn [[mixer.eq.low]] to set the instrumental's volume."
         }
       ]
     },
@@ -266,36 +385,203 @@
       "id": "deck.pad.4",
       "label": "Pad 4",
       "scope": "per-deck",
-      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
-      "gestures": []
+      "summary": "The fourth performance pad. Sets a hot cue on the HOT CUE page and jumps on the BEAT JUMP page; does nothing on PAD FX1 or SAMPLER.",
+      "gestures": [
+        {
+          "id": "pad.hotcue.press",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "Saves a hot cue on this pad at the playhead, snapped to the nearest beat, if the pad is empty. If it already holds a cue, jumps there: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go."
+        },
+        {
+          "id": "pad.hotcue.delete",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "While [[deck.shift]] is held, deletes the hot cue saved on this pad."
+        },
+        {
+          "id": "pad.beatjump.press",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "Moves the playhead 2 beats forward, counted in beats of this track's own tempo."
+        }
+      ]
     },
     {
       "id": "deck.pad.5",
       "label": "Pad 5",
       "scope": "per-deck",
-      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
-      "gestures": []
+      "summary": "The fifth performance pad. What it does depends on the pad page: a hot cue, an effect, a beat jump or a stem control.",
+      "gestures": [
+        {
+          "id": "pad.hotcue.press",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "Saves a hot cue on this pad at the playhead, snapped to the nearest beat, if the pad is empty. If it already holds a cue, jumps there: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go."
+        },
+        {
+          "id": "pad.hotcue.delete",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "While [[deck.shift]] is held, deletes the hot cue saved on this pad."
+        },
+        {
+          "id": "pad.beatjump.press",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "Moves the playhead 4 beats back, counted in beats of this track's own tempo."
+        },
+        {
+          "id": "pad.sampler.solo.drums",
+          "verb": "press",
+          "layer": "page.sampler",
+          "with": [
+            "deck.padmode.sampler"
+          ],
+          "result": "Plays only the drums on this deck and mutes the other two. Press again to bring all three back. It is lit while it is the only stem you can hear."
+        }
+      ]
     },
     {
       "id": "deck.pad.6",
       "label": "Pad 6",
       "scope": "per-deck",
-      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
-      "gestures": []
+      "summary": "The sixth performance pad. What it does depends on the pad page: a hot cue, an effect, a beat jump or a stem control.",
+      "gestures": [
+        {
+          "id": "pad.hotcue.press",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "Saves a hot cue on this pad at the playhead, snapped to the nearest beat, if the pad is empty. If it already holds a cue, jumps there: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go."
+        },
+        {
+          "id": "pad.hotcue.delete",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "While [[deck.shift]] is held, deletes the hot cue saved on this pad."
+        },
+        {
+          "id": "pad.beatjump.press",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "Moves the playhead 4 beats forward, counted in beats of this track's own tempo."
+        },
+        {
+          "id": "pad.sampler.solo.vocals",
+          "verb": "press",
+          "layer": "page.sampler",
+          "with": [
+            "deck.padmode.sampler"
+          ],
+          "result": "Plays only the vocals on this deck and mutes the other two. Press again to bring all three back. It is lit while it is the only stem you can hear."
+        }
+      ]
     },
     {
       "id": "deck.pad.7",
       "label": "Pad 7",
       "scope": "per-deck",
-      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
-      "gestures": []
+      "summary": "The seventh performance pad. What it does depends on the pad page: a hot cue, an effect, a beat jump or a stem control.",
+      "gestures": [
+        {
+          "id": "pad.hotcue.press",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "Saves a hot cue on this pad at the playhead, snapped to the nearest beat, if the pad is empty. If it already holds a cue, jumps there: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go."
+        },
+        {
+          "id": "pad.hotcue.delete",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "While [[deck.shift]] is held, deletes the hot cue saved on this pad."
+        },
+        {
+          "id": "pad.beatjump.press",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "Moves the playhead 8 beats back, counted in beats of this track's own tempo."
+        },
+        {
+          "id": "pad.sampler.solo.instrumental",
+          "verb": "press",
+          "layer": "page.sampler",
+          "with": [
+            "deck.padmode.sampler"
+          ],
+          "result": "Plays only the instrumental on this deck and mutes the other two. Press again to bring all three back. It is lit while it is the only stem you can hear."
+        }
+      ]
     },
     {
       "id": "deck.pad.8",
       "label": "Pad 8",
       "scope": "per-deck",
-      "summary": "A performance pad. Sholto does nothing with it on either pad page.",
-      "gestures": []
+      "summary": "The eighth performance pad. Sets a hot cue on the HOT CUE page and jumps on the BEAT JUMP page; does nothing on PAD FX1 or SAMPLER.",
+      "gestures": [
+        {
+          "id": "pad.hotcue.press",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "Saves a hot cue on this pad at the playhead, snapped to the nearest beat, if the pad is empty. If it already holds a cue, jumps there: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go."
+        },
+        {
+          "id": "pad.hotcue.delete",
+          "verb": "press",
+          "layer": "page.hotcue",
+          "with": [
+            "deck.padmode.hotcue"
+          ],
+          "result": "While [[deck.shift]] is held, deletes the hot cue saved on this pad."
+        },
+        {
+          "id": "pad.beatjump.press",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "Moves the playhead 8 beats forward, counted in beats of this track's own tempo."
+        }
+      ]
     },
     {
       "id": "deck.beatloop.toggle",

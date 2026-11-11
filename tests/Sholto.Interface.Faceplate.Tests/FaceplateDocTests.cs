@@ -108,15 +108,44 @@ public class FaceplateDocTests
     }
 
     [Theory]
-    [InlineData("deck.pad.1", "pad.hotcue.drums", "mixer.eq.hi")]
-    [InlineData("deck.pad.2", "pad.hotcue.vocals", "mixer.eq.mid")]
-    [InlineData("deck.pad.3", "pad.hotcue.instrumental", "mixer.eq.low")]
-    public void A_hot_cue_stem_pad_points_at_its_shift_eq_stem_level(string padId, string gestureId, string eqId)
+    [InlineData("deck.pad.1", "pad.sampler.drums", "mixer.eq.hi")]
+    [InlineData("deck.pad.2", "pad.sampler.vocals", "mixer.eq.mid")]
+    [InlineData("deck.pad.3", "pad.sampler.instrumental", "mixer.eq.low")]
+    public void A_sampler_stem_pad_points_at_its_shift_eq_stem_level(string padId, string gestureId, string eqId)
     {
         var gesture = Flx4().Controls.Single(c => c.Id == padId)
                             .Gestures.Single(g => g.Id == gestureId);
         Assert.Contains("[[deck.shift]]", gesture.Result);
         Assert.Contains($"[[{eqId}]]", gesture.Result);
+    }
+
+    [Fact]
+    public void All_four_pad_pages_are_layers_with_a_mode_button_each()
+    {
+        var doc = Flx4();
+        foreach (var page in new[] { "hotcue", "padfx1", "beatjump", "sampler" })
+        {
+            Assert.Contains(doc.Layers, l => l.Id == $"page.{page}" && l.Modifier == $"deck.padmode.{page}");
+            var button = doc.Controls.Single(c => c.Id == $"deck.padmode.{page}");
+            Assert.Contains(button.Gestures, g => g.Id == $"padmode.{page}.press");
+        }
+    }
+
+    [Fact]
+    public void Every_pad_describes_what_it_does_on_each_page_that_gives_it_a_job()
+    {
+        var doc = Flx4();
+        for (var n = 1; n <= 8; n++)
+        {
+            var ids = doc.Controls.Single(c => c.Id == $"deck.pad.{n}").Gestures.Select(g => g.Id).ToList();
+            Assert.Contains("pad.hotcue.press", ids);
+            Assert.Contains("pad.hotcue.delete", ids);
+            Assert.Contains("pad.beatjump.press", ids);
+        }
+        var pad1 = doc.Controls.Single(c => c.Id == "deck.pad.1").Gestures.Select(g => g.Id);
+        Assert.Contains("pad.padfx1.echo", pad1);
+        var pad5 = doc.Controls.Single(c => c.Id == "deck.pad.5").Gestures.Select(g => g.Id);
+        Assert.Contains("pad.sampler.solo.drums", pad5);
     }
 
     /// <summary>Every DeviceLayout.Id in the layout XAML, read as plain XML.</summary>

@@ -58,26 +58,43 @@ public sealed class DdjFlx4Options
     public int LoadDeck1Note { get; set; } = 0x47;
 
     // --- Notes: pads -------------------------------------------------------------
-    // Hot Cue pad mode emits notes 0x00-0x07 on each deck's dedicated pad
-    // channel — sequential, so a pad's note is PadNoteBase + pad index (0-7).
+    // Each deck has a dedicated pad channel; the pad mode the hardware is in decides which note range its
+    // eight pads send, a pad's note being <page base> + pad index (0-7). Only the HOT CUE and PAD FX1
+    // ranges were captured on this unit; the Shift ranges, BEAT JUMP and SAMPLER are from the DDJ-400/FLX4
+    // MIDI message list and are UNVERIFIED on hardware.
     public int PadDeck0Channel { get; set; } = 8;
     public int PadDeck1Channel { get; set; } = 10;
-    /// <summary>Note of pad 0 on either deck's pad channel; pad N = PadNoteBase + N.</summary>
+    /// <summary>HOT CUE page: note of pad 0 on either deck's pad channel; pad N = PadNoteBase + N.</summary>
     public int PadNoteBase { get; set; } = 0x00;
-    /// <summary>Which pad indices (0-based) mute Drums / Vocals / Instrumental.</summary>
+    /// <summary>HOT CUE page with Shift held: note of pad 0 (the firmware remaps the chord to its own range).
+    /// UNVERIFIED.</summary>
+    public int PadHotCueShiftNoteBase { get; set; } = 0x08;
+    /// <summary>BEAT JUMP page: note of pad 0. UNVERIFIED.</summary>
+    public int PadBeatJumpNoteBase { get; set; } = 0x20;
+    /// <summary>SAMPLER page: note of pad 0. UNVERIFIED.</summary>
+    public int PadSamplerNoteBase { get; set; } = 0x30;
+    /// <summary>Beats each BEAT JUMP pad (1-8) moves the playhead by; negative = back.</summary>
+    public double[] BeatJumpPadBeats { get; set; } = [-1, 1, -2, 2, -4, 4, -8, 8];
+    /// <summary>SAMPLER page: which pad indices (0-based) mute Drums / Vocals / Instrumental
+    /// (counted from <see cref="PadSamplerNoteBase"/>).</summary>
     public int StemDrumsPad { get; set; } = 0;
     public int StemVocalsPad { get; set; } = 1;
     public int StemInstrumentalPad { get; set; } = 2;
+    /// <summary>SAMPLER page: which pad indices solo Drums / Vocals / Instrumental.</summary>
+    public int StemSoloDrumsPad { get; set; } = 4;
+    public int StemSoloVocalsPad { get; set; } = 5;
+    public int StemSoloInstrumentalPad { get; set; } = 6;
 
     // --- Notes: pad pages ----------------------------------------------------------
-    // The FLX-4's HOT CUE / PAD FX1 buttons live on each deck's own channel
-    // (Deck0Channel/Deck1Channel) and switch the controller's own pad mode —
-    // captured via MIDI dump. Pressing one changes which note range the pads
-    // below emit (still on PadDeck0Channel/PadDeck1Channel).
+    // The FLX-4's pad-mode buttons live on each deck's own channel
+    // (Deck0Channel/Deck1Channel) and switch the controller's own pad mode.
+    // HOT CUE and PAD FX1 were captured via MIDI dump; BEAT JUMP and SAMPLER are UNVERIFIED.
     public int PadModeHotCueNote { get; set; } = 0x1B;
     public int PadModePadFx1Note { get; set; } = 0x1E;
-    /// <summary>Note of pad 0 in PAD FX1 mode; pad N = PadFx1NoteBase + N (captured:
-    /// pads 1-3 → 0x10/0x11/0x12). Only pad 0 (the echo toggle) is mapped for now.</summary>
+    public int PadModeBeatJumpNote { get; set; } = 0x20;
+    public int PadModeSamplerNote { get; set; } = 0x22;
+    /// <summary>PAD FX1 page: note of pad 0; pad N = PadFx1NoteBase + N (captured: pads 1-3 →
+    /// 0x10/0x11/0x12). Pad 0 is the echo toggle, pad 1 the roll; the rest are unmapped.</summary>
     public int PadFx1NoteBase { get; set; } = 0x10;
 
     // --- Notes: beat loop ----------------------------------------------------------
@@ -143,12 +160,24 @@ public sealed class DdjFlx4Options
     public byte ButtonLightOnVelocity { get; set; } = 0x7F;
     public byte ButtonLightOffVelocity { get; set; } = 0x00;
 
-    /// <summary>
-    /// Pad LED on/off velocity, echoed on the pad's own NoteOn status byte
-    /// (DeckLightStatusBase + pad channel - 1, i.e. deck0 → 0x97, deck1 → 0x99).
-    /// UNVERIFIED ON HARDWARE — copied from the Cue/BeatSync "echo the note"
-    /// convention by assumption; needs a real controller check before trusting it.
-    /// </summary>
-    public byte PadLightOnVelocity { get; set; } = 0x7F;
+    // Pad LEDs: the pad's own note echoed on its pad-channel NoteOn status byte
+    // (DeckLightStatusBase + pad channel - 1, i.e. deck0 → 0x97, deck1 → 0x99), the velocity being the
+    // colour; 0 is off. ALL pad velocities below are UNVERIFIED ON HARDWARE: take them from a capture
+    // (the DDJ-FLX4 has 128 palette entries; these are distinct placeholders chosen to be easy to tell apart).
     public byte PadLightOffVelocity { get; set; } = 0x00;
+    /// <summary>The eight hot-cue colours, indexed by <c>CueColour</c> (pink, red, orange, yellow, green,
+    /// aqua, blue, purple).</summary>
+    public byte[] CueVelocities { get; set; } = [0x7F, 0x01, 0x08, 0x0F, 0x1C, 0x24, 0x2D, 0x37];
+    /// <summary>Echo (aqua).</summary>
+    public byte EchoVelocity { get; set; } = 0x24;
+    /// <summary>Roll (blue).</summary>
+    public byte RollVelocity { get; set; } = 0x2D;
+    /// <summary>BEAT JUMP pads (blue).</summary>
+    public byte BeatJumpVelocity { get; set; } = 0x2D;
+    /// <summary>SAMPLER drums (red).</summary>
+    public byte DrumsVelocity { get; set; } = 0x01;
+    /// <summary>SAMPLER vocals (green).</summary>
+    public byte VocalsVelocity { get; set; } = 0x1C;
+    /// <summary>SAMPLER instrumental (yellow).</summary>
+    public byte InstrumentalVelocity { get; set; } = 0x0F;
 }

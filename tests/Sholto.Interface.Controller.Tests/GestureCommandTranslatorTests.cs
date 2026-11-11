@@ -51,6 +51,12 @@ public class GestureCommandTranslatorTests
             [GestureIds.PadRoll] = new ControllerEvent.RollHold(0, true),
             [GestureIds.PadModeHotCue] = new ControllerEvent.PadPageSelected(0, PadPage.HotCue),
             [GestureIds.PadModePadFx1] = new ControllerEvent.PadPageSelected(0, PadPage.PadFx1),
+            [GestureIds.PadModeBeatJump] = new ControllerEvent.PadPageSelected(0, PadPage.BeatJump),
+            [GestureIds.PadModeSampler] = new ControllerEvent.PadPageSelected(0, PadPage.Sampler),
+            [GestureIds.PadHotCuePress] = new ControllerEvent.HotCuePad(0, 3, false, true),
+            [GestureIds.PadHotCueDelete] = new ControllerEvent.HotCuePad(0, 3, true, true),
+            [GestureIds.PadBeatJump] = new ControllerEvent.BeatJumpPad(0, 5, 4),
+            [GestureIds.PadStemSoloDrums] = new ControllerEvent.StemSolo(0, 0),
             [GestureIds.BeatLoopToggle] = new ControllerEvent.BeatLoopToggle(0, 4),
             [GestureIds.BeatLoopHalve] = new ControllerEvent.BeatLoopHalve(0),
             [GestureIds.BeatLoopDouble] = new ControllerEvent.BeatLoopDouble(0),
@@ -63,7 +69,8 @@ public class GestureCommandTranslatorTests
         foreach (var id in new GestureCatalog().All)
         {
             if (id is GestureIds.JogTopShiftTurn or GestureIds.EqStemLevelTurn or GestureIds.PadStemVocals
-                or GestureIds.PadStemInstrumental or GestureIds.BrowsePressHold
+                or GestureIds.PadStemInstrumental or GestureIds.PadStemSoloVocals
+                or GestureIds.PadStemSoloInstrumental or GestureIds.BrowsePressHold
                 or GestureIds.BrowsePressShort) continue; // below, or in ControllerInputTests
             var sent = Run(events[id]);
             Assert.NotNull(sent);
@@ -186,7 +193,7 @@ public class GestureCommandTranslatorTests
         Assert.Equal(0, Assert.IsType<ToggleStem>(Run(new ControllerEvent.StemToggle(0, 0))).Stem);
         Assert.Equal(1, Assert.IsType<ToggleStem>(Run(new ControllerEvent.StemToggle(0, 1))).Stem);
         var instrumental = Assert.IsType<ToggleStem>(Run(new ControllerEvent.StemToggle(1, 2)));
-        Assert.Equal((1, 2, "pad.hotcue.instrumental"), (instrumental.Deck, instrumental.Stem, instrumental.Origin.GestureName));
+        Assert.Equal((1, 2, "pad.sampler.instrumental"), (instrumental.Deck, instrumental.Stem, instrumental.Origin.GestureName));
     }
 
     [Fact]
@@ -238,5 +245,56 @@ public class GestureCommandTranslatorTests
         Assert.Equal(PadPage.PadFx1, Assert.IsType<SelectPadPage>(Run(new ControllerEvent.PadPageSelected(1, PadPage.PadFx1))).Page);
         var hot = Assert.IsType<SelectPadPage>(Run(new ControllerEvent.PadPageSelected(0, PadPage.HotCue)));
         Assert.Equal((0, PadPage.HotCue), (hot.Deck, hot.Page));
+        var jump = Assert.IsType<SelectPadPage>(Run(new ControllerEvent.PadPageSelected(1, PadPage.BeatJump)));
+        Assert.Equal((1, PadPage.BeatJump, "deck.padmode.beatjump", "padmode.beatjump.press"),
+            (jump.Deck, jump.Page, jump.Origin.ControlId, jump.Origin.GestureName));
+        var sampler = Assert.IsType<SelectPadPage>(Run(new ControllerEvent.PadPageSelected(0, PadPage.Sampler)));
+        Assert.Equal((PadPage.Sampler, "deck.padmode.sampler"), (sampler.Page, sampler.Origin.ControlId));
+    }
+
+    [Fact]
+    public void A_hot_cue_pad_sends_both_edges_with_its_pad_control_id()
+    {
+        var down = Assert.IsType<PressHotCue>(Run(new ControllerEvent.HotCuePad(1, 3, false, true)));
+        Assert.Equal((1, 3, true, "deck.pad.4", "pad.hotcue.press"),
+            (down.Deck, down.Pad, down.Pressed, down.Origin.ControlId, down.Origin.GestureName));
+        var up = Assert.IsType<PressHotCue>(Run(new ControllerEvent.HotCuePad(1, 3, false, false)));
+        Assert.False(up.Pressed);
+    }
+
+    [Fact]
+    public void A_shifted_hot_cue_pad_press_deletes_the_cue_and_its_release_sends_nothing()
+    {
+        var delete = Assert.IsType<DeleteHotCue>(Run(new ControllerEvent.HotCuePad(0, 6, true, true)));
+        Assert.Equal((0, 6, "pad.hotcue.delete"), (delete.Deck, delete.Pad, delete.Origin.GestureName));
+        Assert.Null(Run(new ControllerEvent.HotCuePad(0, 6, true, false)));
+    }
+
+    [Fact]
+    public void A_plain_pad_note_with_shift_held_also_deletes_but_its_release_still_ends_a_preview()
+    {
+        Run(new ControllerEvent.DeckShift(0, true));
+
+        Assert.IsType<DeleteHotCue>(Run(new ControllerEvent.HotCuePad(0, 2, false, true)));
+        var release = Assert.IsType<PressHotCue>(Run(new ControllerEvent.HotCuePad(0, 2, false, false)));
+        Assert.False(release.Pressed);
+    }
+
+    [Fact]
+    public void A_beat_jump_pad_sends_the_beats_with_its_pad_control_id()
+    {
+        var jump = Assert.IsType<BeatJump>(Run(new ControllerEvent.BeatJumpPad(1, 5, -2)));
+        Assert.Equal((1, -2.0, "deck.pad.6", "pad.beatjump.press"),
+            (jump.Deck, jump.Beats, jump.Origin.ControlId, jump.Origin.GestureName));
+    }
+
+    [Theory]
+    [InlineData(0, "deck.pad.5", "pad.sampler.solo.drums")]
+    [InlineData(1, "deck.pad.6", "pad.sampler.solo.vocals")]
+    [InlineData(2, "deck.pad.7", "pad.sampler.solo.instrumental")]
+    public void A_solo_pad_solos_the_stem_in_the_events_group(int group, string control, string gesture)
+    {
+        var solo = Assert.IsType<SoloStem>(Run(new ControllerEvent.StemSolo(1, group)));
+        Assert.Equal((1, group, control, gesture), (solo.Deck, solo.Stem, solo.Origin.ControlId, solo.Origin.GestureName));
     }
 }

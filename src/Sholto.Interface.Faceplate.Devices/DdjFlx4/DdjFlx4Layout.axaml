@@ -27,7 +27,6 @@
 
        Legends deliberately left inert, because they name nothing the guide holds:
          IN ADJ, OUT ADJ         the loop IN and OUT buttons carry no Id at all
-         BEAT LOOP, KEY SHIFT    likewise BEAT JUMP and SAMPLER pad-mode buttons
          LOOP                    a shared header straddling the gap between
                                  CUE/LOOP CALL's two arrows, aligned with neither
 
@@ -595,7 +594,7 @@
     <TextBlock Canvas.Left="296.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Flx4AccentLit}" IsHitTestVisible="False" Text="PAD FX1"/>
     <Border fp:DeviceLayout.HitFor="deck.padmode.padfx1" fp:DeviceLayout.Deck="0" Canvas.Left="295.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}"/>
     <TextBlock Canvas.Left="295.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource Flx4LegendInk}" IsHitTestVisible="False" Text="PAD FX2"/>
-    <Border Canvas.Left="372.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.padmode.beatjump" fp:DeviceLayout.Deck="0" Canvas.Left="372.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource Flx4ButtonFaceColor}"/>
@@ -605,9 +604,9 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="372.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Flx4AccentLit}" IsHitTestVisible="False" Text="BEAT JUMP"/>
-    <Border Canvas.Left="371.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}" IsHitTestVisible="False"/>
+    <Border fp:DeviceLayout.HitFor="deck.padmode.beatjump" fp:DeviceLayout.Deck="0" Canvas.Left="371.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}"/>
     <TextBlock Canvas.Left="371.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource Flx4LegendInk}" IsHitTestVisible="False" Text="BEAT LOOP"/>
-    <Border Canvas.Left="448.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.padmode.sampler" fp:DeviceLayout.Deck="0" Canvas.Left="448.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource Flx4ButtonFaceColor}"/>
@@ -617,7 +616,7 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="448.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Flx4AccentLit}" IsHitTestVisible="False" Text="SAMPLER"/>
-    <Border Canvas.Left="447.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}" IsHitTestVisible="False"/>
+    <Border fp:DeviceLayout.HitFor="deck.padmode.sampler" fp:DeviceLayout.Deck="0" Canvas.Left="447.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}"/>
     <TextBlock Canvas.Left="447.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource Flx4LegendInk}" IsHitTestVisible="False" Text="KEY SHIFT"/>
     <Rectangle Canvas.Left="220.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Flx4Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
     <Border fp:DeviceLayout.Id="deck.pad.1" fp:DeviceLayout.Deck="0" Canvas.Left="220.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="2.5">
@@ -1297,7 +1296,7 @@
     <TextBlock Canvas.Left="1370.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Flx4AccentLit}" IsHitTestVisible="False" Text="PAD FX1"/>
     <Border fp:DeviceLayout.HitFor="deck.padmode.padfx1" fp:DeviceLayout.Deck="1" Canvas.Left="1369.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}"/>
     <TextBlock Canvas.Left="1369.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource Flx4LegendInk}" IsHitTestVisible="False" Text="PAD FX2"/>
-    <Border Canvas.Left="1446.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.padmode.beatjump" fp:DeviceLayout.Deck="1" Canvas.Left="1446.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource Flx4ButtonFaceColor}"/>
@@ -1307,9 +1306,9 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="1446.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Flx4AccentLit}" IsHitTestVisible="False" Text="BEAT JUMP"/>
-    <Border Canvas.Left="1445.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}" IsHitTestVisible="False"/>
+    <Border fp:DeviceLayout.HitFor="deck.padmode.beatjump" fp:DeviceLayout.Deck="1" Canvas.Left="1445.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}"/>
     <TextBlock Canvas.Left="1445.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource Flx4LegendInk}" IsHitTestVisible="False" Text="BEAT LOOP"/>
-    <Border Canvas.Left="1522.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="1.4">
+    <Border fp:DeviceLayout.Id="deck.padmode.sampler" fp:DeviceLayout.Deck="1" Canvas.Left="1522.0" Canvas.Top="862.0" Width="60.0" Height="21.0" CornerRadius="3" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="1.4">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
           <GradientStop Offset="0.0" Color="{StaticResource Flx4ButtonFaceColor}"/>
@@ -1319,7 +1318,7 @@
       </Border.Background>
     </Border>
     <TextBlock Canvas.Left="1522.0" Canvas.Top="866.0" Width="60.0" TextAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Flx4AccentLit}" IsHitTestVisible="False" Text="SAMPLER"/>
-    <Border Canvas.Left="1521.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}" IsHitTestVisible="False"/>
+    <Border fp:DeviceLayout.HitFor="deck.padmode.sampler" fp:DeviceLayout.Deck="1" Canvas.Left="1521.0" Canvas.Top="887.5" Width="62.0" Height="15.0" CornerRadius="2" BorderBrush="{StaticResource Flx4LegendEdge}" BorderThickness="1" Background="{StaticResource Flx4LegendFill}"/>
     <TextBlock Canvas.Left="1521.0" Canvas.Top="889.2" Width="62.0" TextAlignment="Center" FontSize="8" FontWeight="Normal" Foreground="{StaticResource Flx4LegendInk}" IsHitTestVisible="False" Text="KEY SHIFT"/>
     <Rectangle Canvas.Left="1294.0" Canvas.Top="925.0" Width="68.0" Height="68.0" RadiusX="7" RadiusY="7" Fill="{StaticResource Flx4Shadow}" Opacity="0.5" IsHitTestVisible="False"/>
     <Border fp:DeviceLayout.Id="deck.pad.1" fp:DeviceLayout.Deck="1" Canvas.Left="1294.0" Canvas.Top="922.0" Width="68.0" Height="68.0" CornerRadius="6" BorderBrush="{StaticResource Flx4AccentEdge}" BorderThickness="2.5">

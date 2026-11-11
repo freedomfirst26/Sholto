@@ -92,6 +92,24 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
                     By("mixer.tempo", g.Id, deck)));
                 break;
 
+            case GestureIds.PadHotCuePress:
+                var press = (ControllerEvent.HotCuePad)g.Source;
+                _sender.Send(new PressHotCue(deck, press.Pad, press.Pressed, By(PadControl(press.Pad), g.Id, deck)));
+                break;
+            case GestureIds.PadHotCueDelete:
+                var delete = (ControllerEvent.HotCuePad)g.Source;
+                _sender.Send(new DeleteHotCue(deck, delete.Pad, By(PadControl(delete.Pad), g.Id, deck)));
+                break;
+            case GestureIds.PadBeatJump:
+                var jump = (ControllerEvent.BeatJumpPad)g.Source;
+                _sender.Send(new BeatJump(deck, jump.Beats, By(PadControl(jump.Pad), g.Id, deck)));
+                break;
+            case GestureIds.PadStemSoloDrums:
+            case GestureIds.PadStemSoloVocals:
+            case GestureIds.PadStemSoloInstrumental:
+                var solo = ((ControllerEvent.StemSolo)g.Source).Group;
+                _sender.Send(new SoloStem(deck, solo, By(solo switch { 0 => "deck.pad.5", 1 => "deck.pad.6", _ => "deck.pad.7" }, g.Id, deck)));
+                break;
             case GestureIds.PadStemDrums:
             case GestureIds.PadStemVocals:
             case GestureIds.PadStemInstrumental:
@@ -110,6 +128,12 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
                 break;
             case GestureIds.PadModePadFx1:
                 _sender.Send(new SelectPadPage(deck, PadPage.PadFx1, By("deck.padmode.padfx1", g.Id, deck)));
+                break;
+            case GestureIds.PadModeBeatJump:
+                _sender.Send(new SelectPadPage(deck, PadPage.BeatJump, By("deck.padmode.beatjump", g.Id, deck)));
+                break;
+            case GestureIds.PadModeSampler:
+                _sender.Send(new SelectPadPage(deck, PadPage.Sampler, By("deck.padmode.sampler", g.Id, deck)));
                 break;
 
             case GestureIds.BeatLoopToggle:
@@ -163,6 +187,9 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
         if (_recognizer.IsShiftHeld(1)) return 1;
         return -1;
     }
+
+    /// <summary>The guide's control id of pad <paramref name="pad"/> (0-7): <c>deck.pad.1</c> to <c>deck.pad.8</c>.</summary>
+    private string PadControl(int pad) => $"deck.pad.{pad + 1}";
 
     private string EqControl(EqBand band) => band switch
     {

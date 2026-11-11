@@ -38,7 +38,7 @@ public abstract record ControllerEvent
     /// (further right = higher cutoff). Center detent on FLX-4 sends val ≈ 64.</summary>
     public record FilterMoved(int Deck, double Position) : ControllerEvent;
 
-    /// <summary>Hot-cue button press temporarily repurposed as a stem mute toggle.
+    /// <summary>SAMPLER page pad press (pads 1-3): toggle a stem's mute.
     /// <paramref name="Group"/>: 0=Drums, 1=Vocals, 2=Instrumental (bass+other).</summary>
     public record StemToggle(int Deck, int Group) : ControllerEvent;
 
@@ -83,13 +83,13 @@ public abstract record ControllerEvent
     /// (±6 → ±10 → ±16 → WIDE → ±6) like Rekordbox's TEMPO RANGE.</summary>
     public record CycleTempoRange(int Deck) : ControllerEvent;
 
-    /// <summary>HOT CUE / PAD FX1 mode-button press on a deck (press edge
+    /// <summary>A pad-mode button press (HOT CUE, PAD FX1, BEAT JUMP or SAMPLER) on a deck (press edge
     /// only). The hardware has already switched its own pad mode; the App records
     /// the page and the controller lights the mode buttons from the App's event.</summary>
     public record PadPageSelected(int Deck, PadPage Page) : ControllerEvent;
 
     /// <summary>PAD FX1 page, pad 1 — toggles the deck's beat-synced echo.
-    /// Pads 2-8 on this page are unmapped for now. Passes straight through
+    /// Pads 3-8 on this page are unmapped for now. Passes straight through
     /// the Controller to the Orchestrator (same as StemToggle).</summary>
     public record EchoToggle(int Deck) : ControllerEvent;
 
@@ -105,4 +105,17 @@ public abstract record ControllerEvent
     /// Passes straight through the Controller. Plain press is a no-op; Shift +
     /// CUE restarts the deck's track from the beginning.</summary>
     public record TransportCuePressed(int Deck, bool Shifted) : ControllerEvent;
+
+    /// <summary>HOT CUE page pad (<paramref name="Pad"/> 0-7), both edges. <paramref name="Shifted"/> comes from
+    /// the wire: the firmware sends Shift + pad on its own note range, and sends no release for it
+    /// that the mapping reports.</summary>
+    public record HotCuePad(int Deck, int Pad, bool Shifted, bool Pressed) : ControllerEvent;
+
+    /// <summary>BEAT JUMP page pad press (<paramref name="Pad"/> 0-7): move the playhead
+    /// <paramref name="Beats"/> beats (negative = back).</summary>
+    public record BeatJumpPad(int Deck, int Pad, double Beats) : ControllerEvent;
+
+    /// <summary>SAMPLER page solo pad press: solo stem <paramref name="Group"/> (0 = Drums, 1 = Vocals,
+    /// 2 = Instrumental).</summary>
+    public record StemSolo(int Deck, int Group) : ControllerEvent;
 }

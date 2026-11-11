@@ -66,6 +66,13 @@ left uncoloured, so you can see at a glance what's live.
 
 Close the guide (Esc, or its × button) and it shrinks into the controller icon, which pulses so you know where to reopen it; with your desktop's animations off it just fades.
 
+**The four pad pages.** The HOT CUE, PAD FX1, BEAT JUMP and SAMPLER buttons switch a deck's eight pads between four jobs, and exactly one of the four buttons is lit per deck:
+
+- **HOT CUE** saves up to eight cue points per track. Press an empty pad to save a cue at the playhead (snapped to the nearest beat); the pad lights in the cue's colour. Press a saved pad to jump to it: a playing deck keeps playing, a paused deck plays while you hold the pad and comes back to the cue when you let go. Hold **SHIFT** and press a pad to delete its cue. Cues are saved with the track and come back when you load it.
+- **PAD FX1** — pad 1 turns the beat-synced echo on and off (lit while it is on); pad 2 rolls a short slice of the beat while you hold it.
+- **BEAT JUMP** — the eight pads move the playhead 1 beat back, 1 forward, 2 back, 2 forward, 4 back, 4 forward, 8 back and 8 forward, counted in beats of the track's own tempo.
+- **SAMPLER** — pads 1–3 mute and bring back the drums, vocals and instrumental (lit while you can hear that part); pads 5–7 solo them, and pressing the soloed pad again brings all three back.
+
 **Browsing with the controller.** Turning the browse knob scrolls the Track List, and **LOAD 1** / **LOAD 2** loads the highlighted track (or the search pick while search is open). If the deck is playing, press **LOAD** a second time within 3 seconds to replace it. Hold the knob for about a second to re-analyse the highlighted track.
 
 ![The controller guide — the DDJ-FLX4 drawn on screen with the jog wheel selected, and a panel explaining every way of using it](../pictures/sholto-faceplate.webp)

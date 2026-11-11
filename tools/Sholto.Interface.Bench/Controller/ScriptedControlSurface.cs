@@ -1,4 +1,5 @@
 using Sholto.Data;
+using Sholto.Interface.Controller.Model;
 using Sholto.Interface.Controller;
 
 namespace Sholto.Interface.Bench.Controller;
@@ -11,7 +12,7 @@ namespace Sholto.Interface.Bench.Controller;
 /// puppeteering the UI directly.
 ///
 /// <para>No physical LEDs exist to drive, so the output half of the port
-/// (<see cref="SetBeatSync"/>, <see cref="SetPadLight"/>, <see cref="SetEchoLight"/>,
+/// (<see cref="SetBeatSync"/>, <see cref="SetPadLight"/>,
 /// the cue lights and <see cref="SetPadPage"/>) is a no-op.</para>
 /// </summary>
 public sealed class ScriptedControlSurface : IControlSurface
@@ -36,8 +37,7 @@ public sealed class ScriptedControlSurface : IControlSurface
     }
 
     public void SetBeatSync(int deck, bool on) { }
-    public void SetPadLight(int deck, int group, bool on) { }
-    public void SetEchoLight(int deck, bool on) { }
+    public void SetPadLight(int deck, PadPage page, int pad, PadLight light) { }
     public void SetHeadphoneCueLight(int deck, bool on) { }
     public void SetMasterCueLight(bool on) { }
     public void SetPadPage(int deck, PadPage page) { }

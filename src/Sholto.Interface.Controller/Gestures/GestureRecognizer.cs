@@ -50,9 +50,13 @@ internal sealed class GestureRecognizer : IGestureRecognizer
                 return new Gesture(GestureIds.JogTopTouch, jt.Deck, evt);
 
             case ControllerEvent.PadPageSelected pp:
-                return new Gesture(
-                    pp.Page == PadPage.PadFx1 ? GestureIds.PadModePadFx1 : GestureIds.PadModeHotCue,
-                    pp.Deck, evt);
+                return new Gesture(pp.Page switch
+                {
+                    PadPage.PadFx1 => GestureIds.PadModePadFx1,
+                    PadPage.BeatJump => GestureIds.PadModeBeatJump,
+                    PadPage.Sampler => GestureIds.PadModeSampler,
+                    _ => GestureIds.PadModeHotCue,
+                }, pp.Deck, evt);
 
             // ---- transport
             case ControllerEvent.PlayPressed p:
@@ -91,6 +95,28 @@ internal sealed class GestureRecognizer : IGestureRecognizer
                     1 => GestureIds.PadStemVocals,
                     _ => GestureIds.PadStemInstrumental,
                 }, st.Deck, evt);
+
+            case ControllerEvent.HotCuePad hc:
+                // Shift + pad deletes. Shifted comes from the wire (the firmware remaps the chord to its
+                // own notes); the held-state check is the fallback. A release is always the plain press's
+                // second edge, so a preview started unshifted still ends if Shift went down meanwhile; a
+                // shifted release means nothing.
+                if (!hc.Pressed)
+                    return hc.Shifted ? null : new Gesture(GestureIds.PadHotCuePress, hc.Deck, evt);
+                return new Gesture(
+                    hc.Shifted || IsShiftHeld(hc.Deck) ? GestureIds.PadHotCueDelete : GestureIds.PadHotCuePress,
+                    hc.Deck, evt);
+
+            case ControllerEvent.BeatJumpPad bj:
+                return new Gesture(GestureIds.PadBeatJump, bj.Deck, evt);
+
+            case ControllerEvent.StemSolo ss:
+                return new Gesture(ss.Group switch
+                {
+                    0 => GestureIds.PadStemSoloDrums,
+                    1 => GestureIds.PadStemSoloVocals,
+                    _ => GestureIds.PadStemSoloInstrumental,
+                }, ss.Deck, evt);
 
             case ControllerEvent.EchoToggle et:
                 return new Gesture(GestureIds.PadEcho, et.Deck, evt);

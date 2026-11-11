@@ -89,6 +89,42 @@ public class GestureRecognizerTests
         Assert.Equal(1, g.Deck);
         Assert.Equal(GestureIds.PadModeHotCue,
             go(new ControllerEvent.PadPageSelected(0, PadPage.HotCue)).Value.Id);
+        Assert.Equal(GestureIds.PadModeBeatJump,
+            go(new ControllerEvent.PadPageSelected(0, PadPage.BeatJump)).Value.Id);
+        Assert.Equal(GestureIds.PadModeSampler,
+            go(new ControllerEvent.PadPageSelected(0, PadPage.Sampler)).Value.Id);
+    }
+
+    [Fact]
+    public void Hot_cue_pads_press_and_release_are_one_gesture_and_wire_shifted_press_deletes()
+    {
+        var (_, go) = New();
+        Assert.Equal(GestureIds.PadHotCuePress, go(new ControllerEvent.HotCuePad(0, 1, false, true))!.Value.Id);
+        Assert.Equal(GestureIds.PadHotCuePress, go(new ControllerEvent.HotCuePad(0, 1, false, false))!.Value.Id);
+        Assert.Equal(GestureIds.PadHotCueDelete, go(new ControllerEvent.HotCuePad(0, 1, true, true))!.Value.Id);
+        Assert.Null(go(new ControllerEvent.HotCuePad(0, 1, true, false)));
+    }
+
+    [Fact]
+    public void Shift_held_on_that_deck_turns_a_plain_hot_cue_press_into_a_delete()
+    {
+        var (_, go) = New();
+        go(new ControllerEvent.DeckShift(0, Pressed: true));
+
+        Assert.Equal(GestureIds.PadHotCueDelete, go(new ControllerEvent.HotCuePad(0, 4, false, true))!.Value.Id);
+        Assert.Equal(GestureIds.PadHotCuePress, go(new ControllerEvent.HotCuePad(1, 4, false, true))!.Value.Id);
+        // The release of a press that began before Shift went down must still end it.
+        Assert.Equal(GestureIds.PadHotCuePress, go(new ControllerEvent.HotCuePad(0, 4, false, false))!.Value.Id);
+    }
+
+    [Fact]
+    public void Beat_jump_and_solo_pads_map_to_their_gestures()
+    {
+        var (_, go) = New();
+        Assert.Equal(GestureIds.PadBeatJump, go(new ControllerEvent.BeatJumpPad(0, 0, -1))!.Value.Id);
+        Assert.Equal(GestureIds.PadStemSoloDrums, go(new ControllerEvent.StemSolo(0, 0))!.Value.Id);
+        Assert.Equal(GestureIds.PadStemSoloVocals, go(new ControllerEvent.StemSolo(0, 1))!.Value.Id);
+        Assert.Equal(GestureIds.PadStemSoloInstrumental, go(new ControllerEvent.StemSolo(0, 2))!.Value.Id);
     }
 
     [Fact]
@@ -296,6 +332,14 @@ public class GestureRecognizerTests
         Feed(new ControllerEvent.RollHold(0, true));
         Feed(new ControllerEvent.PadPageSelected(0, PadPage.HotCue));
         Feed(new ControllerEvent.PadPageSelected(0, PadPage.PadFx1));
+        Feed(new ControllerEvent.PadPageSelected(0, PadPage.BeatJump));
+        Feed(new ControllerEvent.PadPageSelected(0, PadPage.Sampler));
+        Feed(new ControllerEvent.HotCuePad(0, 0, false, true));
+        Feed(new ControllerEvent.HotCuePad(0, 0, true, true));
+        Feed(new ControllerEvent.BeatJumpPad(0, 0, -1));
+        Feed(new ControllerEvent.StemSolo(0, 0));
+        Feed(new ControllerEvent.StemSolo(0, 1));
+        Feed(new ControllerEvent.StemSolo(0, 2));
         Feed(new ControllerEvent.BeatLoopToggle(0, 4));
         Feed(new ControllerEvent.BeatLoopHalve(0));
         Feed(new ControllerEvent.BeatLoopDouble(0));

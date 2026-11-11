@@ -1,5 +1,6 @@
 using Sholto.Data;
 using Sholto.Interface.Controller;
+using Sholto.Interface.Controller.Model;
 
 namespace Sholto.Interface.Controller.Tests;
 
@@ -8,8 +9,8 @@ namespace Sholto.Interface.Controller.Tests;
 public sealed class RecordingControlSurface : IControlSurface
 {
     public bool[] BeatSync { get; } = new bool[2];
-    public bool[,] Pad { get; } = new bool[2, 3];
-    public bool[] Echo { get; } = new bool[2];
+    /// <summary>The last light written to each pad: deck, page, pad.</summary>
+    public PadLight[,,] Pads { get; } = new PadLight[2, 4, 8];
     public bool[] HeadphoneCue { get; } = new bool[2];
     public bool MasterCue { get; private set; }
     public PadPage[] Page { get; } = [PadPage.HotCue, PadPage.HotCue];
@@ -20,8 +21,7 @@ public sealed class RecordingControlSurface : IControlSurface
     public bool IsConnected => true;
     public bool Connect() => true;
     public void SetBeatSync(int deck, bool on) { BeatSync[deck] = on; Writes++; }
-    public void SetPadLight(int deck, int group, bool on) { Pad[deck, group] = on; Writes++; }
-    public void SetEchoLight(int deck, bool on) { Echo[deck] = on; Writes++; }
+    public void SetPadLight(int deck, PadPage page, int pad, PadLight light) { Pads[deck, (int)page, pad] = light; Writes++; }
     public void SetHeadphoneCueLight(int deck, bool on) { HeadphoneCue[deck] = on; Writes++; }
     public void SetMasterCueLight(bool on) { MasterCue = on; Writes++; }
     public void SetPadPage(int deck, PadPage page) { Page[deck] = page; Writes++; }
