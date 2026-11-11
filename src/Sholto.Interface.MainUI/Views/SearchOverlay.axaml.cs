@@ -21,8 +21,6 @@ namespace Sholto.Interface.MainUI.Views;
 /// </summary>
 public partial class SearchOverlay : UserControl
 {
-    private const int PageSize = 8;
-
     /// <summary>How long the "fresh" class stays on the table after a result: past the 160 ms fade.</summary>
     private const int SettleHoldMs = 260;
 
@@ -34,17 +32,19 @@ public partial class SearchOverlay : UserControl
 
     private MainViewModel? _vm;
     private bool _syncing;
-    private bool _swallowNextText;
     private readonly DispatcherTimer _settleTimer;
     private readonly Dictionary<string, int> _railCounts = [];
     private readonly HashSet<string> _tickKeys = [];
+    private readonly ISearchOverlayKeyHandler _keys;
 
     public SearchOverlay()
     {
         InitializeComponent();
+        // Forced: XAML constructs this control, and the named controls only exist after InitializeComponent (as WaveformControl).
+        _keys = new SearchOverlayKeyHandler(QueryBox);
         // Tunnel, so the box's own handling of arrows, Tab and Enter never sees these keys.
-        QueryBox.AddHandler(KeyDownEvent, OnQueryKeyDown, RoutingStrategies.Tunnel);
-        QueryBox.AddHandler(TextInputEvent, OnQueryTextInput, RoutingStrategies.Tunnel);
+        QueryBox.AddHandler(KeyDownEvent, (_, e) => _keys.OnKeyDown(Glance, e), RoutingStrategies.Tunnel);
+        QueryBox.AddHandler(TextInputEvent, (_, e) => _keys.OnTextInput(e), RoutingStrategies.Tunnel);
         QueryBox.PropertyChanged += (_, e) =>
         {
             if (e.Property == TextBox.CaretIndexProperty || e.Property == TextBox.SelectionStartProperty
@@ -119,17 +119,11 @@ public partial class SearchOverlay : UserControl
         }
     }
 
-    private bool CaretAtEndNoSelection()
-    {
-        var length = QueryBox.Text?.Length ?? 0;
-        return QueryBox.CaretIndex == length && QueryBox.SelectionStart == QueryBox.SelectionEnd;
-    }
-
     /// <summary>The faint tag completion after the typed text, and the footer's Tab caption that goes with it.</summary>
     private void SyncCompletion()
     {
         var suffix = Glance?.CompletionSuffix;
-        var atEnd = CaretAtEndNoSelection();
+        var atEnd = _keys.CaretAtEndNoSelection();
         GhostTyped.Text = QueryBox.Text ?? "";
         GhostSuffix.Text = suffix ?? "";
         CompletionGhost.IsVisible = !string.IsNullOrEmpty(suffix) && atEnd;
@@ -324,68 +318,6 @@ public partial class SearchOverlay : UserControl
         if (Glance is not { } glance) return;
         ResultsList.Classes.Set("dim", glance.Zone != GlanceZone.Table);
         RailList.Classes.Set("dim", glance.Zone != GlanceZone.Rail);
-    }
-
-    // ---- Keys ----------------------------------------------------------------------------------------
-
-    private void OnQueryKeyDown(object? sender, KeyEventArgs e)
-    {
-        // A swallow set by the previous key never outlives it, whether or not text input followed.
-        _swallowNextText = false;
-        if (Glance is not { } glance) return;
-
-        if (e.KeyModifiers == KeyModifiers.Shift && e.Key is Key.D1 or Key.NumPad1 or Key.D2 or Key.NumPad2)
-        {
-            // The character this key would type ("!", "@", or a layout's own) must not reach the box.
-            _swallowNextText = true;
-            glance.LoadTo(e.Key is Key.D1 or Key.NumPad1 ? 0 : 1);
-            e.Handled = true;
-            return;
-        }
-        // Ctrl+L adds to the Track List and Ctrl+Delete clears it (twice); before the modifier return below.
-        // Ctrl+Delete would otherwise delete the word ahead of the caret.
-        if (e.KeyModifiers == KeyModifiers.Control && e.Key is Key.L or Key.Delete)
-        {
-            if (e.Key == Key.L) glance.LoadToTrackList();
-            else glance.ClearTrackList();
-            e.Handled = true;
-            return;
-        }
-        if (e.KeyModifiers != KeyModifiers.None) return;
-
-        switch (e.Key)
-        {
-            case Key.Escape: glance.Close(); break;
-            case Key.Down: glance.Move(+1); break;
-            case Key.Up: glance.Move(-1); break;
-            case Key.PageDown: glance.Move(+PageSize); break;
-            case Key.PageUp: glance.Move(-PageSize); break;
-            case Key.Tab:
-                if (CaretAtEndNoSelection() && glance.AcceptTagCompletion())
-                    Dispatcher.UIThread.Post(() => QueryBox.CaretIndex = QueryBox.Text?.Length ?? 0);
-                else
-                    glance.ToggleZone();
-                break;
-            case Key.Left:
-            case Key.Right: glance.FlipTarget(); break;
-            case Key.Enter: glance.Activate(); break;
-            // In an empty box Backspace takes the newest chip off; with text or no chip it edits as usual.
-            case Key.Back:
-                if (!glance.RemoveLastChip()) return;
-                break;
-            default: return;
-        }
-        e.Handled = true;
-    }
-
-    private void OnQueryTextInput(object? sender, TextInputEventArgs e)
-    {
-        if (_swallowNextText)
-        {
-            _swallowNextText = false;
-            e.Handled = true;
-            return;
-        }
     }
 
     // ---- Pointer -------------------------------------------------------------------------------------
