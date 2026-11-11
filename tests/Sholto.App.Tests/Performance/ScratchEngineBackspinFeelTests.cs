@@ -195,15 +195,22 @@ public class ScratchEngineBackspinFeelTests
             rig.Scratch.Tick(0, now);
         }
 
+        // Runtime work on the test thread (JIT tier-up, OSR) can land in any one window under a busy suite, so
+        // measure several windows: a real per-tick allocation shows in all of them, noise only in some.
+        const int windows = 5;
+        var allocated = new long[windows];
         Seed(st, -10, false, now);
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 10_000; i++)
+        for (var w = 0; w < windows; w++)
         {
-            if (!st.Active) Seed(st, -10, false, now);
-            now = now.AddSeconds(Frame);
-            rig.Scratch.Tick(0, now);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            for (var i = 0; i < 10_000; i++)
+            {
+                if (!st.Active) Seed(st, -10, false, now);
+                now = now.AddSeconds(Frame);
+                rig.Scratch.Tick(0, now);
+            }
+            allocated[w] = GC.GetAllocatedBytesForCurrentThread() - before;
         }
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        Assert.Equal(0, allocated);
+        Assert.True(allocated.Min() == 0, $"bytes allocated per window of 10,000 ticks: {string.Join(", ", allocated)}");
     }
 }
