@@ -410,7 +410,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     /// <paramref name="frameIndex"/>. Shared by the forward and reverse
     /// vinyl-speed paths — the interpolation math doesn't care which
     /// direction <c>srcFrame</c> is moving, only where it currently sits.</summary>
-    private static void WriteInterpolatedFrame(Span<float> outBuf, int frameIndex, int iFrame, float frac,
+    private void WriteInterpolatedFrame(Span<float> outBuf, int frameIndex, int iFrame, float frac,
         float[] s0, float[] s1, float[] s2, float[] s3,
         float g0, float g1, float g2, float g3)
     {

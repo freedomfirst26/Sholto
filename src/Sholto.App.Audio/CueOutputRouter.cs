@@ -170,7 +170,7 @@ internal sealed class CueOutputRouter : SoundComponent
     /// has ≥4 channels — the pre-fader cue (× <paramref name="cueGain"/>) on
     /// ch3-4. Cue uses <paramref name="cueGain"/> only (never the fader), so a
     /// cued deck with its fader down is silent on master yet full on the cue.</summary>
-    internal static void MixDeckInto(
+    internal void MixDeckInto(
         Span<float> buffer, ReadOnlySpan<float> stereo, int frames, int channels,
         float masterGain, float cueGain)
     {

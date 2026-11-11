@@ -155,7 +155,7 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
     /// position <paramref name="frac"/>. Same math as
     /// StemMixDataProvider.WriteInterpolatedFrame, minus the per-stem gains
     /// (there's only one buffer here).</summary>
-    private static void WriteInterpolatedFrame(Span<float> outBuf, int frameIndex, int iFrame, float frac, float[] samples)
+    private void WriteInterpolatedFrame(Span<float> outBuf, int frameIndex, int iFrame, float frac, float[] samples)
     {
         int idx = iFrame * 2;
         float la = samples[idx],     lb = samples[idx + 2];

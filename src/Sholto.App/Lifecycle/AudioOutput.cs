@@ -70,7 +70,7 @@ public sealed class AudioOutput(
 
     public void Stop() => _engine?.Stop();
 
-    private static void LogRoute(MasterRoute route) =>
+    private void LogRoute(MasterRoute route) =>
         Console.WriteLine(route.DeviceName is null
             ? $"[Audio] master silent: {route.Reason}"
             : $"[Audio] master on '{route.DeviceName}': {route.Reason}");

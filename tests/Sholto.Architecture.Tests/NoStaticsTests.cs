@@ -17,11 +17,7 @@ public sealed class NoStaticsTests
     [
         "Sholto.App.Analysis.ToolBoundary.ToolOutcome`1.Failure",
         "Sholto.App.Analysis.ToolBoundary.ToolOutcome`1.Success",
-        "Sholto.App.Audio.CueOutputRouter.MixDeckInto",
         "Sholto.App.Audio.DjFilter.FilterCoeffs.Bypass",
-        "Sholto.App.Audio.ScratchDataProvider.WriteInterpolatedFrame",
-        "Sholto.App.Audio.StemMixDataProvider.WriteInterpolatedFrame",
-        "Sholto.App.Lifecycle.AudioOutput.LogRoute",
     ];
 
     [Fact]
