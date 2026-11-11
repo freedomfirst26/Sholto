@@ -336,31 +336,15 @@ public sealed class WaveformControl : Control
         }
     }
 
+    // Forced field initialiser: XAML constructs this control, so it has no constructor parameters (as MinimapControl._geometry).
+    private readonly IWaveformPointerHandler _pointer = new WaveformPointerHandler();
+
     protected override void OnPointerPressed(Avalonia.Input.PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
         if (!GridEditMode) return;
 
-        // Map click X → track seconds using the SAME source→screen mapping the
-        // overlays use (see Render): screen_x = (beatCol − refCenterPeak)/speed
-        // + width/2, so beatCol = (x − width/2)·speed + refCenterPeak, and
-        // seconds = beatCol · secondsPerPeak. Reference peaks = GridPeaks
-        // (falls back to Peaks) so this matches where the grid lines render.
-        var refPeaks = (GridPeaks is { Min.Length: > 0 }) ? GridPeaks
-                     : (Peaks is { Min.Length: > 0 })     ? Peaks
-                     : null;
-        if (refPeaks is null) return;
-
-        double secondsPerPeak = refPeaks.SecondsPerPeak;
-        int total = refPeaks.Min.Length;
-        double centerPeak = PlayPosition * total;
-        double speed = PlaybackSpeed > 0.01 ? PlaybackSpeed : 1.0;
-        double w = Bounds.Width;
-        double x = e.GetPosition(this).X;
-
-        double beatCol = (x - w / 2.0) * speed + centerPeak;
-        double seconds = beatCol * secondsPerPeak;
-        if (seconds < 0) seconds = 0;
+        if (!_pointer.TryAnchorSeconds(e.GetPosition(this).X, Bounds.Width, PlayPosition, PlaybackSpeed, GridPeaks, Peaks, out var seconds)) return;
         GridAnchorClicked?.Invoke(seconds);
         e.Handled = true;
     }
