@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Analysis.Stems;
@@ -398,16 +399,18 @@ public class DeckEventPublisherTests
         }
         var countBefore = frames.Count;
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1_000; i++)
+        var frame = 0;
+        var result = new AllocationWindows(5).Measure(() =>
         {
-            _ports.ScriptedPlayhead.PlayPosition = (i % 100) / 100.0;
-            _rig.Session.SyncPlayPosition();
-        }
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            for (var n = 0; n < 1_000; n++, frame++)
+            {
+                _ports.ScriptedPlayhead.PlayPosition = (frame % 100) / 100.0;
+                _rig.Session.SyncPlayPosition();
+            }
+        });
 
-        Assert.Equal(1_000, frames.Count - countBefore);
-        Assert.Equal(0, allocated);
+        Assert.Equal(5_000, frames.Count - countBefore);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     [Fact]

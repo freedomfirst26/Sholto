@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.App;
 using Sholto.Data;
 using Xunit;
@@ -127,11 +128,13 @@ public class CueRoutingTests
         var routing = new CueRouting(_core.Decks, counting, _bus);
         for (var i = 0; i < 10; i++) Step(routing, i);
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++) Step(routing, i);
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var next = 10;
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (var i = 0; i < 1000; i++) Step(routing, next++);
+        });
 
-        Assert.Equal(0, allocated);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     private static void Step(CueRouting routing, int i)

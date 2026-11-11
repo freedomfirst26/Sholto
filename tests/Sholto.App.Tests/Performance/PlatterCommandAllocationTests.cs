@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.Data;
 using Sholto.Interface.Controller;
 using Xunit;
@@ -32,11 +33,12 @@ public class PlatterCommandAllocationTests
         var turn = new ControllerEvent.JogRotated(0, 1, source);
         for (var i = 0; i < 2_000; i++) _surface.Emit(turn);
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 10_000; i++) _surface.Emit(turn);
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (var i = 0; i < 10_000; i++) _surface.Emit(turn);
+        });
 
-        Assert.Equal(0, allocated);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     [Fact]

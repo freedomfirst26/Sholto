@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.App.Performance;
 using Sholto.Data;
 using Xunit;
@@ -197,20 +198,16 @@ public class ScratchEngineBackspinFeelTests
 
         // Runtime work on the test thread (JIT tier-up, OSR) can land in any one window under a busy suite, so
         // measure several windows: a real per-tick allocation shows in all of them, noise only in some.
-        const int windows = 5;
-        var allocated = new long[windows];
         Seed(st, -10, false, now);
-        for (var w = 0; w < windows; w++)
+        var result = new AllocationWindows(5).Measure(() =>
         {
-            var before = GC.GetAllocatedBytesForCurrentThread();
             for (var i = 0; i < 10_000; i++)
             {
                 if (!st.Active) Seed(st, -10, false, now);
                 now = now.AddSeconds(Frame);
                 rig.Scratch.Tick(0, now);
             }
-            allocated[w] = GC.GetAllocatedBytesForCurrentThread() - before;
-        }
-        Assert.True(allocated.Min() == 0, $"bytes allocated per window of 10,000 ticks: {string.Join(", ", allocated)}");
+        });
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 }

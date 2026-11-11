@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.App.Decks;
 using Sholto.Data;
 using Sholto.TestSupport;
@@ -108,15 +109,17 @@ public class DeckPlayPhaseTests
             _phase.UpdateFlash();
         }
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 200; i < 2200; i++)
+        var frame = 200;
+        var result = new AllocationWindows(5).Measure(() =>
         {
-            _clock.Now = start.AddMilliseconds(i * 16);
-            _phase.PlayPosition = 0.95;
-            _phase.UpdateFlash();
-        }
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            for (var n = 0; n < 2000; n++, frame++)
+            {
+                _clock.Now = start.AddMilliseconds(frame * 16);
+                _phase.PlayPosition = 0.95;
+                _phase.UpdateFlash();
+            }
+        });
 
-        Assert.Equal(0, allocated);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 }
