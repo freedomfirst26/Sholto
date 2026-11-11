@@ -58,7 +58,7 @@ public sealed class AppLifecycleFactory(
             _audioEngineFactory, _engineDependents, _pipeWireRouter, controllerSoundCard, _deckFormat,
             core.Decks, _masterCue);
         return new AppLifecycle(
-            _database, core.Library, core.Markers, _themePreference, _musicDirPreference, _outputDevicePreference,
+            _database, core.Library, core.Markers, core.HotCues, _themePreference, _musicDirPreference, _outputDevicePreference,
             _waveformStylePreference, _backspinTimePreference, _backspinDistancePreference, core.BackspinFeel, _legacyShortlistPreference,
             _trackListPreference, core.TrackList, _trackListCodec,
             _outputEnumerator, audio, controllerSoundCard, _systemCheck, _appThread, _publisher, _musicDirOverride);

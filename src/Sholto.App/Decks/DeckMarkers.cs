@@ -40,6 +40,8 @@ public sealed class DeckMarkers(IDecks decks, ILibrarySession library, IAppThrea
         _appThread.Post(() => _publisher.Publish(new Sholto.Data.MarkerAdded(deck, secs)));
     }
 
+    public Task RefreshAsync(int deck) => LoadForDeckAsync(_decks.DeckFor(deck));
+
     private async Task LoadForDeckAsync(IDeckSession session)
     {
         var markers = _markers;

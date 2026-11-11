@@ -34,11 +34,15 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<SetFilter>(mixer);
         registry.Register<SetTempo>(mixer);
 
-        var pads = new PadCommandHandlers(core.Decks, cueRouting);
+        var pads = new PadCommandHandlers(core.Decks, cueRouting, core.HotCues);
         registry.Register<ToggleStem>(pads);
         registry.Register<ToggleEcho>(pads);
         registry.Register<HoldRoll>(pads);
         registry.Register<SelectPadPage>(pads);
+        registry.Register<PressHotCue>(pads);
+        registry.Register<DeleteHotCue>(pads);
+        registry.Register<BeatJump>(pads);
+        registry.Register<SoloStem>(pads);
 
         var loops = new LoopCommandHandlers(core.Decks, core.Markers);
         registry.Register<ToggleBeatLoop>(loops);

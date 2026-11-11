@@ -59,7 +59,8 @@ public sealed class HeadlessCoreFactory(IBenchDeck benchDeck, IBenchDeckFactory 
             reporter, new KeyAnalyzer(), _decoder,
             new EqualPowerCrossfade(), _appThread, _publisher, _clock,
             new GatedStemSeparator(new NoOpStemAnalysisStep(), new SemaphoreStemGate(), reporter),
-            Microsoft.Extensions.Options.Options.Create(new LoadOptions())).Build(deck1, deck2);
+            Microsoft.Extensions.Options.Options.Create(new LoadOptions()),
+            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions())).Build(deck1, deck2);
 
         var decks = capturingFactory.Created.ToArray();
         decks[0].AttachEngine(engine, _deckFactory.DeckFormat);

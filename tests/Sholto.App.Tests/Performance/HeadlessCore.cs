@@ -29,7 +29,8 @@ internal sealed class HeadlessCore
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
             new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), new AudioFileDecoder([]),
             new EqualPowerCrossfade(), appThread, bus, clock, new Sholto.TestSupport.UnavailableStemSeparator(),
-            Microsoft.Extensions.Options.Options.Create(new LoadOptions())).Build(sessions.Create(0), sessions.Create(1));
+            Microsoft.Extensions.Options.Options.Create(new LoadOptions()),
+            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions())).Build(sessions.Create(0), sessions.Create(1));
         Bus = bus;
     }
 

@@ -55,7 +55,7 @@ internal sealed class AppLifecycleRig
         Tags = new FakeTagService(new Dictionary<Guid, IReadOnlyList<string>>());
         Stack = databaseAvailable
             ? new DatabaseStack(
-                Tags, Library.Crates, Markers, Library.Catalog, Settings, Library.Multipliers,
+                Tags, Library.Crates, Markers, new FakeHotCueStore(), Library.Catalog, Settings, Library.Multipliers,
                 new FakeBasicAnalysisStore(new Dictionary<string, double>()), new NullKeyAnalysisStore(),
                 new FakeGridAdjustmentStore())
             : null;
@@ -75,7 +75,7 @@ internal sealed class AppLifecycleRig
         Enumerator = new FakeAudioOutputEnumerator(devices ?? []);
         DeckMarkers = new DeckMarkers(new DeckPair(Library.Deck1, Library.Deck2), Library.Library, appThread, Library.Bus);
         Lifecycle = new AppLifecycle(
-            Database, Library.Library, DeckMarkers, ThemePreference, MusicDirPreference, OutputDevicePreference,
+            Database, Library.Library, DeckMarkers, new NullDeckHotCues(), ThemePreference, MusicDirPreference, OutputDevicePreference,
             WaveformStylePreference, BackspinTimePreference, BackspinDistancePreference, BackspinFeel, LegacyShortlistPreference,
             TrackListPreference, TrackList, Codec,
             Enumerator, Audio, new FakeControllerSoundCard(ControllerCard), systemCheck ?? new SystemCheck([]), appThread, Library.Bus, musicDirOverride);

@@ -37,6 +37,7 @@ public sealed class AppLifecycle(
     ILibraryDatabase database,
     ILibrarySession library,
     IDeckMarkers markers,
+    IDeckHotCues hotCues,
     ISettingPreference themePreference,
     ISettingPreference musicDirPreference,
     ISettingPreference outputDevicePreference,
@@ -59,6 +60,7 @@ public sealed class AppLifecycle(
     private readonly ILibraryDatabase _database = database;
     private readonly ILibrarySession _library = library;
     private readonly IDeckMarkers _markers = markers;
+    private readonly IDeckHotCues _hotCues = hotCues;
     private readonly ISettingPreference _themePreference = themePreference;
     private readonly ISettingPreference _musicDirPreference = musicDirPreference;
     private readonly ISettingPreference _outputDevicePreference = outputDevicePreference;
@@ -147,6 +149,7 @@ public sealed class AppLifecycle(
         {
             _library.AttachServices(database.Tags, database.Crates);
             _markers.Attach(database.Markers);
+            _hotCues.Attach(database.HotCues);
         });
 
         var bpms = new Dictionary<string, double>(await database.BasicAnalyses.GetDetectedBpmsAsync());

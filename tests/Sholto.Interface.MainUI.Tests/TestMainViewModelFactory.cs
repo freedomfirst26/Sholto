@@ -47,7 +47,8 @@ internal sealed class TestMainViewModelFactory
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
             new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), decoder,
             new EqualPowerCrossfade(), appThread, bus, clock, new Sholto.TestSupport.UnavailableStemSeparator(),
-            Microsoft.Extensions.Options.Options.Create(new LoadOptions())).Build(deck1, deck2);
+            Microsoft.Extensions.Options.Options.Create(new LoadOptions()),
+            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions())).Build(deck1, deck2);
         var rows = new LibraryRowsViewModel(bus, new TrackRowFactory(themes.Context));
         var deckViewModels = new DeckViewModelFactory(
             bus, bus, themes.Context, Options.Create(new FeatureOptions()), Options.Create(new DeckViewOptions()), new NoPeaksFactory(),

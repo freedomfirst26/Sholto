@@ -47,7 +47,7 @@ public sealed class AppStackFactory : IAppStackFactory
         var coreFactory = new CoreFactory(
             stack.TrackScanner, stack.AnalysisStack.KeyStore, stack.ToolStack.StemCache, stack.AnalysisStack.Reporter,
             stack.AnalysisStack.KeyAnalyzer, stack.Decoder, stack.Crossfade, appThread, bus, frameClock,
-            new GatedStemSeparator(stack.ToolStack.Stems, stack.StemGate, stack.AnalysisStack.Reporter), options.Load);
+            new GatedStemSeparator(stack.ToolStack.Stems, stack.StemGate, stack.AnalysisStack.Reporter), options.Load, options.HotCue);
         var lifecycleFactory = new AppLifecycleFactory(
             stack.LibraryDatabase, stack.ThemePreference, stack.MusicDirPreference, stack.OutputDevicePreference,
             stack.WaveformStylePreference, stack.BackspinTimePreference, stack.BackspinDistancePreference, stack.LegacyShortlistPreference,

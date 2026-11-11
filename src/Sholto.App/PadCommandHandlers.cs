@@ -3,17 +3,22 @@ using Sholto.App.Decks;
 
 namespace Sholto.App;
 
-/// <summary>Executes the pad commands: the three stem-mute pads, the echo pad, the roll pad and the two
-/// pad-mode presses (which tell <see cref="ICueRouting"/> the new page; the LEDs follow its event).
-/// Depends only on <see cref="IDecks"/> and <see cref="ICueRouting"/>.</summary>
-public sealed class PadCommandHandlers(IDecks decks, ICueRouting cueRouting) :
+/// <summary>Executes the pad commands: the hot-cue pads, beat jump, the stem mute and solo pads, the echo pad,
+/// the roll pad and the pad-mode presses (which tell <see cref="ICueRouting"/> the new page; the LEDs follow its
+/// event). Depends on <see cref="IDecks"/>, <see cref="ICueRouting"/> and <see cref="IDeckHotCues"/>.</summary>
+public sealed class PadCommandHandlers(IDecks decks, ICueRouting cueRouting, IDeckHotCues hotCues) :
     ICommandHandler<ToggleStem>,
     ICommandHandler<ToggleEcho>,
     ICommandHandler<HoldRoll>,
-    ICommandHandler<SelectPadPage>
+    ICommandHandler<SelectPadPage>,
+    ICommandHandler<PressHotCue>,
+    ICommandHandler<DeleteHotCue>,
+    ICommandHandler<BeatJump>,
+    ICommandHandler<SoloStem>
 {
     private readonly IDecks _decks = decks;
     private readonly ICueRouting _cueRouting = cueRouting;
+    private readonly IDeckHotCues _hotCues = hotCues;
 
     public void Handle(in ToggleStem command)
     {
@@ -24,13 +29,43 @@ public sealed class PadCommandHandlers(IDecks decks, ICueRouting cueRouting) :
             1 => !session.VocalsActive,
             _ => !session.InstrumentalActive,
         };
-        switch (command.Stem)
+        SetStem(session, command.Stem, nextActive);
+    }
+
+    /// <summary>Solo one stem: only it stays audible. Soloing the stem that is already alone brings all three back.</summary>
+    public void Handle(in SoloStem command)
+    {
+        var session = _decks.DeckFor(command.Deck);
+        bool alreadySolo = session.DrumsActive == (command.Stem == 0)
+            && session.VocalsActive == (command.Stem == 1)
+            && session.InstrumentalActive == (command.Stem == 2);
+        for (int stem = 0; stem < 3; stem++)
+            SetStem(session, stem, alreadySolo || stem == command.Stem);
+    }
+
+    /// <summary>Move the playhead by whole beats of the track's own BPM (not the tempo-adjusted one, so a tempo
+    /// change does not change the jump). Nothing happens on an unloaded deck or an unknown BPM.</summary>
+    public void Handle(in BeatJump command)
+    {
+        var session = _decks.DeckFor(command.Deck);
+        double bpm = session.SourceBpm;
+        if (!session.IsLoaded || bpm <= 0) return;
+        session.Transport.SeekRelative(command.Beats * 60.0 / bpm);
+    }
+
+    public void Handle(in PressHotCue command) => _hotCues.Press(command.Deck, command.Pad, command.Pressed);
+
+    public void Handle(in DeleteHotCue command) => _hotCues.Delete(command.Deck, command.Pad);
+
+    private void SetStem(IDeckSession session, int stem, bool active)
+    {
+        switch (stem)
         {
-            case 0: session.DrumsActive = nextActive; break;
-            case 1: session.VocalsActive = nextActive; break;
-            case 2: session.InstrumentalActive = nextActive; break;
+            case 0: session.DrumsActive = active; break;
+            case 1: session.VocalsActive = active; break;
+            case 2: session.InstrumentalActive = active; break;
         }
-        session.Stems.SetStemGroup(command.Stem, nextActive);
+        session.Stems.SetStemGroup(stem, active);
     }
 
     public void Handle(in ToggleEcho command)

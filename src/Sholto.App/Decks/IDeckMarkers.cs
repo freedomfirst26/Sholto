@@ -18,4 +18,8 @@ public interface IDeckMarkers
     /// refresh that deck's marker overlay. Nothing happens without a database, a loaded track, or a
     /// catalog entry for it.</summary>
     Task AddAsync(int deck);
+
+    /// <summary>Reload the saved markers of the deck's track onto its marker overlay (after a hot cue was set or
+    /// deleted). Nothing happens without a database or a loaded track.</summary>
+    Task RefreshAsync(int deck);
 }

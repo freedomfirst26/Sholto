@@ -28,7 +28,8 @@ public sealed class CoreFactory(
     IEventPublisher publisher,
     IFrameClock frameClock,
     IStemSeparator stemSeparator,
-    IOptions<LoadOptions> loadOptions) : ICoreFactory
+    IOptions<LoadOptions> loadOptions,
+    IOptions<HotCueOptions> hotCueOptions) : ICoreFactory
 {
     private readonly ITrackScanner _trackScanner = trackScanner;
     // The switchable store: a no-op until the database attaches.
@@ -43,6 +44,7 @@ public sealed class CoreFactory(
     private readonly IFrameClock _frameClock = frameClock;
     private readonly IStemSeparator _stemSeparator = stemSeparator;
     private readonly IOptions<LoadOptions> _loadOptions = loadOptions;
+    private readonly IOptions<HotCueOptions> _hotCueOptions = hotCueOptions;
 
     public CoreStack Build(IDeckSession deck1, IDeckSession deck2)
     {
@@ -50,10 +52,11 @@ public sealed class CoreFactory(
         var library = new LibrarySession(
             _trackScanner, _keyStore, _stemPresence, _reporter, decks, new Session(), _appThread, _publisher);
         var markers = new DeckMarkers(decks, library, _appThread, _publisher);
+        var hotCues = new DeckHotCues(decks, library, _appThread, _publisher, markers, _hotCueOptions);
         var searchPick = new SearchPick(library);
         var loader = new TrackLoader(library, decks, _decoder, _keyStore, _keyAnalyzer, _reporter, _appThread, _publisher, searchPick,
             new LoadGuard(_frameClock, _publisher, _loadOptions), new LoadUndo(_frameClock, _publisher, _loadOptions), _stemSeparator);
-        return new CoreStack(decks, new PlaybackRequests(decks), new MixerSession(decks, _crossfade, _publisher), library, markers, loader,
+        return new CoreStack(decks, new PlaybackRequests(decks), new MixerSession(decks, _crossfade, _publisher), library, markers, hotCues, loader,
             new BackspinFeel(_publisher), searchPick, new TrackList(library, _appThread, _publisher));
     }
 }
