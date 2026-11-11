@@ -22,6 +22,8 @@ namespace Sholto.App.Audio;
 /// audio thread reads them once per buffer and updates internal gains. Filters
 /// are designed once at construction so the hot path is just arithmetic — no
 /// allocations, no list mutation.
+///
+/// Mix 0 skips the DSP entirely and clears its state, so it resumes clean.
 /// </summary>
 public sealed class BiquadEq3Band : DeckEffect
 {
@@ -30,18 +32,16 @@ public sealed class BiquadEq3Band : DeckEffect
 
     // 3 bands, all linear gain (0=mute, 1=unity, 2=+6dB) — matches SetBandGain's
     // own contract exactly, not the knob-position curve SetEq applies on top.
-    private readonly EffectParam[] _paramTable =
-    [
-        new(0, "Low",  0.0, 2.0, 1.0, EffectParamCurve.Linear),
-        new(1, "Mid",  0.0, 2.0, 1.0, EffectParamCurve.Linear),
-        new(2, "High", 0.0, 2.0, 1.0, EffectParamCurve.Linear),
-    ];
+    private readonly EffectParam[] _paramTable;
 
     /// <inheritdoc/>
     public override ReadOnlySpan<EffectParam> Params => _paramTable;
 
     /// <inheritdoc/>
-    public override void SetParam(int paramId, double value) => SetBandGain(paramId, (float)value);
+    protected override bool SkipDspAtMixZero => true;
+
+    /// <inheritdoc/>
+    protected override void SetEffectParam(int paramId, double value) => SetBandGain(paramId, (float)value);
 
     // Crossover points — standard DJ isolator territory. Defined in
     // Sholto.App.Dsp (see WaveformBandFrequencies) so the waveform's 3-band
@@ -67,6 +67,13 @@ public sealed class BiquadEq3Band : DeckEffect
         : base(format)
     {
         _ = engine;  // base is parameterless; param kept for API parity with built-in modifiers
+        _paramTable =
+        [
+            new(0, "Low",  0.0, 2.0, 1.0, EffectParamCurve.Linear),
+            new(1, "Mid",  0.0, 2.0, 1.0, EffectParamCurve.Linear),
+            new(2, "High", 0.0, 2.0, 1.0, EffectParamCurve.Linear),
+            MixParam,
+        ];
         int sr = format.SampleRate;
         _channels = Math.Max(1, format.Channels);
 

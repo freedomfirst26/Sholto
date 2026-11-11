@@ -22,19 +22,21 @@ namespace Sholto.App.Audio;
 ///
 /// Lock-free: UI / MIDI threads call <see cref="SetPosition"/>; the audio
 /// thread reads once per buffer and recomputes coefficients.
+///
+/// Mix 0 skips the DSP entirely and clears its state, so it resumes clean.
 /// </summary>
 public sealed class DjFilter : DeckEffect
 {
     /// <inheritdoc/>
     public override string EffectId => "filter";
 
-    private readonly EffectParam[] _paramTable =
-    [
-        new(0, "Position", 0.0, 1.0, 0.5, EffectParamCurve.Linear),
-    ];
+    private readonly EffectParam[] _paramTable;
 
     /// <inheritdoc/>
     public override ReadOnlySpan<EffectParam> Params => _paramTable;
+
+    /// <inheritdoc/>
+    protected override bool SkipDspAtMixZero => true;
 
     /// <summary>Forwards to <see cref="SetPosition"/> — MUST go through it
     /// rather than writing <see cref="_coeffs"/> directly. That method owns
@@ -42,7 +44,7 @@ public sealed class DjFilter : DeckEffect
     /// dedupes on a 0.001 threshold before publishing new coefficients; a
     /// second entry point would break the dedupe and put the transcendental
     /// design maths back on the audio thread.</summary>
-    public override void SetParam(int paramId, double value) => SetPosition((float)value);
+    protected override void SetEffectParam(int paramId, double value) => SetPosition((float)value);
 
     // Sweep range — picked so the "bypass-edge" cutoffs (just past the
     // dead-zone) are far outside the audible band, making the LP/HP
@@ -102,6 +104,11 @@ public sealed class DjFilter : DeckEffect
         : base(format)
     {
         _ = engine;
+        _paramTable =
+        [
+            new(0, "Position", 0.0, 1.0, 0.5, EffectParamCurve.Linear),
+            MixParam,
+        ];
         _sampleRate = format.SampleRate;
         _channels = Math.Max(1, format.Channels);
         _ic1eq = new float[_channels];

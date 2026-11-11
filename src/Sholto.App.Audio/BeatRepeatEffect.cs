@@ -21,23 +21,21 @@ namespace Sholto.App.Audio;
 /// channel, allocated once at construction, sized for the slowest tempo /
 /// longest roll this effect supports — no allocation in <see cref="Process"/>
 /// or <see cref="ProcessSample"/>.
+///
+/// Mix 0 is dry out while capture and hold keep running.
 /// </summary>
 public sealed class BeatRepeatEffect : DeckEffect
 {
     /// <inheritdoc/>
     public override string EffectId => "roll";
 
-    private readonly EffectParam[] _paramTable =
-    [
-        new(0, "Enabled", 0.0, 1.0, 0.0, EffectParamCurve.Boolean),
-        new(1, "Beats",   0.0625, 2.0, 0.25, EffectParamCurve.Linear),
-    ];
+    private readonly EffectParam[] _paramTable;
 
     /// <inheritdoc/>
     public override ReadOnlySpan<EffectParam> Params => _paramTable;
 
     /// <inheritdoc/>
-    public override void SetParam(int paramId, double value)
+    protected override void SetEffectParam(int paramId, double value)
     {
         switch (paramId)
         {
@@ -95,6 +93,12 @@ public sealed class BeatRepeatEffect : DeckEffect
         : base(format)
     {
         _ = engine; // base is parameterless; param kept for API parity with the other modifiers
+        _paramTable =
+        [
+            new(0, "Enabled", 0.0, 1.0, 0.0, EffectParamCurve.Boolean),
+            new(1, "Beats",   0.0625, 2.0, 0.25, EffectParamCurve.Linear),
+            MixParam,
+        ];
         _tempoMath = tempoMath;
         _sampleRate = format.SampleRate;
         int channels = Math.Max(1, format.Channels);

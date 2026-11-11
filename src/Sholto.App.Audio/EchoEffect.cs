@@ -33,23 +33,22 @@ namespace Sholto.App.Audio;
 /// as a rare, momentary artefact rather than a reason to add a resampling
 /// delay line — that would be a feature (smooth tempo-tracking delay), not a
 /// fix for "echo ignores tempo changes".
+///
+/// Mix scales only the delayed signal; the delay line and feedback never see
+/// it, so the tail keeps ringing at Mix 0 and is there when Mix returns.
 /// </summary>
 public sealed class EchoEffect : DeckEffect
 {
     /// <inheritdoc/>
     public override string EffectId => "echo";
 
-    private readonly EffectParam[] _paramTable =
-    [
-        new(0, "Enabled", 0.0, 1.0, 0.0, EffectParamCurve.Boolean),
-        new(1, "Beats",   0.125, 4.0, 0.5, EffectParamCurve.Linear),
-    ];
+    private readonly EffectParam[] _paramTable;
 
     /// <inheritdoc/>
     public override ReadOnlySpan<EffectParam> Params => _paramTable;
 
     /// <inheritdoc/>
-    public override void SetParam(int paramId, double value)
+    protected override void SetEffectParam(int paramId, double value)
     {
         switch (paramId)
         {
@@ -112,6 +111,12 @@ public sealed class EchoEffect : DeckEffect
         : base(format)
     {
         _ = engine;  // base is parameterless; param kept for API parity with the other modifiers
+        _paramTable =
+        [
+            new(0, "Enabled", 0.0, 1.0, 0.0, EffectParamCurve.Boolean),
+            new(1, "Beats",   0.125, 4.0, 0.5, EffectParamCurve.Linear),
+            MixParam,
+        ];
         _tempoMath = tempoMath;
         _sampleRate = format.SampleRate;
         int channels = Math.Max(1, format.Channels);
