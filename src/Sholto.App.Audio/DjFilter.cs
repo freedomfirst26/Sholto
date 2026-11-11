@@ -100,8 +100,8 @@ public sealed class DjFilter : DeckEffect
     private readonly float[] _ic1eq;
     private readonly float[] _ic2eq;
 
-    public DjFilter(SfEngine engine, AudioFormat format)
-        : base(format)
+    internal DjFilter(SfEngine engine, AudioFormat format, IEffectOutputStage outputStage)
+        : base(outputStage)
     {
         _ = engine;
         _paramTable =

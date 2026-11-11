@@ -30,10 +30,10 @@ public sealed class DeckEffectFactory
     {
         Chain =
         [
-            (engine, format) => new BiquadEq3Band(engine, format),
-            (engine, format) => new DjFilter(engine, format),
-            (engine, format) => new EchoEffect(engine, format, tempoMath),
-            (engine, format) => new BeatRepeatEffect(engine, format, tempoMath),
+            (engine, format) => new BiquadEq3Band(engine, format, new EffectOutputStage(format)),
+            (engine, format) => new DjFilter(engine, format, new EffectOutputStage(format)),
+            (engine, format) => new EchoEffect(engine, format, tempoMath, new EffectOutputStage(format)),
+            (engine, format) => new BeatRepeatEffect(engine, format, tempoMath, new EffectOutputStage(format)),
         ];
     }
 

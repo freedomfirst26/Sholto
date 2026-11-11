@@ -89,8 +89,8 @@ public sealed class BeatRepeatEffect : DeckEffect
 
     private readonly ITempoMath _tempoMath;
 
-    public BeatRepeatEffect(SfEngine engine, AudioFormat format, ITempoMath tempoMath)
-        : base(format)
+    internal BeatRepeatEffect(SfEngine engine, AudioFormat format, ITempoMath tempoMath, IEffectOutputStage outputStage)
+        : base(outputStage)
     {
         _ = engine; // base is parameterless; param kept for API parity with the other modifiers
         _paramTable =

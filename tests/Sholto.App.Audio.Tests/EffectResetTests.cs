@@ -19,8 +19,8 @@ public sealed class EffectResetTests(ITestOutputHelper output)
 
     private static readonly AudioFormat Format = new() { SampleRate = Rate, Channels = 2, Format = SampleFormat.F32 };
 
-    private static EchoEffect NewEcho() => new(null!, Format, new TempoMath());
-    private static BeatRepeatEffect NewRoll() => new(null!, Format, new TempoMath());
+    private static EchoEffect NewEcho() => new(null!, Format, new TempoMath(), new EffectOutputStage(Format));
+    private static BeatRepeatEffect NewRoll() => new(null!, Format, new TempoMath(), new EffectOutputStage(Format));
 
     /// <summary>Feeds a source through a chain of modifiers in fixed 64-frame
     /// stereo blocks and returns the interleaved result.</summary>
@@ -146,7 +146,7 @@ public sealed class EffectResetTests(ITestOutputHelper output)
     [Fact]
     public void Repeated_request_during_fade_out_is_absorbed()
     {
-        var eq = new BiquadEq3Band(null!, Format);
+        var eq = new BiquadEq3Band(null!, Format, new EffectOutputStage(Format));
         int cursor = 0;
         eq.RequestReset();
         Run([eq], 100, Tone, ref cursor);
@@ -164,7 +164,7 @@ public sealed class EffectResetTests(ITestOutputHelper output)
     [Fact]
     public void Request_during_fade_in_fades_out_without_a_jump()
     {
-        var eq = new BiquadEq3Band(null!, Format);
+        var eq = new BiquadEq3Band(null!, Format, new EffectOutputStage(Format));
         int cursor = 0;
         eq.RequestReset();
         var a = Run([eq], 320, _ => 0.5f, ref cursor);
@@ -181,7 +181,7 @@ public sealed class EffectResetTests(ITestOutputHelper output)
     [Fact]
     public void Request_before_first_process_is_applied()
     {
-        var filter = new DjFilter(null!, Format);
+        var filter = new DjFilter(null!, Format, new EffectOutputStage(Format));
         filter.RequestReset();
         int cursor = 0;
         int n = Secs(0.1);

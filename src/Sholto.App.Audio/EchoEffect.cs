@@ -107,8 +107,8 @@ public sealed class EchoEffect : DeckEffect
 
     private readonly ITempoMath _tempoMath;
 
-    public EchoEffect(SfEngine engine, AudioFormat format, ITempoMath tempoMath)
-        : base(format)
+    internal EchoEffect(SfEngine engine, AudioFormat format, ITempoMath tempoMath, IEffectOutputStage outputStage)
+        : base(outputStage)
     {
         _ = engine;  // base is parameterless; param kept for API parity with the other modifiers
         _paramTable =

@@ -63,8 +63,8 @@ public sealed class BiquadEq3Band : DeckEffect
     private readonly Biquad _midLpA, _midLpB;       // 4th-order LP @ 4000 Hz ↗
     private readonly Biquad _hpA, _hpB;             // 4th-order HP @ 4000 Hz → High band
 
-    public BiquadEq3Band(SfEngine engine, AudioFormat format)
-        : base(format)
+    internal BiquadEq3Band(SfEngine engine, AudioFormat format, IEffectOutputStage outputStage)
+        : base(outputStage)
     {
         _ = engine;  // base is parameterless; param kept for API parity with built-in modifiers
         _paramTable =
