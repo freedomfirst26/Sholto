@@ -12,13 +12,14 @@ namespace Sholto.Host;
 /// plain-.NET leaves, options, and the factories App uses once Avalonia is up.
 /// </summary>
 public sealed class AppStack(
-    ISholtoEntities entities, SholtoStack stack, SholtoOptions options,
+    ISholtoEntities entities, ILiveEntitySeeds seeds, SholtoStack stack, SholtoOptions options,
     ICoreFactory coreFactory, IAppLifecycleFactory lifecycleFactory, ILifecyclePromptsFactory promptsFactory,
     IThemeStackFactory themeStackFactory, IControllerStackFactory controllerStackFactory,
     IInputStackFactory inputStackFactory, IMasterCueOutput masterCueOutput,
     IFrameClock frameClock, IAppThread appThread, ICommandSender sender, ITrayFactory trayFactory)
 {
     public ISholtoEntities Entities { get; } = entities;
+    public ILiveEntitySeeds Seeds { get; } = seeds;
     public SholtoStack Stack { get; } = stack;
     public SholtoOptions Options { get; } = options;
     public ICoreFactory CoreFactory { get; } = coreFactory;
