@@ -102,8 +102,6 @@ public sealed class WaveformControl : Control
     public bool IsGridNudged { get => GetValue(IsGridNudgedProperty); set => SetValue(IsGridNudgedProperty, value); }
 
 
-    private SKColor Sk(Avalonia.Media.Color c) => new(c.R, c.G, c.B, c.A);
-
     /// <summary>Loop-in point in seconds, or null = no loop. The control paints
     /// a translucent band between this and <see cref="LoopEndSec"/>.</summary>
     public static readonly StyledProperty<double?> LoopStartSecProperty =
@@ -171,11 +169,12 @@ public sealed class WaveformControl : Control
     // Only the baked image depends on the colours the active style bakes;
     // everything else is drawn live. Rebake only when one of those actually
     // changed, so a theme switch that keeps them doesn't redo the whole bake.
-    private WaveformPalette? _bakedPalette;
+    // Forced field initialiser: XAML constructs this control, so it has no constructor parameters (as MinimapControl._geometry).
+    private readonly IWaveformPaletteSync _paletteSync = new WaveformPaletteSync();
     private void OnPaletteChanged()
     {
         if (Palette is not { } p) { InvalidateVisual(); return; }
-        if (_bakedPalette is null || StyleStrategy is not { } style || !style.BakesSameColours(_bakedPalette, p)) Rebake();
+        if (_paletteSync.NeedsRebake(p, StyleStrategy)) Rebake();
         else InvalidateVisual();
     }
 
@@ -310,7 +309,7 @@ public sealed class WaveformControl : Control
                 if (cts.IsCancellationRequested) { img.Dispose(); return; }
                 _baked = img;
                 _bakedFor = snapshot;
-                _bakedPalette = p;
+                _paletteSync.MarkBaked(p);
                 InvalidateVisual();
             });
         });
@@ -319,19 +318,17 @@ public sealed class WaveformControl : Control
     public override void Render(DrawingContext context)
     {
         if (Palette is not { } p) return;
-        var bgColor       = Sk(p.Background);
-        var downbeatColor = Sk(p.Downbeat);
-        var gainColor     = Sk(p.Gain);
-        var loopColor     = IsGridNudged ? Sk(p.GridEdit).WithAlpha(0xA0) : Sk(p.Loop);   // red once the grid was nudged
-        var live = new WaveformLiveColours(Sk(p.Playhead), Sk(p.BeatTick), Sk(p.Marker),
-            Sk(p.Vocal).WithAlpha(0xD0), Sk(p.VocalInactive).WithAlpha(0xB0), Sk(p.SnapGlow).WithAlpha(0xF0), Sk(p.Edge).WithAlpha(0x99));
+        var bgColor       = _paletteSync.ToSk(p.Background);
+        var downbeatColor = _paletteSync.ToSk(p.Downbeat);
+        var gainColor     = _paletteSync.ToSk(p.Gain);
+        var loopColor     = _paletteSync.LoopColour(p, IsGridNudged);
+        var live = _paletteSync.LiveColours(p);
         context.Custom(new WaveformBlitOperation(_paints, _snap, new Rect(Bounds.Size), _baked, _bakedFor, GridPeaks, PlayPosition, PlaybackSpeed, GainOverlay, GainKnown, MagneticGlowSec, IsScrubbing, BeatTimes, DownbeatTimes, LoopStartSec, LoopEndSec, downbeatColor, gainColor, loopColor, _vocalRegions, VocalsActive, MarkerSecs, bgColor, live));
 
         // Grid-edit mode: red border tint so the user knows clicks set anchors.
         if (GridEditMode)
         {
-            var pen = new Avalonia.Media.Pen(new Avalonia.Media.SolidColorBrush(
-                Avalonia.Media.Color.FromArgb(0xE0, p.GridEdit.R, p.GridEdit.G, p.GridEdit.B)), 2);
+            var pen = _paletteSync.GridEditPen(p);
             context.DrawRectangle(null, pen, new Rect(Bounds.Size));
         }
     }
