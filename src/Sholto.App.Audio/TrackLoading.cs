@@ -45,8 +45,8 @@ namespace Sholto.App.Audio;
 /// state this writes back into <em>Deck itself</em> is the scratch flag: a
 /// scratch mid-flight on the outgoing track has nothing left to drive once
 /// <see cref="TearDownPlayers"/> runs, so it calls <c>resetScratching</c> —
-/// Deck still owns <c>_scratching</c> because the scratch cluster (deliberately
-/// untouched this stage) reads and writes it everywhere else.</para>
+/// the flag lives on <c>DeckScratch</c>; Deck routes the hook to its
+/// <c>ResetForNewTrack</c>.</para>
 ///
 /// <para><b>Ordering is load-bearing.</b> Every sequence below — provider
 /// built before assigned to <c>_player</c>, gain reapplied only after the new
@@ -352,9 +352,8 @@ internal sealed class TrackLoading : ITrackLoading
         // all gains at 1.0.
         // A scratch mid-flight on the outgoing track has nothing left to drive —
         // drop the flag so a stale ScratchRate/EndScratch pair from the old
-        // track can't act on the new one's provider. _scratching itself still
-        // lives on Deck (the scratch cluster owns it); this is the one place
-        // this class writes back into Deck rather than owning the state.
+        // track can't act on the new one's provider. The flag lives on
+        // DeckScratch; Deck routes this hook to DeckScratch.ResetForNewTrack.
         _resetScratching();
     }
 

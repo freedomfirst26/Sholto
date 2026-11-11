@@ -48,6 +48,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
     private readonly TrackAnalysisRun _analysisRun;
     private readonly TrackLoading _loading;
     private readonly StemControl _stems;
+    private readonly IDeckScratchControl _scratch;
 
     public Deck(
         IAudioFileDecoder decoder,
@@ -61,7 +62,8 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
         IReadOnlyList<Func<SfEngine, AudioFormat, SoundModifier>> effectFactories,
         IPlaybackProviderFactory playbackProviders,
         IAppThread appThread,
-        IOptions<LoopOptions> loopOptions)
+        IOptions<LoopOptions> loopOptions,
+        IDeckScratchFactory scratches)
     {
         _loops = new DeckLooping(
             stemProvider: () => _loading.StemProvider,
@@ -84,18 +86,25 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
         // DeckTempo is a pure model — it only computes PlaybackSpeed and
         // announces changes. Arbitration (who wins the shared
         // IVarispeedProvider.SetSpeed target — tempo or a platter scratch)
-        // is Deck's job: it already owns the provider and _scratching (see
-        // ScratchRate/EndScratch below), so it pushes here and skips while a
+        // is Deck's job: it already owns the provider and reads
+        // _scratch.IsScratching, so it pushes here and skips while a
         // scratch is in flight, exactly as DeckTempo itself used to do.
         _mixer = new DeckMixer(
             analysis: () => _loading.Analysis,
             playbackSpeed: () => _pitch.PlaybackSpeed);
         _mixer.CueChanged += active => CueChanged?.Invoke(active);
 
+        _scratch = scratches.Create(
+            varispeed: () => VarispeedProvider,
+            player: () => _loading.Player,
+            isPlaying: () => _loading.IsPlaying,
+            playbackSpeed: () => _pitch.PlaybackSpeed,
+            positionFrames: () => PositionFrames);
+
         _pitch = new DeckTempo();
         _pitch.PlaybackSpeedChanged += speed =>
         {
-            if (!_scratching) VarispeedProvider?.SetSpeed(speed);
+            if (!_scratch.IsScratching) VarispeedProvider?.SetSpeed(speed);
             _mixer.OnPlaybackSpeedChanged(speed);
         };
         // Echo tempo-tracking's other half: BPM can land seconds after the
@@ -132,8 +141,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
         // accessors like every component above. Its write-backs: the grid's
         // and loop's internal-only reset hooks, the mixer's ReapplyGain/
         // AttachModifiers, the live tempo, and — the one write into Deck
-        // itself — resetScratching, since the scratch cluster (untouched
-        // this stage) still owns _scratching.
+        // itself — resetScratching, routed to DeckScratch.ResetForNewTrack.
         _loading = new TrackLoading(
             decoder: decoder,
             providers: playbackProviders,
@@ -144,7 +152,7 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
             attachModifiers: _mixer.AttachModifiers,
             reapplyGain: _mixer.ReapplyGain,
             playbackSpeed: () => _pitch.PlaybackSpeed,
-            resetScratching: () => _scratching = false);
+            resetScratching: _scratch.ResetForNewTrack);
         _loading.AnalysisUpdated += () => AnalysisUpdated?.Invoke();
     }
 
@@ -233,77 +241,16 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
     public bool IsLoaded => _loading.IsLoaded;
     public bool IsPlaying => _loading.IsPlaying;
 
-    // — Platter scratch —
-    //
-    // While active, the deck's effective playback rate is driven directly by
-    // Orchestrator (platter velocity, signed, any magnitude) instead of by
-    // PlaybackSpeed. See ScratchRate / EndScratch below.
-    private bool _scratching;
-    // Whether the deck was actually Playing (per the user, before we may have
-    // force-started it below) at the moment the platter was first grabbed.
-    // EndScratch restores this rather than assuming "playing".
-    private bool _wasPlayingBeforeScratch;
+    // — Platter scratch — extracted to DeckScratch.
 
-    /// <summary>True once the deck is on a provider that supports signed
-    /// vinyl-style speed (in-memory raw buffer or stem mix) — i.e. everywhere
-    /// except the very first moment of a streamed load, before <see cref="Load"/>
-    /// has swapped in a real provider. Orchestrator checks this before routing
-    /// a top-platter tick into <see cref="ScratchRate"/>; when false it falls
-    /// back to the old silent-seek jog behaviour.</summary>
-    public bool CanScratch => VarispeedProvider is not null;
+    /// <summary>See <see cref="DeckScratch"/>.</summary>
+    public bool CanScratch => _scratch.CanScratch;
 
-    /// <summary>Drive the deck's playback rate directly from platter velocity:
-    /// <paramref name="rate"/> is a signed multiple of unity (1.0 = normal
-    /// forward speed, 0 = held, negative = reverse), REPLACING — not
-    /// composing with — the tempo-fader-derived <see cref="PlaybackSpeed"/>
-    /// while a scratch is in flight. No-op if the deck isn't on a scratchable
-    /// provider (see <see cref="CanScratch"/>).
-    /// <para>SoundFlow's SoundPlayer only pulls samples from the data provider
-    /// while its internal state is <c>Playing</c> (a paused player renders
-    /// silence without even calling ReadBytes) — so a deck that was paused
-    /// when the platter was grabbed is force-started here. That matches CDJ
-    /// vinyl mode: the platter drives sound even parked, and at rate 0
-    /// ReadBytes just re-emits the frame under the needle (near-silent hold,
-    /// not literal silence). <see cref="EndScratch"/> restores whatever
-    /// play/pause state the deck was actually in.</para></summary>
-    public void ScratchRate(double rate)
-    {
-        var vp = VarispeedProvider;
-        var player = _loading.Player;
-        if (vp is null || player is null) return;
-        if (!_scratching)
-        {
-            _scratching = true;
-            _wasPlayingBeforeScratch = IsPlaying;
-            if (!_wasPlayingBeforeScratch) player.Play();
-        }
-        vp.SetSpeed((float)rate);
-    }
+    /// <summary>See <see cref="DeckScratch"/>.</summary>
+    public void ScratchRate(double rate) => _scratch.ScratchRate(rate);
 
-    /// <summary>Release the platter: hand the provider's speed back to the
-    /// deck's own <see cref="PlaybackSpeed"/> (tempo fader × BPM multiplier),
-    /// and restore whichever play/pause state the deck was in before the
-    /// scratch began. No-op if no scratch is in flight.</summary>
-    public void EndScratch()
-    {
-        if (!_scratching) return;
-        _scratching = false;
-        VarispeedProvider?.SetSpeed(PlaybackSpeed);
-        // Resync the SoundPlayer's INTERNAL clock to where the scratch actually
-        // left the provider. The player's _rawSamplePosition only advances by
-        // frames rendered in real time — a scratch moves the provider's cursor
-        // far beyond/behind that, so player.Time goes stale at roughly the
-        // pre-scratch position. SeekRelative/SeekToFraction compute their targets
-        // from player.Time, so the FIRST post-scratch seek (side-ring nudge,
-        // quantize, minimap click) would yank playback back to where the scratch
-        // began. A same-place Seek here re-bases both clocks onto the provider's
-        // true position (the providers' 256-frame declick fade makes it silent).
-        var player = _loading.Player;
-        if (player is not null)
-            player.Seek(TimeSpan.FromSeconds(
-                PositionFrames / (double)AudioFileDecoder.TargetSampleRate));
-        if (!_wasPlayingBeforeScratch) player?.Pause();
-    }
+    /// <summary>See <see cref="DeckScratch"/>.</summary>
+    public void EndScratch() => _scratch.EndScratch();
 
     // Read provider.Position (raw samples consumed) directly. Source rate now
     // matches the engine rate (see AudioFileDecoder.TargetSampleRate) so this is

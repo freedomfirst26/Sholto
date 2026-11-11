@@ -66,5 +66,7 @@ public sealed class DeckFactory(
     private readonly IAppThread _appThread = appThread;
     private readonly IOptions<LoopOptions> _loopOptions = loopOptions;
 
-    public IDeckPorts Create() => new DeckPorts(new Deck(_decoder, _stemStage, _reporter, _analysisProvider, _keyStore, _gridStore, _keyAnalyzer, _beatgrids, _effectFactories, _playbackProviders, _appThread, _loopOptions));
+    private readonly IDeckScratchFactory _scratches = new DeckScratchFactory();
+
+    public IDeckPorts Create() => new DeckPorts(new Deck(_decoder, _stemStage, _reporter, _analysisProvider, _keyStore, _gridStore, _keyAnalyzer, _beatgrids, _effectFactories, _playbackProviders, _appThread, _loopOptions, _scratches));
 }

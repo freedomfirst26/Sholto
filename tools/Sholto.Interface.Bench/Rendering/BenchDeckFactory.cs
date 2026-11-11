@@ -92,5 +92,6 @@ public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisSte
         effectFactories: _effects.Chain,
         playbackProviders: _playbackProviders,
         appThread: appThread,
-        loopOptions: Options.Create(new LoopOptions()));
+        loopOptions: Options.Create(new LoopOptions()),
+        scratches: new DeckScratchFactory());
 }
