@@ -33,15 +33,15 @@ public partial class SearchOverlay : UserControl
     private MainViewModel? _vm;
     private bool _syncing;
     private readonly DispatcherTimer _settleTimer;
-    private readonly Dictionary<string, int> _railCounts = [];
-    private readonly HashSet<string> _tickKeys = [];
     private readonly ISearchOverlayKeyHandler _keys;
+    private readonly ISearchOverlayRailSync _rail;
 
     public SearchOverlay()
     {
         InitializeComponent();
         // Forced: XAML constructs this control, and the named controls only exist after InitializeComponent (as WaveformControl).
         _keys = new SearchOverlayKeyHandler(QueryBox);
+        _rail = new SearchOverlayRailSync(RailList);
         // Tunnel, so the box's own handling of arrows, Tab and Enter never sees these keys.
         QueryBox.AddHandler(KeyDownEvent, (_, e) => _keys.OnKeyDown(Glance, e), RoutingStrategies.Tunnel);
         QueryBox.AddHandler(TextInputEvent, (_, e) => _keys.OnTextInput(e), RoutingStrategies.Tunnel);
@@ -53,7 +53,6 @@ public partial class SearchOverlay : UserControl
         };
         // Tunnel: the list selects on press and marks it handled, so a click on a crate or tag is read before that.
         RailList.AddHandler(PointerPressedEvent, OnRailPressed, RoutingStrategies.Tunnel);
-        RailList.ContainerPrepared += OnRailContainerPrepared;
         ResultsList.AddHandler(ScrollViewer.ScrollChangedEvent, OnResultsScrolled);
         _settleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SettleHoldMs) };
         _settleTimer.Tick += (_, _) =>
@@ -91,7 +90,7 @@ public partial class SearchOverlay : UserControl
         Classes.Set("motion", _vm.Glance.AnimateResults);
         FitShimmer.Animated = _vm.Glance.AnimateResults;
         SyncRows();
-        SyncRail();
+        _rail.Sync(_vm.Glance);
         SyncZone();
         SyncChips();
         SyncReassessing();
@@ -107,8 +106,8 @@ public partial class SearchOverlay : UserControl
         {
             case nameof(IGlanceViewModel.Rows): SyncRows(); break;
             case nameof(IGlanceViewModel.TableIndex): SyncTableHighlight(); break;
-            case nameof(IGlanceViewModel.RailItems): SyncRail(); break;
-            case nameof(IGlanceViewModel.RailIndex): SyncRailHighlight(); break;
+            case nameof(IGlanceViewModel.RailItems): if (Glance is { } g) _rail.Sync(g); break;
+            case nameof(IGlanceViewModel.RailIndex): if (Glance is { } h) _rail.SyncHighlight(h); break;
             case nameof(IGlanceViewModel.Zone): SyncZone(); break;
             case nameof(IGlanceViewModel.Chips): SyncChips(); break;
             case nameof(IGlanceViewModel.IsReassessing): SyncReassessing(); break;
@@ -255,63 +254,6 @@ public partial class SearchOverlay : UserControl
             ResultsList.ScrollIntoView(glance.TableIndex);
     }
 
-    private void SyncRail()
-    {
-        if (Glance is not { } glance) return;
-        _syncing = true;
-        try
-        {
-            MarkChangedRailCounts(glance);
-            RailList.ItemsSource = glance.RailItems;
-            RailList.SelectedIndex = glance.RailIndex;
-        }
-        finally { _syncing = false; }
-        ScrollRailToHighlight();
-    }
-
-    /// <summary>Which crates and tags show a different count than last time: their rows tick as they are built.</summary>
-    private void MarkChangedRailCounts(IGlanceViewModel glance)
-    {
-        _tickKeys.Clear();
-        foreach (var item in glance.RailItems)
-        {
-            var (key, count) = RailCount(item);
-            if (key is null) continue;
-            if (_railCounts.TryGetValue(key, out var before) && before != count && glance.AnimateResults) _tickKeys.Add(key);
-            _railCounts[key] = count;
-        }
-    }
-
-    private (string? Key, int Count) RailCount(object item) => item switch
-    {
-        GlanceRailCrate c => ("c" + c.Id, c.Count),
-        GlanceRailTag t => ("t" + t.Name, t.Count),
-        _ => (null, 0),
-    };
-
-    private void OnRailContainerPrepared(object? sender, ContainerPreparedEventArgs e)
-    {
-        if (e.Container is not ListBoxItem box) return;
-        var (key, _) = RailCount(box.DataContext ?? RailList.Items[e.Index]!);
-        // Containers are recycled, so the class is set either way. Each key ticks once.
-        box.Classes.Set("tick", key is not null && _tickKeys.Remove(key));
-    }
-
-    private void SyncRailHighlight()
-    {
-        if (Glance is not { } glance) return;
-        _syncing = true;
-        try { RailList.SelectedIndex = glance.RailIndex; }
-        finally { _syncing = false; }
-        ScrollRailToHighlight();
-    }
-
-    private void ScrollRailToHighlight()
-    {
-        if (Glance is { } glance && glance.RailIndex >= 0 && glance.RailIndex < glance.RailItems.Count)
-            RailList.ScrollIntoView(glance.RailIndex);
-    }
-
     /// <summary>The list that is not driven right now is dimmed: its highlight turns neutral.</summary>
     private void SyncZone()
     {
@@ -355,34 +297,7 @@ public partial class SearchOverlay : UserControl
 
     private void OnRailSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_syncing || Glance is not { } glance) return;
-        var picked = RailList.SelectedIndex;
-        if (picked >= 0 && glance.RailItems[picked] is not GlanceRailHeader)
-        {
-            if (glance.Zone != GlanceZone.Rail) glance.ToggleZone();
-            glance.Move(SelectableSteps(glance.RailItems, glance.RailIndex, picked));
-        }
-        else
-        {
-            // A header cannot be highlighted; put the list's selection back where the view model has it.
-            SyncRailHighlight();
-        }
-        QueryBox.Focus();
-    }
-
-    /// <summary>How many <see cref="IGlanceViewModel.Move"/> steps (headers skipped) lead from
-    /// <paramref name="from"/> to <paramref name="to"/>, signed.</summary>
-    private int SelectableSteps(IReadOnlyList<object> items, int from, int to)
-    {
-        if (to == from) return 0;
-        var step = to > from ? 1 : -1;
-        var count = 0;
-        for (var i = from + step; i >= 0 && i < items.Count; i += step)
-        {
-            if (items[i] is not GlanceRailHeader) count++;
-            if (i == to) break;
-        }
-        return count * step;
+        if (Glance is { } glance && _rail.Pick(glance)) QueryBox.Focus();
     }
 
     private void OnResultActivated(object? sender, TappedEventArgs e)
