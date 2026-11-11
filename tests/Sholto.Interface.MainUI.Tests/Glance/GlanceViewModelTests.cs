@@ -369,4 +369,110 @@ public class GlanceViewModelTests
 
         Assert.Single(changes, n => n == nameof(Glance.Rows));
     }
+
+    // ---- Notification order, stale answers, close with a held result ---------------------------
+
+    private List<string?> Names(params string[] only)
+    {
+        var names = new List<string?>();
+        ((INotifyPropertyChanged)Glance).PropertyChanged += (_, e) =>
+        {
+            if (only.Contains(e.PropertyName)) names.Add(e.PropertyName);
+        };
+        return names;
+    }
+
+    [Fact]
+    public void Accepting_a_tag_completion_notifies_query_then_completion_then_chips()
+    {
+        _rig.Tags.Add(new TagHit("drum", 5));
+        _rig.AttachDatabase();
+        Glance.Open();
+        Glance.Query = "#dr";
+        Assert.Equal("um", Glance.CompletionSuffix);
+        var names = Names(nameof(Glance.Query), nameof(Glance.CompletionSuffix), nameof(Glance.Chips));
+
+        Assert.True(Glance.AcceptTagCompletion());
+
+        Assert.Equal([nameof(Glance.Query), nameof(Glance.CompletionSuffix), nameof(Glance.Chips)], names);
+    }
+
+    [Fact]
+    public void Adding_a_rail_filter_clears_free_words_before_notifying_chips()
+    {
+        ShowFour();
+        FillRail();
+        Glance.Open();
+        Glance.Query = "foo bpm:128";
+        Glance.ToggleZone();
+        Assert.IsType<GlanceRailCrate>(Glance.RailItems[Glance.RailIndex]);
+        var names = Names(nameof(Glance.Query), nameof(Glance.Chips));
+
+        Glance.ActivateRailItem();
+
+        Assert.Equal([nameof(Glance.Query), nameof(Glance.Chips)], names);
+        Assert.Equal("bpm:128", Glance.Query);
+    }
+
+    [Fact]
+    public void A_completion_answer_for_an_old_query_is_dropped()
+    {
+        _rig.AttachDatabase();
+        Glance.Open();
+        var gate = new TaskCompletionSource<IReadOnlyList<TagHit>>();
+        var calls = 0;
+        _rig.TagSearch = _ => calls++ == 0 ? gate.Task : Task.FromResult<IReadOnlyList<TagHit>>([]);
+
+        Glance.Query = "#dr";
+        Glance.Query = "#dra";
+        Glance.Query = "#dr";
+        gate.SetResult([new TagHit("drum", 5)]);
+
+        Assert.Null(Glance.CompletionSuffix);
+    }
+
+    [Fact]
+    public void A_rail_answer_for_an_old_query_is_dropped()
+    {
+        _rig.AttachDatabase();
+        Glance.Open();
+        var gate = new TaskCompletionSource<IReadOnlyList<CrateRef>>();
+        var calls = 0;
+        _rig.CrateSearch = _ => calls++ == 0
+            ? gate.Task
+            : Task.FromResult<IReadOnlyList<CrateRef>>([new CrateRef(2, "Bravo crate", 3)]);
+
+        Glance.Query = "a";
+        Glance.Query = "ab";
+        gate.SetResult([new CrateRef(1, "Alpha crate", 3)]);
+
+        var crates = Glance.RailItems.OfType<GlanceRailCrate>().Select(c => c.Name);
+        Assert.Equal(["Bravo crate"], crates);
+    }
+
+    [Fact]
+    public void Closing_with_a_held_result_shows_it_then_sends_the_closed_pick_and_clears_the_indicator()
+    {
+        _rig.Show(Alpha, Bravo);
+        Glance.Open();
+        var gate = new TaskCompletionSource<RankedTracks>();
+        _rig.Answer = _ => gate.Task;
+        Glance.Query = "b";
+        _rig.Clock.Advance(0.151);
+        Glance.OnFrame(_rig.Clock.Now);
+        Assert.True(Glance.IsReassessing);
+        _rig.Clock.Advance(0.049);
+        Glance.OnFrame(_rig.Clock.Now);
+        gate.SetResult(GlanceRig.Ranked(0, [Bravo]));
+        Assert.Equal(["Alpha", "Bravo"], Glance.Rows.Select(r => r.Row.Title));
+        var names = Names(nameof(Glance.Rows), nameof(Glance.IsReassessing));
+
+        Glance.Close();
+
+        Assert.Equal(["Bravo"], Glance.Rows.Select(r => r.Row.Title));
+        Assert.False(_rig.Picks.Last().Active);
+        Assert.Null(_rig.Picks.Last().FilePath);
+        Assert.False(Glance.IsReassessing);
+        Assert.Equal([nameof(Glance.Rows), nameof(Glance.IsReassessing)], names);
+    }
 }

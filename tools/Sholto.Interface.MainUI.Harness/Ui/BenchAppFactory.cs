@@ -61,9 +61,9 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
         // The rail's crates and tags come from the demo database (a "database" step fills it), and
         // SHOLTO_HARNESS_SLOWRANK (ms) holds each ranking back so the slow indicator can be shot.
         _ = int.TryParse(Environment.GetEnvironmentVariable("SHOLTO_HARNESS_SLOWRANK"), out var rankDelayMs);
-        var glance = new GlanceViewModel(
+        var glance = new GlanceViewModelFactory(
             sender, new DemoGlanceAsker(asker, rankDelayMs), subscriber, appThread, uiClock, rows, tagRecency,
-            new GlanceHeaderViewModel(deckClocks, uiClock, subscriber, new DeckSlotFactory(deckClocks, motion, options.GlanceView)), motion, options.GlanceView);
+            new GlanceHeaderViewModel(deckClocks, uiClock, subscriber, new DeckSlotFactory(deckClocks, motion, options.GlanceView)), motion, options.GlanceView).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(options.WaveformStyle).Create(), sender);
         var themeViewModel = new ThemeViewModel(themeContext, themeCatalog, sender);
         var vm = new MainViewModel(

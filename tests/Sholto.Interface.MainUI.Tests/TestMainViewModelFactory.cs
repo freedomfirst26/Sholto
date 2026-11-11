@@ -56,10 +56,10 @@ internal sealed class TestMainViewModelFactory
         var deck1ViewModel = deckViewModels.Create(0);
         var deck2ViewModel = deckViewModels.Create(1);
         var clocks = new DeckViewModelClockSource(deck1ViewModel, deck2ViewModel);
-        var glance = new GlanceViewModel(
+        var glance = new GlanceViewModelFactory(
             bus, bus, bus, appThread, clock, rows, tagRecency,
             new GlanceHeaderViewModel(clocks, clock, bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()))),
-            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()));
+            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
         var vm = new MainViewModel(

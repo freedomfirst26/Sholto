@@ -61,9 +61,9 @@ internal sealed class TrackListDragRig
         var deck1 = deckViewModels.Create(0);
         var deck2 = deckViewModels.Create(1);
         var clocks = new DeckViewModelClockSource(deck1, deck2);
-        var glance = new GlanceViewModel(bus, bus, bus, appThread, clock, rows, recency,
+        var glance = new GlanceViewModelFactory(bus, bus, bus, appThread, clock, rows, recency,
             new GlanceHeaderViewModel(clocks, clock, bus, new DeckSlotFactory(clocks, new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions()))),
-            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions()));
+            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions())).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
         var vm = new MainViewModel(

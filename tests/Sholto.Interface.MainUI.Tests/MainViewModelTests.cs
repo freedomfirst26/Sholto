@@ -37,9 +37,9 @@ public class MainViewModelTests
         var deck2 = new DeckViewModel(1, _bus, _bus, themes.Context, new NoPeaksFactory(),
             new DiscBloomFactory(new ManualFrameClock()));
         var clocks = new DeckViewModelClockSource(deck1, deck2);
-        var glance = new GlanceViewModel(_bus, _bus, _bus, appThread, clock, rows, recency,
+        var glance = new GlanceViewModelFactory(_bus, _bus, _bus, appThread, clock, rows, recency,
             new GlanceHeaderViewModel(clocks, clock, _bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()))),
-            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()));
+            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), _bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, _bus);
         _vm = new MainViewModel(

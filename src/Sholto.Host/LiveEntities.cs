@@ -114,7 +114,7 @@ public sealed class LiveEntities(
         var deckClocks = new DeckViewModelClockSource(deck1ViewModel, deck2ViewModel);
         var motion = new DesktopMotionPreference(Environment.GetEnvironmentVariable, new GsettingsAnimationSetting());
         var glanceHeader = new GlanceHeaderViewModel(deckClocks, _clock, _subscriber, new DeckSlotFactory(deckClocks, motion, l.GlanceView));
-        var glance = new GlanceViewModel(_sender, _asker, _subscriber, _appThread, _clock, rows, l.TagRecency, glanceHeader, motion, l.GlanceView);
+        var glance = new GlanceViewModelFactory(_sender, _asker, _subscriber, _appThread, _clock, rows, l.TagRecency, glanceHeader, motion, l.GlanceView).Create();
         var loadFeedback = new LoadFeedbackViewModel(_sender, _subscriber);
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(l.WaveformStyle).Create(), _sender);
         var themes = new ThemeViewModel(l.Theme, catalog, _sender);

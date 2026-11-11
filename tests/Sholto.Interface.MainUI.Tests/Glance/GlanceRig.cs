@@ -27,19 +27,27 @@ internal sealed class GlanceRig
     /// <summary>What the fake ranker returns for a query; default ranks the visible rows in order.</summary>
     public Func<RankTracks, Task<RankedTracks>> Answer { get; set; }
 
+    /// <summary>What the fake tag search returns; default answers with <see cref="Tags"/>.</summary>
+    public Func<SearchTags, Task<IReadOnlyList<TagHit>>> TagSearch { get; set; }
+
+    /// <summary>What the fake crate search returns; default answers with <see cref="Crates"/>.</summary>
+    public Func<SearchCrates, Task<IReadOnlyList<CrateRef>>> CrateSearch { get; set; }
+
     public GlanceRig(bool reducedMotion = false)
     {
         AvaloniaTestApp.EnsureStarted();
         var theme = new ThemeStackFactory().Build().Context;
         Library = new LibraryRowsViewModel(Bus, new TrackRowFactory(theme));
         Answer = q => Task.FromResult(Ranked(q.TargetDeck, Library.Items.Select(r => Summary(r)).ToList()));
+        TagSearch = _ => Task.FromResult<IReadOnlyList<TagHit>>([.. Tags]);
+        CrateSearch = _ => Task.FromResult<IReadOnlyList<CrateRef>>([.. Crates]);
         Ranker = new F9QueryHandler<RankTracks, Task<RankedTracks>>(q => Answer(q));
         Bus.Register<RankTracks, Task<RankedTracks>>(Ranker);
         Bus.Register<SuggestLoadTarget, int>(new F9QueryHandler<SuggestLoadTarget, int>(_ => SuggestedTarget));
         Bus.Register<SearchCrates, Task<IReadOnlyList<CrateRef>>>(
-            new F9QueryHandler<SearchCrates, Task<IReadOnlyList<CrateRef>>>(_ => Task.FromResult<IReadOnlyList<CrateRef>>([.. Crates])));
+            new F9QueryHandler<SearchCrates, Task<IReadOnlyList<CrateRef>>>(q => CrateSearch(q)));
         Bus.Register<SearchTags, Task<IReadOnlyList<TagHit>>>(
-            new F9QueryHandler<SearchTags, Task<IReadOnlyList<TagHit>>>(_ => Task.FromResult<IReadOnlyList<TagHit>>([.. Tags])));
+            new F9QueryHandler<SearchTags, Task<IReadOnlyList<TagHit>>>(q => TagSearch(q)));
         Bus.Register<TopTags, Task<IReadOnlyList<TagHit>>>(
             new F9QueryHandler<TopTags, Task<IReadOnlyList<TagHit>>>(_ => Task.FromResult<IReadOnlyList<TagHit>>([.. Tags])));
         Bus.Register<TagsByName, Task<IReadOnlyList<TagHit>>>(
@@ -53,9 +61,9 @@ internal sealed class GlanceRig
         Bus.Register(new LoggingCommandHandler<ClearTrackList>(Log));
         Bus.Register(new LoggingCommandHandler<UndoLastLoad>(Log));
         Header = new GlanceHeaderViewModel(Decks, Clock, Bus, new DeckSlotFactory(Decks, new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions())));
-        Glance = new GlanceViewModel(
+        Glance = new GlanceViewModelFactory(
             Bus, Bus, Bus, new ImmediateAppThread(), Clock, Library, new TagRecency(), Header,
-            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions()));
+            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions())).Create();
     }
 
     public IEnumerable<SetSearchPick> Picks => Log.OfType<SetSearchPick>();
