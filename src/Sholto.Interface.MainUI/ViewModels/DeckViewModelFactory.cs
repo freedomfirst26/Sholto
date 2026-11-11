@@ -24,9 +24,11 @@ public sealed class DeckViewModelFactory(
     private readonly IDiscBloomFactory _bloomFactory = bloomFactory;
 
     public DeckViewModel Create(int deck) =>
-        new(deck, _subscriber, _sender, _theme, _peaksFactory, _bloomFactory)
-        {
-            SectionMapEnabled = _features.Value.ShowSectionMap,
-            StemChipMinOpacity = _deckView.Value.StemChipMinOpacity
-        };
+        new(deck, _subscriber, _bloomFactory,
+            new DeckTuneEditorCommands(deck, _sender),
+            new DeckChipLevels(_deckView.Value.StemChipMinOpacity),
+            new DeckRingColour(_theme),
+            new DeckTempoDisplay(),
+            new DeckAnalysisDisplay(_peaksFactory.None(), _theme),
+            new DeckSectionMap(_features.Value.ShowSectionMap));
 }

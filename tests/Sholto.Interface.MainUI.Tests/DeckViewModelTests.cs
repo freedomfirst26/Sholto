@@ -741,4 +741,21 @@ public class DeckViewModelTests
         _bus.Publish(new DeckSectionsChanged(0, [new(DeckSectionKind.Intro, 0, 8)], new DeckPhraseGrid(0, 8), 0, 0, 0));
         Assert.False(_deck.HasSections);
     }
+
+    [Fact]
+    public void RefreshThemeBindings_retones_the_ring_and_notifies_the_key_and_ring_brushes()
+    {
+        var stack = new ThemeStackFactory().Build();
+        var deck = NewDeck(0, stack.Context);
+        var changed = new List<string?>();
+        deck.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        var cur = stack.Context.Current;
+        stack.Context.Current = cur with { Ring = cur.Ring with { Start = cur.Ring.End } };
+
+        deck.RefreshThemeBindings();
+
+        Assert.Equal(cur.Ring.End, ((Avalonia.Media.ISolidColorBrush)deck.DiscRingBrush).Color);
+        Assert.Contains(nameof(DeckViewModel.KeyBrush), changed);
+        Assert.Contains(nameof(DeckViewModel.DiscRingBrush), changed);
+    }
 }
