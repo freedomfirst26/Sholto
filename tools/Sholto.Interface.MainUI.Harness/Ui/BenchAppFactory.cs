@@ -66,7 +66,7 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
             new GlanceHeaderViewModel(deckClocks, uiClock, subscriber, new DeckSlotFactory(deckClocks, motion, options.GlanceView)), motion, options.GlanceView).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(options.WaveformStyle).Create(), sender);
         var themeViewModel = new ThemeViewModel(themeContext, themeCatalog, sender);
-        var vm = new MainViewModel(
+        var vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(tagRecency, asker, sender, subscriber, appThread),
             rows,
@@ -88,7 +88,7 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
             new CollapseToIconSequenceFactory(uiClock, motion)
                 .Create(new CollapseToIconOptions("faceplate", Slowed(new CollapseToIconTimingsFactory().Standard())),
                     new HintPolicyFactory(asker, sender).Always()),
-            new TrackListViewModel(sender, subscriber));
+            new TrackListViewModel(sender, subscriber)).Create();
 
         var device = new DdjFlx4Faceplate();
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), sender, subscriber).Create(device);

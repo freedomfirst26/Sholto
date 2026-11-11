@@ -66,7 +66,7 @@ internal sealed class TrackListDragRig
             new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions())).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
-        var vm = new MainViewModel(
+        var vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(recency, bus, bus, bus, appThread),
             rows,
@@ -88,7 +88,7 @@ internal sealed class TrackListDragRig
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
                 new AlwaysHintPolicy()),
-            new TrackListViewModel(sender, bus));
+            new TrackListViewModel(sender, bus)).Create();
 
         // The App side: the library scanned, then the real Track List holding the three songs in order.
         await library.Library.ScanAsync("/music", library.Stack());

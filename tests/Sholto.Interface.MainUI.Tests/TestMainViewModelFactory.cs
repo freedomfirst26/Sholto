@@ -62,7 +62,7 @@ internal sealed class TestMainViewModelFactory
             new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
-        var vm = new MainViewModel(
+        var vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(tagRecency, bus, bus, bus, appThread),
             rows,
@@ -84,7 +84,7 @@ internal sealed class TestMainViewModelFactory
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
                 new AlwaysHintPolicy()),
-            new TrackListViewModel(bus, bus));
+            new TrackListViewModel(bus, bus)).Create();
         return new TestApp(vm, core, bus);
     }
 }

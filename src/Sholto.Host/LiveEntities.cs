@@ -122,7 +122,7 @@ public sealed class LiveEntities(
         var faceplateDock = docks.Create(
             new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
             new HintPolicyFactory(_asker, _sender).FirstDismissals("faceplate", 3));
-        return new MainViewModel(
+        return new MainViewModelFactory(
             themes,
             new OverlayViewModelFactory(l.TagRecency, _asker, _sender, _subscriber, _appThread),
             rows, _sender, _subscriber, _appThread,
@@ -135,7 +135,7 @@ public sealed class LiveEntities(
             new SettingsViewModel(_subscriber, _sender, new KnobScaleFactory()),
             new SystemReportViewModel(),
             faceplateDock,
-            new TrackListViewModel(_sender, _subscriber));
+            new TrackListViewModel(_sender, _subscriber)).Create();
     }
 
     public IKeyboard CreateKeyboard() => Window;

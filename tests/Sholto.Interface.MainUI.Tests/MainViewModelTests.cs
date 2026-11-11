@@ -42,7 +42,7 @@ public class MainViewModelTests
             new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), _bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, _bus);
-        _vm = new MainViewModel(
+        _vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(recency, _bus, _bus, _bus, appThread),
             rows,
@@ -64,7 +64,7 @@ public class MainViewModelTests
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
                 new AlwaysHintPolicy()),
-            new TrackListViewModel(_bus, _bus));
+            new TrackListViewModel(_bus, _bus)).Create();
         _vm.PropertyChanged += (_, e) => _changed.Add(e.PropertyName);
 
         // The search overlay and overlay factory ask these once the database is attached.

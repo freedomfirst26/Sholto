@@ -35,7 +35,7 @@ internal sealed class SearchOverlayRig
             Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock())).Create(1);
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
-        Vm = new MainViewModel(
+        Vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(new TagRecency(), bus, bus, bus, appThread),
             Rig.Library,
@@ -57,7 +57,7 @@ internal sealed class SearchOverlayRig
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
                 new AlwaysHintPolicy()),
-            new TrackListViewModel(bus, bus));
+            new TrackListViewModel(bus, bus)).Create();
         // The overlay draws from the theme's brushes, which the real window publishes to its resources.
         var window = new Window { Width = 1100, Height = 760 };
         new ThemeResourcesApplier().Apply(window.Resources, themes.Catalog.All[0]);
