@@ -19,15 +19,20 @@ public sealed class DeckHotCues(
     private readonly IDeckMarkers _markers = markers;
     private readonly HotCueOptions _options = options.Value;
     private readonly HotCue?[][] _cues = [new HotCue?[PadCount], new HotCue?[PadCount]];
+    private readonly bool[] _cuesLoaded = new bool[2];
     private readonly int[] _previewPad = [-1, -1];
     private readonly double[] _previewSec = new double[2];
     private IHotCueStore? _store;
+    private Task _writes = Task.CompletedTask;
 
     public void Attach(IHotCueStore store)
     {
         _store = store;
         _decks.Deck1.LoadStateChanged += s => OnLoadState(0, s);
         _decks.Deck2.LoadStateChanged += s => OnLoadState(1, s);
+        // A deck already loaded has no Loaded event coming: read its cues now, or its pads stay locked.
+        if (_decks.Deck1.LoadState == DeckLoadState.Loaded) OnLoadState(0, DeckLoadState.Loaded);
+        if (_decks.Deck2.LoadState == DeckLoadState.Loaded) OnLoadState(1, DeckLoadState.Loaded);
     }
 
     public void Press(int deck, int pad, bool pressed)
@@ -39,7 +44,7 @@ public sealed class DeckHotCues(
             Release(deck, pad, session);
             return;
         }
-        if (!session.IsLoaded) return;
+        if (!session.IsLoaded || !_cuesLoaded[deck]) return;
         if (_cues[deck][pad] is { } cue) Jump(deck, pad, cue, session);
         else Set(deck, pad, session);
     }
@@ -52,7 +57,7 @@ public sealed class DeckHotCues(
         var trackId = TrackIdOf(session);
         _cues[deck][pad] = null;
         Publish(deck);
-        if (trackId != Guid.Empty) _ = PersistAsync(deck, () => store.DeleteAsync(trackId, pad));
+        if (trackId != Guid.Empty) Persist(deck, "delete", () => store.DeleteAsync(trackId, pad));
     }
 
     private void Set(int deck, int pad, IDeckSession session)
@@ -63,7 +68,7 @@ public sealed class DeckHotCues(
         var cue = new HotCue(pad, PositionToSave(session), _options.DefaultColour);
         _cues[deck][pad] = cue;
         Publish(deck);
-        _ = PersistAsync(deck, () => store.SetAsync(trackId, cue));
+        Persist(deck, "save", () => store.SetAsync(trackId, cue));
     }
 
     private double PositionToSave(IDeckSession session)
@@ -102,11 +107,14 @@ public sealed class DeckHotCues(
             Clear(deck);
             return;
         }
-        if (state == DeckLoadState.Loaded) _ = LoadForDeckAsync(deck);
+        if (state != DeckLoadState.Loaded) return;
+        _cuesLoaded[deck] = false;
+        _ = LoadForDeckAsync(deck);
     }
 
     private void Clear(int deck)
     {
+        _cuesLoaded[deck] = false;
         Array.Clear(_cues[deck]);
         _previewPad[deck] = -1;
         Publish(deck);
@@ -114,27 +122,56 @@ public sealed class DeckHotCues(
 
     private async Task LoadForDeckAsync(int deck)
     {
-        var store = _store;
-        if (store is null) return;
-        var session = _decks.DeckFor(deck);
-        var trackId = TrackIdOf(session);
-        if (trackId == Guid.Empty) return;
-        var saved = await store.ListAsync(trackId);
-        await _appThread.InvokeAsync(() =>
+        try
         {
-            // Another track may have started loading while the store answered.
-            if (TrackIdOf(session) != trackId) return;
-            Array.Clear(_cues[deck]);
-            foreach (var cue in saved)
-                if ((uint)cue.Pad < PadCount) _cues[deck][cue.Pad] = cue;
-            Publish(deck);
-        });
+            var store = _store;
+            if (store is null) return;
+            var session = _decks.DeckFor(deck);
+            var trackId = TrackIdOf(session);
+            if (trackId == Guid.Empty) return;
+            await _writes;   // a save made just before this load must be listed
+            var saved = await store.ListAsync(trackId);
+            await _appThread.InvokeAsync(() =>
+            {
+                // Another track may have started loading while the store answered.
+                if (TrackIdOf(session) != trackId) return;
+                Array.Clear(_cues[deck]);
+                foreach (var cue in saved)
+                    if ((uint)cue.Pad < PadCount) _cues[deck][cue.Pad] = cue;
+                _cuesLoaded[deck] = true;
+                Publish(deck);
+            });
+        }
+        catch (Exception ex)
+        {
+            // The pads stay locked: a press must not overwrite cues that could not be read.
+            Console.WriteLine($"[HotCue] load failed: {ex.Message}");
+        }
     }
 
-    private async Task PersistAsync(int deck, Func<Task> write)
+    /// <summary>Queues a store write behind every earlier one, so writes reach the store in the order they were made.</summary>
+    private void Persist(int deck, string op, Func<Task> write) => _writes = ChainAsync(_writes, deck, op, write);
+
+    private async Task ChainAsync(Task previous, int deck, string op, Func<Task> write)
     {
-        await write();
-        await _markers.RefreshAsync(deck);
+        await previous;   // never faults: every link catches
+        try
+        {
+            await write();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[HotCue] {op} failed: {ex.Message}");
+            return;
+        }
+        try
+        {
+            await _markers.RefreshAsync(deck);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[HotCue] refresh failed: {ex.Message}");
+        }
     }
 
     private Guid TrackIdOf(IDeckSession session) =>
