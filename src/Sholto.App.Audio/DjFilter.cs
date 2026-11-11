@@ -85,11 +85,10 @@ public sealed class DjFilter : DeckEffect
     {
         public readonly float G = g, K = k, A1 = a1, A2 = a2, A3 = a3;
         public readonly FilterMode Mode = mode;
-
-        public static readonly FilterCoeffs Bypass = new(0f, 0f, 0f, 0f, 0f, FilterMode.Bypass);
     }
 
-    private FilterCoeffs _coeffs = FilterCoeffs.Bypass;
+    private readonly FilterCoeffs _bypass;
+    private FilterCoeffs _coeffs;
 
     // Audio-thread-only: the mode last observed by Process, used to detect a
     // transition into bypass so the integrator clear can stay on the audio
@@ -104,6 +103,8 @@ public sealed class DjFilter : DeckEffect
         : base(outputStage)
     {
         _ = engine;
+        _bypass = new(0f, 0f, 0f, 0f, 0f, FilterMode.Bypass);
+        _coeffs = _bypass;
         _paramTable =
         [
             new(0, "Position", 0.0, 1.0, 0.5, EffectParamCurve.Linear),
@@ -215,7 +216,7 @@ public sealed class DjFilter : DeckEffect
             // Dead-zone → dry bypass. The integrator clear for a
             // bypass→active transition happens on the audio thread, in
             // Process, so it can't race the buffer loop.
-            return FilterCoeffs.Bypass;
+            return _bypass;
         }
 
         float fc;
