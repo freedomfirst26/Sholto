@@ -32,10 +32,10 @@ public class MainViewModelTests
         var recency = new TagRecency();
         var rows = new LibraryRowsViewModel(_bus, new TrackRowFactory(themes.Context));
         var clock = new FakeFrameClock();
-        var deck1 = new DeckViewModel(0, _bus, _bus, themes.Context, new NoPeaksFactory(),
-            new DiscBloomFactory(new ManualFrameClock()));
-        var deck2 = new DeckViewModel(1, _bus, _bus, themes.Context, new NoPeaksFactory(),
-            new DiscBloomFactory(new ManualFrameClock()));
+        var deck1 = new DeckViewModelFactory(_bus, _bus, themes.Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+            Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock())).Create(0);
+        var deck2 = new DeckViewModelFactory(_bus, _bus, themes.Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+            Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock())).Create(1);
         var clocks = new DeckViewModelClockSource(deck1, deck2);
         var glance = new GlanceViewModelFactory(_bus, _bus, _bus, appThread, clock, rows, recency,
             new GlanceHeaderViewModel(clocks, clock, _bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()))),

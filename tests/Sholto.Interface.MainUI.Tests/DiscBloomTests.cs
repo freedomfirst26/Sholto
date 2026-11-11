@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Segments;
 using Sholto.App.Analysis.Analyzers.Waveform;
@@ -22,8 +23,8 @@ public class DiscBloomTests
     public DiscBloomTests()
     {
         AvaloniaTestApp.EnsureStarted();
-        _deck = new DeckViewModel(0, _bus, _bus, new ThemeStackFactory().Build().Context, new NoPeaksFactory(),
-            new DiscBloomFactory(_clock));
+        _deck = new DeckViewModelFactory(_bus, _bus, new ThemeStackFactory().Build().Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+            Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(_clock)).Create(0);
     }
 
     private void Load(float[] low, float[] mid, float[] high)

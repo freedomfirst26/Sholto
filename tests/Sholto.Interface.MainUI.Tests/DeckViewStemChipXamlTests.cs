@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Avalonia.Controls;
 using Avalonia.LogicalTree;
 using Sholto.Data;
@@ -21,8 +22,8 @@ public class DeckViewStemChipXamlTests
     public void Each_stem_chip_opacity_follows_its_stem_level(string label, int stem)
     {
         var bus = new DataBus(new ThrowingFailureSink());
-        var deck = new DeckViewModel(0, bus, bus, new ThemeStackFactory().Build().Context, new NoPeaksFactory(),
-            new DiscBloomFactory(new FakeFrameClock()));
+        var deck = new DeckViewModelFactory(bus, bus, new ThemeStackFactory().Build().Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+            Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new FakeFrameClock())).Create(0);
         var view = new DeckView { DataContext = deck };
         var chip = view.GetLogicalDescendants().OfType<TextBlock>()
             .First(t => t.Text == label).GetLogicalParent() as Grid;

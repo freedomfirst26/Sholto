@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Segments;
 using Sholto.App.Analysis.Analyzers.Waveform;
@@ -28,9 +29,10 @@ public class DeckViewModelTests
         _deck.PropertyChanged += (_, e) => _changed.Add(e.PropertyName);
     }
 
-    private DeckViewModel NewDeck(int index) =>
-        new(index, _bus, _bus, new ThemeStackFactory().Build().Context, new NoPeaksFactory(),
-            new DiscBloomFactory(_clock));
+    private DeckViewModel NewDeck(int index, IThemeContext? theme = null) =>
+        new DeckViewModelFactory(_bus, _bus, theme ?? new ThemeStackFactory().Build().Context,
+            Options.Create(new FeatureOptions { ShowSectionMap = false }), Options.Create(new DeckViewOptions()),
+            new NoPeaksFactory(), new DiscBloomFactory(_clock)).Create(index);
 
     private DeckAnalysis AnalysisWithBasic(double bpm = 128.0) => new(
         new WaveformPeaks(Min: [-0.5f], Max: [0.5f], Low: [0.1f], Mid: [0.2f], High: [0.3f], SamplesPerPeak: 1024, SampleRate: 48000),

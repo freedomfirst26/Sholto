@@ -29,8 +29,10 @@ internal sealed class SearchOverlayRig
         var bus = Rig.Bus;
         var themes = new ThemeStackFactory().Build();
         var appThread = new ImmediateAppThread();
-        var deck1 = new DeckViewModel(0, bus, bus, themes.Context, new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock()));
-        var deck2 = new DeckViewModel(1, bus, bus, themes.Context, new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock()));
+        var deck1 = new DeckViewModelFactory(bus, bus, themes.Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+            Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock())).Create(0);
+        var deck2 = new DeckViewModelFactory(bus, bus, themes.Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+            Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock())).Create(1);
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
         var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
         Vm = new MainViewModel(

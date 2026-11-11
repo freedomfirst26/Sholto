@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Segments;
 using Sholto.App.Analysis.Analyzers.Waveform;
@@ -30,7 +31,8 @@ public class DeckWaveformPeaksTests
     {
         AvaloniaTestApp.EnsureStarted();
         var bus = new DataBus(new ThrowingFailureSink());
-        var deck = new DeckViewModel(0, bus, bus, new ThemeStackFactory().Build().Context, new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock()));
+        var deck = new DeckViewModelFactory(bus, bus, new ThemeStackFactory().Build().Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+            Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock())).Create(0);
         bus.Publish(new DeckContentChanged(
             0, new DeckTrack("/music/a.mp3", "Alpha", "Zed", TimeSpan.FromMinutes(3)),
             DeckLoadState.Loaded, true, MakeBasic()));
