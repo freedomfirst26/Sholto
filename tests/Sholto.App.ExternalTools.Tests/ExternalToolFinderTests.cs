@@ -2,7 +2,7 @@ namespace Sholto.App.ExternalTools.Tests;
 
 public class ExternalToolFinderTests
 {
-    private readonly ExternalToolOptionsFactory _optionsFactory = new(new ExternalToolCatalog());
+    private readonly IExternalToolOptionsFactory _optionsFactory = new ExternalToolOptionsFactory(new ExternalToolCatalog());
 
     private string WriteFake(string dir, string name)
     {

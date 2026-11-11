@@ -4,7 +4,9 @@ namespace Sholto.Interface.MainUI.Theming;
 /// <c>App.OnFrameworkInitializationCompleted</c> or later: loading bundled themes
 /// goes through Avalonia's <c>AssetLoader</c> (<c>avares://</c>), which needs a live
 /// application.</summary>
-public sealed class ThemeCatalogFactory(ISholtoThemeJson themeJson)
+public sealed class ThemeCatalogFactory(ISholtoThemeJson themeJson) : IThemeCatalogFactory
 {
-    public ThemeCatalog Build() => new(themeJson.LoadAll(), themeJson.UserThemesDir());
+    private readonly ISholtoThemeJson _themeJson = themeJson;
+
+    public ThemeCatalog Build() => new(_themeJson.LoadAll(), _themeJson.UserThemesDir());
 }

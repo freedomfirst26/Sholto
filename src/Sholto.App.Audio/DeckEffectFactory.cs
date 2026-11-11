@@ -22,7 +22,7 @@ namespace Sholto.App.Audio;
 /// <see cref="DeckMixer"/> (whose <c>AttachModifiers</c> looks up the 3
 /// effects it needs by type, ignoring anything else in the list).
 /// </summary>
-public sealed class DeckEffectFactory
+public sealed class DeckEffectFactory : IDeckEffectFactory
 {
     /// <summary>Builds the chain, handing the shared <paramref name="tempoMath"/>
     /// to the tempo-synced effects (echo, beat-repeat) at their construction.</summary>

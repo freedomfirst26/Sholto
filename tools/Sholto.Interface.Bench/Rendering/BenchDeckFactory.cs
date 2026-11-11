@@ -49,7 +49,7 @@ public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisSte
 
     // The same effect chain the real app composes (SholtoStackFactory), built here
     // so Bench renders through identical EQ -> filter -> echo -> beat-repeat.
-    private readonly DeckEffectFactory _effects = new(new TempoMath());
+    private readonly IDeckEffectFactory _effects = new DeckEffectFactory(new TempoMath());
 
     /// <summary>The format every Bench deck is attached with: 48 kHz stereo F32,
     /// the same deck format <see cref="AudioEngine"/> uses.</summary>

@@ -2,7 +2,7 @@ namespace Sholto.App.ExternalTools.Tests;
 
 public class ExternalToolOptionsTests
 {
-    private readonly ExternalToolOptionsFactory _optionsFactory = new(new ExternalToolCatalog());
+    private readonly IExternalToolOptionsFactory _optionsFactory = new ExternalToolOptionsFactory(new ExternalToolCatalog());
 
     [Fact]
     public void ForCurrentPlatform_returns_Linux_options_on_Linux()

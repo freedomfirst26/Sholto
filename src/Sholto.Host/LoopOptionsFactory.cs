@@ -4,7 +4,7 @@ namespace Sholto.Host;
 /// <summary>Builds the <see cref="LoopOptions"/>: the defaults, overridden by the
 /// <c>SHOLTO_LOOP_MODE</c> and <c>SHOLTO_LOOP_FADE_MS</c> environment variables (A/B testing).
 /// Called once, from <see cref="SholtoOptions"/>.</summary>
-public sealed class LoopOptionsFactory
+public sealed class LoopOptionsFactory : ILoopOptionsFactory
 {
     public LoopOptions Create()
     {

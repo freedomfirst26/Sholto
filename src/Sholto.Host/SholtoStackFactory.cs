@@ -29,7 +29,7 @@ public sealed class SholtoStackFactory(
     IAnalysisStackFactory analysisStackFactory,
     ISholtoStorage storage,
     IAppThread appThread,
-    IOptions<LoopOptions> loopOptions)
+    IOptions<LoopOptions> loopOptions) : ISholtoStackFactory
 {
     private readonly IExternalToolStackFactory _toolStackFactory = toolStackFactory;
     private readonly IAnalysisStackFactory _analysisStackFactory = analysisStackFactory;

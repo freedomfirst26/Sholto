@@ -9,16 +9,7 @@ public sealed partial class FactoryHasInterfaceTests
     // FROZEN: today's real offenders, sorted. It may only shrink: remove an entry when its class gains its interface
     // or is renamed or deleted (the stale-entry test fails until you do). Never add one.
     private static readonly string[] Allowed =
-    [
-        "AudioTimingOptionsFactory",
-        "DeckEffectFactory",
-        "ExternalToolOptionsFactory",
-        "LoopOptionsFactory",
-        "MadmomBeatAnalysisStepFactory",
-        "ScratchOptionsFactory",
-        "SholtoStackFactory",
-        "ThemeCatalogFactory",
-    ];
+    [];
 
     private readonly SourceFiles _sources = new();
 

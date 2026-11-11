@@ -10,7 +10,7 @@ namespace Sholto.App.ExternalTools;
 /// separate job from being the settings — and it is a job that happens exactly once,
 /// at the composition root.
 /// </summary>
-public sealed class ExternalToolOptionsFactory(IExternalToolCatalog catalog)
+public sealed class ExternalToolOptionsFactory(IExternalToolCatalog catalog) : IExternalToolOptionsFactory
 {
     private readonly IExternalToolCatalog _catalog = catalog;
 
