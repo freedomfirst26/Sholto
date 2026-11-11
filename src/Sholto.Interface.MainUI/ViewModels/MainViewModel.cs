@@ -32,7 +32,7 @@ public sealed class MainViewModel :
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private readonly LibraryRowsViewModel _rows;
+    private readonly ILibraryRowsViewModel _rows;
 
     /// <summary>The visible library rows; the library list and the search overlay bind to it.</summary>
     public ObservableCollection<TrackRow> Tracks => _rows.Items;
@@ -78,7 +78,7 @@ public sealed class MainViewModel :
     // ---- Enter-mode: the track action menu + crate picker ----------------------
 
     public TrackActionsViewModel TrackActions => _trackActions.TrackActions;
-    public OutputPickerViewModel OutputPicker { get; }
+    public IOutputPickerViewModel OutputPicker { get; }
 
     private bool _isOutputPickerOpen;
     public bool IsOutputPickerOpen
@@ -144,8 +144,8 @@ public sealed class MainViewModel :
     void IEventHandler<TrackLoadFailed>.Handle(in TrackLoadFailed e) =>
         _toast.Show($"Couldn't load {e.Title} · Deck {e.Deck + 1}");
 
-    public DeckViewModel Deck1 { get; }
-    public DeckViewModel Deck2 { get; }
+    public IDeckViewModel Deck1 { get; }
+    public IDeckViewModel Deck2 { get; }
 
     private string? _debugStats;
     /// <summary>Top-bar CPU/RAM readout when SHOLTO_DEBUG_STATS=1. Null otherwise — the
@@ -268,14 +268,14 @@ public sealed class MainViewModel :
     private readonly IFaceplateGuideCoordinator _faceplate;
 
     public MainViewModel(IThemeViewModel themes,
-                         LibraryRowsViewModel rows,
+                         ILibraryRowsViewModel rows,
                          ICommandSender sender,
                          IEventSubscriber subscriber,
                          IGlanceViewModel glance,
                          ILoadFeedbackViewModel loadFeedback,
-                         OutputPickerViewModel outputPicker,
-                         DeckViewModel deck1,
-                         DeckViewModel deck2,
+                         IOutputPickerViewModel outputPicker,
+                         IDeckViewModel deck1,
+                         IDeckViewModel deck2,
                          IWaveformStyleViewModel waveformStyle,
                          ILayoutWizardViewModel layoutWizard,
                          ISettingsViewModel settings,
@@ -435,10 +435,10 @@ public sealed class MainViewModel :
     public void RequestChangeOutputDevice() =>
         _sender.Send(new ChangeOutputDevice(new Origin(InterfaceIds.MainUI, "menu", "change-output-device")));
 
-    public DeckViewModel DeckFor(int deck) => deck == 1 ? Deck2 : Deck1;
+    public IDeckViewModel DeckFor(int deck) => deck == 1 ? Deck2 : Deck1;
 
     /// <summary>The deck whose tune editor is open (deck 1 first), or null. The arrow keys tune this deck.</summary>
-    public DeckViewModel? EditingDeck => Deck1.EditOpen ? Deck1 : Deck2.EditOpen ? Deck2 : null;
+    public IDeckViewModel? EditingDeck => Deck1.EditOpen ? Deck1 : Deck2.EditOpen ? Deck2 : null;
 
     private double _crossfader = 0.5;
 

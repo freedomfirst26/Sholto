@@ -7,7 +7,7 @@ namespace Sholto.Interface.MainUI.ViewModels;
 
 /// <summary>Drives the in-window "Choose Audio Output" picker. <see cref="AskAsync"/> opens it and the
 /// returned task completes with the chosen device name, or null if the user cancelled.</summary>
-public sealed class OutputPickerViewModel : INotifyPropertyChanged
+public sealed class OutputPickerViewModel : IOutputPickerViewModel
 {
     public event PropertyChangedEventHandler? PropertyChanged;
     public event Action? Opened;

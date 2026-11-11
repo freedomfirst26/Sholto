@@ -11,6 +11,7 @@ namespace Sholto.Interface.MainUI.ViewModels;
 /// <para>Events are published on the app thread, which is the UI thread, so the collection is changed
 /// directly.</para></summary>
 public sealed class LibraryRowsViewModel :
+    ILibraryRowsViewModel,
     IEventHandler<LibraryRowsChanged>,
     IEventHandler<TrackSummaryChanged>,
     IEventHandler<HarmonyReferenceChanged>,

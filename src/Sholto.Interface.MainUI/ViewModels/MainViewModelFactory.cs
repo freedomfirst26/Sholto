@@ -9,25 +9,25 @@ namespace Sholto.Interface.MainUI.ViewModels;
 /// toast, track-actions, system-report and faceplate-guide collaborators and hands them in through the
 /// constructor.</summary>
 public sealed class MainViewModelFactory(
-    IThemeViewModel themes, IOverlayViewModelFactory overlays, LibraryRowsViewModel rows, ICommandSender sender,
+    IThemeViewModel themes, IOverlayViewModelFactory overlays, ILibraryRowsViewModel rows, ICommandSender sender,
     IEventSubscriber subscriber, IAppThread appThread, IGlanceViewModel glance, ILoadFeedbackViewModel loadFeedback,
-    TrackActionsViewModel trackActions, OutputPickerViewModel outputPicker, DeckViewModel deck1, DeckViewModel deck2,
+    TrackActionsViewModel trackActions, IOutputPickerViewModel outputPicker, IDeckViewModel deck1, IDeckViewModel deck2,
     IWaveformStyleViewModel waveformStyle, ILayoutWizardViewModel layoutWizard, ISettingsViewModel settings,
     ISystemReportViewModel systemReport, ICollapseToIconSequence faceplateDock, ITrackListViewModel trackList)
     : IMainViewModelFactory
 {
     private readonly IThemeViewModel _themes = themes;
     private readonly IOverlayViewModelFactory _overlays = overlays;
-    private readonly LibraryRowsViewModel _rows = rows;
+    private readonly ILibraryRowsViewModel _rows = rows;
     private readonly ICommandSender _sender = sender;
     private readonly IEventSubscriber _subscriber = subscriber;
     private readonly IAppThread _appThread = appThread;
     private readonly IGlanceViewModel _glance = glance;
     private readonly ILoadFeedbackViewModel _loadFeedback = loadFeedback;
     private readonly TrackActionsViewModel _trackActions = trackActions;
-    private readonly OutputPickerViewModel _outputPicker = outputPicker;
-    private readonly DeckViewModel _deck1 = deck1;
-    private readonly DeckViewModel _deck2 = deck2;
+    private readonly IOutputPickerViewModel _outputPicker = outputPicker;
+    private readonly IDeckViewModel _deck1 = deck1;
+    private readonly IDeckViewModel _deck2 = deck2;
     private readonly IWaveformStyleViewModel _waveformStyle = waveformStyle;
     private readonly ILayoutWizardViewModel _layoutWizard = layoutWizard;
     private readonly ISettingsViewModel _settings = settings;

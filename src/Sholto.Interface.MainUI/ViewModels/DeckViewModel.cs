@@ -14,6 +14,7 @@ namespace Sholto.Interface.MainUI.ViewModels;
 /// per-frame <see cref="DeckFrame"/> handler allocates nothing: it compares, stores and notifies through
 /// cached <see cref="PropertyChangedEventArgs"/>.</para></summary>
 public sealed class DeckViewModel :
+    IDeckViewModel,
     INotifyPropertyChanged,
     IEventHandler<DeckFrame>,
     IEventHandler<DeckContentChanged>,
