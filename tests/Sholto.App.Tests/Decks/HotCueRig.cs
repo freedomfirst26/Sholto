@@ -31,10 +31,14 @@ internal sealed class HotCueRig
         Deck1 = new DeckSessionRig(new SeekRecordingPorts(ports1, Transports[0])).Session;
         Deck2 = new DeckSessionRig(new SeekRecordingPorts(ports2, Transports[1])).Session;
         var decks = new DeckPair(Deck1, Deck2);
+        var catalog = new LibraryCatalog(Bus);
+        var seeds = new LibrarySeeds(catalog);
+        var wiring = new LibraryDeckWiring(
+            catalog, decks, new Session(), new AnalysisReporter(new[] { AnalysisSteps.Beats }), new ImmediateAppThread());
         Library = new LibrarySession(
             new FakeTrackScanner([Alpha, Bravo]), new NullKeyAnalysisStore(),
             new DemucsStemPresence(_ => Path.Combine(Path.GetTempPath(), "sholto-tests-no-stems")),
-            new AnalysisReporter(new[] { AnalysisSteps.Beats }), decks, new Session(), new ImmediateAppThread(), Bus);
+            decks, catalog, wiring, seeds, new ImmediateAppThread(), Bus);
         Library.ScanAsync("/music", new LibraryStack(
             new FakeTrackCatalog(), new FakeTagService(new Dictionary<Guid, IReadOnlyList<string>>()),
             new FakeBasicAnalysisStore(new Dictionary<string, double>()), new FakeTempoMultiplierStore())).GetAwaiter().GetResult();

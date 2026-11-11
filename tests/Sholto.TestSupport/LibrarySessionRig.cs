@@ -34,13 +34,18 @@ internal sealed class LibrarySessionRig
         Deck2 = new DeckSessionRig(new ScriptedPorts(new TestDeckFactory().Create())).Session;
         Reporter = new AnalysisReporter(new[] { AnalysisSteps.Beats });
         Bus = new DataBus(new ThrowingFailureSink());
+        var decks = new DeckPair(Deck1, Deck2);
+        var catalog = new LibraryCatalog(Bus);
+        var seeds = new LibrarySeeds(catalog);
+        var wiring = new LibraryDeckWiring(catalog, decks, new Session(), Reporter, appThread);
         Library = new LibrarySession(
             new FakeTrackScanner(Tracks),
             new NullKeyAnalysisStore(),
             new DemucsStemPresence(_ => Path.Combine(Path.GetTempPath(), "sholto-tests-no-stems")),
-            Reporter,
-            new DeckPair(Deck1, Deck2),
-            new Session(),
+            decks,
+            catalog,
+            wiring,
+            seeds,
             appThread,
             Bus);
     }

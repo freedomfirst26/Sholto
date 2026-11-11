@@ -11,9 +11,9 @@ using Sholto.App.Decks;
 
 namespace Sholto.App.Library;
 
-/// <summary>See <see cref="ILibrarySession"/>. The catalog (<c>_all</c>) is the source of truth; the
-/// visible rows (<c>_visible</c>) are the catalog until a Track List is shown, then the Track List's paths (those in the catalog), in its order. Every
-/// mutation happens on the app thread: events from other threads (the analysis reporter, a deck's analysis
+/// <summary>See <see cref="ILibrarySession"/>. The catalog, visible rows and selection live in
+/// <see cref="ILibraryCatalog"/>; deck and analysis events reach the rows through <see cref="ILibraryDeckWiring"/>.
+/// Every mutation happens on the app thread: events from other threads (the analysis reporter, a deck's analysis
 /// landing, the tag service) are posted onto it first.</summary>
 public sealed class LibrarySession : ILibrarySession
 {
@@ -21,29 +21,23 @@ public sealed class LibrarySession : ILibrarySession
     private readonly IKeyAnalysisStore _keyStore;
     private readonly IStemPresence _stemPresence;
     private readonly IDecks _decks;
-    private readonly ISession _session;
+    private readonly ILibraryCatalog _catalog;
+    private readonly ILibraryDeckWiring _wiring;
+    private readonly ILibrarySeeds _seeds;
     private readonly IAppThread _appThread;
     private readonly IEventPublisher _publisher;
 
-    private List<TrackSummary> _all = [];
-    private List<TrackSummary> _visible = [];
-    private readonly Dictionary<string, int> _allIndex = [];
-    private readonly Dictionary<string, int> _visibleIndex = [];
-    private int _version;
-    private int _selectedIndex = -1;
-    private List<string>? _shownPaths;
-
     private ICrateService? _crates;
     private ITagService? _tags;
-    private ITempoMultiplierStore? _multiplierStore;
 
     public LibrarySession(
         ITrackScanner trackScanner,
         IKeyAnalysisStore keyStore,
         IStemPresence stemPresence,
-        IAnalysisReporter reporter,
         IDecks decks,
-        ISession session,
+        ILibraryCatalog catalog,
+        ILibraryDeckWiring wiring,
+        ILibrarySeeds seeds,
         IAppThread appThread,
         IEventPublisher publisher)
     {
@@ -51,45 +45,39 @@ public sealed class LibrarySession : ILibrarySession
         _keyStore = keyStore;
         _stemPresence = stemPresence;
         _decks = decks;
-        _session = session;
+        _catalog = catalog;
+        _wiring = wiring;
+        _seeds = seeds;
         _appThread = appThread;
         _publisher = publisher;
 
-        // Route Session events into the matching summary so the library re-renders the italic style.
-        _session.TrackPlayed += filePath => _appThread.Post(() => ApplyPlayed(filePath));
-
-        WireDeck(_decks.Deck1);
-        WireDeck(_decks.Deck2);
-
-        // Surface analysis progress AND failure on the row. Reading only IsBusy here was the bug that hid
-        // five days of broken demucs runs: a step flipping to Failed makes IsBusy go false exactly like
-        // success, so the row just quietly stopped spinning and showed nothing at all.
-        //
-        // Gate the failure computation on HasFailure: Updated fires on every single PropertyChanged from
-        // any step (including plain progress ticks), and FailureMessage does a lock + LINQ + string.Join
-        // over every step. Without this gate, every demucs tqdm tick on the analyser thread pays for that
-        // work. It runs on the reporter's thread; only the summary update is posted to the app thread.
-        reporter.Updated += report =>
-        {
-            var busy = report.IsBusy;
-            var hasFailure = report.HasFailure;
-            var failure = hasFailure ? report.FailureMessage : null;
-            var requiredFailure = hasFailure && report.HasRequiredFailure;
-            var filePath = report.FilePath;
-            _appThread.Post(() => ApplyAnalysisReport(filePath, busy, failure, requiredFailure));
-        };
+        _wiring.DeckAnalysisApplied += RefreshHarmonyReference;
     }
 
-    public event Action<IReadOnlyList<TrackSummary>>? RowsChanged;
-    public event Action<TrackSummary>? RowUpdated;
+    public event Action<IReadOnlyList<TrackSummary>>? RowsChanged
+    {
+        add => _catalog.RowsChanged += value;
+        remove => _catalog.RowsChanged -= value;
+    }
+
+    public event Action<TrackSummary>? RowUpdated
+    {
+        add => _catalog.RowUpdated += value;
+        remove => _catalog.RowUpdated -= value;
+    }
+
     public event Action? UnreachableChanged;
     public event Action<Key?>? HarmonyReferenceChanged;
     public event Action<ITagService, ICrateService>? ServicesAttached;
-    public event Action? SelectedIndexChanged;
+    public event Action? SelectedIndexChanged
+    {
+        add => _catalog.SelectedIndexChanged += value;
+        remove => _catalog.SelectedIndexChanged -= value;
+    }
 
-    public IReadOnlyList<TrackSummary> Rows => _visible;
+    public IReadOnlyList<TrackSummary> Rows => _catalog.Rows;
 
-    public IReadOnlyList<TrackSummary> Catalog => _all;
+    public IReadOnlyList<TrackSummary> Catalog => _catalog.All;
 
     public ITagService? Tags => _tags;
 
@@ -174,7 +162,7 @@ public sealed class LibrarySession : ILibrarySession
 
             await _appThread.InvokeAsync(() =>
             {
-                ReplaceCatalog(summaries);
+                _catalog.ReplaceAll(summaries);
                 CurrentDir = musicDir;
                 SetUnreachablePath(null);
             });
@@ -214,231 +202,59 @@ public sealed class LibrarySession : ILibrarySession
 
     // ---- Catalog and visible rows --------------------------------------------------------------
 
-    private void ReplaceCatalog(List<TrackSummary> summaries)
-    {
-        _all = summaries;
-        _allIndex.Clear();
-        for (var i = 0; i < _all.Count; i++) _allIndex[_all[i].FilePath] = i;
-        SetVisible(VisibleRows());
-    }
-
-    /// <summary>The rows to show now: the whole catalog until a Track List is first shown, then the shown
-    /// paths that the catalog holds, in the shown order.</summary>
-    private List<TrackSummary> VisibleRows()
-    {
-        if (_shownPaths is null) return [.. _all];
-        var rows = new List<TrackSummary>(_shownPaths.Count);
-        foreach (var path in _shownPaths)
-            if (_allIndex.TryGetValue(path, out var i)) rows.Add(_all[i]);
-        return rows;
-    }
-
-    private void SetVisible(List<TrackSummary> rows)
-    {
-        // Keep the highlight on the same song; when it is gone, on the same row (clamped).
-        var highlighted = SelectedSummary?.FilePath;
-        var oldIndex = _selectedIndex;
-        _visible = rows;
-        _visibleIndex.Clear();
-        for (var i = 0; i < _visible.Count; i++) _visibleIndex[_visible[i].FilePath] = i;
-        _version++;
-        var newIndex = NewSelectedIndex(highlighted, oldIndex);
-        if (newIndex == _selectedIndex && newIndex >= 0 && SelectedSummary?.FilePath != highlighted)
-        {
-            // Same row number, different song: the index did not change but the selection did.
-            SelectedIndexChanged?.Invoke();
-            _publisher.Publish(new SelectionChanged(_selectedIndex, SelectedSummary?.TrackId ?? Guid.Empty));
-        }
-        else SetSelectedIndex(newIndex);
-        // One immutable snapshot, shared by the C# event and the bus.
-        var snapshot = _visible.ToArray();
-        RowsChanged?.Invoke(snapshot);
-        _publisher.Publish(new LibraryRowsChanged(snapshot, _version));
-    }
-
-    /// <summary>Store a changed summary in the catalog and the visible rows and announce it.</summary>
-    private void Replace(int allIndex, TrackSummary updated)
-    {
-        _all[allIndex] = updated;
-        if (_visibleIndex.TryGetValue(updated.FilePath, out var visibleIndex)) _visible[visibleIndex] = updated;
-        RowUpdated?.Invoke(updated);
-        _publisher.Publish(new TrackSummaryChanged(updated));
-    }
-
-    private bool TryFind(string filePath, out int allIndex, out TrackSummary summary)
-    {
-        if (_allIndex.TryGetValue(filePath, out allIndex))
-        {
-            summary = _all[allIndex];
-            return true;
-        }
-        summary = null!;
-        return false;
-    }
-
     public TrackSummary? SummaryFor(string filePath) =>
-        TryFind(filePath, out _, out var summary) ? summary : null;
+        _catalog.TryFind(filePath, out _, out var summary) ? summary : null;
 
     public double GetBpmMultiplierFor(string filePath) =>
-        TryFind(filePath, out _, out var summary) ? summary.BpmMultiplier : 1.0;
+        _catalog.TryFind(filePath, out _, out var summary) ? summary.BpmMultiplier : 1.0;
 
     public Guid TrackIdFor(string filePath) =>
-        TryFind(filePath, out _, out var summary) ? summary.TrackId : Guid.Empty;
+        _catalog.TryFind(filePath, out _, out var summary) ? summary.TrackId : Guid.Empty;
 
-    // ---- Track List ----------------------------------------------------------------------------
+    // ---- Track List and selection --------------------------------------------------------------
 
-    public void ShowTrackList(IReadOnlyList<string> paths)
-    {
-        _shownPaths = [.. paths];
-        SetVisible(VisibleRows());
-    }
+    public void ShowTrackList(IReadOnlyList<string> paths) => _catalog.ShowTrackList(paths);
 
-    private int NewSelectedIndex(string? highlighted, int oldIndex)
-    {
-        if (oldIndex < 0 || _visible.Count == 0) return -1;
-        if (highlighted is not null && _visibleIndex.TryGetValue(highlighted, out var same)) return same;
-        return Math.Clamp(oldIndex, 0, _visible.Count - 1);
-    }
+    public int SelectedIndex => _catalog.SelectedIndex;
 
-    // ---- Selection -----------------------------------------------------------------------------
-
-    public int SelectedIndex => _selectedIndex;
-
-    public TrackSummary? SelectedSummary =>
-        _selectedIndex >= 0 && _selectedIndex < _visible.Count ? _visible[_selectedIndex] : null;
+    public TrackSummary? SelectedSummary => _catalog.SelectedSummary;
 
     public Track? SelectedTrack => SelectedSummary?.ToTrack();
 
-    public void SetSelectedIndex(int index)
-    {
-        if (_selectedIndex == index) return;
-        _selectedIndex = index;
-        SelectedIndexChanged?.Invoke();
-        _publisher.Publish(new SelectionChanged(_selectedIndex, SelectedSummary?.TrackId ?? Guid.Empty));
-    }
+    public void SetSelectedIndex(int index) => _catalog.SetSelectedIndex(index);
 
-    public void Select(int index)
-    {
-        if (_visible.Count == 0) return;
-        SetSelectedIndex(Math.Clamp(index, 0, _visible.Count - 1));
-    }
+    public void Select(int index) => _catalog.Select(index);
 
-    public void Rotate(int delta)
-    {
-        if (_visible.Count == 0) return;
-        int next = _selectedIndex < 0 ? 0 : _selectedIndex + delta;
-        Select(next);
-    }
+    public void Rotate(int delta) => _catalog.Rotate(delta);
 
     // ---- Per-track facts -----------------------------------------------------------------------
 
-    private void WireDeck(IDeckSession deck)
-    {
-        // Played tracking: a track that finishes loading into a deck is marked played. Routed through the
-        // deck's typed LoadStateChanged event rather than polling or hooking into LoadTrack itself, which
-        // keeps the deck logic ignorant of session state.
-        deck.LoadStateChanged += state =>
-        {
-            if (state != DeckLoadState.Loaded) return;
-            var path = deck.LoadedTrack?.FilePath;
-            if (!string.IsNullOrEmpty(path)) _session.MarkPlayed(path!);
-        };
-
-        // The user halved/doubled a loaded track's BPM: show it on the row and persist it.
-        deck.BpmMultiplierChosen += OnBpmMultiplierChosen;
-
-        // Analysis landing on a loaded deck updates its row.
-        deck.Loading.AnalysisUpdated += () =>
-        {
-            var path = deck.LoadedTrack?.FilePath;
-            if (path is null) return;
-            var bpm = deck.Analysis.Basic?.Bpm;
-            var stems = deck.Analysis.Get<StemPaths>();
-            var key = deck.Analysis.Get<KeyAnalysis>()?.Key;
-            _appThread.Post(() => ApplyDeckAnalysis(path, bpm, stems is not null, key));
-        };
-    }
-
-    private void ApplyPlayed(string filePath)
-    {
-        if (TryFind(filePath, out var i, out var s) && !s.IsPlayed) Replace(i, s with { IsPlayed = true });
-    }
-
-    private void ApplyDeckAnalysis(string filePath, double? bpm, bool hasStems, Key? key)
-    {
-        if (TryFind(filePath, out var i, out var s))
-        {
-            var updated = s;
-            if (bpm is not null && updated.Bpm != bpm) updated = updated with { Bpm = bpm };
-            if (hasStems && !updated.StemsReady) updated = updated with { StemsReady = true };
-            if (key is { } k && updated.MusicalKey != k.ToRef()) updated = updated with { MusicalKey = k.ToRef() };
-            if (!ReferenceEquals(updated, s)) Replace(i, updated);
-        }
-        RefreshHarmonyReference();
-    }
-
-    private void ApplyAnalysisReport(string filePath, bool busy, string? failure, bool requiredFailure)
-    {
-        if (!TryFind(filePath, out var i, out var s)) return;
-        if (s.IsAnalyzing == busy && s.AnalysisFailure == failure && s.HasRequiredFailure == requiredFailure) return;
-        Replace(i, s with { IsAnalyzing = busy, AnalysisFailure = failure, HasRequiredFailure = requiredFailure });
-    }
-
-    private void OnBpmMultiplierChosen(string filePath, double multiplier)
-    {
-        // Also update the matching row so the library list reflects the change.
-        if (TryFind(filePath, out var i, out var s) && s.BpmMultiplier != multiplier)
-            Replace(i, s with { BpmMultiplier = multiplier });
-        var store = _multiplierStore;
-        if (store is not null) _ = PersistMultiplierAsync(store, filePath, multiplier);
-    }
-
-    private async Task PersistMultiplierAsync(ITempoMultiplierStore store, string filePath, double multiplier)
-    {
-        try
-        {
-            await store.PutAsync(filePath, multiplier);
-        }
-        catch (Exception ex) { Console.WriteLine($"[DB] save bpm override failed: {ex.Message}"); }
-    }
-
     public void ApplyReanalysis(string filePath, double bpm, Key? key)
     {
-        if (TryFind(filePath, out var i, out var s))
+        if (_catalog.TryFind(filePath, out var i, out var s))
         {
             var updated = s with { Bpm = bpm };
             if (key is { } k) updated = updated with { MusicalKey = k.ToRef() };
-            Replace(i, updated);
+            _catalog.Replace(i, updated);
         }
         RefreshHarmonyReference();
     }
 
     public void ReportReanalysisFailure(string filePath, string failure)
     {
-        if (TryFind(filePath, out var i, out var s)) Replace(i, s with { AnalysisFailure = failure });
+        if (_catalog.TryFind(filePath, out var i, out var s)) _catalog.Replace(i, s with { AnalysisFailure = failure });
     }
 
     // ---- Seeding and the harmony reference -----------------------------------------------------
 
-    public void SeedKnownBpms(IReadOnlyDictionary<string, double> bpms)
-    {
-        for (var i = 0; i < _all.Count; i++)
-            if (bpms.TryGetValue(_all[i].FilePath, out var bpm) && _all[i].Bpm != bpm)
-                Replace(i, _all[i] with { Bpm = bpm });
-    }
+    public void SeedKnownBpms(IReadOnlyDictionary<string, double> bpms) => _seeds.SeedKnownBpms(bpms);
 
-    public void SeedKnownBpmMultipliers(IReadOnlyDictionary<string, double> multipliers)
-    {
-        for (var i = 0; i < _all.Count; i++)
-            if (multipliers.TryGetValue(_all[i].FilePath, out var m) && _all[i].BpmMultiplier != m)
-                Replace(i, _all[i] with { BpmMultiplier = m });
-    }
+    public void SeedKnownBpmMultipliers(IReadOnlyDictionary<string, double> multipliers) =>
+        _seeds.SeedKnownBpmMultipliers(multipliers);
 
     public void SeedKnownKeys(IReadOnlyDictionary<string, Key> keys)
     {
-        for (var i = 0; i < _all.Count; i++)
-            if (keys.TryGetValue(_all[i].FilePath, out var k) && _all[i].MusicalKey != k.ToRef())
-                Replace(i, _all[i] with { MusicalKey = k.ToRef() });
+        _seeds.SeedKnownKeys(keys);
         RefreshHarmonyReference();
     }
 
@@ -473,14 +289,14 @@ public sealed class LibrarySession : ILibrarySession
         _publisher.Publish(new LibraryDatabaseAttached(true));
     }
 
-    public void AttachMultiplierStore(ITempoMultiplierStore store) => _multiplierStore = store;
+    public void AttachMultiplierStore(ITempoMultiplierStore store) => _wiring.AttachMultiplierStore(store);
 
     private void ApplyTags(Guid trackId, IReadOnlyList<string> tags)
     {
-        for (var i = 0; i < _all.Count; i++)
+        for (var i = 0; i < _catalog.All.Count; i++)
         {
-            if (_all[i].TrackId != trackId) continue;
-            Replace(i, _all[i] with { Tags = tags });
+            if (_catalog.All[i].TrackId != trackId) continue;
+            _catalog.Replace(i, _catalog.All[i] with { Tags = tags });
             return;
         }
     }
@@ -489,7 +305,7 @@ public sealed class LibrarySession : ILibrarySession
 
     public Task HydrateStemStateAsync()
     {
-        var paths = _all.Select(s => s.FilePath).ToArray();  // snapshot so we don't race the catalog
+        var paths = _catalog.All.Select(s => s.FilePath).ToArray();  // snapshot so we don't race the catalog
         return Task.Run(() =>
         {
             foreach (var path in paths)
@@ -504,6 +320,6 @@ public sealed class LibrarySession : ILibrarySession
 
     public void ApplyStemsReady(string filePath)
     {
-        if (TryFind(filePath, out var i, out var s) && !s.StemsReady) Replace(i, s with { StemsReady = true });
+        if (_catalog.TryFind(filePath, out var i, out var s) && !s.StemsReady) _catalog.Replace(i, s with { StemsReady = true });
     }
 }

@@ -49,8 +49,11 @@ public sealed class CoreFactory(
     public CoreStack Build(IDeckSession deck1, IDeckSession deck2)
     {
         var decks = new DeckPair(deck1, deck2);
+        var catalog = new LibraryCatalog(_publisher);
+        var seeds = new LibrarySeeds(catalog);
+        var wiring = new LibraryDeckWiring(catalog, decks, new Session(), _reporter, _appThread);
         var library = new LibrarySession(
-            _trackScanner, _keyStore, _stemPresence, _reporter, decks, new Session(), _appThread, _publisher);
+            _trackScanner, _keyStore, _stemPresence, decks, catalog, wiring, seeds, _appThread, _publisher);
         var markers = new DeckMarkers(decks, library, _appThread, _publisher);
         var hotCues = new DeckHotCues(decks, library, _appThread, _publisher, markers, _hotCueOptions);
         var searchPick = new SearchPick(library);
