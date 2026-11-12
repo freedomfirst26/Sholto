@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-shol
 ```
 
 That downloads the latest release into `~/sholto`, installs the runtime tools it
-needs (ffmpeg, madmom, and a couple of system libraries — it will ask for your
+needs (ffmpeg, Beat This!, and a couple of system libraries — it will ask for your
 password once), and launches Sholto. Run the same command again later to update.
 Set `SHOLTO_DIR=/somewhere` to install elsewhere, or add `--no-run` to install
 without launching:
@@ -91,21 +91,27 @@ equivalents:
   not need it.
 - **ffmpeg** — decodes your audio for the beat detector, and also decodes
   M4A/AAC files for playback.
-- **madmom** (the `madmom-onnx` build) — finds the beats and tempo. Sholto can't
-  play a track until it has a beatgrid, so this one isn't optional.
+- **Beat This!** (the `beat-this` package) — finds the beats and tempo. Sholto
+  can't play a track until it has a beatgrid, so this one isn't optional. The first
+  time it runs it downloads its model (about 78 MB). Its code and model are both
+  MIT-licensed, so it's fine at paid gigs.
 - A normal **Linux desktop** (X11 or Wayland) and a working **sound system**
   (PipeWire, PulseAudio, or ALSA).
 
 **Optional** — Sholto runs fine without these, you just lose that one feature:
 - **demucs** — stem separation (drums / vocals / bass / other). Without it, the
   stem chips and the hot-cue stem mutes are unavailable.
+- **madmom** (the `madmom-onnx` build) — the beat finder Sholto used before Beat
+  This!. The installers no longer install it. Sholto uses it only if Beat This!
+  is missing and you installed madmom yourself; with Beat This! installed you lose
+  nothing without it. Its models are for non-commercial use only — see below.
 
 **Checking they actually work.** The background tools are ordinary Python
 programs, and an update to one of them can leave it installed but broken. Run
 `bash install.sh --verify` (or `bash install-deps.sh --verify` if you're on the
-prebuilt binary) and Sholto will run each one for real — it separates a test clip
-and confirms it gets four stems back, rather than just checking the program is
-there. It tells you which one is broken and what you lose without it.
+prebuilt binary) and Sholto will run each one for real — it finds the beats in a
+test click track and separates a test clip into four stems, rather than just
+checking the program is there. It tells you which one is broken and what you lose without it.
 
 ## What Sholto is built on
 
@@ -122,7 +128,8 @@ one is missing or broken, Sholto keeps working and you lose only that feature.
 
 | Program | What it does for you | Without it |
 |---|---|---|
-| **madmom** (`madmom-onnx`) | Listens to a track and works out where every beat and every bar starts. This is the foundation everything else stands on — sync, looping, the grid on the waveform, quantised cues. | **Required.** A track can't play without a beatgrid. |
+| **Beat This!** (`beat-this`) | Listens to a track and works out where every beat and every bar starts. This is the foundation everything else stands on — sync, looping, the grid on the waveform, quantised cues. | **Required.** A track can't play without a beatgrid (unless madmom, below, is installed instead). |
+| **madmom** (`madmom-onnx`) | The older beat finder. Optional, not installed by default; used only when Beat This! is missing. | Nothing, as long as Beat This! is installed. |
 | **demucs** | Splits a finished track back into four separate recordings — drums, bass, vocals, everything else — so you can drop the vocal out of one track while keeping its drums. | Stem chips and hot-cue stem mutes are unavailable. |
 | **ffmpeg** | The universal audio translator. Converts M4A/AAC files into something Sholto can play, and prepares audio for the beat detector. | M4A/AAC files won't load. |
 
@@ -142,6 +149,8 @@ table are deliberately kept at arm's length — Sholto launches them as separate
 processes and talks to them through files and command output. None of their code
 is linked into Sholto. That boundary is intentional, because those programs carry
 their own licences that differ from Sholto's. See
-[THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md) — in particular, madmom's
-trained models are non-commercial, and a commercial licence to Sholto does not
-carry a right to use them.
+[THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md). Beat This!, the required
+beat finder, is MIT-licensed for both its code and its trained model. madmom, the
+optional fallback, has non-commercial trained models, and a commercial licence to
+Sholto does not carry a right to use them — it is only ever run if you install it
+yourself and leave Beat This! out.

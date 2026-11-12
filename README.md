@@ -100,10 +100,12 @@ rebranding, hosting it, or bundling it with hardware or another product) needs a
 commercial licence: <freedomfirst26@proton.me>. Earlier releases keep the licence they
 shipped with (v0.1.0 and v0.2.0: PolyForm Noncommercial 1.0.0 with a free grant for
 individuals; v0.3.0 and v1.0.0: Business Source License 1.1). In plain words:
-[docs/license.md](docs/license.md). Third-party components and their licences,
-including madmom's non-commercial (CC BY-NC-SA) beat-detection models, which are
-licensed separately by their authors and which Sholto's licence does not cover, paid gigs
-included: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+[docs/license.md](docs/license.md). Beats are found by Beat This!, whose code and
+model weights are MIT, so paid gigs are fine. madmom is now only an optional fallback
+that the installers no longer install; its beat-detection models are non-commercial
+(CC BY-NC-SA) and licensed separately by their authors, which Sholto's licence does not
+cover. Third-party components and their licences:
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ---
 

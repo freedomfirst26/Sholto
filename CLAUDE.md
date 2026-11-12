@@ -23,7 +23,7 @@ analysis, no cloud.
 | `src/Sholto.Interface.Keyboard` | Keyboard gestures and their translation to Commands. |
 | `src/Sholto.App.Library` | Library/file metadata (z440.atl.core tag reading). |
 | `src/Sholto.App.Dsp` | Shared DSP primitives: crossover frequencies, crossfade curve. |
-| `src/Sholto.App.ExternalTools` | Boundary to madmom/demucs/ffmpeg subprocesses. |
+| `src/Sholto.App.ExternalTools` | Boundary to Beat This!/madmom/demucs/ffmpeg subprocesses. |
 | `src/Sholto.Interface.Faceplate` | On-screen controller guide; joined to `Sholto.Interface.Controller` by gesture name only. |
 | `src/Sholto.Interface.Faceplate.Devices` | Per-device faceplate layouts (`DdjFlx4/`). |
 | `tools/Sholto.Interface.Bench` | Dev-only headless interface (no Avalonia, no MainUI): renders decks to WAV, measures it, runs scripted scan/gesture/midi scenarios as Commands on the bus (`render`, `measure`, `state`, `headless`, `latency`). |
@@ -97,7 +97,7 @@ re-notify just the affected bindings (cause→effect is explicit):
 `BasicReady` (peaks, BPM, downbeats) · `KeyReady` · `StemsReady`
 (Demucs) · `VocalRegionsReady`.
 
-Song sections: madmom beats/downbeats → `BasicReady` → `DeckSession` builds sections via
+Song sections: Beat This! (or fallback madmom) beats/downbeats → `BasicReady` → `DeckSession` builds sections via
 `SectionLayoutFactory` (`Sholto.App/Decks/`) using `PhraseSectionAnalyzer` (`Sholto.App.Analysis/Analyzers/Segments/`, an in-house
 heuristic) → `PhraseGrid` + `SongSection` list → `DeckSectionsChanged` (`Sholto.Data`)
 → minimap. `SongSegmentsReady` / `SongSegmentAnalyzer` no longer exist.
@@ -106,7 +106,9 @@ Glossary: **beat** = one pulse; **bar** = 4 beats; **downbeat** = beat 1 of a ba
 **phrase** = 8/16/32 bars (grid offset by a per-track `PhaseBar`, 0–7 bars after the first downbeat, estimated by `PhraseSectionAnalyzer`); **section** =
 a labelled run of whole bars (intro/build/drop/…).
 
-External analyzers are subprocesses expected on `PATH`: madmom-onnx (beats/downbeats),
+External analyzers are subprocesses expected on `PATH`: Beat This! (`beat_this`, beats/downbeats; required,
+MIT code and weights), madmom-onnx (`DBNDownBeatTracker`; optional non-commercial fallback, used only when
+Beat This! is missing, not installed by default),
 Demucs (stems). Absence degrades gracefully.
 
 ## Storage gotchas (`Sholto.App.Storage`)
@@ -152,7 +154,7 @@ Demucs (stems). Absence degrades gracefully.
 - Prefer primary constructors: `public sealed class TagService(IDbContextFactory<SholtoDbContext> factory, TagNameNormalizer normalizer)` with `private readonly IDbContextFactory<SholtoDbContext> _factory = factory;`. Members use the `_field`, never the bare parameter (avoids the CS9124 capture-plus-store shape).
 - Do not use a primary constructor for: constructors with logic beyond assignment, classes with several constructors, private constructors, XAML-created controls, EF `DbContext`/converters.
 - One top-level type per file, named for the type.
-- Analyzers vs analysis stages: an analyzer (`I*Analyzer`, extends the empty marker `IAnalyzer`, in `Sholto.App.Analysis/Analyzers/<Thing>/`) computes one result itself. An analysis stage (`*AnalysisStage`, extends the empty marker `IAnalysisStage`, in `Sholto.App.Analysis/Stages/`) is a composite that runs several analyzers and external-tool steps in a fixed order — e.g. `BasicAnalysisStage` (beats + waveform peaks + beatgrid), `StemAnalysisStage` (demucs + stem peaks + vocal regions). A composite of analyzers is always named `...AnalysisStage`, never `...Analyzer`. `IAnalysisStep` is different again: one external-tool process (madmom, demucs).
+- Analyzers vs analysis stages: an analyzer (`I*Analyzer`, extends the empty marker `IAnalyzer`, in `Sholto.App.Analysis/Analyzers/<Thing>/`) computes one result itself. An analysis stage (`*AnalysisStage`, extends the empty marker `IAnalysisStage`, in `Sholto.App.Analysis/Stages/`) is a composite that runs several analyzers and external-tool steps in a fixed order — e.g. `BasicAnalysisStage` (beats + waveform peaks + beatgrid), `StemAnalysisStage` (demucs + stem peaks + vocal regions). A composite of analyzers is always named `...AnalysisStage`, never `...Analyzer`. `IAnalysisStep` is different again: one external-tool process (Beat This!, madmom, demucs).
 - Tunable values go in options, not magic numbers. Extract anything a DJ or developer might plausibly change — timings, durations, thresholds, limits, capacities — or any constant duplicated in two places, into the options class for its area (e.g. `ScratchOptions`, `MagnetismOptions`, `GlanceOptions`), or a new one, one type per file, each default equal to today's value. Register it in `SholtoOptions` (`Sholto.Host`).
 - Leave as `const`: maths constants, sentinels and guards, format or protocol facts (MIDI notes, buffer layouts), layout pixels in XAML, and theme colours (those belong in theme JSON).
 - A class takes `IOptions<XOptions>` in its constructor and reads `.Value` once there, into a field. Never read options per frame or per sample, and never on the audio thread.

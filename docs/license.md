@@ -59,12 +59,17 @@ the licence. If you make a modified version for others, give it a different name
 ## Third-party components
 
 Sholto uses other software under its own licences, which differ from this one — see
-[THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md). In particular, madmom's
-beat-detection models are CC BY-NC-SA 4.0 (non-commercial only), and Sholto needs them
-on every track load. That licence is separate from Sholto's: whether using Sholto
-at a paid gig counts as commercial use of those models is a question for their
-licensor (JKU Linz), not something this licence or a commercial licence from us can
-settle. Ask them if it matters to you.
+[THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md). Beats are found by Beat This!,
+whose code and model weights are both MIT ("The code and the published model weights
+are released under the MIT license"), so it is free to use at paid gigs too.
+
+madmom, the beat tracker Sholto used before, is now only an optional fallback: the
+installers no longer install it, and Sholto runs it only if Beat This! is missing and
+you installed madmom yourself. Its beat-detection models are CC BY-NC-SA 4.0
+(non-commercial only). That licence is separate from Sholto's: whether using Sholto
+with madmom at a paid gig counts as commercial use of those models is a question for
+their licensor (JKU Linz), not something this licence or a commercial licence from us
+can settle. With Beat This! installed, madmom is never used.
 
 ---
 
