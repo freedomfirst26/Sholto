@@ -26,17 +26,41 @@ public sealed class LifecyclePrompts(
     private readonly IAppThread _appThread = appThread;
     private readonly MainViewModel _viewModel = viewModel;
 
+    // A question that arrived while the other one was open: shown once that one closes. Only the latest counts.
+    private FoldersNeeded? _waitingFolders;
+    private OutputDeviceNeeded? _waitingDevice;
+
     public void Start()
     {
+        _viewModel.PropertyChanged += OnViewModelChanged;
+        _viewModel.Folders.PropertyChanged += OnFoldersChanged;
         _subscriber.Subscribe<FoldersNeeded>(this);
         _subscriber.Subscribe<OutputDeviceNeeded>(this);
         _subscriber.Subscribe<SavedThemeFound>(this);
         _subscriber.Subscribe<SavedWaveformStyleFound>(this);
     }
 
-    public void Handle(in FoldersNeeded e) => _ = ShowFoldersAsync(e);
+    /// <summary>Opens the Folders panel, unless the output picker is open: then it waits until the picker closes.</summary>
+    public void Handle(in FoldersNeeded e)
+    {
+        if (_viewModel.IsOutputPickerOpen)
+        {
+            _waitingFolders = e;
+            return;
+        }
+        _viewModel.Folders.Show(e);
+    }
 
-    public void Handle(in OutputDeviceNeeded e) => _ = AskOutputDeviceAsync(e.Devices, e.CurrentName);
+    /// <summary>Opens the output picker, unless the Folders panel is open: then it waits until the panel closes.</summary>
+    public void Handle(in OutputDeviceNeeded e)
+    {
+        if (_viewModel.Folders.IsOpen)
+        {
+            _waitingDevice = e;
+            return;
+        }
+        _ = AskOutputDeviceAsync(e.Devices, e.CurrentName);
+    }
 
     /// <summary>Published on the app thread, before the App starts saving theme choices, so applying it
     /// here and now is what keeps the restore from being saved back.</summary>
@@ -45,29 +69,31 @@ public sealed class LifecyclePrompts(
     /// <summary>Applies the style saved last time; a restore, so nothing is sent back.</summary>
     public void Handle(in SavedWaveformStyleFound e) => _viewModel.WaveformStyle.Restore(e.Id);
 
-    private async Task ShowFoldersAsync(FoldersNeeded question)
+    // The output picker closed: a waiting folders question opens now. Posted, so it opens after the close has
+    // finished rather than inside its change notification; asked again there, in case the picker reopened.
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
     {
-        try
-        {
-            // Not over the output picker: the panel opens once the picker has closed.
-            while (_viewModel.IsOutputPickerOpen)
-                await ClosedAsync(_viewModel, nameof(MainViewModel.IsOutputPickerOpen), () => _viewModel.IsOutputPickerOpen);
-            _viewModel.Folders.Show(question);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Folders] could not show the Folders panel: {ex.Message}");
-        }
+        if (e.PropertyName != nameof(MainViewModel.IsOutputPickerOpen) || _viewModel.IsOutputPickerOpen) return;
+        if (_waitingFolders is not { } question) return;
+        _waitingFolders = null;
+        _appThread.Post(() => Handle(question));
+    }
+
+    // The Folders panel closed: a waiting device question opens now (see OnViewModelChanged).
+    private void OnFoldersChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(IFoldersViewModel.IsOpen) || _viewModel.Folders.IsOpen) return;
+        if (_waitingDevice is not { } question) return;
+        _waitingDevice = null;
+        _appThread.Post(() => Handle(question));
     }
 
     private async Task AskOutputDeviceAsync(IReadOnlyList<OutputDeviceChoice> choices, string? currentName)
     {
         try
         {
-            // Not over the Folders panel: the picker opens once the panel has closed.
-            while (_viewModel.Folders.IsOpen)
-                await ClosedAsync(_viewModel.Folders, nameof(IFoldersViewModel.IsOpen), () => _viewModel.Folders.IsOpen);
-            var name = await _viewModel.OutputPicker.AskAsync(choices, currentName);
+            // The answer goes back through the app thread, so the continuation need not resume on any context.
+            var name = await _viewModel.OutputPicker.AskAsync(choices, currentName).ConfigureAwait(false);
             _appThread.Post(() => _sender.Send(
                 new ChooseOutputDevice(name, new Origin(InterfaceIds.MainUI, "output-device-picker", "choose"))));
         }
@@ -75,22 +101,5 @@ public sealed class LifecyclePrompts(
         {
             Console.WriteLine($"[OutputDevice] could not ask for the output device: {ex.Message}");
         }
-    }
-
-    /// <summary>Completes on the app thread after <paramref name="property"/> of <paramref name="source"/> next
-    /// changes with <paramref name="isOpen"/> false: posted, so the other question opens after the close has
-    /// finished rather than inside its change notification.</summary>
-    private Task ClosedAsync(INotifyPropertyChanged source, string property, Func<bool> isOpen)
-    {
-        var closed = new TaskCompletionSource();
-        PropertyChangedEventHandler? onChanged = null;
-        onChanged = (_, e) =>
-        {
-            if (e.PropertyName != property || isOpen()) return;
-            source.PropertyChanged -= onChanged;
-            _appThread.Post(() => closed.TrySetResult());
-        };
-        source.PropertyChanged += onChanged;
-        return closed.Task;
     }
 }
