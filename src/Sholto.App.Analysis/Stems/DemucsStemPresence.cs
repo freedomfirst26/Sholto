@@ -23,8 +23,6 @@ public sealed class DemucsStemPresence(Func<string, string> workspaceFor) : ISte
 
     private StemPaths PathsFor(string filePath) => new StemPaths(_workspaceFor(filePath));
 
-    public bool Contains(string filePath) => PathsFor(filePath).All.All(File.Exists);
-
     public StemPaths? TryGet(string filePath)
     {
         var paths = PathsFor(filePath);

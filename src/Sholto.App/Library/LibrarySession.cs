@@ -311,7 +311,7 @@ public sealed class LibrarySession : ILibrarySession
             foreach (var path in paths)
             {
                 bool cached;
-                try { cached = _stemPresence.Contains(path); }
+                try { cached = _stemPresence.TryGet(path) is not null; }
                 catch { cached = false; }
                 if (cached) _appThread.Post(() => ApplyStemsReady(path));
             }
