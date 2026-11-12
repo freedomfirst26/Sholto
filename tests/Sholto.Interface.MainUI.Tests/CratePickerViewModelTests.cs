@@ -30,7 +30,7 @@ public class CratePickerViewModelTests
         _bus.Register<SearchCrates, Task<IReadOnlyList<CrateRef>>>(_search);
         _bus.Register<AddTrackToCrate>(_added);
         _picker = new CratePickerViewModel(_bus, _bus, new ImmediateAppThread());
-        _row = new TrackRowFactory(new ThemeStackFactory().Build().Context).Create(
+        _row = new TrackRowFactory(new ThemeStackFactory(new RecordingLogFactory()).Build().Context).Create(
             new TrackSummary("/music/a.mp3", "Alpha", "Zed", TimeSpan.FromMinutes(3)) { TrackId = Guid.NewGuid() });
     }
 

@@ -11,12 +11,12 @@ namespace Sholto.App.Storage.Tests;
 /// <see cref="IDatabaseStackFactory"/>.</summary>
 internal sealed class ContextCapturingStorage : IDatabaseStackFactory
 {
-    private readonly IDatabaseStackFactory _real = new DatabaseStackFactory(new KeyFactory());
+    private readonly IDatabaseStackFactory _real = new DatabaseStackFactory(new KeyFactory(), new RecordingLogFactory());
     private IDbContextFactory<SholtoDbContext>? _contexts;
 
     public async Task<IDbContextFactory<SholtoDbContext>> OpenAsync(string path)
     {
-        await new SholtoStorage(this, new SholtoDbContextOptionsFactory()).OpenAsync(path);
+        await new SholtoStorage(this, new SholtoDbContextOptionsFactory(), new RecordingLogFactory()).OpenAsync(path);
         return _contexts ?? throw new InvalidOperationException("SholtoStorage did not build a database stack.");
     }
 

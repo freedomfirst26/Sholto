@@ -17,9 +17,11 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="Sholto.App.ExternalTools" />
+    <Using Include="Sholto.TestSupport.Logging" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Sholto.TestSupport.Logging\Sholto.TestSupport.Logging.csproj" />
     <ProjectReference Include="..\..\src\Sholto.App.ExternalTools\Sholto.App.ExternalTools.csproj" />
   </ItemGroup>
 

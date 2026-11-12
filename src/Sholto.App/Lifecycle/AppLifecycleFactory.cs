@@ -40,9 +40,11 @@ public sealed class AppLifecycleFactory(
     IEventPublisher publisher,
     string? musicOverride,
     string? analysisOverride,
-    string legacyAnalysisRoot) : IAppLifecycleFactory
+    string legacyAnalysisRoot,
+    ILogFactory logs) : IAppLifecycleFactory
 {
     private readonly ILibraryDatabase _database = database;
+    private readonly ILogFactory _logs = logs;
     private readonly ISettingPreference _themePreference = themePreference;
     private readonly ISettingPreference _musicDirPreference = musicDirPreference;
     private readonly ISettingPreference _analysisDirPreference = analysisDirPreference;

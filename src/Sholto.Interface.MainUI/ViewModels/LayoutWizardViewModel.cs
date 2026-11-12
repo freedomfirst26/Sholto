@@ -15,7 +15,8 @@ public sealed class LayoutWizardViewModel(
     IWaveformPreviewScroll scroll,
     IAppThread appThread,
     IThemeViewModel themes,
-    IThemeOptionFactory themeOptions) : ILayoutWizardViewModel
+    IThemeOptionFactory themeOptions,
+    ILogFactory logs) : ILayoutWizardViewModel
 {
     private readonly IWaveformStyleViewModel _waveformStyle = waveformStyle;
     private readonly IWaveformStyleOptionFactory _optionFactory = options;
@@ -25,6 +26,7 @@ public sealed class LayoutWizardViewModel(
     private readonly IAppThread _appThread = appThread;
     private readonly IThemeViewModel _themes = themes;
     private readonly IThemeOptionFactory _themeOptionFactory = themeOptions;
+    private readonly ILogFactory _logs = logs;
 
     // The theme grid has four columns.
     private const int Columns = 4;

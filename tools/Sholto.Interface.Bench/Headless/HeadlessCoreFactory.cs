@@ -30,8 +30,9 @@ namespace Sholto.Interface.Bench.Headless;
 /// <param name="publisher">The data bus the deck sessions publish their state on.</param>
 /// <param name="clock">The frame clock the deck sessions time the end-of-track flash from.</param>
 /// <param name="appThread">The app thread the deck sessions marshal analysis events onto.</param>
+/// <param name="logs">The log factory the deck sessions and the core are built with.</param>
 public sealed class HeadlessCoreFactory(IBenchDeck benchDeck, IBenchDeckFactory deckFactory, IAudioFileDecoder decoder,
-    IEventPublisher publisher, IFrameClock clock, IAppThread appThread) : IHeadlessCoreFactory
+    IEventPublisher publisher, IFrameClock clock, IAppThread appThread, ILogFactory logs) : IHeadlessCoreFactory
 {
     private readonly IBenchDeck _benchDeck = benchDeck;
     private readonly IBenchDeckFactory _deckFactory = deckFactory;
@@ -39,6 +40,7 @@ public sealed class HeadlessCoreFactory(IBenchDeck benchDeck, IBenchDeckFactory 
     private readonly IEventPublisher _publisher = publisher;
     private readonly IFrameClock _clock = clock;
     private readonly IAppThread _appThread = appThread;
+    private readonly ILogFactory _logs = logs;
 
     public HeadlessCore Build()
     {
@@ -50,7 +52,7 @@ public sealed class HeadlessCoreFactory(IBenchDeck benchDeck, IBenchDeckFactory 
         var sectionOptions = new PhraseSectionOptions();
         var sectionAnalyzer = new PhraseSectionAnalyzer(
             new BarFeatureExtractor(sectionOptions), new PhraseSectionLabeler(sectionOptions), sectionOptions);
-        var sessions = new DeckSessionFactory(capturingFactory, sectionAnalyzer, _clock, _appThread, _publisher);
+        var sessions = new DeckSessionFactory(capturingFactory, sectionAnalyzer, _clock, _appThread, _publisher, _logs);
         var deck1 = sessions.Create(0);
         var deck2 = sessions.Create(1);
         var reporter = new AnalysisReporter(new[] { AnalysisSteps.Beats });
@@ -60,7 +62,8 @@ public sealed class HeadlessCoreFactory(IBenchDeck benchDeck, IBenchDeckFactory 
             new EqualPowerCrossfade(), _appThread, _publisher, _clock,
             new GatedStemSeparator(new NoOpStemAnalysisStep(), new SemaphoreStemGate(), reporter),
             Microsoft.Extensions.Options.Options.Create(new LoadOptions()),
-            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions())).Build(deck1, deck2);
+            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions()),
+            _logs).Build(deck1, deck2);
 
         var decks = capturingFactory.Created.ToArray();
         decks[0].AttachEngine(engine, _deckFactory.DeckFormat);

@@ -10,7 +10,7 @@ public class SholtoOptionsTests
     [Fact]
     public void The_glance_slot_and_the_platter_share_one_fallback_tempo()
     {
-        var options = new SholtoOptions();
+        var options = new SholtoOptions(new RecordingLogFactory());
 
         Assert.Equal(120, options.Scratch.Value.FallbackBpm);
         Assert.Equal(options.Scratch.Value.FallbackBpm, options.GlanceView.Value.FallbackBpm);
@@ -19,7 +19,7 @@ public class SholtoOptionsTests
     [Fact]
     public void The_analysis_folder_options_default_to_a_sholto_analysis_folder_and_a_one_gibibyte_margin()
     {
-        var options = new SholtoOptions().AnalysisFolder.Value;
+        var options = new SholtoOptions(new RecordingLogFactory()).AnalysisFolder.Value;
 
         Assert.Equal("Sholto Analysis", options.FolderName);
         Assert.Equal(1L << 30, options.FreeSpaceMargin);
@@ -27,5 +27,5 @@ public class SholtoOptionsTests
 
     [Fact]
     public void The_folders_panel_estimates_175_mebibytes_of_stems_per_track() =>
-        Assert.Equal(175L * 1024 * 1024, new SholtoOptions().FoldersPanel.Value.StemBytesPerTrackEstimate);
+        Assert.Equal(175L * 1024 * 1024, new SholtoOptions(new RecordingLogFactory()).FoldersPanel.Value.StemBytesPerTrackEstimate);
 }

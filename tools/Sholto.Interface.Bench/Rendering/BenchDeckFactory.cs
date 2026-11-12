@@ -41,9 +41,12 @@ namespace Sholto.Interface.Bench.Rendering;
 /// <param name="stemStep">The no-op stem analysis step inside every deck's StemAnalysisStage.</param>
 /// <param name="analysisProvider">The empty analysis provider every deck is built with.</param>
 /// <param name="waveformBands">The waveform band options the peak analyzer is built with.</param>
+/// <param name="appThread">The app thread every deck marshals onto.</param>
+/// <param name="logs">The log factory every deck's diagnostics go through.</param>
 public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisStep stemStep, IAnalysisProvider analysisProvider,
-    IOptions<WaveformBandOptions> waveformBands, IAppThread appThread) : IBenchDeckFactory
+    IOptions<WaveformBandOptions> waveformBands, IAppThread appThread, ILogFactory logs) : IBenchDeckFactory
 {
+    private readonly ILogFactory _logs = logs;
     private readonly BeatgridFactory _beatgrids = new();
     private readonly PlaybackProviderFactory _playbackProviders = new(Options.Create(new LoopOptions()));
 

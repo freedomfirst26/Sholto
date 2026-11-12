@@ -57,6 +57,7 @@ public sealed class SholtoStartup : IApplicationStartup
     private readonly IAppThread _appThread;
     private readonly ICommandSender _sender;
     private readonly ITrayFactory _trayFactory;
+    private readonly ILog _log;
     private IDisposable? _tray;
 
     public SholtoStartup(AppStack appStack)
@@ -76,6 +77,7 @@ public sealed class SholtoStartup : IApplicationStartup
         _appThread = appStack.AppThread;
         _sender = appStack.Sender;
         _trayFactory = appStack.TrayFactory;
+        _log = appStack.Logs.Create("");
     }
 
     public void Start(IClassicDesktopStyleApplicationLifetime desktop)
@@ -144,7 +146,7 @@ public sealed class SholtoStartup : IApplicationStartup
         _seeds.UseMidi(_midiManager);
         _controller = _entities.CreateControlSurface();
         if (!_controller.Connect())
-            Console.WriteLine("No supported controller found — use UI controls.");
+            _log.Warn("No supported controller found — use UI controls.");
 
         // The two entities the input stack binds: the control surface (just created) and the headless
         // core. The keyboard is not one of them: it raises raw key events, which the keyboard interface

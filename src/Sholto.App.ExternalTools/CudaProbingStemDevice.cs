@@ -1,6 +1,7 @@
 using System.Diagnostics;
 
 using Sholto.App.Analysis.Stems;
+using Sholto.Data;
 
 namespace Sholto.App.ExternalTools;
 
@@ -17,9 +18,11 @@ public sealed class CudaProbingStemDevice : IStemDevice
     private const string ProbeScript = "import torch;print(torch.cuda.is_available())";
 
     private readonly Lazy<Task<StemDevice>> _device;
+    private readonly ILogFactory _logs;
 
-    public CudaProbingStemDevice(string demucsBinaryPath, TimeSpan timeout)
+    public CudaProbingStemDevice(string demucsBinaryPath, TimeSpan timeout, ILogFactory logs)
     {
+        _logs = logs;
         _device = new Lazy<Task<StemDevice>>(
             () => Task.Run(() => Probe(demucsBinaryPath, timeout)), LazyThreadSafetyMode.ExecutionAndPublication);
     }

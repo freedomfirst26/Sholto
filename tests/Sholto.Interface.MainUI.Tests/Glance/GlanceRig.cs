@@ -36,7 +36,7 @@ internal sealed class GlanceRig
     public GlanceRig(bool reducedMotion = false)
     {
         AvaloniaTestApp.EnsureStarted();
-        var theme = new ThemeStackFactory().Build().Context;
+        var theme = new ThemeStackFactory(new RecordingLogFactory()).Build().Context;
         Library = new LibraryRowsViewModel(Bus, new TrackRowFactory(theme));
         Answer = q => Task.FromResult(Ranked(q.TargetDeck, Library.Items.Select(r => Summary(r)).ToList()));
         TagSearch = _ => Task.FromResult<IReadOnlyList<TagHit>>([.. Tags]);
@@ -63,7 +63,7 @@ internal sealed class GlanceRig
         Header = new GlanceHeaderViewModel(Decks, Clock, Bus, new DeckSlotFactory(Decks, new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions())));
         Glance = new GlanceViewModelFactory(
             Bus, Bus, Bus, new ImmediateAppThread(), Clock, Library, new TagRecency(), Header,
-            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions())).Create();
+            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions()), new RecordingLogFactory()).Create();
     }
 
     public IEnumerable<SetSearchPick> Picks => Log.OfType<SetSearchPick>();

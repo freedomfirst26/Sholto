@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Avalonia.Platform;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Theming;
 
@@ -9,8 +10,10 @@ namespace Sholto.Interface.MainUI.Theming;
 /// <see cref="Build"/> stays in <c>App.OnFrameworkInitializationCompleted</c>, because
 /// the bundled theme data (<c>waveform-presets.json</c>, <c>defaults.json</c>, the themes)
 /// is loaded through Avalonia's <c>AssetLoader</c>, which needs a live application.</summary>
-public sealed class ThemeStackFactory : IThemeStackFactory
+public sealed class ThemeStackFactory(ILogFactory logs) : IThemeStackFactory
 {
+    private readonly ILogFactory _logs = logs;
+
     public ThemeStack Build()
     {
         IWaveformPresets presets = new WaveformPresets(

@@ -14,7 +14,7 @@ public class LibraryRowsViewModelTests
     {
         AvaloniaTestApp.EnsureStarted();
         var rig = new LibrarySessionRig();
-        var rows = new LibraryRowsViewModel(rig.Bus, new TrackRowFactory(new ThemeStackFactory().Build().Context));
+        var rows = new LibraryRowsViewModel(rig.Bus, new TrackRowFactory(new ThemeStackFactory(new RecordingLogFactory()).Build().Context));
         return (rig, rows);
     }
 

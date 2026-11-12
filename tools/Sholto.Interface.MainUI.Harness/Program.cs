@@ -32,14 +32,16 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
-        var options = new SholtoOptions();
+        // The one console log factory: every logging collaborator below gets it.
+        var logs = new ConsoleLogFactory(Console.Out);
+        var options = new SholtoOptions(logs);
         var decoder = new NoOpAudioFileDecoder();
         var stemStep = new NoOpStemAnalysisStep();
         var analysisProvider = new AnalysisProvider(
             compute: (_, _) => throw new NotSupportedException(
                 "The MainUI harness renders via Deck.LoadStreaming, which never reaches AnalysisProvider."));
         var appThread = new AvaloniaAppThread();
-        var deckFactory = new BenchDeckFactory(decoder, stemStep, analysisProvider, options.WaveformBands, appThread);
+        var deckFactory = new BenchDeckFactory(decoder, stemStep, analysisProvider, options.WaveformBands, appThread, logs);
         var benchDeck = new BenchDeck(deckFactory);
         var crossfade = new EqualPowerCrossfade();
         var deckAdvance = new DeckAdvance(deckFactory);
@@ -50,24 +52,24 @@ internal static class Program
         var headlessApp = new BenchHeadlessApp();
         // The one bus, as in the app: the deck sessions publish, the controller adapter subscribes,
         // the view models follow, and the command handlers register.
-        var bus = new DataBus(new ConsoleHandlerFailureSink());
+        var bus = new DataBus(new ConsoleHandlerFailureSink(logs));
         // The track loader (key 1 / 2, LOAD) decodes for real, so a library track loads onto a deck the way
         // it does in the app. MP3 and WAV only: no ffmpeg, no FLAC engine. The deck's own decode port stays
         // the no-op one above.
         var naudioDecoding = new NAudioDecoding();
         var loaderDecoder = new AudioFileDecoder([new Mp3DecodeStrategy(naudioDecoding), new WavDecodeStrategy(naudioDecoding)]);
-        var coreFactory = new HeadlessCoreFactory(benchDeck, deckFactory, loaderDecoder, bus, new ManualFrameClock(), appThread);
+        var coreFactory = new HeadlessCoreFactory(benchDeck, deckFactory, loaderDecoder, bus, new ManualFrameClock(), appThread, logs);
         // Disposed when Main returns: deletes the temp library database the scans filled.
-        using var demoLibrary = new DemoLibrary(new SholtoStorage(new DatabaseStackFactory(new KeyFactory()), new SholtoDbContextOptionsFactory()));
+        using var demoLibrary = new DemoLibrary(new SholtoStorage(new DatabaseStackFactory(new KeyFactory(), logs), new SholtoDbContextOptionsFactory(), logs));
         var uiHost = new UiHost(
-            new BenchAppFactory(headlessApp, coreFactory, bus, bus, bus, options, appThread),
+            new BenchAppFactory(headlessApp, coreFactory, bus, bus, bus, options, appThread, logs),
             deckAdvance,
             new GestureHostFactory(options.Controllers),
             new ScenarioGestureFactory(),
             new CoreSnapshot(),
             new StateDiff(),
             crossfade,
-            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, new NullHintCounter(), options.Glance), new PerformanceFactory(),
+            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, new NullHintCounter(), options.Glance, logs), new PerformanceFactory(logs),
                 new ControllerInputFactory(), new KeyboardInputFactory()),
             options,
             new ImmediateAppThread(),

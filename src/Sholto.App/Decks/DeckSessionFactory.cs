@@ -11,13 +11,15 @@ public sealed class DeckSessionFactory(
     IPhraseSectionAnalyzer sectionAnalyzer,
     IFrameClock clock,
     IAppThread appThread,
-    IEventPublisher publisher) : IDeckSessionFactory
+    IEventPublisher publisher,
+    ILogFactory logs) : IDeckSessionFactory
 {
     private readonly IDeckFactory _decks = decks;
     private readonly ISectionLayoutFactory _sectionLayouts = new SectionLayoutFactory(sectionAnalyzer);
     private readonly IFrameClock _clock = clock;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
+    private readonly ILogFactory _logs = logs;
 
     public IDeckSession Create(int index)
     {

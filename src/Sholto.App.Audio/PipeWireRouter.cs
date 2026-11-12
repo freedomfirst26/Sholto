@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Sholto.Data;
 
 namespace Sholto.App.Audio;
 
@@ -14,15 +15,16 @@ namespace Sholto.App.Audio;
 /// this is a small, occasional, best-effort operation, not a hot path. Every
 /// method here is guarded: a missing tool, an absent sink, or a shell failure
 /// degrades to "master stays on the controller" and is logged, never thrown.
-/// Off Linux (<paramref name="isLinux"/> false; null means
+/// Off Linux (<paramref name="isLinux"/> false; the composition root passes
 /// <see cref="OperatingSystem.IsLinux"/>) nothing is ever started: the router reports
 /// unavailable and every method returns empty/null/false.
 /// </summary>
-public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, bool? isLinux = null) : IPipeWireRouter
+public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, bool isLinux, ILogFactory logs) : IPipeWireRouter
 {
     private readonly PipeWireOwnPorts _ownPorts = ownPorts;
     private readonly int _processId = processId;
-    private readonly bool _isLinux = isLinux ?? OperatingSystem.IsLinux();
+    private readonly bool _isLinux = isLinux;
+    private readonly ILogFactory _logs = logs;
 
     /// <summary>True if this is Linux and <c>pw-link</c> is on PATH. Everything else
     /// here no-ops (returns null/false/empty) when this is false.</summary>

@@ -14,7 +14,7 @@ public sealed class MidiManagerTests : IDisposable
     public MidiManagerTests()
     {
         _mapping = new FakeControllerMapping("FAKE-DEVICE", _init);
-        _manager = new MidiManager(new MappingRegistry([_mapping]), new FakeMidiPortOpener(_port));
+        _manager = new MidiManager(new MappingRegistry([_mapping]), new FakeMidiPortOpener(_port), new RecordingLogFactory());
     }
 
     public void Dispose() => _manager.Dispose();
@@ -88,7 +88,7 @@ public sealed class MidiManagerTests : IDisposable
     {
         // Its own manager: this test is the one Dispose call it gets.
         var port = new FakeRawMidiPort();
-        var manager = new MidiManager(new MappingRegistry([_mapping]), new FakeMidiPortOpener(port));
+        var manager = new MidiManager(new MappingRegistry([_mapping]), new FakeMidiPortOpener(port), new RecordingLogFactory());
         var lost = 0;
         manager.ConnectionLost += () => lost++;
         manager.Connect();
@@ -104,7 +104,7 @@ public sealed class MidiManagerTests : IDisposable
     {
         var other = new FakeControllerMapping("OTHER-DEVICE", null);
         var opener = new FakeMidiPortOpener(null);
-        using var manager = new MidiManager(new MappingRegistry([_mapping, other]), opener);
+        using var manager = new MidiManager(new MappingRegistry([_mapping, other]), opener, new RecordingLogFactory());
 
         Assert.False(manager.Connect());
 

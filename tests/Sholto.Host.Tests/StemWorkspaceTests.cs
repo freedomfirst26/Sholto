@@ -16,7 +16,7 @@ public class StemWorkspaceTests
             new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory()),
             new ToolOutcomeFactory(),
             Microsoft.Extensions.Options.Options.Create(new StemSeparationOptions()),
-            _folder);
+            _folder, new RecordingLogFactory());
 
     [Fact]
     public void NullRoot_Throws()

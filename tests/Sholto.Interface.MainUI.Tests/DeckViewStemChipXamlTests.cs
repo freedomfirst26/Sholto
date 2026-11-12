@@ -22,7 +22,7 @@ public class DeckViewStemChipXamlTests
     public void Each_stem_chip_opacity_follows_its_stem_level(string label, int stem)
     {
         var bus = new DataBus(new ThrowingFailureSink());
-        var deck = new DeckViewModelFactory(bus, bus, new ThemeStackFactory().Build().Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+        var deck = new DeckViewModelFactory(bus, bus, new ThemeStackFactory(new RecordingLogFactory()).Build().Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
             Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new FakeFrameClock())).Create(0);
         var view = new DeckView { DataContext = deck };
         var chip = view.GetLogicalDescendants().OfType<TextBlock>()

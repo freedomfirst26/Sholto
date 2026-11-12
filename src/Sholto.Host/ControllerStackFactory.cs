@@ -1,13 +1,16 @@
 using Sholto.App.Audio;
 using Sholto.Interface.Controller;
 using Sholto.Interface.Controller.Mappings;
+using Sholto.Data;
 
 namespace Sholto.Host;
 
 /// <summary>Constructs the mapping registry, the controller sound card and the MIDI
 /// manager, in that order.</summary>
-public sealed class ControllerStackFactory : IControllerStackFactory
+public sealed class ControllerStackFactory(ILogFactory logs) : IControllerStackFactory
 {
+    private readonly ILogFactory _logs = logs;
+
     public ControllerStack Build(ControllerMappingsOptions options)
     {
         var mappingRegistry = new MappingRegistry(new ControllerMappingCatalog(options).Mappings);
@@ -15,7 +18,7 @@ public sealed class ControllerStackFactory : IControllerStackFactory
         // tell the controller's own sound card apart from ordinary speakers.
         var soundCard = new ControllerSoundCard(mappingRegistry.Mappings.SelectMany(m => m.AudioDeviceNameMatches).ToList());
 
-        var midi = new MidiManager(mappingRegistry, new AlsaRawMidiOpener())
+        var midi = new MidiManager(mappingRegistry, new AlsaRawMidiOpener(_logs), _logs)
         {
             LogAllMessages = Environment.GetEnvironmentVariable("SHOLTO_MIDI_LOG") == "1",
         };

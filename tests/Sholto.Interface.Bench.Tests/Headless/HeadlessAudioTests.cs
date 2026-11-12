@@ -38,8 +38,8 @@ public sealed class HeadlessAudioTests : IDisposable
             new NoOpStemAnalysisStep(),
             new AnalysisProvider((_, _) => throw new NotSupportedException("not used")),
             Options.Create(new WaveformBandOptions()),
-            appThread);
-        return new HeadlessHostFactory(new BenchDeck(deckFactory), deckFactory, decoder, new DeckAdvance(deckFactory), appThread, new EqualPowerCrossfade());
+            appThread, new RecordingLogFactory());
+        return new HeadlessHostFactory(new BenchDeck(deckFactory), deckFactory, decoder, new DeckAdvance(deckFactory), appThread, new EqualPowerCrossfade(), new RecordingLogFactory());
     }
 
     private double SecondDropDb(string gestureJson)

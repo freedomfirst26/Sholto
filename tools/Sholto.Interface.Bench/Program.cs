@@ -37,12 +37,14 @@ internal static class Program
             compute: (_, _) => throw new NotSupportedException(
                 "Sholto.Interface.Bench renders via Deck.LoadStreaming, which never reaches AnalysisProvider."));
         var appThread = new ImmediateAppThread();
-        var deckFactory = new BenchDeckFactory(decoder, stemStep, analysisProvider, Options.Create(new WaveformBandOptions()), appThread);
+        // The one console log factory: every logging collaborator below gets it.
+        var logs = new ConsoleLogFactory(Console.Out);
+        var deckFactory = new BenchDeckFactory(decoder, stemStep, analysisProvider, Options.Create(new WaveformBandOptions()), appThread, logs);
         var benchDeck = new BenchDeck(deckFactory);
         var crossfade = new EqualPowerCrossfade();
         var deckAdvance = new DeckAdvance(deckFactory);
 
-        var headlessHost = new HeadlessHostFactory(benchDeck, deckFactory, decoder, deckAdvance, appThread, crossfade).Create();
+        var headlessHost = new HeadlessHostFactory(benchDeck, deckFactory, decoder, deckAdvance, appThread, crossfade, logs).Create();
 
         return new BenchCli(
             new ScenarioFactory(),

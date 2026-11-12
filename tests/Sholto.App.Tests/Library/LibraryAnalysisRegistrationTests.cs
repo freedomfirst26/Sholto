@@ -17,7 +17,7 @@ public class LibraryAnalysisRegistrationTests
         var bus = new DataBus(new ThrowingFailureSink());
         var registry = new RecordingCommandRegistry();
 
-        new CommandHandlersFactory(new ImmediateAppThread(), bus, new NullHintCounter(), Options.Create(new GlanceOptions())).Register(
+        new CommandHandlersFactory(new ImmediateAppThread(), bus, new NullHintCounter(), Options.Create(new GlanceOptions()), new RecordingLogFactory()).Register(
             registry, bus, rig.Core, new CueRouting(rig.Core.Decks, new RecordingMasterCueOutput(), bus), new InspectMode(bus),
             rig.Platter, new NullAppLifecycle());
 

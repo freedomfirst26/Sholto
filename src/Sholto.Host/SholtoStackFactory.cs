@@ -29,13 +29,16 @@ public sealed class SholtoStackFactory(
     IAnalysisStackFactory analysisStackFactory,
     ISholtoStorage storage,
     IAppThread appThread,
-    IOptions<LoopOptions> loopOptions) : ISholtoStackFactory
+    IOptions<LoopOptions> loopOptions,
+    ILogFactory logs) : ISholtoStackFactory
 {
     private readonly IExternalToolStackFactory _toolStackFactory = toolStackFactory;
     private readonly IAnalysisStackFactory _analysisStackFactory = analysisStackFactory;
     private readonly ISholtoStorage _storage = storage;
     private readonly IAppThread _appThread = appThread;
     private readonly IOptions<LoopOptions> _loopOptions = loopOptions;
+    private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("Tools");
 
     public SholtoStack Build()
     {
@@ -46,11 +49,11 @@ public sealed class SholtoStackFactory(
         // Names and logs the boot-time tool probe that ToolSet's constructor
         // already ran (see ExternalToolStack.Check) — previously discarded, which
         // is why a missing beat tracker/demucs/ffmpeg install was invisible at startup.
-        Console.WriteLine($"[Tools] system check: {toolStack.Check.Summary}");
+        _log.Info($"system check: {toolStack.Check.Summary}");
         if (toolStack.Check.AnyRequiredMissing)
         {
-            Console.WriteLine(
-                "[Tools] beat detection unavailable — no BPM, beatgrid, waveform or key for any track. " +
+            _log.Warn(
+                "beat detection unavailable — no BPM, beatgrid, waveform or key for any track. " +
                 $"Install: {BeatThisBeatAnalysisStep.InstallCommand}");
         }
 
@@ -95,7 +98,7 @@ public sealed class SholtoStackFactory(
         // persistent stores on LibraryDatabase.Opened. IDeckFactory needs real (never-null)
         // provider and key/grid ports up front, but the DB opens later (the window paints
         // before InitializeServices opens it); the deferred stores await it and then forward.
-        var libraryDatabase = new LibraryDatabase(_storage);
+        var libraryDatabase = new LibraryDatabase(_storage, _logs);
         var analysisStack = _analysisStackFactory.Build(beats, libraryDatabase);
 
         // One slot for every demucs run: the deck stage below and the re-analysis separator share it.
@@ -117,7 +120,8 @@ public sealed class SholtoStackFactory(
             new DeckEffectFactory(new TempoMath()).Chain,
             new PlaybackProviderFactory(_loopOptions),
             _appThread,
-            _loopOptions);
+            _loopOptions,
+            _logs);
 
         // Pass 1 chunk 7: the rest of the world-touching statics, composed once
         // here rather than reached through a static type name from wherever
@@ -127,7 +131,7 @@ public sealed class SholtoStackFactory(
             flacStrategy,
             decoder,
             new MiniAudioOutputEnumerator(),
-            new PipeWireRouter(new PipeWireOwnPorts(), Environment.ProcessId),
+            new PipeWireRouter(new PipeWireOwnPorts(), Environment.ProcessId, OperatingSystem.IsLinux(), _logs),
             libraryDatabase,
             new TrackScanner(),
             analysisStack,

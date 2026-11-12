@@ -1,3 +1,4 @@
+using Sholto.Data;
 namespace Sholto.Interface.Controller;
 
 /// <summary>
@@ -9,13 +10,14 @@ namespace Sholto.Interface.Controller;
 /// <param name="mappings">The configured device mapping set, composed once at
 /// bootstrap (carries the DDJ-FLX4's wire numbers).</param>
 /// <param name="opener">Finds and opens the MIDI port for a mapping's device name.</param>
-public sealed class MidiManager(IControllerMappings mappings, IMidiPortOpener opener) : IMidiConnection
+public sealed class MidiManager(IControllerMappings mappings, IMidiPortOpener opener, ILogFactory logs) : IMidiConnection
 {
     private IRawMidiPort? _port;
     private IControllerMapping? _mapping;
     private CancellationTokenSource? _superCts;
     private readonly IControllerMappings _mappings = mappings;
     private readonly IMidiPortOpener _opener = opener;
+    private readonly ILogFactory _logs = logs;
 
     public event Action<ControllerEvent>? EventReceived;
 

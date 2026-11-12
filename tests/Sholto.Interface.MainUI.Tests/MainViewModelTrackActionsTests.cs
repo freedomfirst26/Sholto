@@ -49,7 +49,7 @@ public class MainViewModelTrackActionsTests
         rig.Vm.CratePicker!.Close();
         Assert.False(rig.Vm.IsCratePickerOpen);
 
-        var row = new TrackRowFactory(new ThemeStackFactory().Build().Context).Create(
+        var row = new TrackRowFactory(new ThemeStackFactory(new RecordingLogFactory()).Build().Context).Create(
             new TrackSummary("/music/a.mp3", "Alpha", "Zed", TimeSpan.FromMinutes(3)) { TrackId = Guid.NewGuid() });
         await rig.Vm.OpenCratePickerAsync(row);
         Assert.True(rig.Vm.IsCratePickerOpen);

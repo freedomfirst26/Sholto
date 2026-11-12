@@ -41,7 +41,7 @@ public class DemucsDeviceTests
     [Fact]
     public async Task Probe_reports_cpu_when_demucs_cannot_be_found()
     {
-        var device = new CudaProbingStemDevice("/no/such/demucs", TimeSpan.FromSeconds(5));
+        var device = new CudaProbingStemDevice("/no/such/demucs", TimeSpan.FromSeconds(5), new RecordingLogFactory());
 
         Assert.Equal(StemDevice.Cpu, await device.ResolveAsync());
     }

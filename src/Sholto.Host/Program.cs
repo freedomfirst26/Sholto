@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using System;
+using Sholto.Data;
 
 namespace Sholto.Host;
 
@@ -39,9 +40,11 @@ sealed class Program
             // Skia's GPU resource cache defaults to 28 MB; a deck's baked waveform bitmap
             // larger than half of that is drawn tiled and re-uploaded every frame. The
             // ceiling comes from RenderingOptions (see there for the numbers).
+            // Only the rendering ceiling is read here, so its options get a stateless console log factory of
+            // their own; the app's one is built in AppStackFactory.Create.
             .With(new SkiaOptions
             {
-                MaxGpuResourceSizeBytes = new SholtoOptions().Rendering.Value.MaxGpuResourceSizeBytes,
+                MaxGpuResourceSizeBytes = new SholtoOptions(new ConsoleLogFactory(Console.Out)).Rendering.Value.MaxGpuResourceSizeBytes,
             })
 #if DEBUG
             .WithDeveloperTools()

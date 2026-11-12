@@ -70,7 +70,7 @@ public class DeckViewModelRingColourTests
     [Fact]
     public void RefreshThemeBindings_retones_the_ring_and_notifies_the_key_and_ring_brushes()
     {
-        var stack = new ThemeStackFactory().Build();
+        var stack = new ThemeStackFactory(new RecordingLogFactory()).Build();
         var deck = rig.NewDeck(0, stack.Context);
         var changed = new List<string?>();
         deck.PropertyChanged += (_, e) => changed.Add(e.PropertyName);

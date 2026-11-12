@@ -52,7 +52,7 @@ internal sealed class TrackListDragRig
         var bus = library.Bus;
         var appThread = new ImmediateAppThread();
         var sender = new RecordingCommandSender(bus);
-        var themes = new ThemeStackFactory().Build();
+        var themes = new ThemeStackFactory(new RecordingLogFactory()).Build();
         var recency = new TagRecency();
         var rows = new LibraryRowsViewModel(bus, new TrackRowFactory(themes.Context));
         var clock = new FakeFrameClock();
@@ -63,9 +63,9 @@ internal sealed class TrackListDragRig
         var clocks = new DeckViewModelClockSource(deck1, deck2);
         var glance = new GlanceViewModelFactory(bus, bus, bus, appThread, clock, rows, recency,
             new GlanceHeaderViewModel(clocks, clock, bus, new DeckSlotFactory(clocks, new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions()))),
-            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions())).Create();
+            new FixedMotionPreference(reducedMotion), Options.Create(new GlanceViewOptions()), new RecordingLogFactory()).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
-        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
+        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus, new RecordingLogFactory());
         var vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(recency, bus, bus, bus, appThread),
@@ -82,7 +82,7 @@ internal sealed class TrackListDragRig
             waveformStyle,
             new LayoutWizardViewModel(waveformStyle, new WaveformStyleOptionFactory(), new WaveformPreviewRenderer(),
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
-                themeViewModel, new ThemeOptionFactory()),
+                themeViewModel, new ThemeOptionFactory(), new RecordingLogFactory()),
             new SettingsViewModel(bus, bus, new KnobScaleFactory()),
             new FoldersViewModel(bus, bus, bus, new FolderRowViewModelFactory(),
                 Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions())),
@@ -101,7 +101,7 @@ internal sealed class TrackListDragRig
 
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), bus, bus)
             .Create(new DdjFlx4Faceplate());
-        var window = new MainWindow(overlay, themes.Catalog, new ModalKeyRouter(), new AppIconFactory(), new ThemeBrushesFactory()) { DataContext = vm };
+        var window = new MainWindow(overlay, themes.Catalog, new ModalKeyRouter(), new AppIconFactory(), new ThemeBrushesFactory(), new RecordingLogFactory()) { DataContext = vm };
         return new TrackListDragRig(library, sender, list, vm, window);
     }
 }

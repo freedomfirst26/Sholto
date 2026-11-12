@@ -47,8 +47,10 @@ public sealed class LiveEntities(
     IEventPublisher publisher,
     IFrameClock clock,
     IAppThread appThread,
-    IAppIconFactory iconFactory) : ISholtoEntities, ILiveEntitySeeds
+    IAppIconFactory iconFactory,
+    ILogFactory logs) : ISholtoEntities, ILiveEntitySeeds
 {
+    private readonly ILogFactory _logs = logs;
     private readonly ICommandSender _sender = sender;
     private readonly IQueryAsker _asker = asker;
     private readonly IEventSubscriber _subscriber = subscriber;
@@ -99,7 +101,7 @@ public sealed class LiveEntities(
             $"{nameof(UseThemeCatalog)} must be called before the application is created.");
         // The sessions publish the decks' state onto the bus from construction, so they are built here and
         // handed to the core (which drives them) and their view models (which project them).
-        var sessions = new DeckSessionFactory(l.Decks, l.SongSegments, _clock, _appThread, _publisher);
+        var sessions = new DeckSessionFactory(l.Decks, l.SongSegments, _clock, _appThread, _publisher, _logs);
         var deck1 = sessions.Create(0);
         var deck2 = sessions.Create(1);
         var core = l.CoreFactory.Build(deck1, deck2);
@@ -114,14 +116,14 @@ public sealed class LiveEntities(
         var deckClocks = new DeckViewModelClockSource(deck1ViewModel, deck2ViewModel);
         var motion = new DesktopMotionPreference(Environment.GetEnvironmentVariable, new GsettingsAnimationSetting());
         var glanceHeader = new GlanceHeaderViewModel(deckClocks, _clock, _subscriber, new DeckSlotFactory(deckClocks, motion, l.GlanceView));
-        var glance = new GlanceViewModelFactory(_sender, _asker, _subscriber, _appThread, _clock, rows, l.TagRecency, glanceHeader, motion, l.GlanceView).Create();
+        var glance = new GlanceViewModelFactory(_sender, _asker, _subscriber, _appThread, _clock, rows, l.TagRecency, glanceHeader, motion, l.GlanceView, _logs).Create();
         var loadFeedback = new LoadFeedbackViewModel(_sender, _subscriber);
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(l.WaveformStyle).Create(), _sender);
-        var themes = new ThemeViewModel(l.Theme, catalog, _sender);
+        var themes = new ThemeViewModel(l.Theme, catalog, _sender, _logs);
         var docks = new CollapseToIconSequenceFactory(_clock, motion);
         var faceplateDock = docks.Create(
             new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
-            new HintPolicyFactory(_asker, _sender).FirstDismissals("faceplate", 3));
+            new HintPolicyFactory(_asker, _sender, _logs).FirstDismissals("faceplate", 3));
         return new MainViewModelFactory(
             themes,
             new OverlayViewModelFactory(l.TagRecency, _asker, _sender, _subscriber, _appThread),
@@ -131,7 +133,7 @@ public sealed class LiveEntities(
             waveformStyle,
             new LayoutWizardViewModel(waveformStyle, new WaveformStyleOptionFactory(), new WaveformPreviewRenderer(),
                 new DemoWaveformFactory(), new WaveformPreviewScroll(_clock), _appThread,
-                themes, new ThemeOptionFactory()),
+                themes, new ThemeOptionFactory(), _logs),
             new SettingsViewModel(_subscriber, _sender, new KnobScaleFactory()),
             new FoldersViewModel(_subscriber, _sender, _asker, new FolderRowViewModelFactory(), l.FoldersPanel),
             new SystemReportViewModel(),
@@ -152,7 +154,7 @@ public sealed class LiveEntities(
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), _sender, _subscriber).Create(device);
         var catalog = _themeCatalog ?? throw new InvalidOperationException(
             $"{nameof(UseThemeCatalog)} must be called before the window is created.");
-        return new MainWindow(overlay, catalog, new ModalKeyRouter(), _iconFactory, new ThemeBrushesFactory()) { DataContext = Application };
+        return new MainWindow(overlay, catalog, new ModalKeyRouter(), _iconFactory, new ThemeBrushesFactory(), _logs) { DataContext = Application };
     }
 
     public IControlSurface CreateControlSurface() =>

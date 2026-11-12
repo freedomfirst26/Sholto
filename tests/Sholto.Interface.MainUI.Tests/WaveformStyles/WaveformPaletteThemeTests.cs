@@ -38,7 +38,7 @@ public sealed class WaveformPaletteThemeTests
     private WaveformPalette Palette(string themeName)
     {
         AvaloniaTestApp.EnsureStarted();
-        return new ThemeStackFactory().Build().Catalog.All.First(t => t.Name == themeName).Waveform;
+        return new ThemeStackFactory(new RecordingLogFactory()).Build().Catalog.All.First(t => t.Name == themeName).Waveform;
     }
 
     /// <summary>Scales so the brightest channel is 255, which is what the RGB mixer draws.</summary>

@@ -29,7 +29,7 @@ internal sealed class DeckViewModelRig
     }
 
     public DeckViewModel NewDeck(int index, IThemeContext? theme = null) =>
-        new DeckViewModelFactory(Bus, Bus, theme ?? new ThemeStackFactory().Build().Context,
+        new DeckViewModelFactory(Bus, Bus, theme ?? new ThemeStackFactory(new RecordingLogFactory()).Build().Context,
             Options.Create(new FeatureOptions { ShowSectionMap = false }), Options.Create(new DeckViewOptions()),
             new NoPeaksFactory(), new DiscBloomFactory(Clock)).Create(index);
 

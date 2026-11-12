@@ -26,7 +26,9 @@ public sealed class AppStackFactory : IAppStackFactory
         // One KeyFactory, shared by the analysis stack and the storage's
         // database factory (which builds the key serializer).
         var keyFactory = new KeyFactory();
-        var options = new SholtoOptions();
+        // The app's one console log factory: every logging assembly's entry type below gets it.
+        var logs = new ConsoleLogFactory(Console.Out);
+        var options = new SholtoOptions(logs);
         // The app thread (the UI thread), shared by the decks, the entities and the input stack.
         var appThread = new AvaloniaAppThread();
         var toolOutcomes = new ToolOutcomeFactory();
@@ -42,17 +44,19 @@ public sealed class AppStackFactory : IAppStackFactory
                 new MadmomBeatAnalysisStepFactory(toolOutcomes, detectedBeats),
                 toolOutcomes,
                 options.StemSeparation,
-                analysisFolder),
-            new AnalysisStackFactory(keyFactory, options.WaveformBands),
-            new SholtoStorage(new DatabaseStackFactory(keyFactory), new SholtoDbContextOptionsFactory()),
+                analysisFolder,
+                logs),
+            new AnalysisStackFactory(keyFactory, options.WaveformBands, logs),
+            new SholtoStorage(new DatabaseStackFactory(keyFactory, logs), new SholtoDbContextOptionsFactory(), logs),
             appThread,
-            options.Loop);
+            options.Loop,
+            logs);
         var stack = stackFactory.Build();
         // The one bus: the App side publishes onto it, the interfaces subscribe to it.
-        var bus = new DataBus(new ConsoleHandlerFailureSink());
+        var bus = new DataBus(new ConsoleHandlerFailureSink(logs));
         // The hint count is asked while the window is being built (the faceplate dock's hint policy), before the
         // input stack registers the other handlers, so it is answered from here.
-        var hintCounter = new HintCounter(stack.LibraryDatabase);
+        var hintCounter = new HintCounter(stack.LibraryDatabase, logs);
         bus.Register<GetHintShownCount, Task<int>>(hintCounter);
         // Its frame clock, shared by the entities and the input stack.
         var frameClock = new DispatcherFrameClock();
@@ -61,26 +65,27 @@ public sealed class AppStackFactory : IAppStackFactory
         var coreFactory = new CoreFactory(
             stack.TrackScanner, stack.AnalysisStack.KeyStore, stack.ToolStack.StemCache, stack.AnalysisStack.Reporter,
             stack.AnalysisStack.KeyAnalyzer, stack.Decoder, stack.Crossfade, appThread, bus, frameClock,
-            new GatedStemSeparator(stack.ToolStack.Stems, stack.StemGate, stack.AnalysisStack.Reporter), options.Load, options.HotCue);
+            new GatedStemSeparator(stack.ToolStack.Stems, stack.StemGate, stack.AnalysisStack.Reporter), options.Load, options.HotCue, logs);
         var lifecycleFactory = new AppLifecycleFactory(
             stack.LibraryDatabase, stack.ThemePreference, stack.MusicDirPreference, stack.AnalysisDirPreference,
             analysisFolder, stack.StemGate, new StemFolderMover(new DirectoryRename(), options.AnalysisFolder),
             new FolderCheck(options.AnalysisFolder), stack.OutputDevicePreference,
             stack.WaveformStylePreference, stack.BackspinTimePreference, stack.BackspinDistancePreference, stack.LegacyShortlistPreference,
             stack.TrackListPreference, new SavedTrackListCodec(),
-            stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory(options.AudioTiming)), [stack.FlacStrategy],
+            stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory(options.AudioTiming), logs), [stack.FlacStrategy],
             stack.PipeWireRouter, stack.DeckFormat, masterCueOutput, stack.ToolStack.Check, appThread, bus,
             // The two environment overrides and the legacy default stem root, read here and nowhere else.
             Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR"),
             Environment.GetEnvironmentVariable(ExternalToolOptionsFactory.CacheRootVariable),
-            new ExternalToolOptionsFactory(new ExternalToolCatalog()).ForCurrentPlatform().CacheRoot);
+            new ExternalToolOptionsFactory(new ExternalToolCatalog()).ForCurrentPlatform().CacheRoot,
+            logs);
         var iconFactory = new AppIconFactory();
-        var entities = new LiveEntities(bus, bus, bus, bus, frameClock, appThread, iconFactory);
+        var entities = new LiveEntities(bus, bus, bus, bus, frameClock, appThread, iconFactory, logs);
         return new AppStack(entities, entities, stack, options,
             coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread),
-            new ThemeStackFactory(), new ControllerStackFactory(),
-            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, hintCounter, options.Glance), new PerformanceFactory(),
+            new ThemeStackFactory(logs), new ControllerStackFactory(logs),
+            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, hintCounter, options.Glance, logs), new PerformanceFactory(logs),
                 new ControllerInputFactory(), new KeyboardInputFactory()),
-            masterCueOutput, frameClock, appThread, bus, new TrayFactory(iconFactory));
+            masterCueOutput, frameClock, appThread, bus, new TrayFactory(iconFactory, logs), logs);
     }
 }

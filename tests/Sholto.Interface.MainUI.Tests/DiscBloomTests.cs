@@ -23,7 +23,7 @@ public class DiscBloomTests
     public DiscBloomTests()
     {
         AvaloniaTestApp.EnsureStarted();
-        _deck = new DeckViewModelFactory(_bus, _bus, new ThemeStackFactory().Build().Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
+        _deck = new DeckViewModelFactory(_bus, _bus, new ThemeStackFactory(new RecordingLogFactory()).Build().Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
             Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(_clock)).Create(0);
     }
 

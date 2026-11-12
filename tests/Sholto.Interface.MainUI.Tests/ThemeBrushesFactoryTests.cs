@@ -42,7 +42,7 @@ public sealed class ThemeBrushesFactoryTests
     private static (SholtoTheme First, SholtoTheme Second) TwoThemes()
     {
         AvaloniaTestApp.EnsureStarted();
-        var all = new ThemeStackFactory().Build().Catalog.All;
+        var all = new ThemeStackFactory(new RecordingLogFactory()).Build().Catalog.All;
         return (all[0], all.First(t => !ReferenceEquals(t.Primary, all[0].Primary)));
     }
 
@@ -108,7 +108,7 @@ public sealed class ThemeBrushesFactoryTests
     [Fact]
     public void Apply_ThemeWithoutLoad_PublishesDefaultLoadColours()
     {
-        var stack = new ThemeStackFactory().Build();
+        var stack = new ThemeStackFactory(new RecordingLogFactory()).Build();
         var factory = new SholtoThemeFactory(
             new WaveformPaletteFactory(new TestWaveformPresets().Create(), stack.Defaults), new MinimapPaletteFactory(),
             stack.Defaults);
@@ -136,7 +136,7 @@ public sealed class ThemeBrushesFactoryTests
     public void Apply_BirthdayMassacre_PublishesItsPinksAndViolet()
     {
         AvaloniaTestApp.EnsureStarted();
-        var theme = new ThemeStackFactory().Build().Catalog.ByName("The Birthday Massacre");
+        var theme = new ThemeStackFactory(new RecordingLogFactory()).Build().Catalog.ByName("The Birthday Massacre");
         var host = new Border();
         Apply(host.Resources, theme);
         Assert.Equal(Color.Parse("#FF3D9F"), LoadColour(host, "SholtoLoadDeck1"));
@@ -150,7 +150,7 @@ public sealed class ThemeBrushesFactoryTests
     public void Apply_PublishesDeckWashesThatStartAboveTheSlotsSurface(string name)
     {
         AvaloniaTestApp.EnsureStarted();
-        var theme = new ThemeStackFactory().Build().Catalog.ByName(name);
+        var theme = new ThemeStackFactory(new RecordingLogFactory()).Build().Catalog.ByName(name);
         var host = new Border();
         Apply(host.Resources, theme);
         var raised = ((SolidColorBrush)theme.SurfaceRaised).Color;

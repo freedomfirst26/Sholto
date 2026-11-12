@@ -26,7 +26,7 @@ internal sealed class MainViewModelRig
     public MainViewModelRig()
     {
         AvaloniaTestApp.EnsureStarted();
-        var themes = new ThemeStackFactory().Build();
+        var themes = new ThemeStackFactory(new RecordingLogFactory()).Build();
         var appThread = new ImmediateAppThread();
         var recency = new TagRecency();
         var rows = new LibraryRowsViewModel(Bus, new TrackRowFactory(themes.Context));
@@ -38,9 +38,9 @@ internal sealed class MainViewModelRig
         var clocks = new DeckViewModelClockSource(deck1, deck2);
         var glance = new GlanceViewModelFactory(Bus, Bus, Bus, appThread, clock, rows, recency,
             new GlanceHeaderViewModel(clocks, clock, Bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()))),
-            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create();
+            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()), new RecordingLogFactory()).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), Bus);
-        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, Bus);
+        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, Bus, new RecordingLogFactory());
         Vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(recency, Bus, Bus, Bus, appThread),
@@ -57,7 +57,7 @@ internal sealed class MainViewModelRig
             waveformStyle,
             new LayoutWizardViewModel(waveformStyle, new WaveformStyleOptionFactory(), new WaveformPreviewRenderer(),
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
-                themeViewModel, new ThemeOptionFactory()),
+                themeViewModel, new ThemeOptionFactory(), new RecordingLogFactory()),
             new SettingsViewModel(Bus, Bus, new KnobScaleFactory()),
             new FoldersViewModel(Bus, Bus, Bus, new FolderRowViewModelFactory(),
                 Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions())),

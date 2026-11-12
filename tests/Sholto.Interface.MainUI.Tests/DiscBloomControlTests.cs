@@ -22,7 +22,7 @@ public class DiscBloomControlTests
     public DiscBloomControlTests()
     {
         AvaloniaTestApp.EnsureStarted();
-        _palette = new ThemeStackFactory().Build().Context.Current.Waveform;
+        _palette = new ThemeStackFactory(new RecordingLogFactory()).Build().Context.Current.Waveform;
     }
 
     [Fact]

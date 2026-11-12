@@ -23,8 +23,9 @@ namespace Sholto.Host;
 /// <para>The <see cref="IKeyFactory"/> is handed in by the composition root because the
 /// storage factory needs the same instance.</para>
 /// </summary>
-public sealed class AnalysisStackFactory(IKeyFactory keyFactory, IOptions<WaveformBandOptions> waveformBands) : IAnalysisStackFactory
+public sealed class AnalysisStackFactory(IKeyFactory keyFactory, IOptions<WaveformBandOptions> waveformBands, ILogFactory logs) : IAnalysisStackFactory
 {
+    private readonly ILogFactory _logs = logs;
     private readonly IKeyFactory _keyFactory = keyFactory;
     private readonly IOptions<WaveformBandOptions> _waveformBands = waveformBands;
 
@@ -67,7 +68,8 @@ public sealed class AnalysisStackFactory(IKeyFactory keyFactory, IOptions<Wavefo
 
         var provider = new CachingAnalysisProvider(new DbAnalysisProvider(
             new StagedAnalysisProvider(basicAnalysisStage),
-            store: deferredBasicCache));
+            store: deferredBasicCache,
+            logs: _logs));
 
         return new AnalysisStack(
             reporter,

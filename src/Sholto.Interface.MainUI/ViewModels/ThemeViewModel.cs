@@ -10,14 +10,16 @@ public sealed class ThemeViewModel : IThemeViewModel
     private readonly IThemeContext _context;
     private readonly IThemeCatalog _catalog;
     private readonly ICommandSender _sender;
+    private readonly ILogFactory _logs;
     private SholtoTheme _shown;
     private SholtoTheme _chosen;
 
-    public ThemeViewModel(IThemeContext context, IThemeCatalog catalog, ICommandSender sender)
+    public ThemeViewModel(IThemeContext context, IThemeCatalog catalog, ICommandSender sender, ILogFactory logs)
     {
         _context = context;
         _catalog = catalog;
         _sender = sender;
+        _logs = logs;
         _shown = catalog.ByName("Silence Groove");
         _chosen = _shown;
         // Make the initial theme visible to anything that reads the context before the user picks another.

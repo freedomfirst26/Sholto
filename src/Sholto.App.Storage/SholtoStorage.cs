@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Sholto.Data;
 
 namespace Sholto.App.Storage;
 
@@ -10,10 +11,11 @@ namespace Sholto.App.Storage;
 /// short-lived <see cref="SholtoDbContext"/> from a pooled factory with no
 /// shared mutable state.
 /// </summary>
-public sealed class SholtoStorage(IDatabaseStackFactory databases, ISholtoDbContextOptionsFactory contextOptions) : ISholtoStorage
+public sealed class SholtoStorage(IDatabaseStackFactory databases, ISholtoDbContextOptionsFactory contextOptions, ILogFactory logs) : ISholtoStorage
 {
     private readonly IDatabaseStackFactory _databases = databases;
     private readonly ISholtoDbContextOptionsFactory _contextOptions = contextOptions;
+    private readonly ILogFactory _logs = logs;
 
     public async Task<DatabaseStack> OpenAsync(
         string? overridePath = null,

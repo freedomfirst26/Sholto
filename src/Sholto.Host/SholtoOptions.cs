@@ -7,6 +7,7 @@ using Sholto.Interface.Controller.Mappings;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
 
 using Sholto.Interface.MainUI;
+using Sholto.Data;
 
 namespace Sholto.Host;
 
@@ -42,8 +43,9 @@ public sealed class SholtoOptions
     public IOptions<FoldersPanelOptions> FoldersPanel { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
-    /// root (Program, Bench's composers) builds one instance and hands it down.</summary>
-    public SholtoOptions()
+    /// root (Program, Bench's composers) builds one instance and hands it down. An
+    /// environment override is reported through <paramref name="logs"/>.</summary>
+    public SholtoOptions(ILogFactory logs)
     {
         Feature = Options.Create(new FeatureOptions());
         Controllers = Options.Create(new ControllerMappingsOptions());
@@ -61,7 +63,7 @@ public sealed class SholtoOptions
         WaveformStyle = Options.Create(new WaveformStyleOptions());
         StemSeparation = Options.Create(new StemSeparationOptions());
         // The one place the SHOLTO_LOOP_* environment overrides are read.
-        Loop = Options.Create(new LoopOptionsFactory().Create());
+        Loop = Options.Create(new LoopOptionsFactory(Environment.GetEnvironmentVariable, logs).Create());
         AudioTiming = Options.Create(new AudioTimingOptionsFactory(Environment.GetEnvironmentVariable).Create());
         AnalysisFolder = Options.Create(new AnalysisFolderOptions());
         FoldersPanel = Options.Create(new FoldersPanelOptions());

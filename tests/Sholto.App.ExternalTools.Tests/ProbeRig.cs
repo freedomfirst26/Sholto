@@ -20,7 +20,7 @@ internal sealed class ProbeRig : IDisposable
         var demucs = Path.Combine(_dir, "demucs");
         File.WriteAllText(demucs, $"#!{interpreter}\n");
         File.SetUnixFileMode(interpreter, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        Device = new CudaProbingStemDevice(demucs, TimeSpan.FromSeconds(10));
+        Device = new CudaProbingStemDevice(demucs, TimeSpan.FromSeconds(10), new RecordingLogFactory());
     }
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);

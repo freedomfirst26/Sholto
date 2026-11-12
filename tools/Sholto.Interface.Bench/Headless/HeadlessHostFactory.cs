@@ -26,8 +26,9 @@ namespace Sholto.Interface.Bench.Headless;
 /// <param name="deckAdvance">Moves deck position on a "wait" step.</param>
 /// <param name="appThread">The immediate app thread the controller input is posted on.</param>
 /// <param name="crossfade">The crossfade curve the scenario runner applies.</param>
+/// <param name="logs">The log factory the core and the command handlers are built with.</param>
 public sealed class HeadlessHostFactory(IBenchDeck benchDeck, IBenchDeckFactory deckFactory, IAudioFileDecoder decoder,
-    IDeckAdvance deckAdvance, IAppThread appThread, ICrossfadeCurve crossfade) : IHeadlessHostFactory
+    IDeckAdvance deckAdvance, IAppThread appThread, ICrossfadeCurve crossfade, ILogFactory logs) : IHeadlessHostFactory
 {
     private readonly IBenchDeck _benchDeck = benchDeck;
     private readonly IBenchDeckFactory _deckFactory = deckFactory;
@@ -35,15 +36,16 @@ public sealed class HeadlessHostFactory(IBenchDeck benchDeck, IBenchDeckFactory 
     private readonly IDeckAdvance _deckAdvance = deckAdvance;
     private readonly IAppThread _appThread = appThread;
     private readonly ICrossfadeCurve _crossfade = crossfade;
+    private readonly ILogFactory _logs = logs;
 
     public IHeadlessHost Create()
     {
         var bus = new DataBus(new BenchHandlerFailureSink());
-        var coreFactory = new HeadlessCoreFactory(_benchDeck, _deckFactory, _decoder, bus, new ManualFrameClock(), _appThread);
+        var coreFactory = new HeadlessCoreFactory(_benchDeck, _deckFactory, _decoder, bus, new ManualFrameClock(), _appThread, _logs);
         var stackFactory = new HeadlessInputStackFactory(
             bus, bus, bus, bus, bus,
-            new CommandHandlersFactory(_appThread, bus, new NullHintCounter(), Options.Create(new GlanceOptions())),
-            new PerformanceFactory(),
+            new CommandHandlersFactory(_appThread, bus, new NullHintCounter(), Options.Create(new GlanceOptions()), _logs),
+            new PerformanceFactory(_logs),
             new ControllerInputFactory(),
             Options.Create(new ScratchOptions()),
             Options.Create(new MagnetismOptions()),

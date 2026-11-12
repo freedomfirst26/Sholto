@@ -39,9 +39,11 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="Sholto.TestSupport.Logging" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Sholto.TestSupport.Logging\Sholto.TestSupport.Logging.csproj" />
     <ProjectReference Include="..\..\tools\Sholto.Interface.Bench\Sholto.Interface.Bench.csproj" />
   </ItemGroup>
 

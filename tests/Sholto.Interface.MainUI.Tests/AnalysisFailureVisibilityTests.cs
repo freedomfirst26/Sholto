@@ -11,7 +11,7 @@ public class AnalysisFailureStateTests
     private TrackRow NewRow(string path = "/music/track.mp3")
     {
         AvaloniaTestApp.EnsureStarted();
-        return new(new Track(path, "Title", "Artist", TimeSpan.FromMinutes(5)).ToSummary(), new ThemeStackFactory().Build().Context);
+        return new(new Track(path, "Title", "Artist", TimeSpan.FromMinutes(5)).ToSummary(), new ThemeStackFactory(new RecordingLogFactory()).Build().Context);
     }
 
     [Fact]

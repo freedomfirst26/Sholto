@@ -30,7 +30,8 @@ public sealed class CoreFactory(
     IFrameClock frameClock,
     IStemSeparator stemSeparator,
     IOptions<LoadOptions> loadOptions,
-    IOptions<HotCueOptions> hotCueOptions) : ICoreFactory
+    IOptions<HotCueOptions> hotCueOptions,
+    ILogFactory logs) : ICoreFactory
 {
     private readonly ITrackScanner _trackScanner = trackScanner;
     // The switchable store: a no-op until the database attaches.
@@ -46,6 +47,7 @@ public sealed class CoreFactory(
     private readonly IStemSeparator _stemSeparator = stemSeparator;
     private readonly IOptions<LoadOptions> _loadOptions = loadOptions;
     private readonly IOptions<HotCueOptions> _hotCueOptions = hotCueOptions;
+    private readonly ILogFactory _logs = logs;
     // Defaults for now; moves into SholtoOptions once that file is free to change.
     private readonly IOptions<BatchAnalysisOptions> _batchOptions = Options.Create(new BatchAnalysisOptions());
 

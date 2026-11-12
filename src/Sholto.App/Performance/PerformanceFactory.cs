@@ -6,8 +6,10 @@ namespace Sholto.App.Performance;
 
 /// <summary>Builds the performance buckets: one <see cref="JogRecency"/> shared by the jog paths (writer)
 /// and the scrub flag and magnet (reader).</summary>
-public sealed class PerformanceFactory : IPerformanceFactory
+public sealed class PerformanceFactory(ILogFactory logs) : IPerformanceFactory
 {
+    private readonly ILogFactory _logs = logs;
+
     public PerformanceStack Build(IDecks decks, IPlaybackRequests playback,
         IOptions<ScratchOptions> scratchOptions, IOptions<MagnetismOptions> magnetismOptions, IFrameClock clock,
         IBackspinFeel backspinFeel)

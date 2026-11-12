@@ -16,7 +16,7 @@ public sealed class AppStack(
     ICoreFactory coreFactory, IAppLifecycleFactory lifecycleFactory, ILifecyclePromptsFactory promptsFactory,
     IThemeStackFactory themeStackFactory, IControllerStackFactory controllerStackFactory,
     IInputStackFactory inputStackFactory, IMasterCueOutput masterCueOutput,
-    IFrameClock frameClock, IAppThread appThread, ICommandSender sender, ITrayFactory trayFactory)
+    IFrameClock frameClock, IAppThread appThread, ICommandSender sender, ITrayFactory trayFactory, ILogFactory logs)
 {
     public ISholtoEntities Entities { get; } = entities;
     public ILiveEntitySeeds Seeds { get; } = seeds;
@@ -34,4 +34,6 @@ public sealed class AppStack(
     /// <summary>The bus's command side, for the root's own reports (the controller's connection state).</summary>
     public ICommandSender Sender { get; } = sender;
     public ITrayFactory TrayFactory { get; } = trayFactory;
+    /// <summary>The app's one console log factory, for the root's own lines.</summary>
+    public ILogFactory Logs { get; } = logs;
 }

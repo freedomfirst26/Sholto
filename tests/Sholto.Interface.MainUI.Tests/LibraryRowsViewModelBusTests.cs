@@ -16,7 +16,7 @@ public class LibraryRowsViewModelBusTests
     public LibraryRowsViewModelBusTests()
     {
         AvaloniaTestApp.EnsureStarted();
-        _theme = new ThemeStackFactory().Build().Context;
+        _theme = new ThemeStackFactory(new RecordingLogFactory()).Build().Context;
         _rows = NewRows();
     }
 

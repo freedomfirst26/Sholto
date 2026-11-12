@@ -13,7 +13,7 @@ public class StemPathHashTests
         new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory()),
         new ToolOutcomeFactory(),
         Microsoft.Extensions.Options.Options.Create(new StemSeparationOptions()),
-        new AnalysisFolder());
+        new AnalysisFolder(), new RecordingLogFactory());
 
     [Fact]
     public void SamePath_HashesSame_BothTimes()

@@ -27,14 +27,14 @@ internal sealed class SearchOverlayRig
     public SearchOverlayRig()
     {
         var bus = Rig.Bus;
-        var themes = new ThemeStackFactory().Build();
+        var themes = new ThemeStackFactory(new RecordingLogFactory()).Build();
         var appThread = new ImmediateAppThread();
         var deck1 = new DeckViewModelFactory(bus, bus, themes.Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
             Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock())).Create(0);
         var deck2 = new DeckViewModelFactory(bus, bus, themes.Context, Options.Create(new FeatureOptions { ShowSectionMap = false }),
             Options.Create(new DeckViewOptions()), new NoPeaksFactory(), new DiscBloomFactory(new ManualFrameClock())).Create(1);
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
-        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
+        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus, new RecordingLogFactory());
         Vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(new TagRecency(), bus, bus, bus, appThread),
@@ -51,7 +51,7 @@ internal sealed class SearchOverlayRig
             waveformStyle,
             new LayoutWizardViewModel(waveformStyle, new WaveformStyleOptionFactory(), new WaveformPreviewRenderer(),
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
-                themeViewModel, new ThemeOptionFactory()),
+                themeViewModel, new ThemeOptionFactory(), new RecordingLogFactory()),
             new SettingsViewModel(bus, bus, new KnobScaleFactory()),
             new FoldersViewModel(bus, bus, bus, new FolderRowViewModelFactory(),
                 Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions())),

@@ -16,7 +16,7 @@ public class LibraryRowsViewModelOrderTests
     public LibraryRowsViewModelOrderTests()
     {
         AvaloniaTestApp.EnsureStarted();
-        _rows = new LibraryRowsViewModel(_bus, new TrackRowFactory(new ThemeStackFactory().Build().Context));
+        _rows = new LibraryRowsViewModel(_bus, new TrackRowFactory(new ThemeStackFactory(new RecordingLogFactory()).Build().Context));
         _rows.Items.CollectionChanged += (_, e) => _changes.Add(e);
     }
 

@@ -71,7 +71,7 @@ public class GlanceTagCompletionTests
         recency.MarkUsed("Drumstep");
         var glance = new GlanceViewModelFactory(
             _rig.Bus, _rig.Bus, _rig.Bus, new ImmediateAppThread(), _rig.Clock, _rig.Library, recency, _rig.Header,
-            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create();
+            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()), new RecordingLogFactory()).Create();
         glance.Open();
 
         glance.Query = "#drum";

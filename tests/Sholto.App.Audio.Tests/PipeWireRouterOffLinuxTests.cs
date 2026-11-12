@@ -8,7 +8,7 @@ namespace Sholto.App.Audio.Tests;
 /// so the test proves the guard rather than the tools' absence.</summary>
 public sealed class PipeWireRouterOffLinuxTests
 {
-    private readonly PipeWireRouter _router = new(new PipeWireOwnPorts(), Environment.ProcessId, isLinux: false);
+    private readonly PipeWireRouter _router = new(new PipeWireOwnPorts(), Environment.ProcessId, isLinux: false, new RecordingLogFactory());
     private readonly RecordingCard _card = new();
 
     [Fact]

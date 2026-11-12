@@ -26,7 +26,7 @@ public sealed class MinimapSectionColourTests
     private Dictionary<string, (double L, double A, double B)> Kinds(string themeName)
     {
         AvaloniaTestApp.EnsureStarted();
-        var m = new ThemeStackFactory().Build().Catalog.All.First(t => t.Name == themeName).Minimap;
+        var m = new ThemeStackFactory(new RecordingLogFactory()).Build().Catalog.All.First(t => t.Name == themeName).Minimap;
         return new()
         {
             ["intro"] = _codec.Encode(m.Intro), ["buildUp"] = _codec.Encode(m.BuildUp),

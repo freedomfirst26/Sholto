@@ -12,7 +12,7 @@ public class KnobThemeTests
     [Fact]
     public void Every_bundled_theme_gets_the_default_green_arc_and_its_own_core_colours()
     {
-        var stack = new ThemeStackFactory().Build();
+        var stack = new ThemeStackFactory(new RecordingLogFactory()).Build();
         Assert.True(stack.Defaults.TryGetColor("knob.arc", out var green));
         Assert.Equal(Color.Parse("#3DDC84"), green);
         foreach (var theme in stack.Catalog.All.Where(t => !t.IsUser))
@@ -28,7 +28,7 @@ public class KnobThemeTests
     [Fact]
     public void A_theme_can_set_its_own_arc_colour()
     {
-        var stack = new ThemeStackFactory().Build();
+        var stack = new ThemeStackFactory(new RecordingLogFactory()).Build();
         var factory = new SholtoThemeFactory(
             new WaveformPaletteFactory(new TestWaveformPresets().Create(), stack.Defaults), new MinimapPaletteFactory(),
             stack.Defaults);

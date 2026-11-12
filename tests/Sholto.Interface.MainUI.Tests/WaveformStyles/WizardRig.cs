@@ -13,7 +13,7 @@ internal sealed class WizardRig
     public WizardRig(int builtIn, int user)
     {
         AvaloniaTestApp.EnsureStarted();
-        var real = new ThemeStackFactory().Build().Catalog.All.Where(t => !t.IsUser).ToList();
+        var real = new ThemeStackFactory(new RecordingLogFactory()).Build().Catalog.All.Where(t => !t.IsUser).ToList();
         var themes = real.Take(builtIn).ToList();
         for (int i = 0; i < user; i++) themes.Add(real[i] with { Name = $"Mine {i + 1}", IsUser = true });
         Catalog = new ThemeCatalog(themes, "/tmp/sholto-test-themes");
@@ -24,10 +24,10 @@ internal sealed class WizardRig
         Bus.Register<ChooseTheme>(SentThemes);
         Styles = new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create();
         Style = new WaveformStyleViewModel(Styles, Bus);
-        Themes = new ThemeViewModel(Context, Catalog, Bus);
+        Themes = new ThemeViewModel(Context, Catalog, Bus, new RecordingLogFactory());
         Wizard = new LayoutWizardViewModel(Style, new WaveformStyleOptionFactory(), new CountingPreviewRenderer(),
             new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), new ImmediateAppThread(),
-            Themes, new ThemeOptionFactory());
+            Themes, new ThemeOptionFactory(), new RecordingLogFactory());
     }
 
     public ThemeCatalog Catalog { get; }

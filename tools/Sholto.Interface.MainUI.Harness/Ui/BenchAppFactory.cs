@@ -32,10 +32,13 @@ namespace Sholto.Interface.MainUI.Harness.Ui;
 /// <param name="subscriber">The data bus the view models follow events on.</param>
 /// <param name="options">The configured options the view models are built with.</param>
 /// <param name="appThread">The app thread the view models marshal onto.</param>
+/// <param name="logs">The log factory the theme stack, view models and window are built with.</param>
 public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCoreFactory coreFactory,
     ICommandSender sender, IQueryAsker asker, IEventSubscriber subscriber, SholtoOptions options,
-    IAppThread appThread) : IBenchAppFactory
+    IAppThread appThread, ILogFactory logs) : IBenchAppFactory
 {
+    private readonly ILogFactory _logs = logs;
+
     public BenchApp Create()
     {
         headlessApp.EnsureStarted();
@@ -43,7 +46,7 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
         var headless = coreFactory.Build();
         // Themes load through Avalonia's AssetLoader, so the stack is built after
         // EnsureStarted (above), via the same factory App uses.
-        var themeStack = new ThemeStackFactory().Build();
+        var themeStack = new ThemeStackFactory(_logs).Build();
         var themeCatalog = themeStack.Catalog;
         var themeContext = themeStack.Context;
 
@@ -63,9 +66,9 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
         _ = int.TryParse(Environment.GetEnvironmentVariable("SHOLTO_HARNESS_SLOWRANK"), out var rankDelayMs);
         var glance = new GlanceViewModelFactory(
             sender, new DemoGlanceAsker(asker, rankDelayMs), subscriber, appThread, uiClock, rows, tagRecency,
-            new GlanceHeaderViewModel(deckClocks, uiClock, subscriber, new DeckSlotFactory(deckClocks, motion, options.GlanceView)), motion, options.GlanceView).Create();
+            new GlanceHeaderViewModel(deckClocks, uiClock, subscriber, new DeckSlotFactory(deckClocks, motion, options.GlanceView)), motion, options.GlanceView, _logs).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(options.WaveformStyle).Create(), sender);
-        var themeViewModel = new ThemeViewModel(themeContext, themeCatalog, sender);
+        var themeViewModel = new ThemeViewModel(themeContext, themeCatalog, sender, _logs);
         var vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(tagRecency, asker, sender, subscriber, appThread),
@@ -82,18 +85,18 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
             waveformStyle,
             new LayoutWizardViewModel(waveformStyle, new WaveformStyleOptionFactory(), new WaveformPreviewRenderer(),
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
-                themeViewModel, new ThemeOptionFactory()),
+                themeViewModel, new ThemeOptionFactory(), _logs),
             new SettingsViewModel(subscriber, sender, new KnobScaleFactory()),
             new FoldersViewModel(subscriber, sender, asker, new FolderRowViewModelFactory(), options.FoldersPanel),
             new SystemReportViewModel(),
             new CollapseToIconSequenceFactory(uiClock, motion)
                 .Create(new CollapseToIconOptions("faceplate", Slowed(new CollapseToIconTimingsFactory().Standard())),
-                    new HintPolicyFactory(asker, sender).Always()),
+                    new HintPolicyFactory(asker, sender, _logs).Always()),
             new TrackListViewModel(sender, subscriber)).Create();
 
         var device = new DdjFlx4Faceplate();
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), sender, subscriber).Create(device);
-        var window = new MainWindow(overlay, themeCatalog, new ModalKeyRouter(), new AppIconFactory(), new ThemeBrushesFactory()) { DataContext = vm };
+        var window = new MainWindow(overlay, themeCatalog, new ModalKeyRouter(), new AppIconFactory(), new ThemeBrushesFactory(), _logs) { DataContext = vm };
         return new BenchApp(vm, window, headless.Deck1, headless.Deck2, headless.Core, uiClock);
     }
 

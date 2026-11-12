@@ -20,7 +20,7 @@ public class MinimapRendererTimingTests
     public MinimapRendererTimingTests()
     {
         AvaloniaTestApp.EnsureStarted();
-        _palette = new ThemeStackFactory().Build().Context.Current.Minimap;
+        _palette = new ThemeStackFactory(new RecordingLogFactory()).Build().Context.Current.Minimap;
     }
 
     [Fact]

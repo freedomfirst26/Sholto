@@ -13,7 +13,7 @@ public class CommandHandlersFactoryTests
         var cue = new CueRouting(rig.Core.Decks, new RecordingMasterCueOutput(), bus);
         var registry = new RecordingCommandRegistry();
 
-        new CommandHandlersFactory(new ImmediateAppThread(), bus, new Sholto.App.Lifecycle.NullHintCounter(), Microsoft.Extensions.Options.Options.Create(new GlanceOptions())).Register(
+        new CommandHandlersFactory(new ImmediateAppThread(), bus, new Sholto.App.Lifecycle.NullHintCounter(), Microsoft.Extensions.Options.Options.Create(new GlanceOptions()), new RecordingLogFactory()).Register(
             registry, bus, rig.Core, cue, new InspectMode(bus), rig.Platter, new Sholto.App.Lifecycle.NullAppLifecycle());
         return (registry, bus);
     }

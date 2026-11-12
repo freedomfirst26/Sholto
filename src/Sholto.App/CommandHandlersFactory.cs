@@ -9,12 +9,14 @@ using Sholto.App.Performance;
 
 namespace Sholto.App;
 
-public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher publisher, IHintCounter hintCounter, IOptions<GlanceOptions> glanceOptions) : ICommandHandlersFactory
+public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher publisher, IHintCounter hintCounter, IOptions<GlanceOptions> glanceOptions,
+    ILogFactory logs) : ICommandHandlersFactory
 {
     private readonly IHintCounter _hintCounter = hintCounter;
     private readonly IOptions<GlanceOptions> _glanceOptions = glanceOptions;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
+    private readonly ILogFactory _logs = logs;
 
     public void Register(ICommandRegistry registry, IQueryRegistry queries, CoreStack core, ICueRouting cueRouting,
         IInspectMode inspectMode, IPlatter platter, IAppLifecycle lifecycle)

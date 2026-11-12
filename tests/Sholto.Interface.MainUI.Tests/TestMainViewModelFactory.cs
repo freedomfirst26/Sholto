@@ -31,7 +31,7 @@ internal sealed class TestMainViewModelFactory
 {
     public TestApp Create(IAudioFileDecoder decoder)
     {
-        var themes = new ThemeStackFactory().Build();
+        var themes = new ThemeStackFactory(new RecordingLogFactory()).Build();
         // A filesystem query against a directory that never exists always answers
         // "not present".
         var stemPresence = new DemucsStemPresence(_ => Path.Combine(Path.GetTempPath(), "sholto-tests-no-stems"));
@@ -40,7 +40,7 @@ internal sealed class TestMainViewModelFactory
         var appThread = new ImmediateAppThread();
         var clock = new SettableFrameClock();
         var sessions = new DeckSessionFactory(
-            new TestDeckFactory(), new PhraseSectionAnalyzer(new BarFeatureExtractor(new PhraseSectionOptions()), new PhraseSectionLabeler(new PhraseSectionOptions()), new PhraseSectionOptions()), clock, appThread, bus);
+            new TestDeckFactory(), new PhraseSectionAnalyzer(new BarFeatureExtractor(new PhraseSectionOptions()), new PhraseSectionLabeler(new PhraseSectionOptions()), new PhraseSectionOptions()), clock, appThread, bus, new RecordingLogFactory());
         var deck1 = sessions.Create(0);
         var deck2 = sessions.Create(1);
         var core = new CoreFactory(
@@ -48,7 +48,7 @@ internal sealed class TestMainViewModelFactory
             new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), decoder,
             new EqualPowerCrossfade(), appThread, bus, clock, new Sholto.TestSupport.UnavailableStemSeparator(),
             Microsoft.Extensions.Options.Options.Create(new LoadOptions()),
-            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions())).Build(deck1, deck2);
+            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions()), new RecordingLogFactory()).Build(deck1, deck2);
         var rows = new LibraryRowsViewModel(bus, new TrackRowFactory(themes.Context));
         var deckViewModels = new DeckViewModelFactory(
             bus, bus, themes.Context, Options.Create(new FeatureOptions()), Options.Create(new DeckViewOptions()), new NoPeaksFactory(),
@@ -59,9 +59,9 @@ internal sealed class TestMainViewModelFactory
         var glance = new GlanceViewModelFactory(
             bus, bus, bus, appThread, clock, rows, tagRecency,
             new GlanceHeaderViewModel(clocks, clock, bus, new DeckSlotFactory(clocks, new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()))),
-            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions())).Create();
+            new FixedMotionPreference(false), Options.Create(new GlanceViewOptions()), new RecordingLogFactory()).Create();
         var waveformStyle = new WaveformStyleViewModel(new WaveformStylesFactory(Options.Create(new WaveformStyleOptions())).Create(), bus);
-        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus);
+        var themeViewModel = new ThemeViewModel(themes.Context, themes.Catalog, bus, new RecordingLogFactory());
         var vm = new MainViewModelFactory(
             themeViewModel,
             new OverlayViewModelFactory(tagRecency, bus, bus, bus, appThread),
@@ -78,7 +78,7 @@ internal sealed class TestMainViewModelFactory
             waveformStyle,
             new LayoutWizardViewModel(waveformStyle, new WaveformStyleOptionFactory(), new WaveformPreviewRenderer(),
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
-                themeViewModel, new ThemeOptionFactory()),
+                themeViewModel, new ThemeOptionFactory(), new RecordingLogFactory()),
             new SettingsViewModel(bus, bus, new KnobScaleFactory()),
             new FoldersViewModel(bus, bus, bus, new FolderRowViewModelFactory(),
                 Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions())),

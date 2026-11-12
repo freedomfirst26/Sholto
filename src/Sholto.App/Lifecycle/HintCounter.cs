@@ -7,9 +7,10 @@ namespace Sholto.App.Lifecycle;
 /// <remarks>Each count is stored under <see cref="SettingsKeys.HintShownPrefix"/> plus the hint key. Writes run in
 /// the order they were recorded, and a read waits behind them, so a count asked for after a record includes it.
 /// When the database is unavailable nothing is saved and every count is 0.</remarks>
-public sealed class HintCounter(ILibraryDatabase database) : IHintCounter
+public sealed class HintCounter(ILibraryDatabase database, ILogFactory logs) : IHintCounter
 {
     private readonly ILibraryDatabase _database = database;
+    private readonly ILogFactory _logs = logs;
     private readonly SemaphoreSlim _turn = new(1, 1);
 
     public void Handle(in RecordHintShown command)

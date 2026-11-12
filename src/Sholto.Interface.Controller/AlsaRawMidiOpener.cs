@@ -1,11 +1,14 @@
 using System.Runtime.InteropServices;
+using Sholto.Data;
 
 namespace Sholto.Interface.Controller;
 
 /// <summary>Linux implementation of <see cref="IMidiPortOpener"/>: walks
 /// /proc/asound/cards and opens /dev/snd/midiC&lt;N&gt;D0 for the matching card.</summary>
-public sealed class AlsaRawMidiOpener : IMidiPortOpener
+public sealed class AlsaRawMidiOpener(ILogFactory logs) : IMidiPortOpener
 {
+    private readonly ILogFactory _logs = logs;
+
     public IRawMidiPort? Open(string deviceName)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return null;

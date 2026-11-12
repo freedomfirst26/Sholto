@@ -1,5 +1,6 @@
 using Sholto.App.Analysis;
 using Sholto.App.Analysis.Stores;
+using Sholto.Data;
 
 namespace Sholto.App.Analysis.Analyzers;
 
@@ -11,10 +12,11 @@ namespace Sholto.App.Analysis.Analyzers;
 /// holds an <see cref="IBasicAnalysisStore"/> (normally the shared
 /// <c>DeferredBasicAnalysisStore</c>) instead of a <see cref="MemoryCache{TKey,TValue}"/>.
 /// </summary>
-public sealed class DbAnalysisProvider(IAnalysisProvider inner, IBasicAnalysisStore store) : IAnalysisProvider
+public sealed class DbAnalysisProvider(IAnalysisProvider inner, IBasicAnalysisStore store, ILogFactory logs) : IAnalysisProvider
 {
     private readonly IAnalysisProvider _inner = inner;
     private readonly IBasicAnalysisStore _store = store;
+    private readonly ILogFactory _logs = logs;
 
     public Task<BasicAnalysis> GetAsync(DecodedTrack track, CancellationToken ct = default) =>
         Begin(track.FilePath, ct).CompleteAsync(track);

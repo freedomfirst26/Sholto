@@ -25,7 +25,7 @@ public sealed class BenchRenderRig
             new NoOpStemAnalysisStep(),
             new AnalysisProvider((_, _) => throw new NotSupportedException("not used")),
             Options.Create(new WaveformBandOptions()),
-            new Sholto.Data.ImmediateAppThread());
+            new Sholto.Data.ImmediateAppThread(), new RecordingLogFactory());
         _renderer = new OfflineRenderer(new BenchDeck(factory), new EqualPowerCrossfade(), new CueOutputRouterFactory(Options.Create(new AudioTimingOptions())));
     }
 

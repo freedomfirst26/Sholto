@@ -30,7 +30,7 @@ public class MinimapControlTests
     {
         _output = output;
         AvaloniaTestApp.EnsureStarted();
-        _palette = new ThemeStackFactory().Build().Context.Current.Minimap;
+        _palette = new ThemeStackFactory(new RecordingLogFactory()).Build().Context.Current.Minimap;
         _peaks = new TestWaveformPeaks().Create(2000);   // 2000 peaks of 512 samples
         double secs = 2000 * 512 / 48000.0;     // 21.33 s
         _barPeriod = secs / 16;                 // 16 bars of 1.333 s, the first downbeat at 0

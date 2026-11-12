@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Library.Tags;
+using Sholto.Data;
 
 namespace Sholto.App.Storage;
 
@@ -8,12 +9,15 @@ namespace Sholto.App.Storage;
 /// Builds the serializers and the Sqlite/EF-backed ports of a <see cref="DatabaseStack"/>
 /// from a context factory. The concrete implementations never leave this assembly.
 /// </summary>
-public sealed class DatabaseStackFactory(IKeyFactory keyFactory) : IDatabaseStackFactory
+public sealed class DatabaseStackFactory(IKeyFactory keyFactory, ILogFactory logs) : IDatabaseStackFactory
 {
+    private readonly IKeyFactory _keyFactory = keyFactory;
+    private readonly ILogFactory _logs = logs;
+
     DatabaseStack IDatabaseStackFactory.Create(IDbContextFactory<SholtoDbContext> contexts)
     {
         var basicAnalysisSerializer = new BasicAnalysisSerializer();
-        var keySerializer = new KeyAnalysisSerializer(keyFactory);
+        var keySerializer = new KeyAnalysisSerializer(_keyFactory);
         return new DatabaseStack(
             tags: new TagService(contexts, new TagNameNormalizer()),
             crates: new CrateService(contexts),

@@ -47,7 +47,8 @@ public sealed class DeckFactory(
     IReadOnlyList<Func<SfEngine, AudioFormat, SoundModifier>> effectFactories,
     IPlaybackProviderFactory playbackProviders,
     IAppThread appThread,
-    IOptions<LoopOptions> loopOptions) : IDeckFactory
+    IOptions<LoopOptions> loopOptions,
+    ILogFactory logs) : IDeckFactory
 {
     private readonly IAudioFileDecoder _decoder = decoder;
     private readonly IStemStage _stemStage = stemStage;
@@ -65,6 +66,7 @@ public sealed class DeckFactory(
     private readonly IPlaybackProviderFactory _playbackProviders = playbackProviders;
     private readonly IAppThread _appThread = appThread;
     private readonly IOptions<LoopOptions> _loopOptions = loopOptions;
+    private readonly ILogFactory _logs = logs;
 
     private readonly IDeckScratchFactory _scratches = new DeckScratchFactory();
 

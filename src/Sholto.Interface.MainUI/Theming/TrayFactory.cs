@@ -1,15 +1,17 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Theming;
 
 /// <summary>The tray icon is the window icon (same <see cref="IAppIconFactory"/> image).
 /// Clicking it or "Show Sholto" restores and activates the window; "Quit" closes the
 /// main window, the same path as its close button.</summary>
-public sealed class TrayFactory(IAppIconFactory icons) : ITrayFactory
+public sealed class TrayFactory(IAppIconFactory icons, ILogFactory logs) : ITrayFactory
 {
     private readonly IAppIconFactory _icons = icons;
+    private readonly ILogFactory _logs = logs;
 
     public IDisposable Create(Window window, SholtoTheme theme)
     {

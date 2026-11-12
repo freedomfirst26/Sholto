@@ -15,6 +15,7 @@ using Sholto.Interface.MainUI.Controls.Modal;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
 using Sholto.Interface.Faceplate.Views;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Views;
 
@@ -32,6 +33,7 @@ public partial class MainWindow : Window, IKeyboard
     private readonly IThemeCatalog _themeCatalog;
     private readonly IModalKeyRouter _modalKeys;
     private readonly IThemeBrushesFactory _themeBrushes;
+    private readonly ILogFactory _logs;
     private ResourceDictionary? _themeResources;
 
     /// <summary>The overlay is built by the composition root (it needs a device's guide and
@@ -40,9 +42,10 @@ public partial class MainWindow : Window, IKeyboard
     /// code-behind sees the change. It builds and owns its FaceplateViewModel; no
     /// DataContext is set on it from here, or the panel would silently stop opening.</summary>
     public MainWindow(FaceplateOverlay faceplateOverlay, IThemeCatalog themeCatalog, IModalKeyRouter modalKeys, IAppIconFactory iconFactory,
-        IThemeBrushesFactory themeBrushes)
+        IThemeBrushesFactory themeBrushes, ILogFactory logs)
     {
         _themeBrushes = themeBrushes;
+        _logs = logs;
         _faceplateOverlay = faceplateOverlay;
         _modalKeys = modalKeys;
         _themeCatalog = themeCatalog;

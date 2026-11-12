@@ -39,7 +39,7 @@ public class BasicAnalysisBeginTests
         var beats = new GatedBeatStep();
         var stored = new BasicAnalysis(null!, 99, [0.0], [0.0]);
         var store = new ScriptedBasicAnalysisStore(stored);
-        var provider = new DbAnalysisProvider(new StagedAnalysisProvider(MakeStage(beats)), store);
+        var provider = new DbAnalysisProvider(new StagedAnalysisProvider(MakeStage(beats)), store, new RecordingLogFactory());
 
         var request = provider.Begin(Path);
         var basic = await request.CompleteAsync(Track());
@@ -53,7 +53,7 @@ public class BasicAnalysisBeginTests
     {
         var beats = new GatedBeatStep();
         var store = new ScriptedBasicAnalysisStore(null);
-        var provider = new DbAnalysisProvider(new StagedAnalysisProvider(MakeStage(beats)), store);
+        var provider = new DbAnalysisProvider(new StagedAnalysisProvider(MakeStage(beats)), store, new RecordingLogFactory());
 
         var request = provider.Begin(Path);
 
@@ -71,7 +71,7 @@ public class BasicAnalysisBeginTests
         var beats = new GatedBeatStep();
         var store = new ScriptedBasicAnalysisStore(null);
         var provider = new CachingAnalysisProvider(
-            new DbAnalysisProvider(new StagedAnalysisProvider(MakeStage(beats)), store));
+            new DbAnalysisProvider(new StagedAnalysisProvider(MakeStage(beats)), store, new RecordingLogFactory()));
 
         var first = provider.Begin(Path);
         Assert.True(SpinWait.SpinUntil(() => beats.Started, SpinMs), "the beat step never started");

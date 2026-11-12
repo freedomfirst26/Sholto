@@ -23,10 +23,10 @@ public class LayoutWizardViewModelTests
         _bus.Register<ChooseWaveformStyle>(_sent);
         _style = new WaveformStyleViewModel(_styles, _bus);
         _scroll = new WaveformPreviewScroll(_clock);
-        var themes = new ThemeStackFactory().Build();
+        var themes = new ThemeStackFactory(new RecordingLogFactory()).Build();
         _wizard = new LayoutWizardViewModel(_style, new WaveformStyleOptionFactory(), _previews,
             new DemoWaveformFactory(), _scroll, new ImmediateAppThread(),
-            new ThemeViewModel(themes.Context, themes.Catalog, _bus), new ThemeOptionFactory());
+            new ThemeViewModel(themes.Context, themes.Catalog, _bus, new RecordingLogFactory()), new ThemeOptionFactory(), new RecordingLogFactory());
     }
 
     // The wizard opens on the theme step; these tests are about the waveform step.

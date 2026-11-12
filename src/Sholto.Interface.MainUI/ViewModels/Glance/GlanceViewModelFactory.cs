@@ -9,7 +9,8 @@ namespace Sholto.Interface.MainUI.ViewModels.Glance;
 public sealed class GlanceViewModelFactory(
     ICommandSender sender, IQueryAsker asker, IEventSubscriber subscriber, IAppThread appThread,
     IFrameClock clock, IGlanceRowSource rowSource, ITagRecency tagRecency, IGlanceHeaderViewModel header,
-    IMotionPreference motion, IOptions<GlanceViewOptions> options) : IGlanceViewModelFactory
+    IMotionPreference motion, IOptions<GlanceViewOptions> options,
+    ILogFactory logs) : IGlanceViewModelFactory
 {
     private readonly ICommandSender _sender = sender;
     private readonly IQueryAsker _asker = asker;
@@ -21,6 +22,7 @@ public sealed class GlanceViewModelFactory(
     private readonly IGlanceHeaderViewModel _header = header;
     private readonly IMotionPreference _motion = motion;
     private readonly IOptions<GlanceViewOptions> _options = options;
+    private readonly ILogFactory _logs = logs;
 
     public GlanceViewModel Create() => new(
         _sender, _asker, _subscriber, _clock, _rowSource, _header, _motion,
