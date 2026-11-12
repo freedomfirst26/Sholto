@@ -16,6 +16,10 @@ changed at the decks, not which class moved.
 - **A Load button beside the search box.** Click it to add the highlighted crate, tag or song to the Track List, just like Ctrl + L. It shows a tick once that is in the list, and a second click takes it back out.
 - **Analyse the whole library.** Settings ▸ Analyse whole library… works out beats and key for every song not analysed yet, in the background, showing how far it has got and a summary when done. Settings ▸ Cancel library analysis stops it.
 
+### Improved
+
+- **The audio output picker lists your controller first, so you can send the master mix back to it after picking speakers.**
+
 ### Fixed
 
 - **A crash now leaves a log behind.** If Sholto ever closes because of an error, it first writes what went wrong to a crash log file, and the next time you start it, it prints where that file is so you can send it in with a bug report.
