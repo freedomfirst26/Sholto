@@ -68,6 +68,24 @@ public class FaceplateCommandReceivedTests
     }
 
     [Fact]
+    public void A_beat_loop_pad_selects_that_pad_not_the_4_beat_button()
+    {
+        FromController("ToggleBeatLoop", "deck.pad.3", "beatloop.toggle", deck: 1);
+
+        Assert.Equal("deck.pad.3", _vm.Selected!.Id);
+        Assert.Equal(1, _vm.SelectedDeck);
+        Assert.Equal("beatloop.toggle", _vm.ActiveRowId);
+    }
+
+    [Fact]
+    public void The_4_beat_button_still_selects_itself()
+    {
+        FromController("ToggleBeatLoop", "deck.beatloop.toggle", "beatloop.toggle", deck: 0);
+
+        Assert.Equal("deck.beatloop.toggle", _vm.Selected!.Id);
+    }
+
+    [Fact]
     public void The_pad_roll_selects_pad_2_and_blinks()
     {
         FromController("HoldRoll", "deck.pad.2", "pad.padfx1.roll", deck: 0);

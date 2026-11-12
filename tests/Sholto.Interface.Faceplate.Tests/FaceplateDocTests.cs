@@ -148,6 +148,65 @@ public class FaceplateDocTests
         Assert.Contains("pad.sampler.solo.drums", pad5);
     }
 
+    [Theory]
+    [InlineData(1, "1/4-beat")]
+    [InlineData(2, "1/2-beat")]
+    [InlineData(3, "1-beat")]
+    [InlineData(4, "2-beat")]
+    [InlineData(5, "4-beat")]
+    [InlineData(6, "8-beat")]
+    [InlineData(7, "16-beat")]
+    [InlineData(8, "32-beat")]
+    public void Every_pad_describes_its_beat_loop_length_on_the_beat_loop_page(int n, string length)
+    {
+        var doc = Flx4();
+        Assert.Contains(doc.Layers, l => l.Id == "page.beatloop");
+        var loop = doc.Controls.Single(c => c.Id == $"deck.pad.{n}").Gestures.Single(g => g.Id == "beatloop.toggle");
+        Assert.Equal("page.beatloop", loop.Layer);
+        Assert.Contains($" {length} loop", loop.Result);
+    }
+
+    [Theory]
+    [InlineData("hotcue", "KEYBOARD")]
+    [InlineData("padfx1", "PAD FX2")]
+    [InlineData("sampler", "KEY SHIFT")]
+    public void The_three_dark_shift_pages_are_named_on_their_mode_buttons(string page, string shiftPage)
+    {
+        var press = Flx4().Controls.Single(c => c.Id == $"deck.padmode.{page}")
+                          .Gestures.Single(g => g.Id == $"padmode.{page}.press");
+        Assert.Contains("[[deck.shift]]", press.Result);
+        Assert.Contains($"{shiftPage} page", press.Result);
+        Assert.Contains("dark", press.Result);
+    }
+
+    [Fact]
+    public void Shift_beat_jump_names_the_beat_loop_page()
+    {
+        var press = Flx4().Controls.Single(c => c.Id == "deck.padmode.beatjump")
+                          .Gestures.Single(g => g.Id == "padmode.beatjump.press");
+        Assert.Contains("[[deck.shift]]", press.Result);
+        Assert.Contains("BEAT LOOP page", press.Result);
+    }
+
+    [Fact]
+    public void No_pad_text_promises_coloured_pads()
+    {
+        // The FLX4's pads are on/off; colours show on screen only.
+        var doc = Flx4();
+        var padTexts = doc.Controls.Where(c => c.Id.StartsWith("deck.pad", StringComparison.Ordinal))
+                          .SelectMany(c => c.Gestures.Select(g => g.Result).Append(c.Summary));
+        foreach (var text in padTexts)
+            Assert.DoesNotContain("colour", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void The_echo_pad_is_a_hold()
+    {
+        var echo = Flx4().Controls.Single(c => c.Id == "deck.pad.1").Gestures.Single(g => g.Id == "pad.padfx1.echo");
+        Assert.Equal("press and hold", echo.Verb);
+        Assert.Contains("hold", echo.Result);
+    }
+
     /// <summary>Every DeviceLayout.Id in the layout XAML, read as plain XML.</summary>
     private static HashSet<string> LayoutIds()
     {
