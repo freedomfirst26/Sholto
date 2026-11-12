@@ -27,11 +27,12 @@ internal sealed class GatedStemStep : IStemAnalysisStep
 
     public async Task<StemPaths> AnalyzeAsync(string filePath, IAnalysisReporter reporter, CancellationToken ct = default)
     {
-        Signal(filePath).TrySetResult();
         var now = Interlocked.Increment(ref _inFlight);
         int seen;
         while ((seen = Volatile.Read(ref _maxConcurrent)) < now &&
                Interlocked.CompareExchange(ref _maxConcurrent, now, seen) != seen) { }
+        // Signalled only once this run counts towards MaxConcurrent, so a waiter that then reads it sees this run.
+        Signal(filePath).TrySetResult();
         try { await Gate(filePath).Task; }
         finally { Interlocked.Decrement(ref _inFlight); }
         return new StemPaths("/stems" + filePath);
