@@ -37,8 +37,11 @@ public sealed class OutputPickerViewModel : IOutputPickerViewModel
     }
 
     private TaskCompletionSource<string?>? _pending;
+    // The devices as offered, row for row: a row shows a label, the answer names the device.
+    private IReadOnlyList<OutputDeviceChoice> _choices = [];
 
     /// <summary>Show the picker. Preselects the current device, else the system default, else the first.
+    /// The controller's own card is labelled "Controller (card name)"; the answer is still the device's name.
     /// An empty list returns null at once without opening.</summary>
     public Task<string?> AskAsync(IReadOnlyList<OutputDeviceChoice> devices, string? currentName)
     {
@@ -47,9 +50,10 @@ public sealed class OutputPickerViewModel : IOutputPickerViewModel
         // A new question supersedes one still open.
         _pending?.TrySetResult(null);
 
+        _choices = devices.ToList();
         Devices.Clear();
-        foreach (var d in devices)
-            Devices.Add(new OutputDeviceRow(d.Name, d.IsDefault, d.Name == currentName));
+        foreach (var d in _choices)
+            Devices.Add(new OutputDeviceRow(Label(d), d.IsDefault, d.Name == currentName));
 
         bool known = currentName is not null && Devices.Any(r => r.IsCurrent);
         if (currentName is null)
@@ -89,8 +93,11 @@ public sealed class OutputPickerViewModel : IOutputPickerViewModel
     public void Commit()
     {
         if (SelectedIndex < 0 || SelectedIndex >= Devices.Count) return;
-        Finish(Devices[SelectedIndex].Name);
+        Finish(_choices[SelectedIndex].Name);
     }
+
+    private string Label(OutputDeviceChoice choice) =>
+        choice.IsController ? $"Controller ({choice.Name})" : choice.Name;
 
     /// <summary>Close without choosing.</summary>
     public void Cancel() => Finish(null);

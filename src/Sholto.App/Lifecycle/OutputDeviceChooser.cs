@@ -36,16 +36,18 @@ public sealed class OutputDeviceChooser(
             return;
         }
 
-        // The controller's sound card is never a pickable "master speaker" — AudioEngine auto-selects it as
-        // the device to open (4ch: master 1-2 + headphone cue 3-4) whenever it's connected, and the picker
-        // only offers where to re-route master to. See AudioEngine.Start for the full story.
-        bool controllerCardPresent = allDevices.Any(d => _controllerSoundCard.Matches(d.Name));
-        var devices = allDevices.Where(d => !_controllerSoundCard.Matches(d.Name)).ToList();
+        // The controller's sound card is offered first: AudioEngine always opens it when it is connected (4ch:
+        // master 1-2 + headphone cue 3-4), and choosing it keeps master there instead of re-routing it to
+        // speakers. See AudioEngine.Start for the full story.
+        var devices = ControllerFirst(allDevices);
+        bool controllerCardPresent = devices.Any(d => _controllerSoundCard.Matches(d.Name));
+        bool speakersPresent = devices.Any(d => !_controllerSoundCard.Matches(d.Name));
 
         var savedName = await _outputDevicePreference.GetAsync().ConfigureAwait(false);
         var chosen = devices.FirstOrDefault(d => d.Name == savedName);
 
-        if (chosen is null && devices.Count > 0)
+        // The controller's card alone is no choice to ask about: master plays on it either way.
+        if (chosen is null && speakersPresent)
         {
             // Not while the Folders panel is open: wait for its question to be settled.
             await beforeAsking.ConfigureAwait(false);
@@ -64,22 +66,21 @@ public sealed class OutputDeviceChooser(
     }
 
     /// <summary>Menu entry point: ask which device master should play through and switch to it. Nothing
-    /// happens if the user cancels or picks the device already in use. If the controller's card is the only
-    /// device connected there is nothing to offer; master stays on it.</summary>
+    /// happens if the user cancels or picks the device already in use. The controller's card, when connected,
+    /// is offered first; if it is the only device connected there is nothing to offer and master stays on it.</summary>
     public void Handle(in ChangeOutputDevice command) => _ = ChangeOutputDeviceAsync();
 
     private async Task ChangeOutputDeviceAsync()
     {
         if (_deviceAnswer is not null) return;  // already asking
 
-        // Excludes the controller's sound card — see StartAudioAsync's comment.
+        // The controller's sound card first — see StartAudioAsync's comment.
         var allDevices = await Task.Run(() => _outputEnumerator.EnumerateOutputs()).ConfigureAwait(false);
-        var devices = allDevices.Where(d => !_controllerSoundCard.Matches(d.Name)).ToList();
-        if (devices.Count == 0) return;
+        var devices = ControllerFirst(allDevices);
+        if (!devices.Any(d => !_controllerSoundCard.Matches(d.Name))) return;
 
         // Where master really plays (not the saved wish), if it is one of the devices on offer. A failed route
-        // leaves it on the controller, which is not in the list: then nothing reads as in use and the speakers
-        // can be picked again.
+        // leaves it on the controller: then the controller reads as in use and the speakers can be picked again.
         var masterDevice = await _appThread.InvokeAsync(() => _masterDevice).ConfigureAwait(false);
         var currentName = devices.Any(d => d.Name == masterDevice) ? masterDevice : null;
         var chosen = await RequestDeviceAsync(devices, currentName).ConfigureAwait(false);
@@ -101,7 +102,9 @@ public sealed class OutputDeviceChooser(
 
     private async Task<AudioDevice?> RequestDeviceAsync(IReadOnlyList<AudioDevice> devices, string? currentName)
     {
-        var choices = devices.Select(d => new OutputDeviceChoice(d.Name, d.IsDefault)).ToList();
+        var choices = devices
+            .Select(d => new OutputDeviceChoice(d.Name, d.IsDefault, _controllerSoundCard.Matches(d.Name)))
+            .ToList();
         var answer = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         await _appThread.InvokeAsync(() =>
         {
@@ -111,4 +114,11 @@ public sealed class OutputDeviceChooser(
         var name = await answer.Task.ConfigureAwait(false);
         return name is null ? null : devices.FirstOrDefault(d => d.Name == name);
     }
+
+    /// <summary>The devices with the controller's own sound card (if connected) moved to the front, the rest in
+    /// the order the system lists them.</summary>
+    private List<AudioDevice> ControllerFirst(IReadOnlyList<AudioDevice> devices) =>
+        devices.Where(d => _controllerSoundCard.Matches(d.Name))
+            .Concat(devices.Where(d => !_controllerSoundCard.Matches(d.Name)))
+            .ToList();
 }

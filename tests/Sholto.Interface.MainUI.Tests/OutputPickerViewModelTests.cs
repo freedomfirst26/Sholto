@@ -90,6 +90,20 @@ public class OutputPickerViewModelTests
     }
 
     [Fact]
+    public async Task The_controllers_card_is_labelled_as_the_controller_and_answers_with_its_device_name()
+    {
+        var ask = _vm.AskAsync([new("DDJ-FLX4", false, IsController: true), new("Speakers", true)], "DDJ-FLX4");
+
+        Assert.Equal(["Controller (DDJ-FLX4)", "Speakers"], _vm.Devices.Select(d => d.Name));
+        Assert.Equal([true, false], _vm.Devices.Select(d => d.IsCurrent));
+        Assert.Equal(0, _vm.SelectedIndex);
+
+        _vm.Commit();
+
+        Assert.Equal("DDJ-FLX4", await ask);
+    }
+
+    [Fact]
     public async Task Cancel_returns_null_and_closes()
     {
         bool closed = false;
