@@ -7,11 +7,16 @@
 #
 # ─────────────────────────────────────────────────────────────────────────────
 # THE KNOWN-GOOD SET. Verified end to end on 2026-09-10: a real track separated
-# to four non-empty stems, DBNDownBeatTracker runs.
+# to four non-empty stems, DBNDownBeatTracker runs. Beat This! verified on
+# 2026-11-12: beat_this runs with Sholto's exact arguments and writes beats for
+# wav, mp3 and m4a input.
 #
+#   beat-this   : beat-this 1.1.0 · torch 2.14.0 · torchaudio 2.11.1
+#                 · torchcodec 0.16.0  (REQUIRED beat tracker; MIT code + weights)
 #   demucs      : demucs 4.1.0 · torch 2.14.0 · torchcodec 0.16.0 · numpy 2.5.3
 #   madmom-onnx : madmom-onnx 0.17.dev0 · numpy 2.4.5 · onnxruntime 1.26.0
-#                 · scipy 1.17.1
+#                 · scipy 1.17.1  (OPTIONAL fallback, not installed by default:
+#                 its models are licensed for non-commercial use only)
 #   Python      : 3.12  (uv fetches a managed 3.12 if the system hasn't got one)
 #
 # Why pin at all: on 2026-09-05 an unpinned `uv tool install demucs` resolved
@@ -34,6 +39,19 @@
 
 SHOLTO_PYTHON="3.12"
 
+# Beat This! — the REQUIRED beat tracker. The C# side shows the same command in
+# the system report (BeatThisBeatAnalysisStep.InstallCommand); a test fails if the
+# two disagree. torchcodec is what lets torchaudio decode mp3/m4a; torchaudio is
+# a beat-this dependency here (the demucs warning below is about demucs only).
+# The CPU index keeps the install from being a multi-GB CUDA download — Sholto
+# runs Beat This! on the CPU (--gpu -1) anyway, to keep CUDA free for demucs.
+SHOLTO_BEATTHIS_SPEC="beat-this==1.1.0"
+SHOLTO_BEATTHIS_WITH=(--with torch==2.14.0 --with torchaudio==2.11.1 --with torchcodec==0.16.0)
+SHOLTO_BEATTHIS_INDEX="https://download.pytorch.org/whl/cpu"
+
+# madmom — OPTIONAL fallback, used by Sholto only when Beat This! is missing. Not
+# installed by any installer; kept here so a user who wants it gets the known-good
+# set: uv tool install --python 3.12 madmom-onnx==0.17.dev0 --with ... (below).
 SHOLTO_MADMOM_SPEC="madmom-onnx==0.17.dev0"
 SHOLTO_MADMOM_WITH=(--with numpy==2.4.5 --with onnxruntime==1.26.0 --with scipy==1.17.1)
 
@@ -52,8 +70,8 @@ SHOLTO_DEMUCS_WITH=(--with torch==2.14.0 --with torchcodec==0.16.0 --with numpy=
 #
 #   demucs           — DemucsStemAnalyzer.cs:98 starts the bare name "demucs",
 #                      so the OS resolves it from PATH. `command -v` matches.
-#   DBNDownBeatTracker
-#                    — MadmomBeatAnalyzer.cs:98 FindBinary() tries
+#   beat_this, DBNDownBeatTracker
+#                    — ExternalToolFinder.Locate tries
 #                      ~/.local/bin, /usr/local/bin, /usr/bin, then PATH.
 
 # Print the path the app would run for a tool resolved via PATH, or fail.
@@ -79,6 +97,64 @@ deps_find_binary() {
 
 SHOLTO_CHECK_DETAIL=""
 
+# Install the pinned Beat This! with CPU-only torch. If the CPU index cannot be
+# reached or resolved, fall back to the same pins from PyPI (the CUDA build: a
+# much bigger download, but it runs on the CPU just the same).
+deps_install_beat_this() {
+    uv tool install --force --python "$SHOLTO_PYTHON" \
+        "$SHOLTO_BEATTHIS_SPEC" "${SHOLTO_BEATTHIS_WITH[@]}" --index "$SHOLTO_BEATTHIS_INDEX" \
+    || uv tool install --force --python "$SHOLTO_PYTHON" \
+        "$SHOLTO_BEATTHIS_SPEC" "${SHOLTO_BEATTHIS_WITH[@]}"
+}
+
+# Run Beat This! for real on eight seconds of 120 BPM clicks, exactly as the app
+# runs it (BeatThisTool.BuildArgs: <input> -o <file> --gpu -1), and assert at
+# least one "TIME<TAB>BEAT_NUMBER" line. The first run also downloads the model
+# checkpoint (~78 MB), so after this check the app never has to.
+check_beat_this() {
+    local bin tmp
+    SHOLTO_CHECK_DETAIL=""
+
+    bin=$(deps_find_binary beat_this) || { SHOLTO_CHECK_DETAIL="not found"; return 1; }
+    SHOLTO_CHECK_DETAIL="$bin"
+
+    if ! command -v ffmpeg >/dev/null 2>&1; then
+        SHOLTO_CHECK_DETAIL="$bin (cannot test: ffmpeg is not installed)"
+        return 1
+    fi
+
+    if ! "$bin" --help >/dev/null 2>&1; then
+        SHOLTO_CHECK_DETAIL="$bin (does not run — broken install?)"
+        return 1
+    fi
+
+    info "Verifying Beat This! on a test click track (the first run downloads its ~78 MB model)..."
+
+    tmp=$(mktemp -d) || return 1
+    trap 'rm -rf "$tmp"' EXIT INT TERM
+
+    if ! ffmpeg -f lavfi -i "aevalsrc=if(lt(mod(t\,0.5)\,0.02)\,sin(2*PI*1000*t)\,0):s=44100:d=8" \
+            -y "$tmp/click.wav" -loglevel error >/dev/null 2>&1 \
+        || [ ! -s "$tmp/click.wav" ]; then
+        SHOLTO_CHECK_DETAIL="$bin (could not generate test audio — ffmpeg failed, not Beat This!)"
+        rm -rf "$tmp"; trap - EXIT INT TERM
+        return 1
+    fi
+
+    "$bin" "$tmp/click.wav" -o "$tmp/click.beats" --gpu -1 >/dev/null 2>&1
+
+    if ! awk -F'\t' 'NF == 2 && $1 ~ /^[0-9.]+$/ && $2 ~ /^[0-9]+$/ { found = 1 } END { exit !found }' \
+            "$tmp/click.beats" 2>/dev/null; then
+        SHOLTO_CHECK_DETAIL="$bin (ran, but found no beats in the test clicks)"
+        rm -rf "$tmp"; trap - EXIT INT TERM
+        return 1
+    fi
+    rm -rf "$tmp"
+    trap - EXIT INT TERM
+    return 0
+}
+
+# madmom is the optional fallback: a check that it starts, for --verify only.
 check_madmom() {
     local bin
     SHOLTO_CHECK_DETAIL=""
@@ -154,14 +230,17 @@ check_demucs() {
 
 # ── Shared --verify entry point ──────────────────────────────────────────────
 # Exits non-zero if a tool the app depends on is broken, so this can be used in
-# a health check or CI.
+# a health check or CI. madmom is optional: its absence is reported, not failed.
 #
 # Callers must have defined ok/info/warn before sourcing or calling this.
 deps_verify() {
     local rc=0
 
-    if check_madmom; then ok "madmom-onnx working  ${DIM}(${SHOLTO_CHECK_DETAIL})${RESET}"
-    else warn "madmom-onnx NOT working  (${SHOLTO_CHECK_DETAIL:-unknown}) — tracks will not get a beatgrid"; rc=1; fi
+    if check_beat_this; then ok "Beat This! working  ${DIM}(${SHOLTO_CHECK_DETAIL})${RESET} — found beats in a test click track"
+    else warn "Beat This! NOT working  (${SHOLTO_CHECK_DETAIL:-unknown}) — tracks will not get a beatgrid"; rc=1; fi
+
+    if check_madmom; then ok "madmom-onnx (optional fallback) present  ${DIM}(${SHOLTO_CHECK_DETAIL})${RESET}"
+    else info "madmom-onnx (optional fallback) not installed — fine, Beat This! finds the beats"; fi
 
     if check_demucs; then ok "demucs working  ${DIM}(${SHOLTO_CHECK_DETAIL})${RESET} — test separation produced 4 stems"
     else warn "demucs NOT working  (${SHOLTO_CHECK_DETAIL:-unknown}) — stems will be missing"; rc=1; fi

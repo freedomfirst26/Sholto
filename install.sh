@@ -78,8 +78,8 @@ fi
 # The pinned versions of the Python analysis tools, and the full explanation of
 # why each pin exists and how to bump it, are in sholto-deps.sh — sourced above.
 
-# ── 3. madmom (beat tracker) ──────────────────────────────────────────────────
-section "madmom (beat tracker)"
+# ── 3. Beat This! (beat tracker) ──────────────────────────────────────────────
+section "Beat This! (beat tracker)"
 if ! command -v uv &>/dev/null; then
     info "Installing uv (Python tool manager)..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -87,24 +87,25 @@ if ! command -v uv &>/dev/null; then
 fi
 ok "uv $(uv --version | awk '{print $2}')"
 
-# madmom is REQUIRED — unlike demucs below, a broken madmom fails the
+# Beat This! is REQUIRED — unlike demucs below, a broken Beat This! fails the
 # whole install (see the check just before the final "Done" banner). We still
 # `|| true` the install command itself so a failed `uv tool install` doesn't
 # kill the script under set -e before we get to print a proper error, and we
-# keep going rather than exit here: a user with a broken madmom may still want
-# Sholto built so they can retry the tool afterwards without rebuilding too.
-MADMOM_BROKEN=0
-if check_madmom; then
-    ok "madmom-onnx already installed and working"
+# keep going rather than exit here: a user with a broken Beat This! may still
+# want Sholto built so they can retry the tool afterwards without rebuilding too.
+# madmom, the old beat tracker, is no longer installed: Sholto only falls back to
+# it when Beat This! is missing, and its models are non-commercial only.
+BEATTHIS_BROKEN=0
+if check_beat_this; then
+    ok "Beat This! already installed and working"
 else
-    info "Installing madmom-onnx (ONNX-runtime fork that builds on Python 3.12+)..."
-    uv tool install --force --python "$SHOLTO_PYTHON" \
-        "$SHOLTO_MADMOM_SPEC" "${SHOLTO_MADMOM_WITH[@]}" || true
-    if check_madmom; then
-        ok "madmom-onnx installed at ~/.local/bin/"
+    info "Installing Beat This! (CPU build of PyTorch)..."
+    deps_install_beat_this || true
+    if check_beat_this; then
+        ok "Beat This! installed at ~/.local/bin/ — verified on a test click track"
     else
-        warn "madmom-onnx installed but failed its functional check (${SHOLTO_CHECK_DETAIL})"
-        MADMOM_BROKEN=1
+        warn "Beat This! installed but failed its functional check (${SHOLTO_CHECK_DETAIL})"
+        BEATTHIS_BROKEN=1
     fi
 fi
 
@@ -141,10 +142,10 @@ dotnet publish src/Sholto.Host/Sholto.Host.csproj \
 ok "published → $DIST/Sholto"
 
 echo ""
-if [ "$MADMOM_BROKEN" = "1" ]; then
+if [ "$BEATTHIS_BROKEN" = "1" ]; then
     echo "${BOLD}${YELLOW}Built, but not ready.${RESET}"
     echo "  ${DIM}Binary:${RESET} ${CYAN}$DIST/Sholto${RESET} ${DIM}(built successfully)${RESET}"
-    warn "madmom-onnx (beat tracker) is REQUIRED and still not working — no track will"
+    warn "Beat This! (beat tracker) is REQUIRED and still not working — no track will"
     warn "get a beatgrid, so nothing will play in the app you just built."
     warn "Check the warning above, fix your network/Python environment, then re-run"
     warn "./install.sh (or just './install.sh --verify' to recheck) before using Sholto."

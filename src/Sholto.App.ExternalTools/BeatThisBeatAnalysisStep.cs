@@ -20,10 +20,11 @@ public sealed class BeatThisBeatAnalysisStep(
 {
     /// <summary>Single source of truth for the install command — reused verbatim by the
     /// boot-time system check (<see cref="SystemCheck.ToReported"/>, <c>SholtoStackFactory</c>)
-    /// and by the "not found" failure below, so the messages can't drift apart. The CPU
-    /// torch wheel keeps the install from being a multi-GB CUDA download.</summary>
+    /// and by the "not found" failure below, so the messages can't drift apart. The same
+    /// pins and index as <c>sholto-deps.sh</c> (a test holds the two together); the CPU
+    /// torch wheels keep the install from being a multi-GB CUDA download.</summary>
     public const string InstallCommand =
-        "uv tool install beat-this==1.1.0 --with soundfile --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match";
+        "uv tool install --python 3.12 beat-this==1.1.0 --with torch==2.14.0 --with torchaudio==2.11.1 --with torchcodec==0.16.0 --index https://download.pytorch.org/whl/cpu";
 
     private readonly IAnalysisReporter _reporter = reporter;
     private readonly IToolDefinition<DetectedBeats> _beatThisTool = beatThisTool;

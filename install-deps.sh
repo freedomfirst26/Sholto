@@ -57,24 +57,25 @@ if ! command -v uv &>/dev/null; then
 fi
 ok "uv $(uv --version 2>/dev/null | awk '{print $2}')"
 
-# 4. madmom — REQUIRED. Beat/tempo detection; without a beatgrid a track won't play.
+# 4. Beat This! — REQUIRED. Beat/tempo detection; without a beatgrid a track won't play.
 #    Versions and the reasoning behind them are in sholto-deps.sh.
-# Unlike demucs below, a broken madmom is fatal to the install — see the
+# Unlike demucs below, a broken Beat This! is fatal to the install — see the
 # check at the end of this script. We still `|| true` the install command itself
 # (a failed `uv tool install` shouldn't kill the script under set -e before we
 # get a chance to print a proper error) and keep going so demucs below
-# still gets installed for a user who wants to fix madmom afterwards.
-MADMOM_BROKEN=0
-if check_madmom; then
-    ok "madmom-onnx (beat tracker) already working"
+# still gets installed for a user who wants to fix Beat This! afterwards.
+# madmom, the old beat tracker, is no longer installed: Sholto only falls back to
+# it when Beat This! is missing, and its models are non-commercial only.
+BEATTHIS_BROKEN=0
+if check_beat_this; then
+    ok "Beat This! (beat tracker) already working"
 else
-    uv tool install --force --python "$SHOLTO_PYTHON" \
-        "$SHOLTO_MADMOM_SPEC" "${SHOLTO_MADMOM_WITH[@]}" || true
-    if check_madmom; then
-        ok "madmom-onnx (beat tracker)"
+    deps_install_beat_this || true
+    if check_beat_this; then
+        ok "Beat This! (beat tracker) — verified on a test click track"
     else
-        warn "madmom-onnx installed but failed its functional check (${SHOLTO_CHECK_DETAIL})"
-        MADMOM_BROKEN=1
+        warn "Beat This! installed but failed its functional check (${SHOLTO_CHECK_DETAIL})"
+        BEATTHIS_BROKEN=1
     fi
 fi
 
@@ -92,8 +93,8 @@ else
 fi
 
 echo ""
-if [ "$MADMOM_BROKEN" = "1" ]; then
-    warn "madmom-onnx (beat tracker) is REQUIRED and still not working — Sholto will run"
+if [ "$BEATTHIS_BROKEN" = "1" ]; then
+    warn "Beat This! (beat tracker) is REQUIRED and still not working — Sholto will run"
     warn "but no track will get a beatgrid, so nothing will play."
     warn "Check the warning above, fix your network/Python environment, then re-run"
     warn "./install-deps.sh (or just './install-deps.sh --verify' to recheck)."
