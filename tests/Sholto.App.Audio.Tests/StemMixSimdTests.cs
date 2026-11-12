@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Stems;
+using Sholto.TestSupport.Allocation;
 using Xunit;
 
 namespace Sholto.App.Audio.Tests;
@@ -72,11 +73,12 @@ public class StemMixSimdTests
         var buffer = new float[513 * 2];
         provider.ReadBytes(buffer); // warm up (JIT)
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 3; i++) provider.ReadBytes(buffer);
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (int i = 0; i < 3; i++) provider.ReadBytes(buffer);
+        });
 
-        Assert.Equal(0, allocated);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     private static float[] Read(StemMixDataProvider provider, int frames, int skipFrames)

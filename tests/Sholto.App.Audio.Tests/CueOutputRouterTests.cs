@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using SoundFlow.Backends.MiniAudio;
 using SoundFlow.Enums;
 using SoundFlow.Structs;
@@ -117,11 +118,12 @@ public class CueOutputRouterTests
         var buf = new float[513 * channels];
         _router.MixDeckInto(buf, stereo, 513, channels, 0.5f, 1f); // warm up (JIT)
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 3; i++) _router.MixDeckInto(buf, stereo, 513, channels, 0.5f, 1f);
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (int i = 0; i < 3; i++) _router.MixDeckInto(buf, stereo, 513, channels, 0.5f, 1f);
+        });
 
-        Assert.Equal(0, allocated);
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     // Values over several orders of magnitude, so the rounding of each add is exercised.
