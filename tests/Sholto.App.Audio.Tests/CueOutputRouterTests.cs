@@ -63,4 +63,68 @@ public class CueOutputRouterTests
         Assert.Equal(2f, buf[2]); // cue = only deck 2
         Assert.Equal(2f, buf[3]);
     }
+
+    // Vector paths (channels 2 and 4) and the scalar fallback against the old scalar
+    // loop, bit for bit, at lengths that are not a multiple of any vector width,
+    // with non-unity gains and a pre-filled buffer so the accumulate rounds.
+    [Theory]
+    [InlineData(2, 1)]
+    [InlineData(2, 7)]
+    [InlineData(2, 513)]
+    [InlineData(4, 1)]
+    [InlineData(4, 7)]
+    [InlineData(4, 513)]
+    [InlineData(3, 7)]
+    [InlineData(6, 513)]
+    public void MixDeckInto_matches_the_scalar_loop_bit_for_bit(int channels, int frames)
+    {
+        var rng = new Random(145 + channels * 1000 + frames);
+        var stereo = new float[frames * 2];
+        for (int i = 0; i < stereo.Length; i++) stereo[i] = Noise(rng);
+        var actual = new float[frames * channels];
+        for (int i = 0; i < actual.Length; i++) actual[i] = Noise(rng);
+        var expected = (float[])actual.Clone();
+        const float masterGain = 0.7071f, cueGain = 1.3f;
+
+        _router.MixDeckInto(actual, stereo, frames, channels, masterGain, cueGain);
+
+        for (int f = 0; f < frames; f++)
+        {
+            float l = stereo[f * 2];
+            float r = stereo[f * 2 + 1];
+            int o = f * channels;
+            expected[o] += l * masterGain;
+            expected[o + 1] += r * masterGain;
+            if (channels >= 4)
+            {
+                expected[o + 2] += l * cueGain;
+                expected[o + 3] += r * cueGain;
+            }
+        }
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert.True(BitConverter.SingleToInt32Bits(expected[i]) == BitConverter.SingleToInt32Bits(actual[i]),
+                $"sample {i}: expected {expected[i]:R}, actual {actual[i]:R}");
+        }
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    public void MixDeckInto_allocates_nothing(int channels)
+    {
+        var stereo = new float[513 * 2];
+        var buf = new float[513 * channels];
+        _router.MixDeckInto(buf, stereo, 513, channels, 0.5f, 1f); // warm up (JIT)
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 3; i++) _router.MixDeckInto(buf, stereo, 513, channels, 0.5f, 1f);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+    }
+
+    // Values over several orders of magnitude, so the rounding of each add is exercised.
+    private static float Noise(Random rng) =>
+        (float)((rng.NextDouble() * 2 - 1) * Math.Pow(10, rng.Next(-4, 2)));
 }

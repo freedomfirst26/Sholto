@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Numerics;
+using System.Runtime.Intrinsics;
 using System.Threading;
 using SoundFlow.Abstracts;
 using SoundFlow.Structs;
@@ -174,6 +176,42 @@ internal sealed class CueOutputRouter : SoundComponent
         Span<float> buffer, ReadOnlySpan<float> stereo, int frames, int channels,
         float masterGain, float cueGain)
     {
+        // Vector paths for the two live layouts. Each lane does buffer + x * g
+        // (plain multiply then add, never fused), exactly as the scalar loop
+        // below, so the output is bit-identical to it.
+        if (channels == 2)
+        {
+            // Master only: the device buffer has the deck's stereo layout, so
+            // it is one contiguous multiply-add with a scalar tail.
+            int samples = frames * 2;
+            var src = stereo[..samples];
+            var dst = buffer[..samples];
+            var vmg = new Vector<float>(masterGain);
+            int width = Vector<float>.Count;
+            int vectorEnd = samples - samples % width;
+            int i = 0;
+            for (; i < vectorEnd; i += width)
+                (new Vector<float>(dst[i..]) + new Vector<float>(src[i..]) * vmg).CopyTo(dst[i..]);
+            for (; i < samples; i++)
+                dst[i] += src[i] * masterGain;
+            return;
+        }
+        if (channels == 4)
+        {
+            // Controller: one frame is [mL, mR, cL, cR] = [l, r, l, r] × [mg, mg, cg, cg].
+            var gains = Vector128.Create(masterGain, masterGain, cueGain, cueGain);
+            var src = stereo[..(frames * 2)];
+            var dst = buffer[..(frames * 4)];
+            for (int f = 0; f < frames; f++)
+            {
+                float l = src[f * 2];
+                float r = src[f * 2 + 1];
+                var frame = dst.Slice(f * 4, 4);
+                (Vector128.Create(frame) + Vector128.Create(l, r, l, r) * gains).CopyTo(frame);
+            }
+            return;
+        }
+
         bool hasCue = channels >= 4;
         for (int f = 0; f < frames; f++)
         {

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using System.Numerics;
 using System.Threading;
 using Sholto.App.Analysis;
 using Sholto.App.Analysis.Stems;
@@ -287,16 +288,44 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
             if (frames <= 0) return 0;
 
             int samples = frames * 2;
+            // Vector<float> body + scalar tail. Plain * and + (never a fused
+            // multiply-add) in the scalar loop's left-to-right order, so every
+            // lane rounds exactly like the scalar code: output is bit-identical.
+            var a0 = new ReadOnlySpan<float>(s0, ipos, samples);
+            var a1 = new ReadOnlySpan<float>(s1, ipos, samples);
+            var a2 = new ReadOnlySpan<float>(s2, ipos, samples);
+            var a3 = new ReadOnlySpan<float>(s3, ipos, samples);
+            var dst = outBuf[..samples];
+            int width = Vector<float>.Count;
+            int vectorEnd = samples - samples % width;
             if (g0 == 1f && g1 == 1f && g2 == 1f && g3 == 1f)
             {
-                for (int i = 0; i < samples; i++)
-                    outBuf[i] = s0[ipos + i] + s1[ipos + i] + s2[ipos + i] + s3[ipos + i];
+                int i = 0;
+                for (; i < vectorEnd; i += width)
+                {
+                    var sum = new Vector<float>(a0[i..]) + new Vector<float>(a1[i..])
+                            + new Vector<float>(a2[i..]) + new Vector<float>(a3[i..]);
+                    sum.CopyTo(dst[i..]);
+                }
+                for (; i < samples; i++)
+                    dst[i] = a0[i] + a1[i] + a2[i] + a3[i];
             }
             else
             {
-                for (int i = 0; i < samples; i++)
-                    outBuf[i] = s0[ipos + i] * g0 + s1[ipos + i] * g1
-                              + s2[ipos + i] * g2 + s3[ipos + i] * g3;
+                var vg0 = new Vector<float>(g0);
+                var vg1 = new Vector<float>(g1);
+                var vg2 = new Vector<float>(g2);
+                var vg3 = new Vector<float>(g3);
+                int i = 0;
+                for (; i < vectorEnd; i += width)
+                {
+                    var sum = new Vector<float>(a0[i..]) * vg0 + new Vector<float>(a1[i..]) * vg1
+                            + new Vector<float>(a2[i..]) * vg2 + new Vector<float>(a3[i..]) * vg3;
+                    sum.CopyTo(dst[i..]);
+                }
+                for (; i < samples; i++)
+                    dst[i] = a0[i] * g0 + a1[i] * g1
+                           + a2[i] * g2 + a3[i] * g3;
             }
             Volatile.Write(ref _position, (double)(ipos + samples));
             return frames;
