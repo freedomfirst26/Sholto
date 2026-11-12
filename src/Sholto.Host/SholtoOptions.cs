@@ -2,6 +2,7 @@ using Sholto.App.Audio;
 using Sholto.App;
 using Sholto.App.Decks;
 using Microsoft.Extensions.Options;
+using Sholto.App.Analysis.Analyzers.Complement;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.Interface.Controller.Mappings;
@@ -46,6 +47,7 @@ public sealed class SholtoOptions
     public IOptions<AnalysisFolderOptions> AnalysisFolder { get; }
     public IOptions<FoldersPanelOptions> FoldersPanel { get; }
     public IOptions<WinMmMidiOptions> WinMmMidi { get; }
+    public IOptions<ComplementOptions> Complement { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down. An
@@ -75,5 +77,6 @@ public sealed class SholtoOptions
         AnalysisFolder = Options.Create(new AnalysisFolderOptions());
         FoldersPanel = Options.Create(new FoldersPanelOptions());
         WinMmMidi = Options.Create(new WinMmMidiOptions());
+        Complement = Options.Create(new ComplementOptions());
     }
 }
