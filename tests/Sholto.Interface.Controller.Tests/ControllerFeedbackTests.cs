@@ -51,20 +51,20 @@ public class ControllerFeedbackTests
     {
         using var _ = Make();
         _bus.Publish(new StemMuteChanged(1, 2, Muted: false));
-        Assert.Equal(PadLight.Instrumental, Pad(1, PadPage.Sampler, 2));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.Sampler, 2));
         _bus.Publish(new StemMuteChanged(1, 2, Muted: true));
         Assert.Equal(PadLight.Off, Pad(1, PadPage.Sampler, 2));
     }
 
     [Fact]
-    public void Sampler_pads_light_each_stem_in_its_own_colour()
+    public void Sampler_mute_pads_of_audible_stems_are_lit_and_pads_four_and_eight_stay_dark()
     {
         using var _ = Make();
         Audible(0, drums: true, vocals: true, instrumental: true);
 
-        Assert.Equal(PadLight.Drums, Pad(0, PadPage.Sampler, 0));
-        Assert.Equal(PadLight.Vocals, Pad(0, PadPage.Sampler, 1));
-        Assert.Equal(PadLight.Instrumental, Pad(0, PadPage.Sampler, 2));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.Sampler, 0));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.Sampler, 1));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.Sampler, 2));
         Assert.Equal(PadLight.Off, Pad(0, PadPage.Sampler, 3));
         Assert.Equal(PadLight.Off, Pad(0, PadPage.Sampler, 7));
     }
@@ -78,10 +78,10 @@ public class ControllerFeedbackTests
 
         Audible(0, drums: false, vocals: true, instrumental: false);
 
-        Assert.Equal(PadLight.Vocals, Pad(0, PadPage.Sampler, 5));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.Sampler, 5));
         Assert.Equal(PadLight.Off, Pad(0, PadPage.Sampler, 4));
         Assert.Equal(PadLight.Off, Pad(0, PadPage.Sampler, 6));
-        Assert.Equal(PadLight.Vocals, Pad(0, PadPage.Sampler, 1));   // the mute pad of an audible stem
+        Assert.Equal(PadLight.On, Pad(0, PadPage.Sampler, 1));   // the mute pad of an audible stem
 
         Audible(0, drums: false, vocals: true, instrumental: true);
         Assert.Equal(PadLight.Off, Pad(0, PadPage.Sampler, 5));
@@ -92,7 +92,7 @@ public class ControllerFeedbackTests
     {
         using var _ = Make();
         _bus.Publish(new EchoChanged(0, true));
-        Assert.Equal(PadLight.Echo, Pad(0, PadPage.PadFx1, 0));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.PadFx1, 0));
         _bus.Publish(new EchoChanged(0, false));
         Assert.Equal(PadLight.Off, Pad(0, PadPage.PadFx1, 0));
     }
@@ -104,22 +104,24 @@ public class ControllerFeedbackTests
 
         for (var deck = 0; deck < 2; deck++)
         {
-            Assert.Equal(PadLight.Roll, Pad(deck, PadPage.PadFx1, 1));
+            Assert.Equal(PadLight.On, Pad(deck, PadPage.PadFx1, 1));
             for (var pad = 0; pad < 8; pad++)
-                Assert.Equal(PadLight.BeatJump, Pad(deck, PadPage.BeatJump, pad));
+                Assert.Equal(PadLight.On, Pad(deck, PadPage.BeatJump, pad));
         }
         for (var pad = 2; pad < 8; pad++)
             Assert.Equal(PadLight.Off, Pad(0, PadPage.PadFx1, pad));
     }
 
     [Fact]
-    public void Hot_cue_pads_show_the_cue_colour_and_empty_pads_stay_dark()
+    public void Hot_cue_pads_are_lit_whatever_the_cue_colour_and_empty_pads_stay_dark()
     {
         using var _ = Make();
-        _bus.Publish(new DeckHotCuesChanged(1, [new HotCue(0, 4.0, CueColour.Pink), new HotCue(5, 9.0, CueColour.Green)]));
+        _bus.Publish(new DeckHotCuesChanged(1,
+            [new HotCue(0, 4.0, CueColour.Pink), new HotCue(5, 9.0, CueColour.Green), new HotCue(7, 12.0, CueColour.Purple)]));
 
-        Assert.Equal(PadLight.CuePink, Pad(1, PadPage.HotCue, 0));
-        Assert.Equal(PadLight.CueGreen, Pad(1, PadPage.HotCue, 5));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.HotCue, 0));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.HotCue, 5));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.HotCue, 7));
         Assert.Equal(PadLight.Off, Pad(1, PadPage.HotCue, 1));
         Assert.Equal(PadLight.Off, Pad(0, PadPage.HotCue, 0));
     }
@@ -132,13 +134,6 @@ public class ControllerFeedbackTests
         _bus.Publish(new DeckHotCuesChanged(0, []));
 
         Assert.Equal(PadLight.Off, Pad(0, PadPage.HotCue, 3));
-    }
-
-    [Fact]
-    public void Pad_light_cue_members_follow_the_CueColour_order()
-    {
-        foreach (var colour in Enum.GetValues<CueColour>())
-            Assert.Equal(colour.ToString(), (PadLight.CuePink + (int)colour).ToString()[3..]);
     }
 
     [Fact]
@@ -269,8 +264,8 @@ public class ControllerFeedbackTests
         _bus.Publish(new EchoChanged(1, true));
         using var _ = Make();
         Assert.True(_surface.BeatSync[0]);
-        Assert.Equal(PadLight.Drums, Pad(1, PadPage.Sampler, 0));
-        Assert.Equal(PadLight.Echo, Pad(1, PadPage.PadFx1, 0));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.Sampler, 0));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.PadFx1, 0));
     }
 
     [Fact]
@@ -281,9 +276,9 @@ public class ControllerFeedbackTests
         _bus.Publish(new DeckHotCuesChanged(0, [new HotCue(2, 8.0, CueColour.Blue)]));
         Array.Clear(_surface.Pads); // the replugged device came up dark
         feedback.Resubscribe();
-        Assert.Equal(PadLight.Echo, Pad(0, PadPage.PadFx1, 0));
-        Assert.Equal(PadLight.Roll, Pad(0, PadPage.PadFx1, 1));
-        Assert.Equal(PadLight.BeatJump, Pad(0, PadPage.BeatJump, 7));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.PadFx1, 0));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.PadFx1, 1));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.BeatJump, 7));
     }
 
     [Fact]
@@ -307,11 +302,11 @@ public class ControllerFeedbackTests
         Array.Clear(_surface.BeatSync); Array.Clear(_surface.Pads);
         feedback.Reapply();
         Assert.True(_surface.BeatSync[0]);
-        Assert.Equal(PadLight.Vocals, Pad(0, PadPage.Sampler, 1));
-        Assert.Equal(PadLight.Echo, Pad(1, PadPage.PadFx1, 0));
-        Assert.Equal(PadLight.CuePurple, Pad(0, PadPage.HotCue, 6));
-        Assert.Equal(PadLight.Roll, Pad(1, PadPage.PadFx1, 1));
-        Assert.Equal(PadLight.BeatJump, Pad(1, PadPage.BeatJump, 0));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.Sampler, 1));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.PadFx1, 0));
+        Assert.Equal(PadLight.On, Pad(0, PadPage.HotCue, 6));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.PadFx1, 1));
+        Assert.Equal(PadLight.On, Pad(1, PadPage.BeatJump, 0));
         Assert.False(_surface.BeatSync[1]);
     }
 

@@ -259,14 +259,14 @@ public class ControllerModelTests
     {
         var midi = new FakeMidiConnection();
         var controller = new Controller(midi);
-        controller.SetPadLight(0, PadPage.HotCue, 2, PadLight.CueRed);
-        controller.SetPadLight(0, PadPage.Sampler, 4, PadLight.Drums);
+        controller.SetPadLight(0, PadPage.HotCue, 2, PadLight.On);
+        controller.SetPadLight(0, PadPage.Sampler, 4, PadLight.On);
         midi.Sent.Clear();
 
         controller.SetPadPage(0, PadPage.Sampler);
 
-        Assert.Contains(new byte[] { 0x97, 0x02, 0x01 }, midi.Sent, new BytesComparer());
-        Assert.Contains(new byte[] { 0x97, 0x34, 0x01 }, midi.Sent, new BytesComparer());
+        Assert.Contains(new byte[] { 0x97, 0x02, 0x7F }, midi.Sent, new BytesComparer());
+        Assert.Contains(new byte[] { 0x97, 0x34, 0x7F }, midi.Sent, new BytesComparer());
     }
 
     [Fact]
@@ -275,13 +275,13 @@ public class ControllerModelTests
         var midi = new FakeMidiConnection();
         var controller = new Controller(midi);
         controller.Connect();
-        controller.SetPadLight(1, PadPage.BeatJump, 3, PadLight.BeatJump);
+        controller.SetPadLight(1, PadPage.BeatJump, 3, PadLight.On);
         controller.SetPadPage(1, PadPage.BeatJump);
         midi.Sent.Clear();
 
         midi.RaiseConnected();
 
-        Assert.Contains(new byte[] { 0x99, 0x23, 0x2D }, midi.Sent, new BytesComparer());   // the pad
+        Assert.Contains(new byte[] { 0x99, 0x23, 0x7F }, midi.Sent, new BytesComparer());   // the pad
         Assert.Contains(new byte[] { 0x91, 0x20, 0x7F }, midi.Sent, new BytesComparer());   // its mode button
     }
 
@@ -290,7 +290,7 @@ public class ControllerModelTests
     {
         var midi = new FakeMidiConnection();
         var controller = new Controller(midi);
-        controller.SetPadLight(0, PadPage.HotCue, 0, PadLight.CueGreen);
+        controller.SetPadLight(0, PadPage.HotCue, 0, PadLight.On);
         midi.Sent.Clear();
 
         controller.Dispose();
@@ -305,13 +305,14 @@ public class ControllerModelTests
         var applied = new List<PadLight>();
         var b = new LitButton<PadLight>("pad", applied.Add);
 
-        b.Set(PadLight.Echo);
-        b.Set(PadLight.Echo);
-        b.Set(PadLight.Roll);
+        b.Set(PadLight.On);
+        b.Set(PadLight.On);
+        b.Set(PadLight.Off);
+        b.Set(PadLight.On);
         b.Reset();
         b.Reset();
 
-        Assert.Equal([PadLight.Echo, PadLight.Roll, PadLight.Off, PadLight.Off], applied);
+        Assert.Equal([PadLight.On, PadLight.Off, PadLight.On, PadLight.Off, PadLight.Off], applied);
         Assert.Equal(PadLight.Off, b.Light);
     }
 

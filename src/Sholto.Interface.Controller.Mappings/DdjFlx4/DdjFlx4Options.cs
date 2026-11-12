@@ -60,18 +60,21 @@ public sealed class DdjFlx4Options
     // --- Notes: pads -------------------------------------------------------------
     // Each deck has a dedicated pad channel; the pad mode the hardware is in decides which note range its
     // eight pads send, a pad's note being <page base> + pad index (0-7). Only the HOT CUE and PAD FX1
-    // ranges were captured on this unit; the Shift ranges, BEAT JUMP and SAMPLER are from the DDJ-400/FLX4
-    // MIDI message list and are UNVERIFIED on hardware.
+    // ranges were captured on this unit; the Shift channels, BEAT JUMP and SAMPLER match Mixxx's DDJ-FLX4
+    // values and are not yet captured on this unit.
     public int PadDeck0Channel { get; set; } = 8;
     public int PadDeck1Channel { get; set; } = 10;
+    /// <summary>Shift + pad: the firmware sends the same notes on the next pad channel (deck 1 → 9, deck 2
+    /// → 11). Matches Mixxx's DDJ-FLX4 values; not yet captured on this unit.</summary>
+    public int PadShiftDeck0Channel { get; set; } = 9;
+    public int PadShiftDeck1Channel { get; set; } = 11;
     /// <summary>HOT CUE page: note of pad 0 on either deck's pad channel; pad N = PadNoteBase + N.</summary>
     public int PadNoteBase { get; set; } = 0x00;
-    /// <summary>HOT CUE page with Shift held: note of pad 0 (the firmware remaps the chord to its own range).
-    /// UNVERIFIED.</summary>
-    public int PadHotCueShiftNoteBase { get; set; } = 0x08;
-    /// <summary>BEAT JUMP page: note of pad 0. UNVERIFIED.</summary>
+    /// <summary>BEAT JUMP page: note of pad 0. Matches Mixxx's DDJ-FLX4 values; not yet captured on this
+    /// unit.</summary>
     public int PadBeatJumpNoteBase { get; set; } = 0x20;
-    /// <summary>SAMPLER page: note of pad 0. UNVERIFIED.</summary>
+    /// <summary>SAMPLER page: note of pad 0. Matches Mixxx's DDJ-FLX4 values; not yet captured on this
+    /// unit.</summary>
     public int PadSamplerNoteBase { get; set; } = 0x30;
     /// <summary>Beats each BEAT JUMP pad (1-8) moves the playhead by; negative = back.</summary>
     public double[] BeatJumpPadBeats { get; set; } = [-1, 1, -2, 2, -4, 4, -8, 8];
@@ -88,7 +91,8 @@ public sealed class DdjFlx4Options
     // --- Notes: pad pages ----------------------------------------------------------
     // The FLX-4's pad-mode buttons live on each deck's own channel
     // (Deck0Channel/Deck1Channel) and switch the controller's own pad mode.
-    // HOT CUE and PAD FX1 were captured via MIDI dump; BEAT JUMP and SAMPLER are UNVERIFIED.
+    // HOT CUE and PAD FX1 were captured via MIDI dump; BEAT JUMP and SAMPLER match Mixxx's DDJ-FLX4
+    // values and are not yet captured on this unit.
     public int PadModeHotCueNote { get; set; } = 0x1B;
     public int PadModePadFx1Note { get; set; } = 0x1E;
     public int PadModeBeatJumpNote { get; set; } = 0x20;
@@ -161,23 +165,9 @@ public sealed class DdjFlx4Options
     public byte ButtonLightOffVelocity { get; set; } = 0x00;
 
     // Pad LEDs: the pad's own note echoed on its pad-channel NoteOn status byte
-    // (DeckLightStatusBase + pad channel - 1, i.e. deck0 → 0x97, deck1 → 0x99), the velocity being the
-    // colour; 0 is off. ALL pad velocities below are UNVERIFIED ON HARDWARE: take them from a capture
-    // (the DDJ-FLX4 has 128 palette entries; these are distinct placeholders chosen to be easy to tell apart).
+    // (DeckLightStatusBase + pad channel - 1, i.e. deck0 → 0x97, deck1 → 0x99). The pads are single-colour:
+    // lit or dark, the colours being on screen only. These bytes match Mixxx's DDJ-FLX4 values and are not
+    // yet captured on this unit.
+    public byte PadLightOnVelocity { get; set; } = 0x7F;
     public byte PadLightOffVelocity { get; set; } = 0x00;
-    /// <summary>The eight hot-cue colours, indexed by <c>CueColour</c> (pink, red, orange, yellow, green,
-    /// aqua, blue, purple).</summary>
-    public byte[] CueVelocities { get; set; } = [0x7F, 0x01, 0x08, 0x0F, 0x1C, 0x24, 0x2D, 0x37];
-    /// <summary>Echo (aqua).</summary>
-    public byte EchoVelocity { get; set; } = 0x24;
-    /// <summary>Roll (blue).</summary>
-    public byte RollVelocity { get; set; } = 0x2D;
-    /// <summary>BEAT JUMP pads (blue).</summary>
-    public byte BeatJumpVelocity { get; set; } = 0x2D;
-    /// <summary>SAMPLER drums (red).</summary>
-    public byte DrumsVelocity { get; set; } = 0x01;
-    /// <summary>SAMPLER vocals (green).</summary>
-    public byte VocalsVelocity { get; set; } = 0x1C;
-    /// <summary>SAMPLER instrumental (yellow).</summary>
-    public byte InstrumentalVelocity { get; set; } = 0x0F;
 }

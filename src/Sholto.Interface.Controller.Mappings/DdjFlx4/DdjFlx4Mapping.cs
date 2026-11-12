@@ -9,7 +9,9 @@ namespace Sholto.Interface.Controller.Mappings.DdjFlx4;
 /// Channels observed:
 ///   1 / 2    Deck 1 / Deck 2 transport + jog wheels + channel faders
 ///   7        Top scroll-wheel cluster, crossfader, LOAD 1 / LOAD 2 buttons
-///   11       Legacy big browse rotary on some firmwares
+///   8 / 10   Deck 1 / Deck 2 pads
+///   9 / 11   Deck 1 / Deck 2 pads with Shift held (same notes); 11 also carries the legacy big browse
+///            rotary on some firmwares
 ///
 /// Every wire number lives in <see cref="DdjFlx4Options"/> (defaults match the
 /// values documented above/inline) so this class holds only translation logic.
@@ -59,11 +61,19 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             int pad = msg.Key - _o.PadNoteBase;
             if ((uint)pad < PadsPerPage)
                 return new ControllerEvent.HotCuePad(deck, pad, Shifted: false, Pressed: msg.IsDown);
+        }
 
-            // Shift + pad arrives on its own note range; only the press means anything (it deletes the cue).
-            int shiftedPad = msg.Key - _o.PadHotCueShiftNoteBase;
-            if ((uint)shiftedPad < PadsPerPage)
-                return msg.IsDown ? new ControllerEvent.HotCuePad(deck, shiftedPad, Shifted: true, Pressed: true) : null;
+        // Shift + pad arrives on the deck's Shift pad channel with the unshifted notes (matches Mixxx's
+        // DDJ-FLX4 values; not yet captured on this unit). Only Shift + HOT CUE means anything, and only its
+        // press (it deletes the cue); every other note there is unmapped. The legacy browse press shares
+        // channel 11 and is matched first, above.
+        if (msg.Channel == _o.PadShiftDeck0Channel || msg.Channel == _o.PadShiftDeck1Channel)
+        {
+            int deck = msg.Channel == _o.PadShiftDeck0Channel ? 0 : 1;
+            int pad = msg.Key - _o.PadNoteBase;
+            return msg.IsDown && (uint)pad < PadsPerPage
+                ? new ControllerEvent.HotCuePad(deck, pad, Shifted: true, Pressed: true)
+                : null;
         }
 
         // Everything else is a press-only action — ignore the release edge so the
@@ -280,7 +290,8 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
     /// <summary>The press simulation for a pad-mode button, as in <see cref="StartupInit"/>: NoteOn
     /// vel 0x7F then NoteOff on the deck's status byte, for the page's mode button (HOT CUE 0x1B, PAD FX1
-    /// 0x1E, and the UNVERIFIED BEAT JUMP 0x20 and SAMPLER 0x22).</summary>
+    /// 0x1E, BEAT JUMP 0x20 and SAMPLER 0x22; the last two match Mixxx's DDJ-FLX4 values and are not yet
+    /// captured on this unit).</summary>
     public byte[]? RenderPadMode(int deck, PadPage page)
     {
         if (deck is not (0 or 1)) return null;
@@ -309,28 +320,16 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         _ => _o.PadSamplerNoteBase,
     };
 
-    /// <summary>The velocity (colour) the hardware shows for a logical pad light.</summary>
-    private byte PadVelocity(PadLight light) => light switch
-    {
-        PadLight.Off => _o.PadLightOffVelocity,
-        >= PadLight.CuePink and <= PadLight.CuePurple => _o.CueVelocities[light - PadLight.CuePink],
-        PadLight.Echo => _o.EchoVelocity,
-        PadLight.Roll => _o.RollVelocity,
-        PadLight.BeatJump => _o.BeatJumpVelocity,
-        PadLight.Drums => _o.DrumsVelocity,
-        PadLight.Vocals => _o.VocalsVelocity,
-        PadLight.Instrumental => _o.InstrumentalVelocity,
-        _ => _o.PadLightOffVelocity,
-    };
-
-    /// <summary>A pad LED — UNVERIFIED ON HARDWARE. We assume the same "echo the note" convention as
-    /// Cue/BeatSync, on the pad's own NoteOn status byte (deck 1 pad channel 8 → 0x97, deck 2 pad channel
-    /// 10 → 0x99), the velocity being the colour.</summary>
+    /// <summary>A pad LED: the pad's note echoed on its own NoteOn status byte (deck 1 pad channel 8 → 0x97,
+    /// deck 2 pad channel 10 → 0x99), velocity <see cref="DdjFlx4Options.PadLightOnVelocity"/> when lit and
+    /// <see cref="DdjFlx4Options.PadLightOffVelocity"/> when dark; the pads are single-colour. Matches Mixxx's
+    /// DDJ-FLX4 values; not yet captured on this unit.</summary>
     public byte[]? RenderPadLight(int deck, PadPage page, int pad, PadLight light)
     {
         if (deck is not (0 or 1) || (uint)pad >= PadsPerPage || PadModeNote(page) < 0) return null;
         int channel = deck == 0 ? _o.PadDeck0Channel : _o.PadDeck1Channel;
-        return [(byte)(_o.DeckLightStatusBase + channel - 1), (byte)(PadNoteBaseOf(page) + pad), PadVelocity(light)];
+        return [(byte)(_o.DeckLightStatusBase + channel - 1), (byte)(PadNoteBaseOf(page) + pad),
+            light == PadLight.On ? _o.PadLightOnVelocity : _o.PadLightOffVelocity];
     }
 
     // --- Output / LEDs ---------------------------------------------------------
@@ -352,9 +351,9 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             // per-deck output channel, mirroring the Cue light.
             LightFunction.BeatSync when light.Deck is 0 or 1
                 => [(byte)(_o.DeckLightStatusBase + light.Deck), (byte)_o.BeatSyncLightNote, vel],
-            // Pad-mode button LEDs — UNVERIFIED ON HARDWARE. We assume the
-            // same "echo the input note back on the deck's own status byte"
-            // convention as Cue/BeatSync; needs a real controller check.
+            // Pad-mode button LEDs: the mode note echoed back on the deck's own
+            // status byte, as Cue/BeatSync. Matches Mixxx's DDJ-FLX4 values; not
+            // yet captured on this unit.
             LightFunction.PadMode when light.Deck is 0 or 1 && PadModeNote((PadPage)light.Index) >= 0
                 => [(byte)(_o.DeckLightStatusBase + light.Deck), (byte)PadModeNote((PadPage)light.Index), vel],
             _ => null,

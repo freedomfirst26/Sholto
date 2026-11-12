@@ -7,9 +7,10 @@ namespace Sholto.Interface.Controller;
 /// lights can be repainted. Which LED shows what lives here: play state is the BEAT SYNC LED (solid
 /// while playing, blinking with the end-of-track flash), the cue buttons light with headphone/master
 /// cue, and the pad page lights one of the four pad-mode buttons and puts the hardware into the same
-/// pad mode. Each page's pads: HOT CUE shows each saved cue in its colour; PAD FX1 pad 1 is the echo
-/// (lit while on) and pad 2 the roll (always lit); BEAT JUMP pads are all lit; SAMPLER pads 1-3 are lit
-/// while their stem is audible and pads 5-7 while it is the only audible one.</summary>
+/// pad mode. Pad lights are on/off only (the cue colours are shown on screen). Each page's pads: HOT
+/// CUE lights each pad with a saved cue; PAD FX1 pad 1 is the echo (lit while on) and pad 2 the roll
+/// (always lit); BEAT JUMP pads are all lit; SAMPLER pads 1-3 are lit while their stem is audible and
+/// pads 5-7 while it is the only audible one.</summary>
 public sealed class ControllerFeedback(IControlSurface surface, IEventSubscriber subscriber)
     : IControllerFeedback,
       IEventHandler<DeckPlayStateChanged>, IEventHandler<StemMuteChanged>, IEventHandler<EchoChanged>,
@@ -110,7 +111,7 @@ public sealed class ControllerFeedback(IControlSurface surface, IEventSubscriber
         if (!InRange(e.Deck)) return;
         for (var pad = 0; pad < PadsPerPage; pad++) _hotCueLight[e.Deck, pad] = PadLight.Off;
         foreach (var cue in e.Cues)
-            if ((uint)cue.Pad < PadsPerPage) _hotCueLight[e.Deck, cue.Pad] = PadLight.CuePink + (int)cue.Colour;
+            if ((uint)cue.Pad < PadsPerPage) _hotCueLight[e.Deck, cue.Pad] = PadLight.On;
         PaintHotCuePads(e.Deck);
     }
 
@@ -143,7 +144,7 @@ public sealed class ControllerFeedback(IControlSurface surface, IEventSubscriber
     }
 
     private void PaintEchoPad(int deck) =>
-        _surface.SetPadLight(deck, PadPage.PadFx1, EchoPad, _echo[deck] ? PadLight.Echo : PadLight.Off);
+        _surface.SetPadLight(deck, PadPage.PadFx1, EchoPad, _echo[deck] ? PadLight.On : PadLight.Off);
 
     /// <summary>Pads 1-3 are lit while their stem is audible, pads 5-7 while it is the only audible one,
     /// pads 4 and 8 stay dark.</summary>
@@ -151,9 +152,8 @@ public sealed class ControllerFeedback(IControlSurface surface, IEventSubscriber
     {
         for (var stem = 0; stem < Stems; stem++)
         {
-            var light = PadLight.Drums + stem;
-            _surface.SetPadLight(deck, PadPage.Sampler, stem, _stemLit[deck, stem] ? light : PadLight.Off);
-            _surface.SetPadLight(deck, PadPage.Sampler, SoloPadBase + stem, OnlyAudible(deck, stem) ? light : PadLight.Off);
+            _surface.SetPadLight(deck, PadPage.Sampler, stem, _stemLit[deck, stem] ? PadLight.On : PadLight.Off);
+            _surface.SetPadLight(deck, PadPage.Sampler, SoloPadBase + stem, OnlyAudible(deck, stem) ? PadLight.On : PadLight.Off);
         }
     }
 
@@ -167,9 +167,9 @@ public sealed class ControllerFeedback(IControlSurface surface, IEventSubscriber
     /// <summary>The pads no event drives: the roll pad is always lit, and so is every BEAT JUMP pad.</summary>
     private void PaintStaticPads(int deck)
     {
-        _surface.SetPadLight(deck, PadPage.PadFx1, RollPad, PadLight.Roll);
+        _surface.SetPadLight(deck, PadPage.PadFx1, RollPad, PadLight.On);
         for (var pad = 0; pad < PadsPerPage; pad++)
-            _surface.SetPadLight(deck, PadPage.BeatJump, pad, PadLight.BeatJump);
+            _surface.SetPadLight(deck, PadPage.BeatJump, pad, PadLight.On);
     }
 
     private void Unsubscribe()
