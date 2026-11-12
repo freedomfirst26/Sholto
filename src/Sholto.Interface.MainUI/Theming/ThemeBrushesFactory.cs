@@ -4,23 +4,11 @@ using Avalonia.Media;
 
 namespace Sholto.Interface.MainUI.Theming;
 
-/// <summary>Publishes a theme's "Sholto…" resources on a host's resource dictionary. The keys go in one new merged
-/// dictionary that replaces the previous theme's, so the tree sees a single change instead of one per key (about 50
-/// writes cost 60-76 ms of UI thread per wizard arrow key). One instance per host: it remembers its last dictionary.</summary>
-public sealed class ThemeResourcesApplier
+/// <summary>Builds a theme's "Sholto…" resources in a new dictionary. The host swaps it in as one merged dictionary
+/// that replaces the previous theme's, so the tree sees a single change instead of one per key (about 50 writes cost
+/// 60-76 ms of UI thread per wizard arrow key).</summary>
+public sealed class ThemeBrushesFactory : IThemeBrushesFactory
 {
-    private ResourceDictionary? _current;
-
-    /// <summary>Make <paramref name="theme"/> the one the host's resources resolve, replacing the previous theme's dictionary.</summary>
-    public void Apply(IResourceDictionary host, SholtoTheme theme)
-    {
-        var fresh = Create(theme);
-        var merged = host.MergedDictionaries;
-        var at = _current is null ? -1 : merged.IndexOf(_current);
-        if (at >= 0) merged[at] = fresh; else merged.Add(fresh);
-        _current = fresh;
-    }
-
     private SolidColorBrush Solid(Color c) => new SolidColorBrush(c);
 
     private Color WithAlpha(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
@@ -40,7 +28,7 @@ public sealed class ThemeResourcesApplier
     };
 
     /// <summary>Every themed key (brushes, palettes, shadows, tints) for <paramref name="theme"/>, in a new dictionary.</summary>
-    private ResourceDictionary Create(SholtoTheme theme)
+    public ResourceDictionary Create(SholtoTheme theme)
     {
         var resources = new ResourceDictionary();
         resources["SholtoBgDeep"]        = theme.BgDeep;

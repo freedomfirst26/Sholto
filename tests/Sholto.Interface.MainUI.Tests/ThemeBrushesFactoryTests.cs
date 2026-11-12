@@ -4,10 +4,23 @@ using Sholto.Interface.MainUI.Theming;
 
 namespace Sholto.Interface.MainUI.Tests;
 
-/// <summary>Applying a theme publishes every "Sholto…" key as the new theme's value, and tells the tree once
-/// instead of once per key (the Layout Wizard's theme step re-toned the app on every arrow key).</summary>
-public sealed class ThemeResourcesApplierTests
+/// <summary>A theme's dictionary publishes every "Sholto…" key as the new theme's value, and swapping it in tells the
+/// tree once instead of once per key (the Layout Wizard's theme step re-toned the app on every arrow key).</summary>
+public sealed class ThemeBrushesFactoryTests
 {
+    private readonly ThemeBrushesFactory _factory = new();
+    private ResourceDictionary? _current;
+
+    /// <summary>The swap MainWindow does: the new theme's dictionary replaces the previous one in place, else is added.</summary>
+    private void Apply(IResourceDictionary host, SholtoTheme theme)
+    {
+        var fresh = _factory.Create(theme);
+        var merged = host.MergedDictionaries;
+        var at = _current is null ? -1 : merged.IndexOf(_current);
+        if (at >= 0) merged[at] = fresh; else merged.Add(fresh);
+        _current = fresh;
+    }
+
     private static readonly string[] Keys =
     [
         "SholtoAccent", "SholtoAccentBg", "SholtoBgDeep", "SholtoBorder", "SholtoDeckShadow", "SholtoFaceplateGlow",
@@ -34,11 +47,18 @@ public sealed class ThemeResourcesApplierTests
     }
 
     [Fact]
+    public void Create_ReturnsANewDictionaryEachCall()
+    {
+        var (first, _) = TwoThemes();
+        Assert.NotSame(_factory.Create(first), _factory.Create(first));
+    }
+
+    [Fact]
     public void Apply_PublishesEveryKey()
     {
         var (first, _) = TwoThemes();
         var host = new Border();
-        new ThemeResourcesApplier().Apply(host.Resources, first);
+        Apply(host.Resources, first);
         foreach (var key in Keys) Assert.True(Resolve(host, key) is not null, $"{key} is not published");
     }
 
@@ -47,9 +67,8 @@ public sealed class ThemeResourcesApplierTests
     {
         var (first, second) = TwoThemes();
         var host = new Border();
-        var applier = new ThemeResourcesApplier();
-        applier.Apply(host.Resources, first);
-        applier.Apply(host.Resources, second);
+        Apply(host.Resources, first);
+        Apply(host.Resources, second);
         foreach (var key in Keys) Assert.True(Resolve(host, key) is not null, $"{key} is not published");
         Assert.Same(second.Primary, Resolve(host, "SholtoPrimary"));
         Assert.Same(second.Surface, Resolve(host, "SholtoSurface"));
@@ -66,11 +85,10 @@ public sealed class ThemeResourcesApplierTests
     {
         var (first, second) = TwoThemes();
         var host = new Border();
-        var applier = new ThemeResourcesApplier();
-        applier.Apply(host.Resources, first);
+        Apply(host.Resources, first);
         var raised = 0;
         ((IResourceHost)host).ResourcesChanged += (_, _) => raised++;
-        applier.Apply(host.Resources, second);
+        Apply(host.Resources, second);
         Assert.InRange(raised, 1, 2);
     }
 
@@ -80,9 +98,8 @@ public sealed class ThemeResourcesApplierTests
         var (first, second) = TwoThemes();
         var host = new Border();
         host.Resources["SholtoWaveformStyle"] = "style";
-        var applier = new ThemeResourcesApplier();
-        applier.Apply(host.Resources, first);
-        applier.Apply(host.Resources, second);
+        Apply(host.Resources, first);
+        Apply(host.Resources, second);
         Assert.Equal("style", Resolve(host, "SholtoWaveformStyle"));
     }
 
@@ -106,7 +123,7 @@ public sealed class ThemeResourcesApplierTests
             }
             """);
         var host = new Border();
-        new ThemeResourcesApplier().Apply(host.Resources, theme);
+        Apply(host.Resources, theme);
         Assert.True(stack.Defaults.TryGetColor("load.deck1", out var d1));
         Assert.True(stack.Defaults.TryGetColor("load.deck2", out var d2));
         Assert.True(stack.Defaults.TryGetColor("load.trackList", out var dl));
@@ -121,7 +138,7 @@ public sealed class ThemeResourcesApplierTests
         AvaloniaTestApp.EnsureStarted();
         var theme = new ThemeStackFactory().Build().Catalog.ByName("The Birthday Massacre");
         var host = new Border();
-        new ThemeResourcesApplier().Apply(host.Resources, theme);
+        Apply(host.Resources, theme);
         Assert.Equal(Color.Parse("#FF3D9F"), LoadColour(host, "SholtoLoadDeck1"));
         Assert.Equal(Color.Parse("#FFA8D6"), LoadColour(host, "SholtoLoadDeck2"));
         Assert.Equal(Color.Parse("#A98BFF"), LoadColour(host, "SholtoLoadTrackList"));
@@ -135,7 +152,7 @@ public sealed class ThemeResourcesApplierTests
         AvaloniaTestApp.EnsureStarted();
         var theme = new ThemeStackFactory().Build().Catalog.ByName(name);
         var host = new Border();
-        new ThemeResourcesApplier().Apply(host.Resources, theme);
+        Apply(host.Resources, theme);
         var raised = ((SolidColorBrush)theme.SurfaceRaised).Color;
         foreach (var key in new[] { "SholtoSlotDeck1Wash", "SholtoSlotDeck2Wash" })
         {

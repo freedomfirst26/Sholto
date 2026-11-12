@@ -99,7 +99,7 @@ internal sealed class TrackListDragRig
 
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), bus, bus)
             .Create(new DdjFlx4Faceplate());
-        var window = new MainWindow(overlay, themes.Catalog, new ModalKeyRouter(), new AppIconFactory()) { DataContext = vm };
+        var window = new MainWindow(overlay, themes.Catalog, new ModalKeyRouter(), new AppIconFactory(), new ThemeBrushesFactory()) { DataContext = vm };
         return new TrackListDragRig(library, sender, list, vm, window);
     }
 }

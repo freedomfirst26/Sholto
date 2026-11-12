@@ -60,7 +60,7 @@ internal sealed class SearchOverlayRig
             new TrackListViewModel(bus, bus)).Create();
         // The overlay draws from the theme's brushes, which the real window publishes to its resources.
         var window = new Window { Width = 1100, Height = 760 };
-        new ThemeResourcesApplier().Apply(window.Resources, themes.Catalog.All[0]);
+        window.Resources.MergedDictionaries.Add(new ThemeBrushesFactory().Create(themes.Catalog.All[0]));
         window.Content = Overlay;
         Overlay.DataContext = Vm;
         window.Show();

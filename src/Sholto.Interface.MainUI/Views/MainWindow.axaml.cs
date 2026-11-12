@@ -31,15 +31,18 @@ public partial class MainWindow : Window, IKeyboard
     private readonly FaceplateOverlay _faceplateOverlay;
     private readonly IThemeCatalog _themeCatalog;
     private readonly IModalKeyRouter _modalKeys;
-    private readonly ThemeResourcesApplier _themeResources = new();
+    private readonly IThemeBrushesFactory _themeBrushes;
+    private ResourceDictionary? _themeResources;
 
     /// <summary>The overlay is built by the composition root (it needs a device's guide and
     /// drawing, which XAML cannot supply) and mounted into <c>FaceplateHost</c> here.
     /// Like the tag editor, the overlay binds its OWN IsVisible to the host's so its
     /// code-behind sees the change. It builds and owns its FaceplateViewModel; no
     /// DataContext is set on it from here, or the panel would silently stop opening.</summary>
-    public MainWindow(FaceplateOverlay faceplateOverlay, IThemeCatalog themeCatalog, IModalKeyRouter modalKeys, IAppIconFactory iconFactory)
+    public MainWindow(FaceplateOverlay faceplateOverlay, IThemeCatalog themeCatalog, IModalKeyRouter modalKeys, IAppIconFactory iconFactory,
+        IThemeBrushesFactory themeBrushes)
     {
+        _themeBrushes = themeBrushes;
         _faceplateOverlay = faceplateOverlay;
         _modalKeys = modalKeys;
         _themeCatalog = themeCatalog;
@@ -93,7 +96,11 @@ public partial class MainWindow : Window, IKeyboard
     /// </summary>
     private void ApplyThemeToResources(SholtoTheme theme)
     {
-        _themeResources.Apply(Resources, theme);
+        var fresh = _themeBrushes.Create(theme);
+        var merged = Resources.MergedDictionaries;
+        var at = _themeResources is null ? -1 : merged.IndexOf(_themeResources);
+        if (at >= 0) merged[at] = fresh; else merged.Add(fresh);
+        _themeResources = fresh;
     }
 
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)

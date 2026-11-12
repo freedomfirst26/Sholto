@@ -151,7 +151,7 @@ public sealed class LiveEntities(
         var overlay = new FaceplateOverlayFactory(new FaceplateDocLoader(), _sender, _subscriber).Create(device);
         var catalog = _themeCatalog ?? throw new InvalidOperationException(
             $"{nameof(UseThemeCatalog)} must be called before the window is created.");
-        return new MainWindow(overlay, catalog, new ModalKeyRouter(), _iconFactory) { DataContext = Application };
+        return new MainWindow(overlay, catalog, new ModalKeyRouter(), _iconFactory, new ThemeBrushesFactory()) { DataContext = Application };
     }
 
     public IControlSurface CreateControlSurface() =>
