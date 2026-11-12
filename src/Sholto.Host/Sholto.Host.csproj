@@ -7,6 +7,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\sholto.ico</ApplicationIcon>
+    <AssemblyTitle>Sholto</AssemblyTitle>
+    <Description>Sholto DJ software for the Pioneer DDJ-FLX4</Description>
     <!-- Both GC modes suspend every managed thread (including the audio
          callback) for gen0/gen1 collections; concurrent GC only avoids
          suspension for gen2. Workstation GC is chosen over server GC because
