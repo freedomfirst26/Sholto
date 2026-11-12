@@ -66,9 +66,9 @@ public class DdjFlx4MappingPadTests
     [Theory]
     [InlineData(9)]
     [InlineData(11)]
-    public void Shift_pads_of_the_other_pages_do_nothing_yet(int channel)
+    public void Shift_pads_of_the_pad_fx1_and_sampler_pages_do_nothing_yet(int channel)
     {
-        int[] bases = [0x10, 0x20, 0x30];
+        int[] bases = [0x10, 0x30];
         foreach (var noteBase in bases)
             for (var note = noteBase; note < noteBase + 8; note++)
             {
@@ -76,6 +76,19 @@ public class DdjFlx4MappingPadTests
                 Assert.Null(Down(channel, note));
                 Assert.Null(Up(channel, note));
             }
+    }
+
+    [Theory]
+    [InlineData(9, 0)]
+    [InlineData(11, 1)]
+    public void Every_shift_beat_jump_pad_on_either_deck_is_a_shifted_press_and_its_release_means_nothing(int channel, int deck)
+    {
+        double[] beats = [-1, 1, -2, 2, -4, 4, -8, 8];
+        for (var pad = 0; pad < 8; pad++)
+        {
+            Assert.Equal(new ControllerEvent.BeatJumpPad(deck, pad, beats[pad], Shifted: true), Down(channel, 0x20 + pad));
+            Assert.Null(Up(channel, 0x20 + pad));
+        }
     }
 
     [Fact]
@@ -130,17 +143,17 @@ public class DdjFlx4MappingPadTests
     {
         double[] expected = [-1, 1, -2, 2, -4, 4, -8, 8];
         for (var pad = 0; pad < 8; pad++)
-            Assert.Equal(new ControllerEvent.BeatJumpPad(0, pad, expected[pad]), Down(8, 0x20 + pad));
+            Assert.Equal(new ControllerEvent.BeatJumpPad(0, pad, expected[pad], Shifted: false), Down(8, 0x20 + pad));
     }
 
     [Fact]
     public void Beat_jump_pad_six_on_deck_one_jumps_four_beats_forward()
     {
-        Assert.Equal(new ControllerEvent.BeatJumpPad(0, 5, 4), Down(8, 0x25));
+        Assert.Equal(new ControllerEvent.BeatJumpPad(0, 5, 4, Shifted: false), Down(8, 0x25));
     }
 
     [Fact]
-    public void Shift_beat_jump_pads_and_beat_jump_releases_do_nothing()
+    public void The_notes_above_the_beat_jump_pads_and_beat_jump_releases_do_nothing()
     {
         for (var note = 0x28; note <= 0x2F; note++) Assert.Null(Down(8, note));
         Assert.Null(Up(8, 0x25));

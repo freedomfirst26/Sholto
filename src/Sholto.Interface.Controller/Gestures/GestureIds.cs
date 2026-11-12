@@ -36,6 +36,8 @@ internal static class GestureIds
     public const string PadEcho              = "pad.padfx1.echo";
     public const string PadRoll              = "pad.padfx1.roll";
     public const string PadBeatJump          = "pad.beatjump.press";
+    public const string PadBeatJumpHalve     = "pad.beatjump.halve";
+    public const string PadBeatJumpDouble    = "pad.beatjump.double";
     public const string PadStemDrums         = "pad.sampler.drums";
     public const string PadStemVocals        = "pad.sampler.vocals";
     public const string PadStemInstrumental  = "pad.sampler.instrumental";

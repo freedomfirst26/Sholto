@@ -55,7 +55,9 @@ public class GestureCommandTranslatorTests
             [GestureIds.PadModeSampler] = new ControllerEvent.PadPageSelected(0, PadPage.Sampler),
             [GestureIds.PadHotCuePress] = new ControllerEvent.HotCuePad(0, 3, false, true),
             [GestureIds.PadHotCueDelete] = new ControllerEvent.HotCuePad(0, 3, true, true),
-            [GestureIds.PadBeatJump] = new ControllerEvent.BeatJumpPad(0, 5, 4),
+            [GestureIds.PadBeatJump] = new ControllerEvent.BeatJumpPad(0, 5, 4, false),
+            [GestureIds.PadBeatJumpHalve] = new ControllerEvent.BeatJumpPad(0, 6, -8, true),
+            [GestureIds.PadBeatJumpDouble] = new ControllerEvent.BeatJumpPad(0, 7, 8, true),
             [GestureIds.PadStemSoloDrums] = new ControllerEvent.StemSolo(0, 0),
             [GestureIds.BeatLoopToggle] = new ControllerEvent.BeatLoopToggle(0, 4),
             [GestureIds.BeatLoopHalve] = new ControllerEvent.BeatLoopHalve(0),
@@ -292,9 +294,37 @@ public class GestureCommandTranslatorTests
     [Fact]
     public void A_beat_jump_pad_sends_the_beats_with_its_pad_control_id()
     {
-        var jump = Assert.IsType<BeatJump>(Run(new ControllerEvent.BeatJumpPad(1, 5, -2)));
+        var jump = Assert.IsType<BeatJump>(Run(new ControllerEvent.BeatJumpPad(1, 5, -2, false)));
         Assert.Equal((1, -2.0, "deck.pad.6", "pad.beatjump.press"),
             (jump.Deck, jump.Beats, jump.Origin.ControlId, jump.Origin.GestureName));
+    }
+
+    [Fact]
+    public void Shift_beat_jump_pad_seven_sends_halve_and_eight_sends_double_for_that_deck()
+    {
+        var halve = Assert.IsType<HalveBeatJump>(Run(new ControllerEvent.BeatJumpPad(1, 6, -8, true)));
+        Assert.Equal((1, "deck.pad.7", "pad.beatjump.halve"), (halve.Deck, halve.Origin.ControlId, halve.Origin.GestureName));
+
+        var grow = Assert.IsType<DoubleBeatJump>(Run(new ControllerEvent.BeatJumpPad(0, 7, 8, true)));
+        Assert.Equal((0, "deck.pad.8", "pad.beatjump.double"), (grow.Deck, grow.Origin.ControlId, grow.Origin.GestureName));
+    }
+
+    [Fact]
+    public void Shift_beat_jump_pads_one_to_six_send_nothing()
+    {
+        double[] beats = [-1, 1, -2, 2, -4, 4];
+        for (var pad = 0; pad < 6; pad++)
+            Assert.Null(Run(new ControllerEvent.BeatJumpPad(0, pad, beats[pad], true)));
+    }
+
+    [Fact]
+    public void Held_shift_turns_plain_beat_jump_pads_seven_and_eight_into_size_changes()
+    {
+        Run(new ControllerEvent.DeckShift(1, true));
+
+        Assert.IsType<HalveBeatJump>(Run(new ControllerEvent.BeatJumpPad(1, 6, -8, false)));
+        Assert.IsType<DoubleBeatJump>(Run(new ControllerEvent.BeatJumpPad(1, 7, 8, false)));
+        Assert.Null(Run(new ControllerEvent.BeatJumpPad(1, 0, -1, false)));
     }
 
     [Theory]

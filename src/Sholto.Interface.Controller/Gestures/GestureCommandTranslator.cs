@@ -104,6 +104,14 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
                 var jump = (ControllerEvent.BeatJumpPad)g.Source;
                 _sender.Send(new BeatJump(deck, jump.Beats, By(PadControl(jump.Pad), g.Id, deck)));
                 break;
+            case GestureIds.PadBeatJumpHalve:
+                var halve = (ControllerEvent.BeatJumpPad)g.Source;
+                _sender.Send(new HalveBeatJump(deck, By(PadControl(halve.Pad), g.Id, deck)));
+                break;
+            case GestureIds.PadBeatJumpDouble:
+                var grow = (ControllerEvent.BeatJumpPad)g.Source;
+                _sender.Send(new DoubleBeatJump(deck, By(PadControl(grow.Pad), g.Id, deck)));
+                break;
             case GestureIds.PadStemSoloDrums:
             case GestureIds.PadStemSoloVocals:
             case GestureIds.PadStemSoloInstrumental:

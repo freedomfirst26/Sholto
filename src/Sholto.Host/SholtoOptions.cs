@@ -36,6 +36,7 @@ public sealed class SholtoOptions
     public IOptions<RenderingOptions> Rendering { get; }
     public IOptions<LoadOptions> Load { get; }
     public IOptions<HotCueOptions> HotCue { get; }
+    public IOptions<BeatJumpOptions> BeatJump { get; }
     public IOptions<GlanceViewOptions> GlanceView { get; }
     public IOptions<DeckViewOptions> DeckView { get; }
     public IOptions<WaveformStyleOptions> WaveformStyle { get; }
@@ -62,6 +63,7 @@ public sealed class SholtoOptions
         Rendering = Options.Create(new RenderingOptions());
         Load = Options.Create(new LoadOptions());
         HotCue = Options.Create(new HotCueOptions());
+        BeatJump = Options.Create(new BeatJumpOptions());
         // One tempo for "no analysed BPM": the platter's and the LOAD TO slot's agree.
         GlanceView = Options.Create(new GlanceViewOptions { FallbackBpm = Scratch.Value.FallbackBpm });
         DeckView = Options.Create(new DeckViewOptions());

@@ -9,9 +9,12 @@ using Sholto.App.Performance;
 
 namespace Sholto.App;
 
+/// <summary>Builds every command and query handler and registers them on the bus.</summary>
+/// <param name="beatJumpOptions">The BEAT JUMP size bounds; null takes <see cref="BeatJumpOptions"/>' defaults.</param>
 public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher publisher, IHintCounter hintCounter, IOptions<GlanceOptions> glanceOptions,
-    ILogFactory logs) : ICommandHandlersFactory
+    ILogFactory logs, IOptions<BeatJumpOptions>? beatJumpOptions = null) : ICommandHandlersFactory
 {
+    private readonly IOptions<BeatJumpOptions> _beatJumpOptions = beatJumpOptions ?? Options.Create(new BeatJumpOptions());
     private readonly IHintCounter _hintCounter = hintCounter;
     private readonly IOptions<GlanceOptions> _glanceOptions = glanceOptions;
     private readonly IAppThread _appThread = appThread;
@@ -36,7 +39,7 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<SetFilter>(mixer);
         registry.Register<SetTempo>(mixer);
 
-        var pads = new PadCommandHandlers(core.Decks, cueRouting, core.HotCues);
+        var pads = new PadCommandHandlers(core.Decks, cueRouting, core.HotCues, new BeatJumpSize(_beatJumpOptions));
         registry.Register<ToggleStem>(pads);
         registry.Register<HoldEcho>(pads);
         registry.Register<HoldRoll>(pads);
@@ -44,6 +47,8 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<PressHotCue>(pads);
         registry.Register<DeleteHotCue>(pads);
         registry.Register<BeatJump>(pads);
+        registry.Register<HalveBeatJump>(pads);
+        registry.Register<DoubleBeatJump>(pads);
         registry.Register<SoloStem>(pads);
 
         var loops = new LoopCommandHandlers(core.Decks, core.Markers);

@@ -84,7 +84,7 @@ public sealed class AppStackFactory : IAppStackFactory
         return new AppStack(entities, entities, stack, options,
             coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread),
             new ThemeStackFactory(logs), new ControllerStackFactory(logs, new MidiPortOpenerFactory(options.WinMmMidi, TimeProvider.System, logs)),
-            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, hintCounter, options.Glance, logs), new PerformanceFactory(logs),
+            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, hintCounter, options.Glance, logs, options.BeatJump), new PerformanceFactory(logs),
                 new ControllerInputFactory(), new KeyboardInputFactory()),
             masterCueOutput, frameClock, appThread, bus, new TrayFactory(iconFactory, logs), logs);
     }

@@ -538,6 +538,15 @@
           "result": "Moves the playhead 8 beats back, counted in beats of this track's own tempo."
         },
         {
+          "id": "pad.beatjump.halve",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "While [[deck.shift]] is held, halves how far every BEAT JUMP pad on this deck jumps, down to an eighth of the beats printed on them. Nothing jumps."
+        },
+        {
           "id": "pad.sampler.solo.instrumental",
           "verb": "press",
           "layer": "page.sampler",
@@ -580,6 +589,15 @@
             "deck.padmode.beatjump"
           ],
           "result": "Moves the playhead 8 beats forward, counted in beats of this track's own tempo."
+        },
+        {
+          "id": "pad.beatjump.double",
+          "verb": "press",
+          "layer": "page.beatjump",
+          "with": [
+            "deck.padmode.beatjump"
+          ],
+          "result": "While [[deck.shift]] is held, doubles how far every BEAT JUMP pad on this deck jumps, up to eight times the beats printed on them. Nothing jumps."
         }
       ]
     },

@@ -22,6 +22,11 @@ internal sealed class GestureRecognizer : IGestureRecognizer
     /// than "nothing". Matches the timer this replaces in Orchestrator.</summary>
     public readonly TimeSpan BrowseHold = TimeSpan.FromSeconds(1);
 
+    /// <summary>The BEAT JUMP pads (0-based) that, with Shift, halve and double the jump size: pads 7 and 8,
+    /// as on Rekordbox's FLX4 layout.</summary>
+    private const int BeatJumpHalvePad = 6;
+    private const int BeatJumpDoublePad = 7;
+
     private readonly bool[] _shiftHeld = new bool[2];
     private readonly bool[] _platterTouched = new bool[2];
 
@@ -108,7 +113,17 @@ internal sealed class GestureRecognizer : IGestureRecognizer
                     hc.Deck, evt);
 
             case ControllerEvent.BeatJumpPad bj:
-                return new Gesture(GestureIds.PadBeatJump, bj.Deck, evt);
+                // Shift + pad 7 halves and Shift + pad 8 doubles every pad's jump (Rekordbox's FLX4 layout);
+                // Shift + any other BEAT JUMP pad means nothing. Shifted comes from the wire; the held-state
+                // check is the fallback, as for the HOT CUE pads.
+                if (!bj.Shifted && !IsShiftHeld(bj.Deck))
+                    return new Gesture(GestureIds.PadBeatJump, bj.Deck, evt);
+                return bj.Pad switch
+                {
+                    BeatJumpHalvePad => new Gesture(GestureIds.PadBeatJumpHalve, bj.Deck, evt),
+                    BeatJumpDoublePad => new Gesture(GestureIds.PadBeatJumpDouble, bj.Deck, evt),
+                    _ => null,
+                };
 
             case ControllerEvent.StemSolo ss:
                 return new Gesture(ss.Group switch

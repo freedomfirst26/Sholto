@@ -13,7 +13,8 @@ public class CommandHandlersFactoryTests
         var cue = new CueRouting(rig.Core.Decks, new RecordingMasterCueOutput(), bus);
         var registry = new RecordingCommandRegistry();
 
-        new CommandHandlersFactory(new ImmediateAppThread(), bus, new Sholto.App.Lifecycle.NullHintCounter(), Microsoft.Extensions.Options.Options.Create(new GlanceOptions()), new RecordingLogFactory()).Register(
+        new CommandHandlersFactory(new ImmediateAppThread(), bus, new Sholto.App.Lifecycle.NullHintCounter(), Microsoft.Extensions.Options.Options.Create(new GlanceOptions()), new RecordingLogFactory(),
+            Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.BeatJumpOptions())).Register(
             registry, bus, rig.Core, cue, new InspectMode(bus), rig.Platter, new Sholto.App.Lifecycle.NullAppLifecycle());
         return (registry, bus);
     }
@@ -37,7 +38,7 @@ public class CommandHandlersFactoryTests
         var commands = typeof(ICommand).Assembly.GetTypes()
             .Where(t => t.IsValueType && typeof(ICommand).IsAssignableFrom(t))
             .ToHashSet();
-        Assert.Equal(64, commands.Count);
+        Assert.Equal(66, commands.Count);
         Assert.Equal(commands, registry.Registered);
     }
 

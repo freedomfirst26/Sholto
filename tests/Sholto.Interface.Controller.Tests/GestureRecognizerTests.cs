@@ -121,10 +121,37 @@ public class GestureRecognizerTests
     public void Beat_jump_and_solo_pads_map_to_their_gestures()
     {
         var (_, go) = New();
-        Assert.Equal(GestureIds.PadBeatJump, go(new ControllerEvent.BeatJumpPad(0, 0, -1))!.Value.Id);
+        Assert.Equal(GestureIds.PadBeatJump, go(new ControllerEvent.BeatJumpPad(0, 0, -1, false))!.Value.Id);
         Assert.Equal(GestureIds.PadStemSoloDrums, go(new ControllerEvent.StemSolo(0, 0))!.Value.Id);
         Assert.Equal(GestureIds.PadStemSoloVocals, go(new ControllerEvent.StemSolo(0, 1))!.Value.Id);
         Assert.Equal(GestureIds.PadStemSoloInstrumental, go(new ControllerEvent.StemSolo(0, 2))!.Value.Id);
+    }
+
+    [Fact]
+    public void Shift_beat_jump_pad_seven_halves_eight_doubles_and_one_to_six_mean_nothing()
+    {
+        var (_, go) = New();
+        double[] beats = [-1, 1, -2, 2, -4, 4, -8, 8];
+        for (var pad = 0; pad < 6; pad++)
+            Assert.Null(go(new ControllerEvent.BeatJumpPad(1, pad, beats[pad], true)));
+
+        var halve = go(new ControllerEvent.BeatJumpPad(1, 6, -8, true))!.Value;
+        var grow = go(new ControllerEvent.BeatJumpPad(1, 7, 8, true))!.Value;
+
+        Assert.Equal((GestureIds.PadBeatJumpHalve, 1), (halve.Id, halve.Deck));
+        Assert.Equal((GestureIds.PadBeatJumpDouble, 1), (grow.Id, grow.Deck));
+    }
+
+    [Fact]
+    public void Held_shift_makes_a_plain_beat_jump_pad_note_shifted_on_that_deck_only()
+    {
+        var (_, go) = New();
+        go(new ControllerEvent.DeckShift(0, Pressed: true));
+
+        Assert.Equal(GestureIds.PadBeatJumpHalve, go(new ControllerEvent.BeatJumpPad(0, 6, -8, false))!.Value.Id);
+        Assert.Equal(GestureIds.PadBeatJumpDouble, go(new ControllerEvent.BeatJumpPad(0, 7, 8, false))!.Value.Id);
+        Assert.Null(go(new ControllerEvent.BeatJumpPad(0, 2, -2, false)));
+        Assert.Equal(GestureIds.PadBeatJump, go(new ControllerEvent.BeatJumpPad(1, 6, -8, false))!.Value.Id);
     }
 
     [Fact]
@@ -336,7 +363,9 @@ public class GestureRecognizerTests
         Feed(new ControllerEvent.PadPageSelected(0, PadPage.Sampler));
         Feed(new ControllerEvent.HotCuePad(0, 0, false, true));
         Feed(new ControllerEvent.HotCuePad(0, 0, true, true));
-        Feed(new ControllerEvent.BeatJumpPad(0, 0, -1));
+        Feed(new ControllerEvent.BeatJumpPad(0, 0, -1, false));
+        Feed(new ControllerEvent.BeatJumpPad(0, 6, -8, true));
+        Feed(new ControllerEvent.BeatJumpPad(0, 7, 8, true));
         Feed(new ControllerEvent.StemSolo(0, 0));
         Feed(new ControllerEvent.StemSolo(0, 1));
         Feed(new ControllerEvent.StemSolo(0, 2));

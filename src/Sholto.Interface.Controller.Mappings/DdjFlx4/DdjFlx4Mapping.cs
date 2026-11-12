@@ -66,16 +66,20 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         }
 
         // Shift + pad arrives on the deck's Shift pad channel with the unshifted notes (matches Mixxx's
-        // DDJ-FLX4 values; not yet captured on this unit). Only Shift + HOT CUE means anything, and only its
-        // press (it deletes the cue); every other note there is unmapped. The legacy browse press shares
-        // channel 11 and is matched first, above.
+        // DDJ-FLX4 values; not yet captured on this unit). Only Shift + HOT CUE (it deletes the cue) and
+        // Shift + BEAT JUMP (pads 7 and 8 change the jump size) mean anything, and only their press; every
+        // other note there is unmapped. The legacy browse press shares channel 11 and is matched first, above.
         if (msg.Channel == _o.PadShiftDeck0Channel || msg.Channel == _o.PadShiftDeck1Channel)
         {
+            if (!msg.IsDown) return null;
             int deck = msg.Channel == _o.PadShiftDeck0Channel ? 0 : 1;
             int pad = msg.Key - _o.PadNoteBase;
-            return msg.IsDown && (uint)pad < PadsPerPage
-                ? new ControllerEvent.HotCuePad(deck, pad, Shifted: true, Pressed: true)
-                : null;
+            if ((uint)pad < PadsPerPage)
+                return new ControllerEvent.HotCuePad(deck, pad, Shifted: true, Pressed: true);
+            int jumpPad = msg.Key - _o.PadBeatJumpNoteBase;
+            if ((uint)jumpPad < PadsPerPage && jumpPad < _o.BeatJumpPadBeats.Length)
+                return new ControllerEvent.BeatJumpPad(deck, jumpPad, _o.BeatJumpPadBeats[jumpPad], Shifted: true);
+            return null;
         }
 
         // Everything else is a press-only action — ignore the release edge so the
@@ -130,7 +134,7 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
             int jumpPad = msg.Key - _o.PadBeatJumpNoteBase;
             if ((uint)jumpPad < PadsPerPage && jumpPad < _o.BeatJumpPadBeats.Length)
-                return new ControllerEvent.BeatJumpPad(deck, jumpPad, _o.BeatJumpPadBeats[jumpPad]);
+                return new ControllerEvent.BeatJumpPad(deck, jumpPad, _o.BeatJumpPadBeats[jumpPad], Shifted: false);
 
             int samplerPad = msg.Key - _o.PadSamplerNoteBase;
             if (samplerPad == _o.StemDrumsPad) return new ControllerEvent.StemToggle(deck, Group: 0);

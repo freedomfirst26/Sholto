@@ -114,8 +114,9 @@ public abstract record ControllerEvent
     public record HotCuePad(int Deck, int Pad, bool Shifted, bool Pressed) : ControllerEvent;
 
     /// <summary>BEAT JUMP page pad press (<paramref name="Pad"/> 0-7): move the playhead
-    /// <paramref name="Beats"/> beats (negative = back).</summary>
-    public record BeatJumpPad(int Deck, int Pad, double Beats) : ControllerEvent;
+    /// <paramref name="Beats"/> beats (negative = back). <paramref name="Shifted"/> comes from the wire, like
+    /// <see cref="HotCuePad"/>'s: Shift + pad arrives on the deck's Shift pad channel.</summary>
+    public record BeatJumpPad(int Deck, int Pad, double Beats, bool Shifted) : ControllerEvent;
 
     /// <summary>SAMPLER page solo pad press: solo stem <paramref name="Group"/> (0 = Drums, 1 = Vocals,
     /// 2 = Instrumental).</summary>

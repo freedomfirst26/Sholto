@@ -44,7 +44,8 @@ public sealed class HeadlessHostFactory(IBenchDeck benchDeck, IBenchDeckFactory 
         var coreFactory = new HeadlessCoreFactory(_benchDeck, _deckFactory, _decoder, bus, new ManualFrameClock(), _appThread, _logs);
         var stackFactory = new HeadlessInputStackFactory(
             bus, bus, bus, bus, bus,
-            new CommandHandlersFactory(_appThread, bus, new NullHintCounter(), Options.Create(new GlanceOptions()), _logs),
+            new CommandHandlersFactory(_appThread, bus, new NullHintCounter(), Options.Create(new GlanceOptions()), _logs,
+                Options.Create(new Sholto.App.Decks.BeatJumpOptions())),
             new PerformanceFactory(_logs),
             new ControllerInputFactory(),
             Options.Create(new ScratchOptions()),

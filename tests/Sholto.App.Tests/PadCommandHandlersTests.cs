@@ -27,7 +27,8 @@ public class PadCommandHandlersTests
         _rig1 = new DeckSessionRig(new SeekRecordingPorts(_ports1, _transport1));
         _rig2 = new DeckSessionRig(new ScriptedPorts(new TestDeckFactory().Create(), stems: _spy2));
         var pair = new DeckPair(_rig1.Session, _rig2.Session);
-        _handlers = new PadCommandHandlers(pair, new CueRouting(pair, new RecordingMasterCueOutput(), _rig1.Bus), _hotCues);
+        _handlers = new PadCommandHandlers(pair, new CueRouting(pair, new RecordingMasterCueOutput(), _rig1.Bus), _hotCues,
+            new BeatJumpSize(Microsoft.Extensions.Options.Options.Create(new BeatJumpOptions())));
     }
 
     [Fact]
@@ -76,6 +77,54 @@ public class PadCommandHandlersTests
         _handlers.Handle(new BeatJump(0, 8, PadOrigin));
 
         Assert.Equal([-2.0, 4.0], _transport1.Seeks);
+    }
+
+    [Fact]
+    public void Every_pad_jumps_its_printed_beats_before_any_size_change()
+    {
+        LoadWithBpm(120);
+
+        foreach (var beats in new double[] { -1, 1, -2, 2, -4, 4, -8, 8 })
+            _handlers.Handle(new BeatJump(0, beats, PadOrigin));
+
+        Assert.Equal([-0.5, 0.5, -1.0, 1.0, -2.0, 2.0, -4.0, 4.0], _transport1.Seeks);
+    }
+
+    [Fact]
+    public void After_halving_every_pad_on_that_deck_jumps_half_as_far()
+    {
+        LoadWithBpm(120);
+
+        _handlers.Handle(new HalveBeatJump(0, PadOrigin));
+        foreach (var beats in new double[] { -1, 1, -2, 2, -4, 4, -8, 8 })
+            _handlers.Handle(new BeatJump(0, beats, PadOrigin));
+
+        Assert.Equal([-0.25, 0.25, -0.5, 0.5, -1.0, 1.0, -2.0, 2.0], _transport1.Seeks);
+    }
+
+    [Fact]
+    public void After_doubling_every_pad_on_that_deck_jumps_twice_as_far()
+    {
+        LoadWithBpm(120);
+
+        _handlers.Handle(new DoubleBeatJump(0, PadOrigin));
+        foreach (var beats in new double[] { -1, 1, -2, 2, -4, 4, -8, 8 })
+            _handlers.Handle(new BeatJump(0, beats, PadOrigin));
+
+        Assert.Equal([-1.0, 1.0, -2.0, 2.0, -4.0, 4.0, -8.0, 8.0], _transport1.Seeks);
+    }
+
+    [Fact]
+    public void Changing_the_other_decks_size_leaves_this_decks_jumps_alone()
+    {
+        LoadWithBpm(120);
+
+        _handlers.Handle(new HalveBeatJump(1, PadOrigin));
+        _handlers.Handle(new DoubleBeatJump(1, PadOrigin));
+        _handlers.Handle(new DoubleBeatJump(1, PadOrigin));
+        _handlers.Handle(new BeatJump(0, 4, PadOrigin));
+
+        Assert.Equal([2.0], _transport1.Seeks);
     }
 
     [Fact]
@@ -137,7 +186,8 @@ public class PadCommandHandlersTests
     {
         var bare = new DeckSessionRig(new ScriptedPorts(new TestDeckFactory().Create()));
         var pair = new DeckPair(bare.Session, bare.Session);
-        var handlers = new PadCommandHandlers(pair, new CueRouting(pair, new RecordingMasterCueOutput(), bare.Bus), _hotCues);
+        var handlers = new PadCommandHandlers(pair, new CueRouting(pair, new RecordingMasterCueOutput(), bare.Bus), _hotCues,
+            new BeatJumpSize(Microsoft.Extensions.Options.Options.Create(new BeatJumpOptions())));
 
         var ex = Record.Exception(() => handlers.Handle(new SoloStem(0, 0, PadOrigin)));
 

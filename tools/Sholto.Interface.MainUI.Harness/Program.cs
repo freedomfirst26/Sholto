@@ -69,7 +69,7 @@ internal static class Program
             new CoreSnapshot(),
             new StateDiff(),
             crossfade,
-            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, new NullHintCounter(), options.Glance, logs), new PerformanceFactory(logs),
+            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, new NullHintCounter(), options.Glance, logs, options.BeatJump), new PerformanceFactory(logs),
                 new ControllerInputFactory(), new KeyboardInputFactory()),
             options,
             new ImmediateAppThread(),
