@@ -2,7 +2,6 @@ using Sholto.Data;
 using SoundFlow.Abstracts.Devices;
 using SoundFlow.Backends.MiniAudio;
 using SoundFlow.Backends.MiniAudio.Devices;
-using SoundFlow.Backends.MiniAudio.Enums;
 using SoundFlow.Enums;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;
@@ -24,7 +23,7 @@ public sealed class AudioEngine : IAudioOutput
 
     private readonly IReadOnlyList<IEngineDeck> _decks;
     private readonly SfEngine _engine;
-    private readonly string _activeBackend;
+    private readonly AudioBackendLogLine _startedLine;
     private readonly IPipeWireRouter _pipeWireRouter;
     private readonly IControllerSoundCard _controllerCard;
     private AudioPlaybackDevice? _playbackDevice;
@@ -57,9 +56,11 @@ public sealed class AudioEngine : IAudioOutput
         _cueRouterFactory = cueRouterFactory;
         var miniEngine = new MiniAudioEngine();
         _engine = miniEngine;
-        _activeBackend = miniEngine.ActiveBackend.ToString();
+        // The backend is only named once a device is open (see Start): the probe reads the
+        // context the device runs on. It is built here because this is where the engine is born.
+        _startedLine = new AudioBackendLogLine(new MiniAudioBackendProbe(miniEngine));
         foreach (var dependent in engineDependents) dependent.AttachEngine(miniEngine);
-        _log.Info($"active backend: {miniEngine.ActiveBackend}; decks={decks.Length}");
+        _log.Info($"audio engine created; decks={decks.Length}");
         foreach (var deck in _decks) deck.AttachEngine(_engine, _deckFormat);
     }
 
@@ -135,9 +136,7 @@ public sealed class AudioEngine : IAudioOutput
         _playbackDevice.MasterMixer.AddComponent(_router);
         _playbackDevice.Start();
         _running = true;
-        string mode = channels >= 4 ? "master 1-2 + headphone cue 3-4" : "stereo master (no cue bus)";
-        string reported = reportedChannels > 0 ? $"{reportedChannels}ch" : "none";
-        _log.Info($"backend={_activeBackend}; device={target.Name} started; reported {reported}, opened {channels}ch — {mode}; buffer={cfg.PeriodSizeInMilliseconds}ms × {cfg.Periods}");
+        _log.Info(_startedLine.DeviceStarted(target.Name, reportedChannels, channels, cfg.PeriodSizeInMilliseconds, cfg.Periods));
 
         if (!haveController)
         {
