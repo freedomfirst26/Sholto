@@ -24,6 +24,7 @@ public sealed class AudioEngine : IAudioOutput
 
     private readonly IReadOnlyList<IEngineDeck> _decks;
     private readonly SfEngine _engine;
+    private readonly string _activeBackend;
     private readonly IPipeWireRouter _pipeWireRouter;
     private readonly IControllerSoundCard _controllerCard;
     private AudioPlaybackDevice? _playbackDevice;
@@ -54,22 +55,27 @@ public sealed class AudioEngine : IAudioOutput
         _cueRouterFactory = cueRouterFactory;
         var miniEngine = new MiniAudioEngine();
         _engine = miniEngine;
+        _activeBackend = miniEngine.ActiveBackend.ToString();
         foreach (var dependent in engineDependents) dependent.AttachEngine(miniEngine);
         Console.WriteLine($"[AudioEngine] active backend: {miniEngine.ActiveBackend}; decks={decks.Length}");
         foreach (var deck in _decks) deck.AttachEngine(_engine, _deckFormat);
     }
 
-    /// <summary>4 if the device exposes ≥4 output channels (e.g. a DJ controller:
-    /// master 1-2 + headphone cue 3-4), otherwise 2 (stereo master only).</summary>
-    private int DeviceOutputChannels(DeviceInfo d)
+    /// <summary>The most output channels any of the device's supported formats
+    /// reports, unclamped; 0 if it reports none.</summary>
+    private int ReportedOutputChannels(DeviceInfo d)
     {
-        int max = 2;
+        int max = 0;
         var fmts = d.SupportedDataFormats;
         if (fmts is not null)
             foreach (var f in fmts)
                 if ((int)f.Channels > max) max = (int)f.Channels;
-        return max >= 4 ? 4 : 2;
+        return max;
     }
+
+    /// <summary>4 if the device exposes ≥4 output channels (e.g. a DJ controller:
+    /// master 1-2 + headphone cue 3-4), otherwise 2 (stereo master only).</summary>
+    private int DeviceOutputChannels(int reportedChannels) => reportedChannels >= 4 ? 4 : 2;
 
     public void Start() => Start(masterSpeakerName: null);
 
@@ -99,7 +105,8 @@ public sealed class AudioEngine : IAudioOutput
         var controller = ResolveControllerCard(devices);
         bool haveController = controller.Name is not null;
         var target = haveController ? controller : Resolve(devices, masterSpeakerName);
-        int channels = DeviceOutputChannels(target);
+        int reportedChannels = ReportedOutputChannels(target);
+        int channels = DeviceOutputChannels(reportedChannels);
         var deviceFormat = new AudioFormat
         {
             SampleRate = AudioFileDecoder.TargetSampleRate,
@@ -127,7 +134,8 @@ public sealed class AudioEngine : IAudioOutput
         _playbackDevice.Start();
         _running = true;
         string mode = channels >= 4 ? "master 1-2 + headphone cue 3-4" : "stereo master (no cue bus)";
-        Console.WriteLine($"[AudioEngine] device={target.Name} started; {channels}ch — {mode}; buffer={cfg.PeriodSizeInMilliseconds}ms × {cfg.Periods}");
+        string reported = reportedChannels > 0 ? $"{reportedChannels}ch" : "none";
+        Console.WriteLine($"[AudioEngine] backend={_activeBackend}; device={target.Name} started; reported {reported}, opened {channels}ch — {mode}; buffer={cfg.PeriodSizeInMilliseconds}ms × {cfg.Periods}");
 
         if (!haveController)
         {

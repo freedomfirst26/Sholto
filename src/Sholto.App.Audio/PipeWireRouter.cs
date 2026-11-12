@@ -14,16 +14,21 @@ namespace Sholto.App.Audio;
 /// this is a small, occasional, best-effort operation, not a hot path. Every
 /// method here is guarded: a missing tool, an absent sink, or a shell failure
 /// degrades to "master stays on the controller" and is logged, never thrown.
+/// Off Linux (<paramref name="isLinux"/> false; null means
+/// <see cref="OperatingSystem.IsLinux"/>) nothing is ever started: the router reports
+/// unavailable and every method returns empty/null/false.
 /// </summary>
-public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId) : IPipeWireRouter
+public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, bool? isLinux = null) : IPipeWireRouter
 {
     private readonly PipeWireOwnPorts _ownPorts = ownPorts;
     private readonly int _processId = processId;
+    private readonly bool _isLinux = isLinux ?? OperatingSystem.IsLinux();
 
-    /// <summary>True if <c>pw-link</c> is on PATH. Everything else here no-ops
-    /// (returns null/false/empty) when this is false.</summary>
+    /// <summary>True if this is Linux and <c>pw-link</c> is on PATH. Everything else
+    /// here no-ops (returns null/false/empty) when this is false.</summary>
     public bool IsAvailable()
     {
+        if (!_isLinux) return false;
         try
         {
             using var p = Process.Start(StartInfo("pw-link", "--version"));
@@ -65,6 +70,7 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId) : I
     /// <c>pactl</c> isn't available.</summary>
     public IReadOnlyList<(string Node, string Desc)> EnumerateSpeakerSinks(IControllerSoundCard exclude)
     {
+        if (!_isLinux) return Array.Empty<(string, string)>();
         var text = RunCapture("pactl", "list", "sinks");
         if (text is null) return Array.Empty<(string, string)>();
         return ParseSinks(text).Where(s => !exclude.Matches(s.Node) && !exclude.Matches(s.Desc)).ToList();
@@ -74,6 +80,7 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId) : I
     /// currently connected/enumerated by PipeWire.</summary>
     public string? FindControllerSink(IControllerSoundCard card)
     {
+        if (!_isLinux) return null;
         var text = RunCapture("pactl", "list", "sinks");
         if (text is null) return null;
         var match = ParseSinks(text).FirstOrDefault(s => card.Matches(s.Node) || card.Matches(s.Desc));
@@ -92,7 +99,9 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId) : I
 
         if (!IsAvailable())
         {
-            Log("pw-link not on PATH — master stays on the controller");
+            Log(_isLinux
+                ? "pw-link not on PATH — master stays on the controller"
+                : "not on Linux — no PipeWire routing; master stays on the controller");
             log = string.Join("; ", logLines);
             return false;
         }
