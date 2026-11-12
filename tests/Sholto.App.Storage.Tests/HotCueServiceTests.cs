@@ -7,7 +7,7 @@ namespace Sholto.App.Storage.Tests;
 
 public class HotCueServiceTests : IAsyncLifetime
 {
-    private readonly string _path = Path.Combine(Path.GetTempPath(), $"sholto-hotcue-{Guid.NewGuid():N}.db");
+    private readonly TempSqliteDatabase _db = new();
     private IDbContextFactory<SholtoDbContext> _factory = null!;
     private HotCueService _service = null!;
     private Guid _trackA;
@@ -15,7 +15,7 @@ public class HotCueServiceTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        _factory = await new ContextCapturingStorage().OpenAsync(_path);
+        _factory = await new ContextCapturingStorage().OpenAsync(_db.Path);
         _service = new HotCueService(_factory);
         await using var db = _factory.CreateDbContext();
         var a = new Track { Path = "/a.flac", Title = "A", Artist = "A" };
@@ -28,7 +28,7 @@ public class HotCueServiceTests : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        if (File.Exists(_path)) File.Delete(_path);
+        _db.Dispose();
         return Task.CompletedTask;
     }
 

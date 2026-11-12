@@ -7,17 +7,8 @@ namespace Sholto.App.Storage.Tests;
 
 public class CrateMatesTests
 {
-    private static async Task<(IDbContextFactory<SholtoDbContext> factory, string dbPath)> NewAsync()
-    {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"sholto-crates-{Guid.NewGuid():N}.db");
-        var factory = await new ContextCapturingStorage().OpenAsync(dbPath);
-        return (factory, dbPath);
-    }
-
-    private static void Cleanup(string dbPath)
-    {
-        if (File.Exists(dbPath)) File.Delete(dbPath);
-    }
+    private static Task<IDbContextFactory<SholtoDbContext>> NewAsync(TempSqliteDatabase temp) =>
+        new ContextCapturingStorage().OpenAsync(temp.Path);
 
     private static async Task<Guid> AddTrackAsync(IDbContextFactory<SholtoDbContext> factory, string name)
     {
@@ -37,81 +28,69 @@ public class CrateMatesTests
     [Fact]
     public async Task Track_in_crate_and_all_tracks_returns_crate_members_only()
     {
-        var (factory, dbPath) = await NewAsync();
-        try
-        {
-            var svc = new CrateService(factory);
-            var a = await AddTrackAsync(factory, "a");
-            var b = await AddTrackAsync(factory, "b");
-            var c = await AddTrackAsync(factory, "c");
-            await FileAsync(svc, CrateNames.AllTracks, a, b, c);
-            await FileAsync(svc, "Featurecast", a, b);
+        using var temp = new TempSqliteDatabase();
+        var factory = await NewAsync(temp);
+        var svc = new CrateService(factory);
+        var a = await AddTrackAsync(factory, "a");
+        var b = await AddTrackAsync(factory, "b");
+        var c = await AddTrackAsync(factory, "c");
+        await FileAsync(svc, CrateNames.AllTracks, a, b, c);
+        await FileAsync(svc, "Featurecast", a, b);
 
-            var mates = await svc.CrateMatesAsync(a);
+        var mates = await svc.CrateMatesAsync(a);
 
-            Assert.Equal(new[] { "Featurecast" }, mates.CrateNames);
-            Assert.Equal(new HashSet<Guid> { a, b }, mates.TrackIds);
-        }
-        finally { Cleanup(dbPath); }
+        Assert.Equal(new[] { "Featurecast" }, mates.CrateNames);
+        Assert.Equal(new HashSet<Guid> { a, b }, mates.TrackIds);
     }
 
     [Fact]
     public async Task Track_in_two_crates_returns_union_and_sorted_names()
     {
-        var (factory, dbPath) = await NewAsync();
-        try
-        {
-            var svc = new CrateService(factory);
-            var a = await AddTrackAsync(factory, "a");
-            var b = await AddTrackAsync(factory, "b");
-            var c = await AddTrackAsync(factory, "c");
-            var d = await AddTrackAsync(factory, "d");
-            await FileAsync(svc, CrateNames.AllTracks, a, b, c, d);
-            await FileAsync(svc, "Zed", a, b);
-            await FileAsync(svc, "Alpha", a, c);
+        using var temp = new TempSqliteDatabase();
+        var factory = await NewAsync(temp);
+        var svc = new CrateService(factory);
+        var a = await AddTrackAsync(factory, "a");
+        var b = await AddTrackAsync(factory, "b");
+        var c = await AddTrackAsync(factory, "c");
+        var d = await AddTrackAsync(factory, "d");
+        await FileAsync(svc, CrateNames.AllTracks, a, b, c, d);
+        await FileAsync(svc, "Zed", a, b);
+        await FileAsync(svc, "Alpha", a, c);
 
-            var mates = await svc.CrateMatesAsync(a);
+        var mates = await svc.CrateMatesAsync(a);
 
-            Assert.Equal(new[] { "Alpha", "Zed" }, mates.CrateNames);
-            Assert.Equal(new HashSet<Guid> { a, b, c }, mates.TrackIds);
-        }
-        finally { Cleanup(dbPath); }
+        Assert.Equal(new[] { "Alpha", "Zed" }, mates.CrateNames);
+        Assert.Equal(new HashSet<Guid> { a, b, c }, mates.TrackIds);
     }
 
     [Fact]
     public async Task Track_only_in_all_tracks_returns_empty()
     {
-        var (factory, dbPath) = await NewAsync();
-        try
-        {
-            var svc = new CrateService(factory);
-            var a = await AddTrackAsync(factory, "a");
-            var b = await AddTrackAsync(factory, "b");
-            await FileAsync(svc, CrateNames.AllTracks, a, b);
+        using var temp = new TempSqliteDatabase();
+        var factory = await NewAsync(temp);
+        var svc = new CrateService(factory);
+        var a = await AddTrackAsync(factory, "a");
+        var b = await AddTrackAsync(factory, "b");
+        await FileAsync(svc, CrateNames.AllTracks, a, b);
 
-            var mates = await svc.CrateMatesAsync(a);
+        var mates = await svc.CrateMatesAsync(a);
 
-            Assert.Empty(mates.CrateNames);
-            Assert.Empty(mates.TrackIds);
-        }
-        finally { Cleanup(dbPath); }
+        Assert.Empty(mates.CrateNames);
+        Assert.Empty(mates.TrackIds);
     }
 
     [Fact]
     public async Task Unknown_id_returns_empty()
     {
-        var (factory, dbPath) = await NewAsync();
-        try
-        {
-            var svc = new CrateService(factory);
-            var a = await AddTrackAsync(factory, "a");
-            await FileAsync(svc, "Featurecast", a);
+        using var temp = new TempSqliteDatabase();
+        var factory = await NewAsync(temp);
+        var svc = new CrateService(factory);
+        var a = await AddTrackAsync(factory, "a");
+        await FileAsync(svc, "Featurecast", a);
 
-            var mates = await svc.CrateMatesAsync(Guid.NewGuid());
+        var mates = await svc.CrateMatesAsync(Guid.NewGuid());
 
-            Assert.Empty(mates.CrateNames);
-            Assert.Empty(mates.TrackIds);
-        }
-        finally { Cleanup(dbPath); }
+        Assert.Empty(mates.CrateNames);
+        Assert.Empty(mates.TrackIds);
     }
 }
