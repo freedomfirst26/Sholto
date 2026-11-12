@@ -1,5 +1,7 @@
 ﻿using Avalonia;
+using Avalonia.Threading;
 using System;
+using System.Reflection;
 using Sholto.Data;
 
 namespace Sholto.Host;
@@ -7,8 +9,22 @@ namespace Sholto.Host;
 sealed class Program
 {
     [STAThread]
-    public static void Main(string[] args) => BuildAvaloniaApp()
-        .StartWithClassicDesktopLifetime(args);
+    public static void Main(string[] args)
+    {
+        // Crash logging first, so nothing that throws during start-up goes unrecorded. The UI thread's dispatcher
+        // is attached only after Avalonia's platform setup: reading Dispatcher.UIThread any earlier would fix a
+        // null dispatcher for the whole process.
+        var crashLogs = new CrashLogLocatorFactory().AppData();
+        new CrashLogNotice(crashLogs, Console.Out).Announce();
+        var crashSources = new CrashSources();
+        new CrashHook(crashSources,
+            new CrashLogWriter(crashLogs, new CrashAppVersion(Assembly.GetEntryAssembly()), TimeProvider.System),
+            Console.Error).Install();
+
+        BuildAvaloniaApp()
+            .AfterPlatformServicesSetup(_ => crashSources.AttachUiThread(Dispatcher.UIThread))
+            .StartWithClassicDesktopLifetime(args);
+    }
 
     public static AppBuilder BuildAvaloniaApp()
         // The entry point picks the world: LiveEntities = real FLX4, real window,
