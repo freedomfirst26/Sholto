@@ -22,6 +22,9 @@ C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 - [ ] **Zero-alloc tests flaky (~1/50, 7 tests).**
   ACCEPT Every zero-allocation test that still measures one hand-rolled window now measures five windows through AllocationWindows and passes when at most one window allocates.
   BLOCKS acceptance wording — the earlier job finished the 7 files (cloud branch commit 8890eca, not landed) but its check "no direct GC.GetAllocatedBytesForCurrentThread" also hits `tests/Sholto.App.Audio.Tests/CueOutputRouterTests.cs:120` and `StemMixSimdTests.cs:75`; either narrow the check to the 7 files or also convert those two (needs `Sholto.App.Audio.Tests.csproj` to reference Sholto.TestSupport.Allocation).
+- [ ] **C258 — Record the mix.** Re-plan and rebuild: the cloud build was blocked, not landed.
+  BLOCKS registration location — the spec said register ToggleMixRecording with bus.Register in AppStackFactory, but tests/Sholto.App.Tests/CommandHandlersFactoryTests.cs:41-42 requires every Sholto.Data command to be registered by CommandHandlersFactory (count pinned at 66), and neither that test nor CommandHandlersFactory.cs was an owned file. Re-plan with those files owned and the registration in CommandHandlersFactory.
+  Old plan: ~/.claude/plans/sholto-impl-30-c258-record-the-mix-a.md
 
 ## Waiting on you
 
