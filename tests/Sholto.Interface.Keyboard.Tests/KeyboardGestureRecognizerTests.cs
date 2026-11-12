@@ -35,6 +35,15 @@ public class KeyboardGestureRecognizerTests
         Assert.Equal(("gridedit.open", -1), (Recognize(Key.G)!.Value.Id, Recognize(Key.G)!.Value.Deck));
     }
 
+    [Fact]
+    public void C_toggles_headphone_cue_on_deck_one_and_shift_C_on_deck_two()
+    {
+        var one = Recognize(Key.C)!.Value;
+        var two = Recognize(Key.C, KeyModifiers.Shift)!.Value;
+        Assert.Equal(("headphonecue.toggle", 0, "key.c"), (one.Id, one.Deck, one.ControlId));
+        Assert.Equal(("headphonecue.toggle", 1, "key.c"), (two.Id, two.Deck, two.ControlId));
+    }
+
     [Theory]
     [InlineData(Key.A)]
     [InlineData(Key.Enter)]

@@ -9,4 +9,5 @@ internal static class KeyboardGestureIds
     public const string MarkerAdd = "marker.add";
     public const string GridEditOpen = "gridedit.open";
     public const string LoadUndo = "load.undo";
+    public const string HeadphoneCueToggle = "headphonecue.toggle";
 }

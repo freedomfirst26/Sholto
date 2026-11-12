@@ -53,6 +53,7 @@ Transport is controller-only: nothing on screen starts, stops, or jumps the musi
 | **Enter** | Open the actions menu for the highlighted track |
 | **P** / **Shift + P** | Play or pause Deck 1 / Deck 2 |
 | **M** / **Shift + M** | Drop a marker on Deck 1 / Deck 2 at the current spot |
+| **C** / **Shift + C** | Turn headphone cue on or off for Deck 1 / Deck 2, like the controller's headphone buttons |
 | **G** | Open the tempo and beatgrid tuner on the deck you're working on |
 | **↑ / ↓** (tuner open) | BPM ±0.1 — hold **Shift** for ±1 |
 | **← / →** (tuner open) | Slide the grid ±10 ms — hold **Shift** for ±1 beat |

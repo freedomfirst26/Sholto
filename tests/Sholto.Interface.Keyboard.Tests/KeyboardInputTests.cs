@@ -71,6 +71,19 @@ public class KeyboardInputTests
         Assert.IsType<OpenGridEditor>(_sender.Sent[1]);
     }
 
+    [Theory]
+    [InlineData(KeyModifiers.None, 0)]
+    [InlineData(KeyModifiers.Shift, 1)]
+    public void C_toggles_headphone_cue_on_deck_one_and_shift_C_on_deck_two(KeyModifiers modifiers, int deck)
+    {
+        var args = _keyboard.Press(Key.C, modifiers);
+
+        var cue = Assert.IsType<ToggleHeadphoneCue>(Assert.Single(_sender.Sent));
+        Assert.Equal(deck, cue.Deck);
+        Assert.Equal(new Origin(InterfaceIds.Keyboard, "key.c", "headphonecue.toggle", deck), cue.Origin);
+        Assert.True(args.Handled);
+    }
+
     [Fact]
     public void A_key_that_is_not_a_gesture_sends_nothing_and_stays_unhandled_so_typing_in_search_works()
     {

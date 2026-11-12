@@ -19,6 +19,7 @@ internal sealed class KeyboardGestureRecognizer : IKeyboardGestureRecognizer
             Key.D2 or Key.NumPad2 => new KeyboardGesture(KeyboardGestureIds.LoadPress, 1, "key.2"),
             Key.P => new KeyboardGesture(KeyboardGestureIds.PlayPress, shiftDeck, "key.p"),
             Key.M => new KeyboardGesture(KeyboardGestureIds.MarkerAdd, shiftDeck, "key.m"),
+            Key.C => new KeyboardGesture(KeyboardGestureIds.HeadphoneCueToggle, shiftDeck, "key.c"),
             Key.G => new KeyboardGesture(KeyboardGestureIds.GridEditOpen, -1, "key.g"),
             _ => null,
         };

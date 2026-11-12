@@ -103,6 +103,7 @@ device's button layout in one place.
 - **P** — play / pause Deck 1; hold **Shift** for Deck 2.
 - **G** — open the beatgrid / tempo tuner on the playing deck; then **↑ / ↓** change the tempo and **← / →** nudge the grid.
 - **M** — drop a marker on the playing deck.
+- **C** — send Deck 1 to your headphones (cue), or take it off again; hold **Shift** for Deck 2. Same as the controller's headphone buttons.
 - **Esc** — close the tuner.
 - **F11** — toggle fullscreen.
 
