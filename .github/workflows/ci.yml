@@ -16,7 +16,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # ubuntu-24.04, not ubuntu-latest: the DjFilter pins were captured on glibc 2.39 (24.04's).
+        os: [ubuntu-24.04, windows-latest]
 
     steps:
       - uses: actions/checkout@v5

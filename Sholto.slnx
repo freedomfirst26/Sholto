@@ -36,6 +36,7 @@
     <Project Path="tests/Sholto.TestSupport/Sholto.TestSupport.csproj" />
     <Project Path="tests/Sholto.TestSupport.Allocation/Sholto.TestSupport.Allocation.csproj" />
     <Project Path="tests/Sholto.TestSupport.Logging/Sholto.TestSupport.Logging.csproj" />
+    <Project Path="tests/Sholto.TestSupport.Platform/Sholto.TestSupport.Platform.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Sholto.Interface.Bench/Sholto.Interface.Bench.csproj" />
