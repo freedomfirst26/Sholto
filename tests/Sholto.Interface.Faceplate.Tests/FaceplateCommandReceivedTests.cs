@@ -57,6 +57,17 @@ public class FaceplateCommandReceivedTests
     }
 
     [Fact]
+    public void The_pad_echo_selects_pad_1_and_blinks()
+    {
+        FromController("HoldEcho", "deck.pad.1", "pad.padfx1.echo", deck: 0);
+
+        Assert.Equal("deck.pad.1", _vm.Selected!.Id);
+        Assert.Equal(0, _vm.SelectedDeck);
+        Assert.Equal("pad.padfx1.echo", _vm.ActiveRowId);
+        Assert.Equal(["deck.pad.1"], _blinked);
+    }
+
+    [Fact]
     public void The_pad_roll_selects_pad_2_and_blinks()
     {
         FromController("HoldRoll", "deck.pad.2", "pad.padfx1.roll", deck: 0);

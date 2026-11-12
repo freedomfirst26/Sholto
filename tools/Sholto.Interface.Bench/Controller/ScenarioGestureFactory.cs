@@ -42,7 +42,7 @@ public sealed class ScenarioGestureFactory : IScenarioGestureFactory
             "BeatSyncPressed" => new ControllerEvent.BeatSyncPressed(Deck0(a)),
             "CycleTempoRange" => new ControllerEvent.CycleTempoRange(Deck0(a)),
             "PadPageSelected" => new ControllerEvent.PadPageSelected(Deck0(a), ParsePage(a)),
-            "EchoToggle" => new ControllerEvent.EchoToggle(Deck0(a)),
+            "EchoHold" => new ControllerEvent.EchoHold(Deck0(a), a.On ?? true),
             "TransportCuePressed" => new ControllerEvent.TransportCuePressed(Deck0(a), a.Shifted ?? false),
             "BrowseRotated" => new ControllerEvent.BrowseRotated(a.Delta ?? 1),
             "BrowsePressed" => new ControllerEvent.BrowsePressed(),

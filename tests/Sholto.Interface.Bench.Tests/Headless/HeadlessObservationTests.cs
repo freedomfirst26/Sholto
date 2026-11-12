@@ -45,7 +45,8 @@ public sealed class HeadlessObservationTests : IDisposable
             "{ \"actions\": [ { \"action\": \"scan\", \"dir\": " + JsonSerializer.Serialize(_dir) + " }, " +
             "{ \"action\": \"gesture\", \"event\": \"BrowseRotated\", \"delta\": 1 }, " +
             "{ \"action\": \"gesture\", \"event\": \"LoadToDeck\", \"deck\": 1 }, " +
-            "{ \"action\": \"gesture\", \"event\": \"EchoToggle\", \"deck\": 1 }, " +
+            "{ \"action\": \"gesture\", \"event\": \"EchoHold\", \"deck\": 1, \"on\": true }, " +
+            "{ \"action\": \"gesture\", \"event\": \"EchoHold\", \"deck\": 1, \"on\": false }, " +
             "{ \"action\": \"gesture\", \"event\": \"CycleTempoRange\", \"deck\": 1 } ] }");
 
         var session = NewFactory().Create().RunScenario(scenario);
@@ -59,7 +60,9 @@ public sealed class HeadlessObservationTests : IDisposable
         Assert.Contains("Deck1.IsLoaded", g[1].Changed.Keys);
         Assert.Equal(false, g[2].Changed["Deck1.EchoActive"].Before);
         Assert.Equal(true, g[2].Changed["Deck1.EchoActive"].After);
-        Assert.Contains("Deck1.TempoRange", g[3].Changed.Keys);
+        Assert.Equal(true, g[3].Changed["Deck1.EchoActive"].Before);
+        Assert.Equal(false, g[3].Changed["Deck1.EchoActive"].After);
+        Assert.Contains("Deck1.TempoRange", g[4].Changed.Keys);
     }
 
     [Fact]

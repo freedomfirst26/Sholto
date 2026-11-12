@@ -107,10 +107,12 @@ public class DdjFlx4MappingPadTests
     // ---- PAD FX1 ------------------------------------------------------------------
 
     [Fact]
-    public void Pad_fx1_pad_one_toggles_echo_and_pad_two_rolls_on_both_edges()
+    public void Pad_fx1_pad_one_echoes_and_pad_two_rolls_on_both_edges()
     {
-        Assert.Equal(new ControllerEvent.EchoToggle(0), Down(8, 0x10));
-        Assert.Null(Up(8, 0x10));
+        Assert.Equal(new ControllerEvent.EchoHold(0, true), Down(8, 0x10));
+        Assert.Equal(new ControllerEvent.EchoHold(0, false), Up(8, 0x10));
+        Assert.Equal(new ControllerEvent.EchoHold(1, true), Down(10, 0x10));
+        Assert.Equal(new ControllerEvent.EchoHold(1, false), Up(10, 0x10));
         Assert.Equal(new ControllerEvent.RollHold(1, true), Down(10, 0x11));
         Assert.Equal(new ControllerEvent.RollHold(1, false), Up(10, 0x11));
     }

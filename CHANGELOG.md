@@ -21,6 +21,7 @@ changed at the decks, not which class moved.
 - **Stems moved to the SAMPLER page.** Pads 1–3 mute drums, vocals and instrumental as before (they no longer do that on the HOT CUE page), and pads 5–7 now solo a stem; press the soloed pad again to bring all three back.
 - **The pads light in colour.** Echo, roll, beat jump and the stems each have a colour, and the pad lights show what is on.
 - **The controller guide describes all four pad pages.** BEAT JUMP and SAMPLER are now buttons you can click in it.
+- **Echo on PAD FX1 now plays while the pad is held.** Let go and the echo tail rings out, just like roll on pad 2.
 
 ### Fixed
 

@@ -47,7 +47,7 @@ public class GestureCommandTranslatorTests
             [GestureIds.TempoMove] = new ControllerEvent.TempoMoved(0, 0.5),
             [GestureIds.CrossfaderMove] = new ControllerEvent.CrossfaderMoved(0.5),
             [GestureIds.PadStemDrums] = new ControllerEvent.StemToggle(0, 0),
-            [GestureIds.PadEcho] = new ControllerEvent.EchoToggle(0),
+            [GestureIds.PadEcho] = new ControllerEvent.EchoHold(0, true),
             [GestureIds.PadRoll] = new ControllerEvent.RollHold(0, true),
             [GestureIds.PadModeHotCue] = new ControllerEvent.PadPageSelected(0, PadPage.HotCue),
             [GestureIds.PadModePadFx1] = new ControllerEvent.PadPageSelected(0, PadPage.PadFx1),
@@ -194,6 +194,15 @@ public class GestureCommandTranslatorTests
         Assert.Equal(1, Assert.IsType<ToggleStem>(Run(new ControllerEvent.StemToggle(0, 1))).Stem);
         var instrumental = Assert.IsType<ToggleStem>(Run(new ControllerEvent.StemToggle(1, 2)));
         Assert.Equal((1, 2, "pad.sampler.instrumental"), (instrumental.Deck, instrumental.Stem, instrumental.Origin.GestureName));
+    }
+
+    [Fact]
+    public void Echo_carries_both_edges()
+    {
+        var press = Assert.IsType<HoldEcho>(Run(new ControllerEvent.EchoHold(1, true)));
+        Assert.Equal((1, true, "pad.padfx1.echo"), (press.Deck, press.Pressed, press.Origin.GestureName));
+        Assert.Equal("deck.pad.1", press.Origin.ControlId);
+        Assert.False(Assert.IsType<HoldEcho>(Run(new ControllerEvent.EchoHold(1, false))).Pressed);
     }
 
     [Fact]

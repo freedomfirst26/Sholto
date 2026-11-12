@@ -38,7 +38,7 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
 
         var pads = new PadCommandHandlers(core.Decks, cueRouting, core.HotCues);
         registry.Register<ToggleStem>(pads);
-        registry.Register<ToggleEcho>(pads);
+        registry.Register<HoldEcho>(pads);
         registry.Register<HoldRoll>(pads);
         registry.Register<SelectPadPage>(pads);
         registry.Register<PressHotCue>(pads);

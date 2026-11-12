@@ -88,14 +88,16 @@ public abstract record ControllerEvent
     /// the page and the controller lights the mode buttons from the App's event.</summary>
     public record PadPageSelected(int Deck, PadPage Page) : ControllerEvent;
 
-    /// <summary>PAD FX1 page, pad 1 — toggles the deck's beat-synced echo.
-    /// Pads 3-8 on this page are unmapped for now. Passes straight through
-    /// the Controller to the Orchestrator (same as StemToggle).</summary>
-    public record EchoToggle(int Deck) : ControllerEvent;
+    /// <summary>PAD FX1 page, pad 1 — the deck's beat-synced echo, held like
+    /// roll: on while the pad is down; on release the echo stops being fed and
+    /// its tail rings out (both edges matter). Pads 3-8 on this page are
+    /// unmapped for now. Passes straight through the Controller to the
+    /// Orchestrator.</summary>
+    public record EchoHold(int Deck, bool Pressed) : ControllerEvent;
 
     /// <summary>PAD FX1 page, pad 2 — beat-repeat / roll, held rather than
     /// toggled: engaged while the pad is down, released the instant it comes
-    /// up (both edges matter, unlike <see cref="EchoToggle"/>). Passes
+    /// up (both edges matter, like <see cref="EchoHold"/>). Passes
     /// straight through the Controller to the Orchestrator.</summary>
     public record RollHold(int Deck, bool Pressed) : ControllerEvent;
 

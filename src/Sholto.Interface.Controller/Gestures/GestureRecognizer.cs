@@ -118,8 +118,8 @@ internal sealed class GestureRecognizer : IGestureRecognizer
                     _ => GestureIds.PadStemSoloInstrumental,
                 }, ss.Deck, evt);
 
-            case ControllerEvent.EchoToggle et:
-                return new Gesture(GestureIds.PadEcho, et.Deck, evt);
+            case ControllerEvent.EchoHold eh:
+                return new Gesture(GestureIds.PadEcho, eh.Deck, evt);
 
             case ControllerEvent.RollHold rh:
                 return new Gesture(GestureIds.PadRoll, rh.Deck, evt);

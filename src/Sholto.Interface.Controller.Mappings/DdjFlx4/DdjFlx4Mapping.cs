@@ -50,11 +50,13 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             return new ControllerEvent.JogTouch(Deck: msg.Channel == _o.Deck0Channel ? 0 : 1, Touching: msg.IsDown);
 
         // Pads that need both edges: the HOT CUE pads (a paused jump plays while the pad is held) and
-        // PAD FX1 pad 2 (roll, held rather than toggled like the echo on pad 1). These checks have to sit
-        // above the press-only filter below.
+        // PAD FX1 pads 1 and 2 (echo and roll, both held: on while the pad is down, off on release). These
+        // checks have to sit above the press-only filter below.
         if (msg.Channel == _o.PadDeck0Channel || msg.Channel == _o.PadDeck1Channel)
         {
             int deck = msg.Channel == _o.PadDeck0Channel ? 0 : 1;
+            if (msg.Key == _o.PadFx1NoteBase)
+                return new ControllerEvent.EchoHold(deck, Pressed: msg.IsDown);
             if (msg.Key == _o.PadFx1NoteBase + 1)
                 return new ControllerEvent.RollHold(deck, Pressed: msg.IsDown);
 
@@ -119,8 +121,8 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
         // The press-only pads. Each page has its own note range on the same pad channel, so the pages
         // need no tracking here: BEAT JUMP pads jump by their beats, SAMPLER pads 1-3 mute and 5-7 solo
-        // Drums / Vocals / Instrumental, PAD FX1 pad 1 toggles the echo. (HOT CUE and the roll pad are
-        // matched above, since they need both edges.) The Controller tracks the active page only to know
+        // Drums / Vocals / Instrumental. (HOT CUE and the PAD FX1 echo and roll pads are matched above,
+        // since they need both edges.) The Controller tracks the active page only to know
         // which pad LEDs to repaint on a page switch (see Controller.SetPadPage).
         if (msg.Channel == _o.PadDeck0Channel || msg.Channel == _o.PadDeck1Channel)
         {
@@ -137,8 +139,6 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             if (samplerPad == _o.StemSoloDrumsPad) return new ControllerEvent.StemSolo(deck, Group: 0);
             if (samplerPad == _o.StemSoloVocalsPad) return new ControllerEvent.StemSolo(deck, Group: 1);
             if (samplerPad == _o.StemSoloInstrumentalPad) return new ControllerEvent.StemSolo(deck, Group: 2);
-
-            if (msg.Key == _o.PadFx1NoteBase) return new ControllerEvent.EchoToggle(deck);
         }
 
         // The four pad-mode buttons — switch the controller's own pad mode (on each deck's channel). Press

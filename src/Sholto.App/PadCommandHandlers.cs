@@ -8,7 +8,7 @@ namespace Sholto.App;
 /// event). Depends on <see cref="IDecks"/>, <see cref="ICueRouting"/> and <see cref="IDeckHotCues"/>.</summary>
 public sealed class PadCommandHandlers(IDecks decks, ICueRouting cueRouting, IDeckHotCues hotCues) :
     ICommandHandler<ToggleStem>,
-    ICommandHandler<ToggleEcho>,
+    ICommandHandler<HoldEcho>,
     ICommandHandler<HoldRoll>,
     ICommandHandler<SelectPadPage>,
     ICommandHandler<PressHotCue>,
@@ -68,11 +68,9 @@ public sealed class PadCommandHandlers(IDecks decks, ICueRouting cueRouting, IDe
         session.Stems.SetStemGroup(stem, active);
     }
 
-    public void Handle(in ToggleEcho command)
-    {
-        var session = _decks.DeckFor(command.Deck);
-        session.EchoActive = !session.EchoActive;
-    }
+    /// <summary>Echo is a hold, like roll: press turns it on, release turns it off. Turning it off stops feeding
+    /// the echo and leaves its tail to ring out (the deck's SetEcho(false)).</summary>
+    public void Handle(in HoldEcho command) => _decks.DeckFor(command.Deck).EchoActive = command.Pressed;
 
     /// <summary>Roll is a hold, not a toggle: press engages, release disengages, through the generic
     /// SetParam seam.</summary>

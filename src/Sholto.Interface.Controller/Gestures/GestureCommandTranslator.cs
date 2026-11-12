@@ -118,7 +118,7 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
                 _sender.Send(new ToggleStem(deck, group, By(group switch { 0 => "deck.pad.1", 1 => "deck.pad.2", _ => "deck.pad.3" }, g.Id, deck)));
                 break;
             case GestureIds.PadEcho:
-                _sender.Send(new ToggleEcho(deck, By("deck.pad.1", g.Id, deck)));
+                _sender.Send(new HoldEcho(deck, ((ControllerEvent.EchoHold)g.Source).Pressed, By("deck.pad.1", g.Id, deck)));
                 break;
             case GestureIds.PadRoll:
                 _sender.Send(new HoldRoll(deck, ((ControllerEvent.RollHold)g.Source).Pressed, By("deck.pad.2", g.Id, deck)));

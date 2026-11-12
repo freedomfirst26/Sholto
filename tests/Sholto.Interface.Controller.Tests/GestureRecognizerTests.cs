@@ -328,7 +328,7 @@ public class GestureRecognizerTests
         Feed(new ControllerEvent.StemToggle(0, 0));
         Feed(new ControllerEvent.StemToggle(0, 1));
         Feed(new ControllerEvent.StemToggle(0, 2));
-        Feed(new ControllerEvent.EchoToggle(0));
+        Feed(new ControllerEvent.EchoHold(0, true));
         Feed(new ControllerEvent.RollHold(0, true));
         Feed(new ControllerEvent.PadPageSelected(0, PadPage.HotCue));
         Feed(new ControllerEvent.PadPageSelected(0, PadPage.PadFx1));
