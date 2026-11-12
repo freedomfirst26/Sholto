@@ -9,7 +9,9 @@ namespace Sholto.App.Audio.Golden;
 /// <c>BenchDeck.CreateEngine</c>'s doc) — and diffs the result against a
 /// checked-in reference WAV under Fixtures/.
 ///
-/// EXACTNESS: comparison is bit-exact float32 equality, not a tolerance. See
+/// EXACTNESS: comparison is bit-exact float32 equality, not a tolerance —
+/// except the filter sweep, which goes through libm (MathF.Tanh/Tan/Exp/Log)
+/// and so is compared within <see cref="GoldenReference.LibmFilterTolerance"/>. See
 /// <see cref="DeterminismTests"/> for why exactness is achievable here (every
 /// covered path has been proven byte-identical run to run, same process AND
 /// across process boundaries) — if it weren't, this whole test design would
@@ -79,7 +81,8 @@ public sealed class GoldenAudioTests
         try
         {
             _scenarios.RenderFilterSweep(outPath);
-            GoldenReference.AssertMatches(GoldenReference.FixturesDir(), "filter.wav", outPath);
+            GoldenReference.AssertMatchesWithin(GoldenReference.FixturesDir(), "filter.wav", outPath,
+                GoldenReference.LibmFilterTolerance);
         }
         finally { File.Delete(outPath); }
     }
