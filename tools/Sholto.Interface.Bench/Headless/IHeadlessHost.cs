@@ -2,7 +2,9 @@ using Sholto.Interface.Bench.Scenario;
 
 namespace Sholto.Interface.Bench.Headless;
 
-/// <summary>Builds the headless graph and runs scenarios against it.</summary>
+/// <summary>Builds the headless graph and runs scenarios against it. Every returned
+/// <see cref="HeadlessSession"/> is owned by the caller, who disposes it once done reading it
+/// (disposing unloads its decks and closes their source files).</summary>
 public interface IHeadlessHost
 {
     /// <summary>Builds the graph and runs <paramref name="scenario"/> against it.</summary>

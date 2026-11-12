@@ -215,7 +215,7 @@ internal sealed class BenchCli(
         string scenarioPath = Require(opt, "scenario");
         var scenario = scenarioFactory.CreateFromFile(scenarioPath);
 
-        var session = opt.TryGetValue("out", out var outWav)
+        using var session = opt.TryGetValue("out", out var outWav)
             ? headlessHost.RunScenario(scenario, outWav)
             : headlessHost.RunScenario(scenario);
 

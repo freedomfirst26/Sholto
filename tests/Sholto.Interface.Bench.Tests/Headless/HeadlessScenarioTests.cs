@@ -17,14 +17,7 @@ public sealed class HeadlessScenarioTests : IDisposable
 
     public HeadlessScenarioTests() => new ToneFixture(440, 2).WriteWav(_wav);
 
-    // Best-effort: the deck's ChunkedDataProvider FileStream (TrackLoading) keeps the loaded WAV open until the
-    // deck is unloaded, and the headless host never unloads it. Linux deletes an open file anyway; Windows throws
-    // IOException, so a leftover temp file there is swallowed rather than failing the test.
-    public void Dispose()
-    {
-        try { File.Delete(_wav); }
-        catch (IOException) { }
-    }
+    public void Dispose() => File.Delete(_wav);
 
     private IHeadlessHostFactory NewFactory()
     {
@@ -49,7 +42,7 @@ public sealed class HeadlessScenarioTests : IDisposable
             "{ \"action\": \"gesture\", \"event\": \"PlayPressed\", \"deck\": 1 }, " +
             "{ \"action\": \"gesture\", \"event\": \"CueToggle\", \"deck\": 1 } ] }");
 
-        var session = NewFactory().Create().RunScenario(scenario);
+        using var session = NewFactory().Create().RunScenario(scenario);
 
         var outcomes = session.Driver.GestureOutcomes;
         Assert.Equal(2, outcomes.Count);

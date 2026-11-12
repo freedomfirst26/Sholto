@@ -65,23 +65,33 @@ public sealed class OfflineRenderer(IBenchDeck benchDeck, ICrossfadeCurve crossf
     /// <see cref="Sholto.Interface.Bench.Scenario.ScenarioRunner"/> drive load/gain/play/
     /// crossfader/wait against them — "wait" is the only step that actually
     /// produces output (via <see cref="RenderFrames"/>); everything else takes
-    /// effect instantly, same as flipping a control between two renders.</summary>
+    /// effect instantly, same as flipping a control between two renders. Both decks
+    /// are unloaded before it returns or throws, so no source file is left open.</summary>
     public void RenderScenario(Scenario.Scenario scenario, AudioFormat deviceFormat, string outWavPath)
     {
         var engine = benchDeck.CreateEngine();
         var deck1 = benchDeck.Create(engine);
         var deck2 = benchDeck.Create(engine);
-        var router = routerFactory.Create(engine, deviceFormat, [deck1, deck2]);
-        using var writer = new WavWriter(outWavPath, deviceFormat.SampleRate, deviceFormat.Channels);
+        try
+        {
+            var router = routerFactory.Create(engine, deviceFormat, [deck1, deck2]);
+            using var writer = new WavWriter(outWavPath, deviceFormat.SampleRate, deviceFormat.Channels);
 
-        var runner = new Scenario.ScenarioRunner(
-            new Dictionary<int, Deck> { [1] = deck1, [2] = deck2 },
-            advance: span =>
-            {
-                long frames = (long)(span.TotalSeconds * deviceFormat.SampleRate);
-                RenderFrames(router, writer, frames, deviceFormat.Channels);
-            },
-            crossfade);
-        runner.Run(scenario);
+            var runner = new Scenario.ScenarioRunner(
+                new Dictionary<int, Deck> { [1] = deck1, [2] = deck2 },
+                advance: span =>
+                {
+                    long frames = (long)(span.TotalSeconds * deviceFormat.SampleRate);
+                    RenderFrames(router, writer, frames, deviceFormat.Channels);
+                },
+                crossfade);
+            runner.Run(scenario);
+        }
+        finally
+        {
+            // The decks are this call's own: unload them so each loaded track's streaming source file is closed.
+            try { deck1.Unload(); }
+            finally { deck2.Unload(); }
+        }
     }
 }

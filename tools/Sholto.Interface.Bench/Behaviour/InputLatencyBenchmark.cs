@@ -22,7 +22,8 @@ public sealed class InputLatencyBenchmark(IHeadlessHost host) : IInputLatencyBen
 
     public InputLatencyResult Run()
     {
-        var host = _host.Open().Gestures;
+        using var session = _host.Open();
+        var host = session.Gestures;
         var turn = new ControllerEvent.JogRotated(0, 1, JogSource.SideRing);
 
         void JogBurst(int count)
