@@ -86,13 +86,16 @@ public sealed class MidiManagerTests : IDisposable
     [Fact]
     public void Dispose_disposes_the_port_without_raising_ConnectionLost()
     {
+        // Its own manager: this test is the one Dispose call it gets.
+        var port = new FakeRawMidiPort();
+        var manager = new MidiManager(new MappingRegistry([_mapping]), new FakeMidiPortOpener(port));
         var lost = 0;
-        _manager.ConnectionLost += () => lost++;
-        _manager.Connect();
+        manager.ConnectionLost += () => lost++;
+        manager.Connect();
 
-        _manager.Dispose();
+        manager.Dispose();
 
-        Assert.True(_port.IsDisposed);
+        Assert.True(port.IsDisposed);
         Assert.Equal(0, lost);
     }
 
