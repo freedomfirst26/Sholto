@@ -30,7 +30,7 @@ public class LibraryAnalysisHandlerTests
     private LibraryAnalysisHandler Handler(IBatchAnalyzer? analyzer) => Handler(new FakeBatchAnalyzerFactory(analyzer));
 
     private LibraryAnalysisHandler Handler(FakeBatchAnalyzerFactory factory) =>
-        new(_catalog, factory, new ImmediateAppThread(), _events);
+        new(_catalog, factory, new ImmediateAppThread(), _events, new RecordingLogFactory().Create("LibraryAnalysis"));
 
     [Fact]
     public void The_analyser_receives_every_catalog_path_in_scan_order()

@@ -34,7 +34,7 @@ public class StemFolderMoverTests : IDisposable
     }
 
     private StemFolderMover MoverOver(IDirectoryRename rename, long freeSpaceMargin = 0) =>
-        new(rename, Options.Create(new AnalysisFolderOptions { FreeSpaceMargin = freeSpaceMargin }));
+        new(rename, Options.Create(new AnalysisFolderOptions { FreeSpaceMargin = freeSpaceMargin }), new RecordingLogFactory().Create("StemMove"));
 
     private Task<StemMoveOutcome> MoveAsync(StemFolderMover mover, string from, string to, Func<Task>? commit = null) =>
         mover.MoveAsync(from, to, (done, total) => _progress.Add((done, total)), commit ?? (() => Task.CompletedTask));

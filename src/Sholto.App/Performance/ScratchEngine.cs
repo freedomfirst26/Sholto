@@ -19,12 +19,13 @@ public sealed class ScratchEngine : IScratchEngine
     private readonly IFrameClock _clock;
     private readonly ScratchOptions _options;
     private readonly IBackspinFeel _backspinFeel;
+    private readonly ILog _log;
     private readonly ScratchState _state1 = new();
     private readonly ScratchState _state2 = new();
 
     public ScratchEngine(IDecks decks, IPlaybackRequests requests, IJogRecencyWriter recency,
                          IFrameClock clock, IOptions<ScratchOptions> options,
-                         IBackspinFeel backspinFeel)
+                         IBackspinFeel backspinFeel, ILog log)
     {
         _decks = decks;
         _requests = requests;
@@ -32,6 +33,7 @@ public sealed class ScratchEngine : IScratchEngine
         _clock = clock;
         _options = options.Value;
         _backspinFeel = backspinFeel;
+        _log = log;
         _requests.BrakePauseRequested += OnBrakePauseRequested;
     }
 
@@ -129,10 +131,10 @@ public sealed class ScratchEngine : IScratchEngine
             st.PeakVelocity = 0;
             session.IsScratching = true;
             if (_options.Log)
-                Console.WriteLine($"[scratch] TOUCH deck={deck} playing={st.WasPlaying} pos={session.Playhead.PlayPosition:F3}");
+                _log.Info($"TOUCH deck={deck} playing={st.WasPlaying} pos={session.Playhead.PlayPosition:F3}");
         }
         else if (!touching && _options.Log)
-            Console.WriteLine($"[scratch] LIFT  deck={deck} v={st.Velocity:F2}");
+            _log.Info($"LIFT  deck={deck} v={st.Velocity:F2}");
     }
 
     public void Turn(int deck, int delta)
@@ -150,7 +152,7 @@ public sealed class ScratchEngine : IScratchEngine
             st.Velocity = st.WasPlaying ? session.Tempo.PlaybackSpeed : 0;
             session.IsScratching = true;
             if (_options.Log)
-                Console.WriteLine($"[scratch] GRAB deck={deck} playing={st.WasPlaying} pos={session.Playhead.PlayPosition:F3}");
+                _log.Info($"GRAB deck={deck} playing={st.WasPlaying} pos={session.Playhead.PlayPosition:F3}");
         }
         st.TickAccum += delta * _options.ScratchSecsPerTick;
         st.LastTickAt = _clock.Now;
@@ -199,7 +201,7 @@ public sealed class ScratchEngine : IScratchEngine
                 st.PeakVelocity = st.Velocity;
             session.Scratch.ScratchRate(st.Velocity);
             if (_options.Log)
-                Console.WriteLine($"[scratch] MOVE v={st.Velocity,7:F2} pos={session.Playhead.PlayPosition,7:F3}");
+                _log.Info($"MOVE v={st.Velocity,7:F2} pos={session.Playhead.PlayPosition,7:F3}");
         }
         else
         {
@@ -227,7 +229,7 @@ public sealed class ScratchEngine : IScratchEngine
                     st.CoastGap = Math.Sign(st.PeakVelocity) * launch;
                     st.CoastRest = st.WasPlaying && st.PeakVelocity > 0 ? session.Tempo.PlaybackSpeed : 0.0;
                     if (_options.Log)
-                        Console.WriteLine($"[scratch] FLING peak={st.PeakVelocity:F2} T={seconds:F2}s D={beats:F2} beats launch={st.CoastGap:F2}");
+                        _log.Info($"FLING peak={st.PeakVelocity:F2} T={seconds:F2}s D={beats:F2} beats launch={st.CoastGap:F2}");
                 }
                 else
                 {
@@ -254,7 +256,7 @@ public sealed class ScratchEngine : IScratchEngine
                 st.Velocity = st.CoastRest + st.CoastGap * st.CoastSeconds / (p + 1) * (rest0 - rest1) / dt;
                 st.CoastElapsed = t1;
                 if (_options.Log)
-                    Console.WriteLine($"[scratch] COAST v={st.Velocity,7:F2} pos={session.Playhead.PlayPosition,7:F3}");
+                    _log.Info($"COAST v={st.Velocity,7:F2} pos={session.Playhead.PlayPosition,7:F3}");
                 session.Scratch.ScratchRate(st.Velocity);
                 return;
             }
@@ -287,7 +289,7 @@ public sealed class ScratchEngine : IScratchEngine
             else
             {
                 if (_options.Log)
-                    Console.WriteLine($"[scratch] COAST v={st.Velocity,7:F2} pos={session.Playhead.PlayPosition,7:F3}");
+                    _log.Info($"COAST v={st.Velocity,7:F2} pos={session.Playhead.PlayPosition,7:F3}");
                 session.Scratch.ScratchRate(st.Velocity);
             }
         }
@@ -315,6 +317,6 @@ public sealed class ScratchEngine : IScratchEngine
         // timeline wasn't". The deck stays exactly where it coasted to.
         _recency.ClearAfterScratchEnd(deck == 0);
         if (_options.Log)
-            Console.WriteLine($"[scratch] END  pos={session.Playhead.PlayPosition,7:F3}");
+            _log.Info($"END  pos={session.Playhead.PlayPosition,7:F3}");
     }
 }

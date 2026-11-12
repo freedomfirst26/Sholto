@@ -12,15 +12,17 @@ public sealed class MagnetSnap : IMagnetSnap
     private readonly IJogRecencyReader _recency;
     private readonly IFrameClock _clock;
     private readonly MagnetismOptions _options;
+    private readonly ILog _log;
     private bool _lastEligible;
     private bool _quantizeFired;
 
-    public MagnetSnap(IDecks decks, IJogRecencyReader recency, IFrameClock clock, IOptions<MagnetismOptions> options)
+    public MagnetSnap(IDecks decks, IJogRecencyReader recency, IFrameClock clock, IOptions<MagnetismOptions> options, ILog log)
     {
         _decks = decks;
         _recency = recency;
         _clock = clock;
         _options = options.Value;
+        _log = log;
     }
 
     public event Action<bool>? EligibilityChanged;
@@ -156,6 +158,6 @@ public sealed class MagnetSnap : IMagnetSnap
         if (adjDownbeat < 0) return;
         double delta = (adjDownbeat + refPhase) - adjusted.PlaybackSeconds;
         if (Math.Abs(delta) > 0.0001) adjusted.Transport.SeekRelative(delta);
-        Console.WriteLine($"[Magnet] snap: refPhase={refPhase:F4}s adjDownbeat={adjDownbeat:F4}s delta={delta:F4}s | refBpm={reference.EffectiveBpm:F3} adjBpm={adjusted.EffectiveBpm:F3}");
+        _log.Info($"snap: refPhase={refPhase:F4}s adjDownbeat={adjDownbeat:F4}s delta={delta:F4}s | refBpm={reference.EffectiveBpm:F3} adjBpm={adjusted.EffectiveBpm:F3}");
     }
 }

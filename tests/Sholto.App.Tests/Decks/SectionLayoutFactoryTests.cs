@@ -14,7 +14,7 @@ public class SectionLayoutFactoryTests
     private readonly SectionLayoutFactory _factory = new(new PhraseSectionAnalyzer(
         new BarFeatureExtractor(new PhraseSectionOptions()),
         new PhraseSectionLabeler(new PhraseSectionOptions()),
-        new PhraseSectionOptions()));
+        new PhraseSectionOptions()), new RecordingLogFactory().Create("Deck"));
 
     [Fact]
     public void A_128_bpm_track_gets_sections_on_a_1_875_second_bar_grid()

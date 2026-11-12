@@ -15,7 +15,8 @@ public sealed class SettingsRestorer(
     ISettingPreference backspinDistancePreference,
     IBackspinFeel backspinFeel,
     IAppThread appThread,
-    IEventPublisher publisher) : ISettingsRestorer
+    IEventPublisher publisher,
+    ILogFactory logs) : ISettingsRestorer
 {
     private readonly ILibraryDatabase _database = database;
     private readonly ISettingPreference _themePreference = themePreference;
@@ -25,6 +26,10 @@ public sealed class SettingsRestorer(
     private readonly IBackspinFeel _backspinFeel = backspinFeel;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
+    private readonly ILog _themeLog = logs.Create("Theme");
+    private readonly ILog _waveformStyleLog = logs.Create("WaveformStyle");
+    private readonly ILog _backspinTimeLog = logs.Create("BackspinTime");
+    private readonly ILog _backspinDistanceLog = logs.Create("BackspinDistance");
 
     // True once the saved theme was restored on a database that opened: from then on a chosen theme is saved.
     private bool _themePersistence;
@@ -76,7 +81,7 @@ public sealed class SettingsRestorer(
             {
                 await _themePreference.SetAsync(name);
             }
-            catch (Exception ex) { Console.WriteLine($"[Theme] persist failed: {ex.Message}"); }
+            catch (Exception ex) { _themeLog.Error($"persist failed: {ex.Message}"); }
         });
     }
 
@@ -104,7 +109,7 @@ public sealed class SettingsRestorer(
             {
                 await _waveformStylePreference.SetAsync(id);
             }
-            catch (Exception ex) { Console.WriteLine($"[WaveformStyle] persist failed: {ex.Message}"); }
+            catch (Exception ex) { _waveformStyleLog.Error($"persist failed: {ex.Message}"); }
         });
     }
 
@@ -131,7 +136,7 @@ public sealed class SettingsRestorer(
             pending = _pendingBackspinTime;
             _pendingBackspinTime = null;
         }
-        if (pending is { } value) SaveBackspin(_backspinTimePreference, value, "BackspinTime");
+        if (pending is { } value) SaveBackspin(_backspinTimePreference, value, _backspinTimeLog);
     }
 
     private void OnBackspinTimeChosen(double seconds)
@@ -144,7 +149,7 @@ public sealed class SettingsRestorer(
                 return;
             }
         }
-        SaveBackspin(_backspinTimePreference, seconds, "BackspinTime");
+        SaveBackspin(_backspinTimePreference, seconds, _backspinTimeLog);
     }
 
     private async Task RestoreBackspinDistanceAsync()
@@ -167,7 +172,7 @@ public sealed class SettingsRestorer(
             pending = _pendingBackspinDistance;
             _pendingBackspinDistance = null;
         }
-        if (pending is { } value) SaveBackspin(_backspinDistancePreference, value, "BackspinDistance");
+        if (pending is { } value) SaveBackspin(_backspinDistancePreference, value, _backspinDistanceLog);
     }
 
     private void OnBackspinDistanceChosen(double beats)
@@ -180,10 +185,10 @@ public sealed class SettingsRestorer(
                 return;
             }
         }
-        SaveBackspin(_backspinDistancePreference, beats, "BackspinDistance");
+        SaveBackspin(_backspinDistancePreference, beats, _backspinDistanceLog);
     }
 
-    private void SaveBackspin(ISettingPreference preference, double value, string tag)
+    private void SaveBackspin(ISettingPreference preference, double value, ILog log)
     {
         var text = value.ToString("R", CultureInfo.InvariantCulture);
         _ = Task.Run(async () =>
@@ -192,7 +197,7 @@ public sealed class SettingsRestorer(
             {
                 await preference.SetAsync(text);
             }
-            catch (Exception ex) { Console.WriteLine($"[{tag}] persist failed: {ex.Message}"); }
+            catch (Exception ex) { log.Error($"persist failed: {ex.Message}"); }
         });
     }
 }

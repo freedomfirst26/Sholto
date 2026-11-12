@@ -8,7 +8,7 @@ namespace Sholto.App.Decks;
 /// <summary>See <see cref="IDeckHotCues"/>.</summary>
 public sealed class DeckHotCues(
     IDecks decks, ILibrarySession library, IAppThread appThread, IEventPublisher publisher,
-    IDeckMarkers markers, IOptions<HotCueOptions> options) : IDeckHotCues
+    IDeckMarkers markers, IOptions<HotCueOptions> options, ILog log) : IDeckHotCues
 {
     private const int PadCount = 8;
 
@@ -18,6 +18,7 @@ public sealed class DeckHotCues(
     private readonly IEventPublisher _publisher = publisher;
     private readonly IDeckMarkers _markers = markers;
     private readonly HotCueOptions _options = options.Value;
+    private readonly ILog _log = log;
     private readonly HotCue?[][] _cues = [new HotCue?[PadCount], new HotCue?[PadCount]];
     private readonly bool[] _cuesLoaded = new bool[2];
     private readonly int[] _previewPad = [-1, -1];
@@ -152,7 +153,7 @@ public sealed class DeckHotCues(
         catch (Exception ex)
         {
             // The pads stay locked: a press must not overwrite cues that could not be read.
-            Console.WriteLine($"[HotCue] load failed: {ex.Message}");
+            _log.Error($"load failed: {ex.Message}");
         }
     }
 
@@ -168,7 +169,7 @@ public sealed class DeckHotCues(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[HotCue] {op} failed: {ex.Message}");
+            _log.Error($"{op} failed: {ex.Message}");
             return;
         }
         try
@@ -177,7 +178,7 @@ public sealed class DeckHotCues(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[HotCue] refresh failed: {ex.Message}");
+            _log.Error($"refresh failed: {ex.Message}");
         }
     }
 

@@ -34,7 +34,7 @@ public class TrackListTests
         await _rig.Crates.AddTrackAsync(_warmup, bravo);
         await _rig.Crates.AddTrackAsync(_warmup, alpha);
         _rig.Bus.Subscribe(_announced);
-        _list = new TrackList(_rig.Library, new ImmediateAppThread(), _rig.Bus);
+        _list = new TrackList(_rig.Library, new ImmediateAppThread(), _rig.Bus, new RecordingLogFactory().Create("TrackList"));
         return _list;
     }
 

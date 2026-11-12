@@ -76,19 +76,21 @@ public sealed class AppLifecycleFactory(
     {
         var audio = new AudioOutput(
             _audioEngineFactory, _engineDependents, _pipeWireRouter, controllerSoundCard, _deckFormat,
-            core.Decks, _masterCue);
+            core.Decks, _masterCue, _logs.Create(""), _logs.Create("Audio"));
         var trackListPersistence = new TrackListPersistence(
-            _database, core.Library, _trackListPreference, _legacyShortlistPreference, core.TrackList, _trackListCodec, _appThread);
+            _database, core.Library, _trackListPreference, _legacyShortlistPreference, core.TrackList, _trackListCodec, _appThread,
+            _logs.Create("TrackList"), _logs.Create("Shortlist"));
         return new AppLifecycle(
             _database, core.Library, core.Markers, core.HotCues,
             new SettingsRestorer(
                 _database, _themePreference, _waveformStylePreference, _backspinTimePreference, _backspinDistancePreference,
-                core.BackspinFeel, _appThread, _publisher),
+                core.BackspinFeel, _appThread, _publisher, _logs),
             trackListPersistence,
             new LibraryFolders(
                 _musicDirPreference, _analysisDirPreference, _analysisFolder, _stemGate, _stemMover, _folderCheck,
-                core.Library, _database, _appThread, _publisher, _musicOverride, _analysisOverride, _legacyAnalysisRoot),
-            new OutputDeviceChooser(_outputEnumerator, audio, controllerSoundCard, _outputDevicePreference, _appThread, _publisher),
+                core.Library, _database, _appThread, _publisher, _musicOverride, _analysisOverride, _legacyAnalysisRoot,
+                _logs.Create("Library"), _logs.Create("Folders")),
+            new OutputDeviceChooser(_outputEnumerator, audio, controllerSoundCard, _outputDevicePreference, _appThread, _publisher, _logs.Create("")),
             audio, _systemCheck, _appThread, _publisher);
     }
 }

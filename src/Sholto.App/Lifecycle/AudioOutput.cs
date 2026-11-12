@@ -13,7 +13,9 @@ public sealed class AudioOutput(
     IControllerSoundCard controllerSoundCard,
     AudioFormat deckFormat,
     IDecks decks,
-    IMasterCueEngineSink masterCue) : IAudioOutput
+    IMasterCueEngineSink masterCue,
+    ILog log,
+    ILog audioLog) : IAudioOutput
 {
     private readonly IAudioEngineFactory _engineFactory = engineFactory;
     private readonly IReadOnlyList<INeedsAudioEngine> _engineDependents = engineDependents;
@@ -22,6 +24,8 @@ public sealed class AudioOutput(
     private readonly AudioFormat _deckFormat = deckFormat;
     private readonly IDecks _decks = decks;
     private readonly IMasterCueEngineSink _masterCue = masterCue;
+    private readonly ILog _log = log;
+    private readonly ILog _audioLog = audioLog;
     private AudioEngine? _engine;
 
     public Task<MasterRoute> StartAsync(string? deviceName) => Task.Run(() =>
@@ -31,13 +35,13 @@ public sealed class AudioOutput(
             var engine = CreateEngine();
             var route = engine.Start(deviceName);
             Attach(engine);
-            Console.WriteLine("Audio engine started");
+            _log.Info("Audio engine started");
             LogRoute(route);
             return route;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Audio engine failed to start: {ex.Message}");
+            _log.Error($"Audio engine failed to start: {ex.Message}");
             return FailedToStart(ex);
         }
     });
@@ -57,13 +61,13 @@ public sealed class AudioOutput(
             {
                 route = _engine.SwitchDevice(deviceName);
             }
-            Console.WriteLine($"Audio engine switched to: {deviceName}");
+            _log.Info($"Audio engine switched to: {deviceName}");
             LogRoute(route);
             return route;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Audio engine failed to start: {ex.Message}");
+            _log.Error($"Audio engine failed to start: {ex.Message}");
             return FailedToStart(ex);
         }
     });
@@ -71,9 +75,9 @@ public sealed class AudioOutput(
     public void Stop() => _engine?.Stop();
 
     private void LogRoute(MasterRoute route) =>
-        Console.WriteLine(route.DeviceName is null
-            ? $"[Audio] master silent: {route.Reason}"
-            : $"[Audio] master on '{route.DeviceName}': {route.Reason}");
+        _audioLog.Info(route.DeviceName is null
+            ? $"master silent: {route.Reason}"
+            : $"master on '{route.DeviceName}': {route.Reason}");
 
     private MasterRoute FailedToStart(Exception ex) =>
         new(null, $"the audio engine failed to start: {ex.Message}");

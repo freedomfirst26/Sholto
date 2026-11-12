@@ -11,7 +11,7 @@ public class DeckTuneEditorTests
 
     public DeckTuneEditorTests()
     {
-        _editor = new DeckTuneEditor(_beatgrid);
+        _editor = new DeckTuneEditor(_beatgrid, new RecordingLogFactory().Create("Deck"));
         _editor.Changed += _changes.Add;
     }
 

@@ -35,12 +35,15 @@ internal sealed class TrackLoaderRig
         Loader = new TrackLoader(
             Library.Library, new DeckPair(Library.Deck1, Library.Deck2), decoder, KeyStore,
             new FakeKeyAnalyzer(foundKey), Library.Reporter, appThread, Library.Bus, Pick,
-            Guard, Undo, stems?.Invoke(Library.Reporter) ?? new UnavailableStemSeparator());
+            Guard, Undo, stems?.Invoke(Library.Reporter) ?? new UnavailableStemSeparator(),
+            Logs.Create("TrackLoader"), Logs.Create("Track"));
         // On the pool, so the scan does not capture the test framework's synchronization context and wait on this blocked thread.
         Task.Run(() => Library.Library.ScanAsync("/music", null)).GetAwaiter().GetResult();
     }
 
     public LibrarySessionRig Library { get; }
+    /// <summary>Every line the loader wrote.</summary>
+    public RecordingLogFactory Logs { get; } = new();
     public FakeAudioFileDecoder Decoder { get; }
     public RecordingKeyAnalysisStore KeyStore { get; }
     public TrackLoader Loader { get; }

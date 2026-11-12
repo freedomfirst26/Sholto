@@ -1,9 +1,10 @@
 using Sholto.App.Audio;
+using Sholto.Data;
 
 namespace Sholto.App.Decks;
 
 /// <summary>One deck's tempo: BPM multiplier, tempo fader and range, magnet-adjusted flag.</summary>
-public sealed class DeckTempoControl(ITrackLoading loading, IDeckTempo tempo) : IDeckTempoControl
+public sealed class DeckTempoControl(ITrackLoading loading, IDeckTempo tempo, ILog log) : IDeckTempoControl
 {
     // Rekordbox-style tempo-range stops: +-6 -> +-10 -> +-16 -> WIDE (+-100). The fader keeps its physical
     // position; only the span it maps to changes, so the current playback speed is preserved across a
@@ -12,6 +13,7 @@ public sealed class DeckTempoControl(ITrackLoading loading, IDeckTempo tempo) : 
 
     private readonly ITrackLoading _loading = loading;
     private readonly IDeckTempo _tempo = tempo;
+    private readonly ILog _log = log;
 
     private double _bpmMultiplier = 1.0;
     private bool _wasMagnetAdjusted;
@@ -156,6 +158,6 @@ public sealed class DeckTempoControl(ITrackLoading loading, IDeckTempo tempo) : 
             if (Math.Abs(_tempoRangeStops[i] - current) < 1e-6) { idx = i; break; }
         double next = _tempoRangeStops[(idx + 1) % _tempoRangeStops.Length];
         SetTempoRange(next);
-        Console.WriteLine($"[Deck] tempo range -> {(next >= 0.99 ? "WIDE" : $"+-{next * 100:F0}%")}");
+        _log.Info($"tempo range -> {(next >= 0.99 ? "WIDE" : $"+-{next * 100:F0}%")}");
     }
 }

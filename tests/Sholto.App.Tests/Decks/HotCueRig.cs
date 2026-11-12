@@ -34,20 +34,22 @@ internal sealed class HotCueRig
         var catalog = new LibraryCatalog(Bus);
         var seeds = new LibrarySeeds(catalog);
         var wiring = new LibraryDeckWiring(
-            catalog, decks, new Session(), new AnalysisReporter(new[] { AnalysisSteps.Beats }), new ImmediateAppThread());
+            catalog, decks, new Session(), new AnalysisReporter(new[] { AnalysisSteps.Beats }), new ImmediateAppThread(), Logs.Create("DB"));
         Library = new LibrarySession(
             new FakeTrackScanner([Alpha, Bravo]), new NullKeyAnalysisStore(),
             new DemucsStemPresence(_ => Path.Combine(Path.GetTempPath(), "sholto-tests-no-stems")),
-            decks, catalog, wiring, seeds, new ImmediateAppThread(), Bus);
+            decks, catalog, wiring, seeds, new ImmediateAppThread(), Bus, Logs.Create("Library"), Logs.Create("Tags"));
         Library.ScanAsync("/music", new LibraryStack(
             new FakeTrackCatalog(), new FakeTagService(new Dictionary<Guid, IReadOnlyList<string>>()),
             new FakeBasicAnalysisStore(new Dictionary<string, double>()), new FakeTempoMultiplierStore())).GetAwaiter().GetResult();
-        HotCues = new DeckHotCues(decks, Library, new ImmediateAppThread(), Bus, Markers, Options.Create(options ?? new HotCueOptions()));
+        HotCues = new DeckHotCues(decks, Library, new ImmediateAppThread(), Bus, Markers, Options.Create(options ?? new HotCueOptions()), Logs.Create("HotCue"));
     }
 
     public IDeckSession Deck1 { get; }
     public IDeckSession Deck2 { get; }
     public DataBus Bus { get; } = new(new ThrowingFailureSink());
+    /// <summary>Every line the hot cues and the library under them wrote.</summary>
+    public RecordingLogFactory Logs { get; } = new();
     public LibrarySession Library { get; }
     public FakeHotCueStore Store { get; } = new();
     public RecordingDeckMarkers Markers { get; } = new();

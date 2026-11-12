@@ -67,7 +67,8 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
 
         // The library commands and queries (selection, tags, crates) and the on-screen deck tuning.
         var membership = new CrateMembershipCache(core.Library);
-        var library = new LibraryCommandHandlers(core.Library, _appThread, _publisher, membership);
+        var library = new LibraryCommandHandlers(core.Library, _appThread, _publisher, membership,
+            _logs.Create("Tags"), _logs.Create("Crate"));
         registry.Register<SelectTrack>(library);
         registry.Register<AddTagToTrack>(library);
         registry.Register<RemoveTagFromTrack>(library);

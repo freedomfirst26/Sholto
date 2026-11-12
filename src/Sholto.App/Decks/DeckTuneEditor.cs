@@ -1,11 +1,13 @@
 using Sholto.App.Audio;
+using Sholto.Data;
 
 namespace Sholto.App.Decks;
 
 /// <summary>One deck's tune editor and two-point grid-edit mode.</summary>
-public sealed class DeckTuneEditor(IDeckBeatgrid beatgrid) : IDeckTuneEditor
+public sealed class DeckTuneEditor(IDeckBeatgrid beatgrid, ILog log) : IDeckTuneEditor
 {
     private readonly IDeckBeatgrid _beatgrid = beatgrid;
+    private readonly ILog _log = log;
 
     private bool _gridEditActive;
     private double? _gridAnchorA;
@@ -30,9 +32,9 @@ public sealed class DeckTuneEditor(IDeckBeatgrid beatgrid) : IDeckTuneEditor
     {
         _gridAnchorA = null;
         GridEditActive = !GridEditActive;
-        Console.WriteLine(GridEditActive
-            ? "[Deck] grid edit ON - click an early kick, then a later kick"
-            : "[Deck] grid edit OFF");
+        _log.Info(GridEditActive
+            ? "grid edit ON - click an early kick, then a later kick"
+            : "grid edit OFF");
     }
 
     public void OnGridClick(double seconds)
@@ -41,7 +43,7 @@ public sealed class DeckTuneEditor(IDeckBeatgrid beatgrid) : IDeckTuneEditor
         if (_gridAnchorA is null)
         {
             _gridAnchorA = seconds;
-            Console.WriteLine($"[Deck] grid anchor A = {seconds:F3}s - now click a later kick");
+            _log.Info($"grid anchor A = {seconds:F3}s - now click a later kick");
         }
         else
         {

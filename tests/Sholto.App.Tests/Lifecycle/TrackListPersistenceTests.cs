@@ -217,19 +217,12 @@ public class TrackListPersistenceTests
     {
         var rig = new AppLifecycleRig(musicDirOverride: NewMusicDir());
         await rig.Settings.SetAsync(SettingsKeys.TrackList, "{ not json");
-        var originalOut = Console.Out;
-        var captured = new StringWriter();
-        Console.SetOut(captured);
-        try
-        {
-            rig.Lifecycle.Start();
-            await Eventually(() => rig.Library.Library.Catalog.Count == 3);
-            await Task.Delay(300);
-        }
-        finally { Console.SetOut(originalOut); }
+        rig.Lifecycle.Start();
+        await Eventually(() => rig.Library.Library.Catalog.Count == 3);
+        await Task.Delay(300);
 
         Assert.Empty(rig.TrackList.Entries);
-        var lines = captured.ToString().Split('\n').Where(l => l.Contains("[TrackList] saved list unreadable")).ToList();
-        Assert.Single(lines);
+        Assert.Single(rig.Logs.Lines,
+            l => l.Tag == "TrackList" && l.Level == LogLevel.Warn && l.Message.StartsWith("saved list unreadable"));
     }
 }

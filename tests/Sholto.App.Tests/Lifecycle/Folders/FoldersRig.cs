@@ -32,9 +32,9 @@ internal sealed class FoldersRig : IDisposable
         var options = Options.Create(new AnalysisFolderOptions());
         Folders = new LibraryFolders(
             Music, Analysis, Folder, Gate,
-            mover ?? new StemFolderMover(new DirectoryRename(), options),
+            mover ?? new StemFolderMover(new DirectoryRename(), options, new RecordingLogFactory().Create("StemMove")),
             new FolderCheck(options), Library.Library, new FakeLibraryDatabase(null), appThread, Library.Bus,
-            musicOverride, analysisOverride, Legacy);
+            musicOverride, analysisOverride, Legacy, new RecordingLogFactory().Create("Library"), new RecordingLogFactory().Create("Folders"));
         Library.Bus.Subscribe(Needed);
         Library.Bus.Subscribe(Changed);
         Library.Bus.Subscribe(Progress);

@@ -8,7 +8,8 @@ namespace Sholto.App.Library;
 /// <summary>Executes the library commands an interface sends: highlight a row, tag a track, remove a tag, add a track to a crate. Thin: each calls the library
 /// session or its database services. The database calls are async; their outcomes are published on the
 /// app thread as facts (<see cref="TagAddAttempted"/>, <see cref="TrackAddedToCrate"/>).</summary>
-public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread appThread, IEventPublisher publisher, ICrateMembershipCache membership) :
+public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread appThread, IEventPublisher publisher, ICrateMembershipCache membership,
+    ILog tagsLog, ILog crateLog) :
     ICommandHandler<SelectTrack>,
     ICommandHandler<AddTagToTrack>,
     ICommandHandler<RemoveTagFromTrack>,
@@ -18,6 +19,8 @@ public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread a
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
     private readonly ICrateMembershipCache _membership = membership;
+    private readonly ILog _tagsLog = tagsLog;
+    private readonly ILog _crateLog = crateLog;
 
     public void Handle(in SelectTrack command)
     {
@@ -51,7 +54,7 @@ public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread a
             };
             Announce(new TagAddAttempted(trackId, Map(result.Outcome), result.StoredName, limit));
         }
-        catch (Exception ex) { Console.WriteLine($"[Tags] add failed: {ex.Message}"); }
+        catch (Exception ex) { _tagsLog.Error($"add failed: {ex.Message}"); }
     }
 
     private async Task RemoveTagAsync(Guid trackId, string name)
@@ -59,7 +62,7 @@ public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread a
         var tags = _library.Tags;
         if (tags is null) return;
         try { await tags.RemoveTagAsync(trackId, name, default); }
-        catch (Exception ex) { Console.WriteLine($"[Tags] remove failed: {ex.Message}"); }
+        catch (Exception ex) { _tagsLog.Error($"remove failed: {ex.Message}"); }
     }
 
     private async Task AddToCrateAsync(Guid trackId, int crateId, string crateName, bool create)
@@ -70,14 +73,14 @@ public sealed class LibraryCommandHandlers(ILibrarySession library, IAppThread a
         {
             var id = create ? await crates.CreateAsync(crateName) : crateId;
             await crates.AddTrackAsync(id, trackId);
-            Console.WriteLine($"[Crate] added track {trackId} to \"{crateName}\"");
+            _crateLog.Info($"added track {trackId} to \"{crateName}\"");
             _appThread.Post(() =>
             {
                 _membership.Invalidate();
                 _publisher.Publish(new TrackAddedToCrate(crateName, trackId));
             });
         }
-        catch (Exception ex) { Console.WriteLine($"[Crate] add failed: {ex.Message}"); }
+        catch (Exception ex) { _crateLog.Error($"add failed: {ex.Message}"); }
     }
 
     private void Announce(TagAddAttempted attempt) => _appThread.Post(() => _publisher.Publish(attempt));

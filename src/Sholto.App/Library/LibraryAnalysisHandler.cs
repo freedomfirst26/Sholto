@@ -17,12 +17,14 @@ public sealed class LibraryAnalysisHandler(
     ILibraryCatalog catalog,
     ILibraryBatchAnalyzerFactory analyzers,
     IAppThread appThread,
-    IEventPublisher publisher) : ICommandHandler<AnalyzeLibrary>, ICommandHandler<CancelLibraryAnalysis>, IDisposable
+    IEventPublisher publisher,
+    ILog log) : ICommandHandler<AnalyzeLibrary>, ICommandHandler<CancelLibraryAnalysis>, IDisposable
 {
     private readonly ILibraryCatalog _catalog = catalog;
     private readonly ILibraryBatchAnalyzerFactory _analyzers = analyzers;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
+    private readonly ILog _log = log;
     // Cancelled on Dispose; each run's source is linked to it so disposing the handler stops a run.
     private readonly CancellationTokenSource _lifetime = new();
 
@@ -35,7 +37,7 @@ public sealed class LibraryAnalysisHandler(
     {
         if (_run is not null)
         {
-            Console.WriteLine($"[LibraryAnalysis] {command.Origin.GestureName}: already running, ignored");
+            _log.Warn($"{command.Origin.GestureName}: already running, ignored");
             return;
         }
 
@@ -43,7 +45,7 @@ public sealed class LibraryAnalysisHandler(
         var analyzer = _analyzers.Create();
         if (analyzer is null)
         {
-            Console.WriteLine($"[LibraryAnalysis] {command.Origin.GestureName}: no library database yet, nothing analysed");
+            _log.Info($"{command.Origin.GestureName}: no library database yet, nothing analysed");
             _publisher.Publish(new LibraryAnalysisProgressChanged(0, 0, 0, false));
             return;
         }
@@ -52,7 +54,7 @@ public sealed class LibraryAnalysisHandler(
         _done = 0;
         _failed = 0;
         _total = paths.Length;
-        Console.WriteLine($"[LibraryAnalysis] {command.Origin.GestureName}: {paths.Length} songs");
+        _log.Info($"{command.Origin.GestureName}: {paths.Length} songs");
         Publish();
         _ = RunAsync(analyzer, paths, _run);
     }
@@ -60,7 +62,7 @@ public sealed class LibraryAnalysisHandler(
     public void Handle(in CancelLibraryAnalysis command)
     {
         if (_run is null) return;
-        Console.WriteLine($"[LibraryAnalysis] {command.Origin.GestureName}: cancelling");
+        _log.Info($"{command.Origin.GestureName}: cancelling");
         _run.Cancel();
     }
 
@@ -76,7 +78,7 @@ public sealed class LibraryAnalysisHandler(
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            Console.WriteLine($"[LibraryAnalysis] run failed: {ex.Message}");
+            _log.Error($"run failed: {ex.Message}");
         }
         // Posted after every progress report of the run, so the last event carries the final counts.
         _appThread.Post(() => Finish(run));
@@ -92,7 +94,7 @@ public sealed class LibraryAnalysisHandler(
                 break;
             case BatchTrackState.Failed:
                 _failed++;
-                Console.WriteLine($"[LibraryAnalysis] failed {p.Path}: {p.Error}");
+                _log.Error($"failed {p.Path}: {p.Error}");
                 break;
             default:
                 return;
@@ -104,7 +106,7 @@ public sealed class LibraryAnalysisHandler(
     {
         run.Dispose();
         _run = null;
-        Console.WriteLine($"[LibraryAnalysis] done: {_done} of {_total}, {_failed} failed");
+        _log.Info($"done: {_done} of {_total}, {_failed} failed");
         Publish();
     }
 

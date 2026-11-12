@@ -28,7 +28,7 @@ public class ScratchEngineBrakeTests
     public ScratchEngineBrakeTests()
     {
         _engine = new ScratchEngine(_rig.Core.Decks, _requests, _rig.Recency, _rig.Clock,
-            Options.Create(new ScratchOptions()), _rig.Core.BackspinFeel);
+            Options.Create(new ScratchOptions()), _rig.Core.BackspinFeel, new RecordingLogFactory().Create("scratch"));
     }
 
     private int TickToRest(ScratchState st)

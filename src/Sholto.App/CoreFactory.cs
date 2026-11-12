@@ -56,17 +56,20 @@ public sealed class CoreFactory(
         var decks = new DeckPair(deck1, deck2);
         var catalog = new LibraryCatalog(_publisher);
         var seeds = new LibrarySeeds(catalog);
-        var wiring = new LibraryDeckWiring(catalog, decks, new Session(), _reporter, _appThread);
+        var wiring = new LibraryDeckWiring(catalog, decks, new Session(), _reporter, _appThread, _logs.Create("DB"));
         var library = new LibrarySession(
-            _trackScanner, _keyStore, _stemPresence, decks, catalog, wiring, seeds, _appThread, _publisher);
+            _trackScanner, _keyStore, _stemPresence, decks, catalog, wiring, seeds, _appThread, _publisher,
+            _logs.Create("Library"), _logs.Create("Tags"));
         var markers = new DeckMarkers(decks, library, _appThread, _publisher);
-        var hotCues = new DeckHotCues(decks, library, _appThread, _publisher, markers, _hotCueOptions);
+        var hotCues = new DeckHotCues(decks, library, _appThread, _publisher, markers, _hotCueOptions, _logs.Create("HotCue"));
         var searchPick = new SearchPick(library);
         var loader = new TrackLoader(library, decks, _decoder, _keyStore, _keyAnalyzer, _reporter, _appThread, _publisher, searchPick,
-            new LoadGuard(_frameClock, _publisher, _loadOptions), new LoadUndo(_frameClock, _publisher, _loadOptions), _stemSeparator);
+            new LoadGuard(_frameClock, _publisher, _loadOptions), new LoadUndo(_frameClock, _publisher, _loadOptions), _stemSeparator,
+            _logs.Create("TrackLoader"), _logs.Create("Track"));
         var libraryAnalysis = new LibraryAnalysisHandler(catalog,
-            new LibraryBatchAnalyzerFactory(_decoder, _keyStore, _keyAnalyzer, decks, library, _batchOptions, _logs), _appThread, _publisher);
+            new LibraryBatchAnalyzerFactory(_decoder, _keyStore, _keyAnalyzer, decks, library, _batchOptions, _logs), _appThread, _publisher,
+            _logs.Create("LibraryAnalysis"));
         return new CoreStack(decks, new PlaybackRequests(decks, hotCues), new MixerSession(decks, _crossfade, _publisher), library, markers, hotCues, loader,
-            new BackspinFeel(_publisher), searchPick, new TrackList(library, _appThread, _publisher), libraryAnalysis);
+            new BackspinFeel(_publisher), searchPick, new TrackList(library, _appThread, _publisher, _logs.Create("TrackList")), libraryAnalysis);
     }
 }

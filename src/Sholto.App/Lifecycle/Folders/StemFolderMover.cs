@@ -1,16 +1,18 @@
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Stems;
+using Sholto.Data;
 
 namespace Sholto.App.Lifecycle.Folders;
 
 /// <inheritdoc />
-public sealed class StemFolderMover(IDirectoryRename rename, IOptions<AnalysisFolderOptions> options) : IStemFolderMover
+public sealed class StemFolderMover(IDirectoryRename rename, IOptions<AnalysisFolderOptions> options, ILog log) : IStemFolderMover
 {
     private const string StemsDir = "stems";
     private const string PartialSuffix = ".partial";
 
     private readonly IDirectoryRename _rename = rename;
     private readonly AnalysisFolderOptions _options = options.Value;
+    private readonly ILog _log = log;
 
     public Task<StemMoveOutcome> MoveAsync(string oldRoot, string newRoot, Action<int, int> progress, Func<Task> commit) =>
         Task.Run(() => Move(oldRoot, newRoot, progress, commit));
@@ -79,7 +81,7 @@ public sealed class StemFolderMover(IDirectoryRename rename, IOptions<AnalysisFo
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[StemMove] failed, staying on {oldRoot}: {ex.Message}");
+            _log.Error($"failed, staying on {oldRoot}: {ex.Message}");
             Undo(renamed, partial);
             return new StemMoveOutcome(false, $"The stems could not be moved: {ex.Message}");
         }
@@ -87,7 +89,7 @@ public sealed class StemFolderMover(IDirectoryRename rename, IOptions<AnalysisFo
         foreach (var dir in copied)
         {
             try { Directory.Delete(dir, recursive: true); }
-            catch (Exception ex) { Console.WriteLine($"[StemMove] could not delete the old copy {dir}: {ex.Message}"); }
+            catch (Exception ex) { _log.Error($"could not delete the old copy {dir}: {ex.Message}"); }
         }
         return new StemMoveOutcome(true, null);
     }
@@ -125,10 +127,10 @@ public sealed class StemFolderMover(IDirectoryRename rename, IOptions<AnalysisFo
         if (partial is not null && Directory.Exists(partial))
         {
             try { Directory.Delete(partial, recursive: true); }
-            catch (Exception ex) { Console.WriteLine($"[StemMove] could not delete {partial}: {ex.Message}"); }
+            catch (Exception ex) { _log.Error($"could not delete {partial}: {ex.Message}"); }
         }
         for (var i = renamed.Count - 1; i >= 0; i--)
             if (!_rename.TryRename(renamed[i].To, renamed[i].From))
-                Console.WriteLine($"[StemMove] could not put {renamed[i].To} back at {renamed[i].From}");
+                _log.Error($"could not put {renamed[i].To} back at {renamed[i].From}");
     }
 }

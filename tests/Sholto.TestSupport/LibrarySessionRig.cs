@@ -6,6 +6,7 @@ using Sholto.App.Analysis.Stores;
 using Sholto.App.Library;
 using Sholto.Data;
 using Sholto.App.Decks;
+using Sholto.TestSupport.Logging;
 
 namespace Sholto.TestSupport;
 
@@ -37,7 +38,7 @@ internal sealed class LibrarySessionRig
         var decks = new DeckPair(Deck1, Deck2);
         var catalog = new LibraryCatalog(Bus);
         var seeds = new LibrarySeeds(catalog);
-        var wiring = new LibraryDeckWiring(catalog, decks, new Session(), Reporter, appThread);
+        var wiring = new LibraryDeckWiring(catalog, decks, new Session(), Reporter, appThread, Logs.Create("DB"));
         Library = new LibrarySession(
             new FakeTrackScanner(Tracks),
             new NullKeyAnalysisStore(),
@@ -47,7 +48,9 @@ internal sealed class LibrarySessionRig
             wiring,
             seeds,
             appThread,
-            Bus);
+            Bus,
+            Logs.Create("Library"),
+            Logs.Create("Tags"));
     }
 
     public Track[] Tracks { get; }
@@ -55,6 +58,8 @@ internal sealed class LibrarySessionRig
     public IDeckSession Deck2 { get; }
     public AnalysisReporter Reporter { get; }
     public DataBus Bus { get; }
+    /// <summary>Every line the library session and its wiring wrote.</summary>
+    public RecordingLogFactory Logs { get; } = new();
     public LibrarySession Library { get; }
 
     public FakeTrackCatalog Catalog { get; } = new();

@@ -10,6 +10,7 @@ public sealed class LibraryDatabase(ISholtoStorage storage, ILogFactory logs) : 
 {
     private readonly ISholtoStorage _storage = storage;
     private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("DB");
     // Other startup tasks (music-dir resolution, audio init) need the DB to read
     // settings. They await this so they don't race the DB open task.
     private readonly TaskCompletionSource<DatabaseStack?> _ready =
@@ -27,13 +28,13 @@ public sealed class LibraryDatabase(ISholtoStorage storage, ILogFactory logs) : 
         {
             var database = await _storage.OpenAsync();
             _database = database;
-            Console.WriteLine($"[DB] opened {_storage.DefaultDbPath()}");
+            _log.Info($"opened {_storage.DefaultDbPath()}");
 
             await onOpened(database);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DB] failed to open: {ex.Message}");
+            _log.Error($"failed to open: {ex.Message}");
         }
         finally
         {

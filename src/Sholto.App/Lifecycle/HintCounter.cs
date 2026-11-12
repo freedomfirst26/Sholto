@@ -11,6 +11,7 @@ public sealed class HintCounter(ILibraryDatabase database, ILogFactory logs) : I
 {
     private readonly ILibraryDatabase _database = database;
     private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("HintCounter");
     private readonly SemaphoreSlim _turn = new(1, 1);
 
     public void Handle(in RecordHintShown command)
@@ -36,7 +37,7 @@ public sealed class HintCounter(ILibraryDatabase database, ILogFactory logs) : I
             var count = await ParseAsync(opened.Settings.GetAsync(stored));
             await opened.Settings.SetAsync(stored, (count + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
-        catch (Exception ex) { Console.WriteLine($"[HintCounter] persist failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"persist failed: {ex.Message}"); }
         finally { _turn.Release(); }
     }
 
@@ -51,7 +52,7 @@ public sealed class HintCounter(ILibraryDatabase database, ILogFactory logs) : I
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[HintCounter] read failed: {ex.Message}");
+            _log.Error($"read failed: {ex.Message}");
             return 0;
         }
         finally { _turn.Release(); }

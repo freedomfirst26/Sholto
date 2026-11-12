@@ -19,7 +19,7 @@ public class DeckTempoControlTests
     {
         var ports = new ScriptedPorts(new TestDeckFactory().Create());
         if (bpm is { } b) ports.Loading.Analysis.Set(MakeBasic(b));
-        var control = new DeckTempoControl(ports.Loading, ports.Tempo);
+        var control = new DeckTempoControl(ports.Loading, ports.Tempo, new RecordingLogFactory().Create("Deck"));
         var chosen = new List<double>();
         var changes = new List<DeckChange>();
         control.BpmMultiplierChosen += chosen.Add;

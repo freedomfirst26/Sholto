@@ -25,6 +25,7 @@ public sealed class DeckSession : IDeckSession
     private readonly IDeckAnalysisEvents _analysisEvents;
     private readonly IAppThread _appThread;
     private readonly IEventPublisher _publisher;
+    private readonly ILog _log;
 
     private Track? _loadedTrack;
     private DeckLoadState _loadState = DeckLoadState.Idle;
@@ -34,7 +35,7 @@ public sealed class DeckSession : IDeckSession
     private double _magneticGlowSec = -1;
 
     public DeckSession(int index, IDeckPorts ports, IDeckGain gain, IDeckStemMix stemMix, IDeckTuneEditor tuneEditor, IDeckTempoControl tempoControl, IDeckPlayPhase playPhase, IDeckAnalysisEvents analysisEvents,
-        IAppThread appThread, IEventPublisher publisher)
+        IAppThread appThread, IEventPublisher publisher, ILog log)
     {
         Index = index;
         _ports = ports;
@@ -53,6 +54,7 @@ public sealed class DeckSession : IDeckSession
         _analysisEvents.Changed += Raise;
         _appThread = appThread;
         _publisher = publisher;
+        _log = log;
 
         _analysisEvents.Rebind();
         Looping.LoopChanged += OnLoopChanged;
@@ -244,7 +246,7 @@ public sealed class DeckSession : IDeckSession
         // works. Pause/resume is allowed freely once a track is actually playing.
         if (!Loading.IsPlaying && !CanPlay)
         {
-            Console.WriteLine($"[Deck] play denied: analysis not ready (state={LoadState}, hasAnalysis={HasAnalysis})");
+            _log.Info($"play denied: analysis not ready (state={LoadState}, hasAnalysis={HasAnalysis})");
             return;
         }
         Transport.TogglePlay();

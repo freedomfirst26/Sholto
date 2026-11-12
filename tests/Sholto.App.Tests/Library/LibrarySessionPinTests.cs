@@ -8,7 +8,6 @@ namespace Sholto.App.Tests;
 
 /// <summary>Pins the order in which the library session announces changes, and how a failing multiplier
 /// save is handled, so a restructuring of the session cannot reorder or lose them.</summary>
-[Collection(ConsoleCaptureCollection.Name)]
 public class LibrarySessionPinTests
 {
     private static readonly string[] SelectionThenRows =
@@ -138,21 +137,10 @@ public class LibrarySessionPinTests
         await rig.Library.ScanAsync("/music", rig.Stack());
         rig.Library.AttachMultiplierStore(new ThrowingTempoMultiplierStore());
         rig.Deck1.LoadTrack(LibrarySessionRig.Alpha, LibrarySessionRig.Alpha.FilePath, [], bpmMultiplier: 1.0);
-        var original = Console.Out;
-        var captured = new StringWriter();
-        Console.SetOut(captured);
-        try
-        {
-            rig.Deck1.HalveBpm();
-        }
-        finally
-        {
-            Console.SetOut(original);
-        }
+        rig.Deck1.HalveBpm();
 
         Assert.Equal(0.5, rig.Row(LibrarySessionRig.Alpha).BpmMultiplier);
-        var lines = captured.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Where(l => l.Contains("[DB] save bpm override failed")).ToList();
-        Assert.Single(lines);
+        Assert.Single(rig.Logs.Lines,
+            l => l.Tag == "DB" && l.Level == LogLevel.Error && l.Message.StartsWith("save bpm override failed"));
     }
 }

@@ -68,7 +68,7 @@ public sealed class AppStackFactory : IAppStackFactory
             new GatedStemSeparator(stack.ToolStack.Stems, stack.StemGate, stack.AnalysisStack.Reporter), options.Load, options.HotCue, logs);
         var lifecycleFactory = new AppLifecycleFactory(
             stack.LibraryDatabase, stack.ThemePreference, stack.MusicDirPreference, stack.AnalysisDirPreference,
-            analysisFolder, stack.StemGate, new StemFolderMover(new DirectoryRename(), options.AnalysisFolder),
+            analysisFolder, stack.StemGate, new StemFolderMover(new DirectoryRename(), options.AnalysisFolder, logs.Create("StemMove")),
             new FolderCheck(options.AnalysisFolder), stack.OutputDevicePreference,
             stack.WaveformStylePreference, stack.BackspinTimePreference, stack.BackspinDistancePreference, stack.LegacyShortlistPreference,
             stack.TrackListPreference, new SavedTrackListCodec(),

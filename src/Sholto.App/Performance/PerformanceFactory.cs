@@ -16,8 +16,8 @@ public sealed class PerformanceFactory(ILogFactory logs) : IPerformanceFactory
     {
         var recency = new JogRecency(clock, scratchOptions);
         var seek = new JogSeek(decks, recency);
-        var scratch = new ScratchEngine(decks, playback, recency, clock, scratchOptions, backspinFeel);
-        var magnet = new MagnetSnap(decks, recency, clock, magnetismOptions);
+        var scratch = new ScratchEngine(decks, playback, recency, clock, scratchOptions, backspinFeel, _logs.Create("scratch"));
+        var magnet = new MagnetSnap(decks, recency, clock, magnetismOptions, _logs.Create("Magnet"));
         var platter = new Platter(decks, scratch, seek, recency, scratchOptions);
         var tick = new PerformanceTick(clock, decks, magnet, seek, scratch);
         return new PerformanceStack(platter, scratch, magnet, tick);

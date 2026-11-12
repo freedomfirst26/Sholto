@@ -76,7 +76,7 @@ internal sealed class AppLifecycleRig
         BackspinDistancePreference = new SettingPreference(Database, SettingsKeys.BackspinDistanceBeats);
         LegacyShortlistPreference = new SettingPreference(Database, SettingsKeys.GlanceShortlist);
         TrackListPreference = new SettingPreference(Database, SettingsKeys.TrackList);
-        TrackList = new TrackList(Library.Library, appThread, Library.Bus);
+        TrackList = new TrackList(Library.Library, appThread, Library.Bus, Logs.Create("TrackList"));
         Library.Bus.Subscribe(BackspinTimeAnnounced);
         Library.Bus.Subscribe(BackspinDistanceAnnounced);
         BackspinFeel = new BackspinFeel(Library.Bus);
@@ -85,19 +85,20 @@ internal sealed class AppLifecycleRig
         var folderOptions = Options.Create(new AnalysisFolderOptions());
         Folders = new LibraryFolders(
             MusicDirPreference, AnalysisDirPreference, AnalysisFolder, new SemaphoreStemGate(),
-            new StemFolderMover(new DirectoryRename(), folderOptions), new FolderCheck(folderOptions),
+            new StemFolderMover(new DirectoryRename(), folderOptions, Logs.Create("StemMove")), new FolderCheck(folderOptions),
             Library.Library, Database, appThread, Library.Bus, musicDirOverride, analysisDirOverride,
-            Directory.CreateTempSubdirectory("sholto-legacy-").FullName);
+            Directory.CreateTempSubdirectory("sholto-legacy-").FullName, Logs.Create("Library"), Logs.Create("Folders"));
         Lifecycle = new AppLifecycle(
             Database, Library.Library, DeckMarkers, new NullDeckHotCues(),
             new SettingsRestorer(
                 Database, ThemePreference, WaveformStylePreference, BackspinTimePreference, BackspinDistancePreference,
-                BackspinFeel, appThread, Library.Bus),
+                BackspinFeel, appThread, Library.Bus, Logs),
             new TrackListPersistence(
-                Database, Library.Library, TrackListPreference, LegacyShortlistPreference, TrackList, Codec, appThread),
+                Database, Library.Library, TrackListPreference, LegacyShortlistPreference, TrackList, Codec, appThread,
+                Logs.Create("TrackList"), Logs.Create("Shortlist")),
             Folders,
             new OutputDeviceChooser(
-                Enumerator, Audio, new FakeControllerSoundCard(ControllerCard), OutputDevicePreference, appThread, Library.Bus),
+                Enumerator, Audio, new FakeControllerSoundCard(ControllerCard), OutputDevicePreference, appThread, Library.Bus, Logs.Create("")),
             Audio, systemCheck ?? new SystemCheck([]), appThread, Library.Bus);
         Library.Bus.Subscribe(FoldersAsked);
         Library.Bus.Subscribe(DeviceAsked);
@@ -108,6 +109,8 @@ internal sealed class AppLifecycleRig
     public const string ControllerCard = "DDJ-FLX4 Analog";
 
     public LibrarySessionRig Library { get; }
+    /// <summary>Every line the lifecycle's parts wrote.</summary>
+    public RecordingLogFactory Logs { get; } = new();
     public FakeTagService Tags { get; }
     public FakeMarkerService Markers { get; } = new();
     public FakeSettingsStore Settings { get; } = new();

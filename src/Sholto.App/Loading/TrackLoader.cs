@@ -24,7 +24,9 @@ public sealed class TrackLoader(
     ISearchPick pick,
     ILoadGuard guard,
     ILoadUndo undo,
-    IStemSeparator stems) : ITrackLoader
+    IStemSeparator stems,
+    ILog log,
+    ILog trackLog) : ITrackLoader
 {
     private readonly ILibrarySession _library = library;
     private readonly IDecks _decks = decks;
@@ -39,6 +41,8 @@ public sealed class TrackLoader(
     private readonly ILoadGuard _guard = guard;
     private readonly ILoadUndo _undo = undo;
     private readonly IStemSeparator _stems = stems;
+    private readonly ILog _log = log;
+    private readonly ILog _trackLog = trackLog;
     // Per deck, the id of its latest load. A decode that finishes after a newer load began is dropped. App thread.
     private readonly Dictionary<int, int> _generations = [];
     // Per library file, the cancel source of its latest re-analysis; a newer one cancels the older stem run. App thread.
@@ -108,7 +112,7 @@ public sealed class TrackLoader(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Track] load into deck {deckIndex + 1} FAILED: {ex.Message}");
+            _trackLog.Error($"load into deck {deckIndex + 1} FAILED: {ex.Message}");
             _appThread.Post(() =>
             {
                 if (IsSuperseded(deckIndex, generation)) return;
@@ -126,7 +130,7 @@ public sealed class TrackLoader(
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Track] load into deck {deckIndex + 1} FAILED: {ex.Message}");
+                _trackLog.Error($"load into deck {deckIndex + 1} FAILED: {ex.Message}");
                 FailLoad(deck, deckIndex, track);
             }
         });
@@ -150,10 +154,10 @@ public sealed class TrackLoader(
         var provider = _decks.Deck1.Loading.AnalysisProvider;
         if (provider is null)
         {
-            Console.WriteLine($"[TrackLoader] {command.Origin.GestureName} re-analyze: no AnalysisProvider yet");
+            _log.Warn($"{command.Origin.GestureName} re-analyze: no AnalysisProvider yet");
             return;
         }
-        Console.WriteLine($"[TrackLoader] {command.Origin.GestureName} → re-analyzing {track.FilePath}");
+        _log.Info($"{command.Origin.GestureName} → re-analyzing {track.FilePath}");
         // A newer re-analysis of the same file supersedes the older one's stem run.
         if (_reanalyses.Remove(track.FilePath, out var superseded)) superseded.Cancel();
         var cancel = new CancellationTokenSource();
@@ -180,10 +184,10 @@ public sealed class TrackLoader(
             var analysis = await basicTask.ConfigureAwait(false);
             var key = await keyTask.ConfigureAwait(false);
             try { await _keyStore.PutAsync(track.FilePath, key).ConfigureAwait(false); }
-            catch (Exception ex) { Console.WriteLine($"[TrackLoader] re-analyze key cache write failed: {ex.Message}"); }
+            catch (Exception ex) { _log.Error($"re-analyze key cache write failed: {ex.Message}"); }
 
             _appThread.Post(() => _library.ApplyReanalysis(track.FilePath, analysis.Bpm, key.Key));
-            Console.WriteLine($"[TrackLoader] re-analyzed {track.FilePath}: {analysis.Bpm:F1} BPM, key {key.Key?.ToCamelot()}");
+            _log.Info($"re-analyzed {track.FilePath}: {analysis.Bpm:F1} BPM, key {key.Key?.ToCamelot()}");
             await SeparateStemsAsync(track.FilePath, cancel.Token).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -191,7 +195,7 @@ public sealed class TrackLoader(
             // Surface it on the row as well as in the log — a re-analysis that throws here never touches
             // the reporter, so without this the row would silently keep whatever it had and the user
             // would never learn it didn't run.
-            Console.WriteLine($"[TrackLoader] re-analyze failed: {ex.Message}");
+            _log.Error($"re-analyze failed: {ex.Message}");
             var failure = $"{ex.GetType().Name}: {ex.Message}";
             _appThread.Post(() => _library.ReportReanalysisFailure(track.FilePath, failure));
         }
@@ -223,7 +227,7 @@ public sealed class TrackLoader(
         catch (Exception ex)
         {
             // The separator has already put the failure on the row.
-            Console.WriteLine($"[TrackLoader] re-analyze stems failed: {ex.Message}");
+            _log.Error($"re-analyze stems failed: {ex.Message}");
         }
     }
 }

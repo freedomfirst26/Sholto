@@ -28,7 +28,9 @@ public sealed class LibraryFolders(
     IEventPublisher publisher,
     string? musicOverride,
     string? analysisOverride,
-    string legacyAnalysisRoot) : ILibraryFolders
+    string legacyAnalysisRoot,
+    ILog libraryLog,
+    ILog foldersLog) : ILibraryFolders
 {
     private readonly ISettingPreference _musicDirPreference = musicDirPreference;
     private readonly ISettingPreference _analysisDirPreference = analysisDirPreference;
@@ -44,6 +46,8 @@ public sealed class LibraryFolders(
     private readonly string? _musicOverride = string.IsNullOrWhiteSpace(musicOverride) ? null : musicOverride;
     private readonly string? _analysisOverride = string.IsNullOrWhiteSpace(analysisOverride) ? null : analysisOverride;
     private readonly string _legacyAnalysisRoot = legacyAnalysisRoot;
+    private readonly ILog _libraryLog = libraryLog;
+    private readonly ILog _foldersLog = foldersLog;
 
     // The question currently put to the user, if any: completed by the matching ChooseFolders command.
     private TaskCompletionSource<ChooseFolders>? _answer;
@@ -66,7 +70,7 @@ public sealed class LibraryFolders(
         var effectiveMusic = _musicOverride ?? await _musicDirPreference.GetAsync();
         if (!string.IsNullOrEmpty(effectiveMusic) && !Directory.Exists(effectiveMusic))
         {
-            Console.WriteLine($"[Library] saved music dir not reachable: {effectiveMusic}");
+            _libraryLog.Warn($"saved music dir not reachable: {effectiveMusic}");
             await _appThread.InvokeAsync(() => _library.SetUnreachablePath(effectiveMusic));
         }
 
@@ -103,7 +107,7 @@ public sealed class LibraryFolders(
             var snapshot = await SnapshotAsync(menu: true);
             await AskUntilSettledAsync(snapshot, scanMusic: true);
         }
-        catch (Exception ex) { Console.WriteLine($"[Folders] change failed: {ex.Message}"); }
+        catch (Exception ex) { _foldersLog.Error($"change failed: {ex.Message}"); }
         finally { _changing = false; }
     }
 
@@ -301,12 +305,12 @@ public sealed class LibraryFolders(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Folders] could not use {newRoot}: {ex.Message}");
+            _foldersLog.Error($"could not use {newRoot}: {ex.Message}");
             return $"Could not use that folder: {ex.Message}";
         }
 
         try { await _library.HydrateStemStateAsync(); }
-        catch (Exception ex) { Console.WriteLine($"[Folders] stem state refresh failed: {ex.Message}"); }
+        catch (Exception ex) { _foldersLog.Error($"stem state refresh failed: {ex.Message}"); }
         return null;
     }
 

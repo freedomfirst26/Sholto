@@ -15,7 +15,9 @@ public sealed class TrackListPersistence(
     ISettingPreference legacyShortlistPreference,
     ITrackList trackList,
     ISavedTrackListCodec trackListCodec,
-    IAppThread appThread) : ITrackListPersistence
+    IAppThread appThread,
+    ILog log,
+    ILog shortlistLog) : ITrackListPersistence
 {
     private readonly ILibraryDatabase _database = database;
     private readonly ILibrarySession _library = library;
@@ -24,6 +26,8 @@ public sealed class TrackListPersistence(
     private readonly ITrackList _trackList = trackList;
     private readonly ISavedTrackListCodec _trackListCodec = trackListCodec;
     private readonly IAppThread _appThread = appThread;
+    private readonly ILog _log = log;
+    private readonly ILog _shortlistLog = shortlistLog;
 
     // True once the saved list was restored on a database that opened: from then on a change is saved.
     private bool _persisting;
@@ -82,7 +86,7 @@ public sealed class TrackListPersistence(
         }
         catch (JsonException ex)
         {
-            Console.WriteLine($"[Shortlist] saved list unreadable, not migrated: {ex.Message}");
+            _shortlistLog.Warn($"saved list unreadable, not migrated: {ex.Message}");
             return [];
         }
     }
@@ -95,7 +99,7 @@ public sealed class TrackListPersistence(
         }
         catch (JsonException ex)
         {
-            Console.WriteLine($"[TrackList] saved list unreadable, starting empty: {ex.Message}");
+            _log.Warn($"saved list unreadable, starting empty: {ex.Message}");
             return null;
         }
     }
@@ -113,7 +117,7 @@ public sealed class TrackListPersistence(
             {
                 await _trackListPreference.SetAsync(json);
             }
-            catch (Exception ex) { Console.WriteLine($"[TrackList] persist failed: {ex.Message}"); }
+            catch (Exception ex) { _log.Error($"persist failed: {ex.Message}"); }
         });
     }
 
@@ -137,7 +141,7 @@ public sealed class TrackListPersistence(
             }
             await _appThread.InvokeAsync(() => _trackList.Handle(new LoadCrateToTrackList(crateId, CrateNames.AllTracks, _firstLaunchOrigin)));
         }
-        catch (Exception ex) { Console.WriteLine($"[TrackList] first-launch load failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"first-launch load failed: {ex.Message}"); }
     }
 
     private readonly Origin _firstLaunchOrigin = new(InterfaceIds.MainUI, "startup", "first-launch");

@@ -10,16 +10,25 @@ public sealed class TrackList : ITrackList
     private readonly ILibrarySession _library;
     private readonly IAppThread _appThread;
     private readonly IEventPublisher _publisher;
+    private readonly ILog _log;
     private readonly List<TrackListEntry> _entries = [];
     private readonly Dictionary<string, TrackListEntry> _byPath = [];
     private readonly List<SourceInfo> _sources = [];
 
-    public TrackList(ILibrarySession library, IAppThread appThread, IEventPublisher publisher)
+    public TrackList(ILibrarySession library, IAppThread appThread, IEventPublisher publisher, ILog log)
     {
         _library = library;
         _appThread = appThread;
         _publisher = publisher;
+        _log = log;
         Announce();
+    }
+
+    /// <summary>A track list whose lines are discarded, for a caller with no log to hand it (the MainUI tests,
+    /// which this list's log migration did not own). Everything else passes its log.</summary>
+    public TrackList(ILibrarySession library, IAppThread appThread, IEventPublisher publisher)
+        : this(library, appThread, publisher, new ConsoleLog(TextWriter.Null, "TrackList"))
+    {
     }
 
     private sealed record SourceInfo(string Key, TrackListSourceKind Kind, string Name);
@@ -113,7 +122,7 @@ public sealed class TrackList : ITrackList
                 if (pathById.TryGetValue(id, out var path)) paths.Add(path);
             await _appThread.InvokeAsync(() => AddAndCommit($"crate:{crateId}", TrackListSourceKind.Crate, name, paths));
         }
-        catch (Exception ex) { Console.WriteLine($"[TrackList] load crate failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"load crate failed: {ex.Message}"); }
     }
 
     private async Task LoadTagAsync(string tag)
@@ -127,7 +136,7 @@ public sealed class TrackList : ITrackList
             var paths = catalog.Where(s => ids.Contains(s.TrackId)).Select(s => s.FilePath).ToList();
             await _appThread.InvokeAsync(() => AddAndCommit($"tag:{tag.ToLowerInvariant()}", TrackListSourceKind.Tag, tag, paths));
         }
-        catch (Exception ex) { Console.WriteLine($"[TrackList] load tag failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"load tag failed: {ex.Message}"); }
     }
 
     private Dictionary<Guid, string> PathsById()

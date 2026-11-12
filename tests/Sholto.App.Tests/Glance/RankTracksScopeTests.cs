@@ -60,7 +60,7 @@ public class RankTracksScopeTests(ITestOutputHelper output)
             Handler = new RankTracksHandler(lib.Library, rig.Decks,
                 new GlanceRanker(new FitScorer(Options.Create(new GlanceOptions())), new GlanceQueryFactory(), new GlanceMatcher()), new GlanceScope(), cache,
                 Options.Create(new GlanceOptions { MaxResults = maxResults })),
-            Commands = new LibraryCommandHandlers(lib.Library, new ImmediateAppThread(), lib.Bus, cache),
+            Commands = new LibraryCommandHandlers(lib.Library, new ImmediateAppThread(), lib.Bus, cache, new RecordingLogFactory().Create("Tags"), new RecordingLogFactory().Create("Crate")),
             Peak = peak, Warm = warm, AllTracks = all, Ids = ids,
         };
     }

@@ -21,7 +21,8 @@ public class LibraryCommandHandlersTests
 
     public LibraryCommandHandlersTests()
     {
-        _handlers = new LibraryCommandHandlers(_rig.Library, new ImmediateAppThread(), _rig.Bus, new CrateMembershipCache(_rig.Library));
+        _handlers = new LibraryCommandHandlers(_rig.Library, new ImmediateAppThread(), _rig.Bus, new CrateMembershipCache(_rig.Library),
+            new RecordingLogFactory().Create("Tags"), new RecordingLogFactory().Create("Crate"));
         _alphaId = _rig.Catalog.Assign(LibrarySessionRig.Alpha.FilePath);
         _bravoId = _rig.Catalog.Assign(LibrarySessionRig.Bravo.FilePath);
         _charlieId = _rig.Catalog.Assign(LibrarySessionRig.Charlie.FilePath);

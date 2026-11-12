@@ -27,8 +27,8 @@ internal sealed class PerformanceRig
         var scratchOptions = Options.Create(new ScratchOptions());
         Recency = new JogRecency(Clock, scratchOptions);
         Seek = new JogSeek(Core.Decks, Recency);
-        Scratch = new ScratchEngine(Core.Decks, Core.Playback, Recency, Clock, scratchOptions, Core.BackspinFeel);
-        Magnet = new MagnetSnap(Core.Decks, Recency, Clock, Options.Create(new MagnetismOptions()));
+        Scratch = new ScratchEngine(Core.Decks, Core.Playback, Recency, Clock, scratchOptions, Core.BackspinFeel, new RecordingLogFactory().Create("scratch"));
+        Magnet = new MagnetSnap(Core.Decks, Recency, Clock, Options.Create(new MagnetismOptions()), new RecordingLogFactory().Create("Magnet"));
         Platter = new Platter(Core.Decks, Scratch, Seek, Recency, scratchOptions);
         Tick = new PerformanceTick(Clock, Core.Decks, Magnet, Seek, Scratch);
     }

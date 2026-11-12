@@ -4,7 +4,6 @@ namespace Sholto.App.Tests;
 
 /// <summary>Hot-cue correctness against stores that hold or fail their calls. These are synchronous on purpose:
 /// the awaited store tasks resume inline on the test thread when the test releases them, so no sleeps are needed.</summary>
-[Collection(ConsoleCaptureCollection.Name)]
 public class DeckHotCuesCorrectnessTests
 {
     private static readonly HotCue Saved = new(0, 30.0, CueColour.Red);
@@ -14,23 +13,12 @@ public class DeckHotCuesCorrectnessTests
 
     public DeckHotCuesCorrectnessTests() => _rig.Bus.Subscribe(_seen);
 
-    private static string[] LinesOf(StringWriter captured) =>
-        captured.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-    private string[] CaptureConsole(Action act)
+    /// <summary>The hot-cue lines written while <paramref name="act"/> ran.</summary>
+    private LoggedLine[] LinesDuring(Action act)
     {
-        var original = Console.Out;
-        var captured = new StringWriter();
-        Console.SetOut(captured);
-        try
-        {
-            act();
-        }
-        finally
-        {
-            Console.SetOut(original);
-        }
-        return LinesOf(captured);
+        var before = _rig.Logs.Lines.Count;
+        act();
+        return _rig.Logs.Lines.Skip(before).Where(l => l.Tag == "HotCue").ToArray();
     }
 
     [Fact]
@@ -93,15 +81,15 @@ public class DeckHotCuesCorrectnessTests
         _rig.HotCues.Attach(store);
         _rig.Load(HotCueRig.Alpha, playheadSec: 10);
 
-        var lines = CaptureConsole(() =>
+        var lines = LinesDuring(() =>
         {
             _rig.HotCues.Press(0, 0, true);
             _rig.HotCues.Press(0, 0, false);
             _rig.HotCues.Delete(0, 0);
         });
 
-        Assert.Single(lines, l => l.Contains("[HotCue] save failed"));
-        Assert.Single(lines, l => l.Contains("[HotCue] delete failed"));
+        Assert.Single(lines, l => l.Level == LogLevel.Error && l.Message.StartsWith("save failed"));
+        Assert.Single(lines, l => l.Level == LogLevel.Error && l.Message.StartsWith("delete failed"));
         Assert.Equal(["set 0", "delete 0"], store.Calls);
     }
 
@@ -111,13 +99,13 @@ public class DeckHotCuesCorrectnessTests
         var store = new ThrowingHotCueStore(listFails: true);
         _rig.HotCues.Attach(store);
 
-        var lines = CaptureConsole(() =>
+        var lines = LinesDuring(() =>
         {
             _rig.Load(HotCueRig.Alpha, playheadSec: 10);
             _rig.HotCues.Press(0, 0, true);
         });
 
-        Assert.Single(lines, l => l.Contains("[HotCue] load failed"));
+        Assert.Single(lines, l => l.Level == LogLevel.Error && l.Message.StartsWith("load failed"));
         Assert.Empty(store.Calls);
     }
 

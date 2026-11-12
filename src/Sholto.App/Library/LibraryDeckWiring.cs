@@ -15,6 +15,7 @@ public sealed class LibraryDeckWiring : ILibraryDeckWiring
     private readonly ILibraryCatalog _catalog;
     private readonly ISession _session;
     private readonly IAppThread _appThread;
+    private readonly ILog _log;
     private ITempoMultiplierStore? _multiplierStore;
 
     public LibraryDeckWiring(
@@ -22,11 +23,13 @@ public sealed class LibraryDeckWiring : ILibraryDeckWiring
         IDecks decks,
         ISession session,
         IAnalysisReporter reporter,
-        IAppThread appThread)
+        IAppThread appThread,
+        ILog log)
     {
         _catalog = catalog;
         _session = session;
         _appThread = appThread;
+        _log = log;
 
         // Route Session events into the matching summary so the library re-renders the italic style.
         _session.TrackPlayed += filePath => _appThread.Post(() => ApplyPlayed(filePath));
@@ -124,6 +127,6 @@ public sealed class LibraryDeckWiring : ILibraryDeckWiring
         {
             await store.PutAsync(filePath, multiplier);
         }
-        catch (Exception ex) { Console.WriteLine($"[DB] save bpm override failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"save bpm override failed: {ex.Message}"); }
     }
 }

@@ -26,6 +26,8 @@ public sealed class LibrarySession : ILibrarySession
     private readonly ILibrarySeeds _seeds;
     private readonly IAppThread _appThread;
     private readonly IEventPublisher _publisher;
+    private readonly ILog _log;
+    private readonly ILog _tagsLog;
 
     private ICrateService? _crates;
     private ITagService? _tags;
@@ -39,7 +41,9 @@ public sealed class LibrarySession : ILibrarySession
         ILibraryDeckWiring wiring,
         ILibrarySeeds seeds,
         IAppThread appThread,
-        IEventPublisher publisher)
+        IEventPublisher publisher,
+        ILog log,
+        ILog tagsLog)
     {
         _trackScanner = trackScanner;
         _keyStore = keyStore;
@@ -50,6 +54,8 @@ public sealed class LibrarySession : ILibrarySession
         _seeds = seeds;
         _appThread = appThread;
         _publisher = publisher;
+        _log = log;
+        _tagsLog = tagsLog;
 
         _wiring.DeckAnalysisApplied += RefreshHarmonyReference;
     }
@@ -103,7 +109,7 @@ public sealed class LibrarySession : ILibrarySession
         IsScanning = true;
         try
         {
-            Console.WriteLine($"[Library] scanning {musicDir}");
+            _log.Info($"scanning {musicDir}");
             var scanned = await _trackScanner.ScanAsync(musicDir);
 
             Dictionary<string, double>? cachedBpms = null;
@@ -154,14 +160,14 @@ public sealed class LibrarySession : ILibrarySession
                 if (cachedIds is not null)
                 {
                     if (cachedIds.TryGetValue(t.FilePath, out var id)) summary = summary with { TrackId = id };
-                    else { missing++; if (missing <= 3) Console.WriteLine($"[Library] no TrackId for: {t.FilePath}"); }
+                    else { missing++; if (missing <= 3) _log.Warn($"no TrackId for: {t.FilePath}"); }
                 }
                 if (cachedTagsByPath is not null && cachedTagsByPath.TryGetValue(t.FilePath, out var tags))
                     summary = summary with { Tags = tags };
                 summaries.Add(summary);
             }
             if (missing > 0)
-                Console.WriteLine($"[Library] {missing} row(s) missing TrackId after scan (paths not in the catalog)");
+                _log.Warn($"{missing} row(s) missing TrackId after scan (paths not in the catalog)");
 
             await _appThread.InvokeAsync(() =>
             {
@@ -286,7 +292,7 @@ public sealed class LibrarySession : ILibrarySession
                 var refreshed = await tags.GetTagsForTrackAsync(args.TrackId, default);
                 _appThread.Post(() => ApplyTags(args.TrackId, refreshed));
             }
-            catch (Exception ex) { Console.WriteLine($"[Tags] refresh after edit failed: {ex.Message}"); }
+            catch (Exception ex) { _tagsLog.Error($"refresh after edit failed: {ex.Message}"); }
         };
         ServicesAttached?.Invoke(tags, crates);
         _publisher.Publish(new LibraryDatabaseAttached(true));

@@ -12,7 +12,8 @@ public sealed class OutputDeviceChooser(
     IControllerSoundCard controllerSoundCard,
     ISettingPreference outputDevicePreference,
     IAppThread appThread,
-    IEventPublisher publisher) : IOutputDeviceChooser
+    IEventPublisher publisher,
+    ILog log) : IOutputDeviceChooser
 {
     private readonly IAudioOutputEnumerator _outputEnumerator = outputEnumerator;
     private readonly IAudioOutput _audioOutput = audioOutput;
@@ -20,6 +21,7 @@ public sealed class OutputDeviceChooser(
     private readonly ISettingPreference _outputDevicePreference = outputDevicePreference;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
+    private readonly ILog _log = log;
 
     // The question currently put to the user, if any: completed by the matching Choose command.
     private TaskCompletionSource<string?>? _deviceAnswer;
@@ -32,7 +34,7 @@ public sealed class OutputDeviceChooser(
         var allDevices = await Task.Run(() => _outputEnumerator.EnumerateOutputs()).ConfigureAwait(false);
         if (allDevices.Count == 0)
         {
-            Console.WriteLine("No audio output devices found.");
+            _log.Warn("No audio output devices found.");
             return;
         }
 
