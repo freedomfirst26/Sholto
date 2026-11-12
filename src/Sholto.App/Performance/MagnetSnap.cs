@@ -8,9 +8,6 @@ namespace Sholto.App.Performance;
 /// <see cref="IJogRecencyReader"/>.</summary>
 public sealed class MagnetSnap : IMagnetSnap
 {
-    private const double EngageThreshold = 0.3;     // same as glow threshold — see one, fire one
-    private const double DisengageThreshold = 0.15; // hysteresis to avoid re-fire chatter
-
     private readonly IDecks _decks;
     private readonly IJogRecencyReader _recency;
     private readonly IFrameClock _clock;
@@ -74,8 +71,7 @@ public sealed class MagnetSnap : IMagnetSnap
         double phase2 = deck2.PlaybackSeconds - deck2.NearestDownbeatSec();
         double misalign = Math.Abs(phase1 - phase2);
 
-        const double window = 0.15;  // 150 ms — bar-start tolerance is wider than beat-start
-        double t = Math.Min(misalign / window, 1);
+        double t = Math.Min(misalign / _options.BarWindowSeconds, 1);
         return 1 - t * t * (3 - 2 * t);  // smoothstep, 1 at t=0 → 0 at t=1
     }
 
@@ -92,7 +88,7 @@ public sealed class MagnetSnap : IMagnetSnap
 
         double f = Factor();
 
-        if (f < DisengageThreshold)
+        if (f < _options.DisengageThreshold)
             _quantizeFired = false;  // user pulled them apart; re-arm
 
         // Fire once: greens visible + user let go of the jog for a beat.
@@ -108,7 +104,7 @@ public sealed class MagnetSnap : IMagnetSnap
             && sinceJog < _options.JogRecencyForQuantize;
 
         if (!_quantizeFired
-            && f >= EngageThreshold
+            && f >= _options.EngageThreshold
             && userRecentlyReleasedJog)
         {
             Quantize();
@@ -117,7 +113,7 @@ public sealed class MagnetSnap : IMagnetSnap
 
         // Show greens whenever engaged AND we haven't snapped yet. Once snapped, the
         // visuals collapse — that's the "locked, hands off" signal.
-        bool active = f >= EngageThreshold && !_quantizeFired;
+        bool active = f >= _options.EngageThreshold && !_quantizeFired;
         _decks.Deck1.MagneticGlowSec = active ? _decks.Deck1.NearestDownbeatSec() : -1;
         _decks.Deck2.MagneticGlowSec = active ? _decks.Deck2.NearestDownbeatSec() : -1;
     }
