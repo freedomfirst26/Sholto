@@ -118,7 +118,7 @@
               Foreground="{DynamicResource SholtoTextBright}">
             <MenuItem Header="Settings">
                 <MenuItem Header="Theme" x:Name="ThemesMenu"/>
-                <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
+                <MenuItem Header="Folders…" Click="OnFoldersClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
                 <MenuItem Header="Layout Wizard…" Click="OnLayoutWizardClick"/>
                 <MenuItem Header="Settings…" Click="OnSettingsClick"/>
@@ -192,7 +192,7 @@
                                TextWrapping="Wrap" HorizontalAlignment="Center"
                                MaxWidth="460"/>
                     <Button Content="Choose folder…"
-                            Click="OnMusicFolderClick"
+                            Click="OnFoldersClick"
                             HorizontalAlignment="Center" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
@@ -540,6 +540,10 @@
     <!-- Settings ▸ Settings…: the backspin time and distance knobs, applied live and saved by the App. -->
     <modal:ModalShell Modal="{Binding Settings}">
         <modal:ModalShell.Body><v:SettingsOverlay/></modal:ModalShell.Body>
+    </modal:ModalShell>
+    <!-- Settings ▸ Folders…, first run, upgrade and drive-missing: the music and analysis folders. -->
+    <modal:ModalShell Modal="{Binding Folders}">
+        <modal:ModalShell.Body><v:FoldersOverlay/></modal:ModalShell.Body>
     </modal:ModalShell>
 
     <!-- Audio output picker (the App asks at first run, when the saved device is missing, or from

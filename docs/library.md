@@ -33,6 +33,25 @@ unanalysed, and it will play fine.
 The deck shows the title straight away and fills in once the audio has decoded.
 It won't play until the beat detection has finished — usually a second or two.
 
+## Folders
+
+**Settings → Folders…** opens one panel with two rows. Each row shows its path and has its own **Change…** button. Changing one never changes the other.
+
+- **Music folder** — where Sholto looks for your tracks.
+- **Analysis folder** — where Sholto keeps the separated stems (drums, vocals, bass, other). They take about 175 MB per track, so a big library needs room. Your library data (tracks, tags, crates, markers) stays in `~/.local/share/sholto`.
+
+**New install.** The panel opens on first run. Pick your music folder and the analysis folder follows it, as a folder called **Sholto Analysis** next to it. Until you pick an analysis folder yourself, it keeps following the music folder.
+
+**Updating from an earlier version.** You see the panel once. The analysis row shows the folder Sholto already uses and how much space the stems take. Press **Continue** to keep it, or change it.
+
+**Moving the analysis folder.** Pick a new one and Sholto moves your existing stems there. On the same drive this is instant. On another drive Sholto copies them, checks every file, then deletes the old copy, and the panel shows progress ("Moving stems… 12 of 29"). If something goes wrong, the old copy is kept. Tracks keep their ticks and are not analysed again. Decks that are already loaded keep playing.
+
+**Rules.** The analysis folder cannot be inside your music folder, because Sholto would then list the stems as tracks. It must be a folder Sholto can write to.
+
+**Drive not connected.** If either folder is on a drive that isn't connected when Sholto starts, the panel asks again. If you choose **Not now**, stems stay off for that session. Sholto never writes them somewhere else instead.
+
+**Environment overrides.** If `SHOLTO_MUSIC_DIR` or `SHOLTO_CACHE_ROOT` is set, that row shows as fixed ("Set by SHOLTO_MUSIC_DIR" or "Set by SHOLTO_CACHE_ROOT") and its **Change…** button is disabled. `SHOLTO_CACHE_ROOT` sets the analysis folder and is not saved.
+
 ## Search
 
 **Keyboard:** **Space** opens search from anywhere.

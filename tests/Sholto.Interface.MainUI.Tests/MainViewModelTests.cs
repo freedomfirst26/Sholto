@@ -60,6 +60,7 @@ public class MainViewModelTests
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
                 themeViewModel, new ThemeOptionFactory()),
             new SettingsViewModel(_bus, _bus, new KnobScaleFactory()),
+            new FoldersViewModel(_bus, _bus, _bus),
             new SystemReportViewModel(),
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),
@@ -456,11 +457,11 @@ public class MainViewModelTests
     [Fact]
     public void Modals_skip_the_crate_picker_until_the_library_is_attached_and_list_it_first_after()
     {
-        Assert.Equal<IModal>([_vm.SystemReportModal, _vm.LayoutWizard, _vm.Settings], _vm.Modals);
+        Assert.Equal<IModal>([_vm.SystemReportModal, _vm.LayoutWizard, _vm.Settings, _vm.Folders], _vm.Modals);
 
         _bus.Publish(new LibraryDatabaseAttached(true));
 
-        Assert.Equal<IModal>([_vm.CratePicker!, _vm.SystemReportModal, _vm.LayoutWizard, _vm.Settings], _vm.Modals);
+        Assert.Equal<IModal>([_vm.CratePicker!, _vm.SystemReportModal, _vm.LayoutWizard, _vm.Settings, _vm.Folders], _vm.Modals);
     }
 
     [Fact]

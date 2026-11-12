@@ -15,15 +15,17 @@ namespace Sholto.Host;
 /// than a static, because it touches the world and happens exactly once.
 ///
 /// The run/lookup agreement the stem workspace closure preserves is documented on
-/// <see cref="ExternalToolStack"/>; the closure lives in <see cref="Build"/> and the
+/// <see cref="ExternalToolStack"/>; the closure lives in <see cref="Build"/>, delegating to <see cref="StemWorkspaceFor"/>, and the
 /// directory-name encoding in <see cref="HashPath"/>, the single place an input path
 /// becomes a workspace directory.
 /// </summary>
 public sealed class ExternalToolStackFactory(
     IExternalToolFinderFactory finderFactory,
     IBeatAnalysisStepFactory beatSteps,
-    IOptions<StemSeparationOptions> stemOptions) : IExternalToolStackFactory
+    IOptions<StemSeparationOptions> stemOptions,
+    IAnalysisFolder analysisFolder) : IExternalToolStackFactory
 {
+    private readonly IAnalysisFolder _analysisFolder = analysisFolder;
     private readonly IExternalToolFinderFactory _finderFactory = finderFactory;
     private readonly IBeatAnalysisStepFactory _beatSteps = beatSteps;
     private readonly StemSeparationOptions _stemOptions = stemOptions.Value;
@@ -62,8 +64,11 @@ public sealed class ExternalToolStackFactory(
         // was named by the old encoding, so this orphans the existing cache
         // and demucs re-runs across the library. No migration/fallback here —
         // a dual-path lookup is exactly the run/lookup disagreement above.
-        string DemucsWorkspaceFor(string inputPath) =>
-            Path.Combine(toolOptions.CacheRoot, "stems", HashPath(inputPath));
+        //
+        // The root is the user's analysis folder, read live on every call (it is
+        // late-bound and can change at runtime); toolOptions.CacheRoot is no longer
+        // consulted here. While no folder is in use, stem work fails closed.
+        string DemucsWorkspaceFor(string inputPath) => StemWorkspaceFor(inputPath);
 
         // Stems: the raw step (runs demucs unconditionally) and the cache
         // (pure filesystem query, same DemucsWorkspaceFor) are separate
@@ -91,6 +96,16 @@ public sealed class ExternalToolStackFactory(
             madmom,
             check);
     }
+
+    /// <summary>
+    /// The one place an input path becomes a stem workspace directory:
+    /// <c>&lt;analysis folder&gt;/stems/&lt;hash&gt;</c>. Throws while the analysis folder
+    /// is not yet in use (fail closed, no silent fallback); the existing stem catches absorb it.
+    /// </summary>
+    internal string StemWorkspaceFor(string inputPath) =>
+        _analysisFolder.Root is { } root
+            ? Path.Combine(root, "stems", HashPath(inputPath))
+            : throw new InvalidOperationException("No analysis folder is in use yet, so stem work cannot locate its workspace.");
 
     /// <summary>
     /// Turns an input path into the fixed-length, collision-free directory-name

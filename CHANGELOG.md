@@ -7,6 +7,10 @@ changed at the decks, not which class moved.
 
 ## Unreleased
 
+### New
+
+- **Choose where Sholto keeps its analysis files.** Settings ▸ Folders… now has two rows: your music folder and an analysis folder for the separated stems (about 175 MB per track). A new install suggests a "Sholto Analysis" folder next to your music; if you are updating, you see the panel once and can keep the current folder or pick another. Pick a bigger drive and Sholto moves your existing stems there, with progress, and your tracks stay analysed. If the drive isn't connected at start, Sholto asks again and leaves stems off instead of filling your main drive. See [docs/library.md](docs/library.md#folders).
+
 ## v1.1.0
 
 ### Licence

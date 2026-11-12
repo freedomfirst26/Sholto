@@ -84,6 +84,7 @@ public sealed class BenchAppFactory(IBenchHeadlessApp headlessApp, IHeadlessCore
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
                 themeViewModel, new ThemeOptionFactory()),
             new SettingsViewModel(subscriber, sender, new KnobScaleFactory()),
+            new FoldersViewModel(subscriber, sender, asker),
             new SystemReportViewModel(),
             new CollapseToIconSequenceFactory(uiClock, motion)
                 .Create(new CollapseToIconOptions("faceplate", Slowed(new CollapseToIconTimingsFactory().Standard())),

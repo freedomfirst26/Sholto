@@ -135,6 +135,7 @@ public sealed class SholtoStackFactory(
             new ProcessStats(),
             new SettingPreference(libraryDatabase, SettingsKeys.Theme),
             new SettingPreference(libraryDatabase, SettingsKeys.MusicDir),
+            new SettingPreference(libraryDatabase, SettingsKeys.AnalysisDir),
             new SettingPreference(libraryDatabase, SettingsKeys.OutputDevice),
             new SettingPreference(libraryDatabase, SettingsKeys.WaveformStyle),
             new SettingPreference(libraryDatabase, SettingsKeys.BackspinTimeSeconds),

@@ -29,7 +29,9 @@ public sealed class ExternalToolOptions
 
     /// <summary>Root directory under which every tool's on-disk cache lives (each
     /// tool gets its own subfolder under this — see the composition root). A machine
-    /// fact (derived from <c>Environment.GetFolderPath</c>), not adapter policy.</summary>
+    /// fact (derived from <c>Environment.GetFolderPath</c>), not adapter policy.
+    /// Stems no longer read this: they live in the user's analysis folder
+    /// (<c>IAnalysisFolder</c>). This is now only the legacy default for that folder.</summary>
     public required string CacheRoot { get; init; }
 
     /// <summary>Every tool name this build knows about. <see cref="ToolSet"/>

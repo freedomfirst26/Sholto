@@ -1,4 +1,3 @@
-using Avalonia.Controls;
 using Sholto.Data;
 using Sholto.Interface.MainUI.ViewModels;
 
@@ -11,6 +10,6 @@ public sealed class LifecyclePromptsFactory(
     private readonly ICommandSender _sender = sender;
     private readonly IAppThread _appThread = appThread;
 
-    public LifecyclePrompts Create(MainViewModel viewModel, Window owner) =>
-        new(_subscriber, _sender, _appThread, viewModel, owner);
+    public LifecyclePrompts Create(MainViewModel viewModel) =>
+        new(_subscriber, _sender, _appThread, viewModel);
 }

@@ -84,6 +84,7 @@ internal sealed class TrackListDragRig
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
                 themeViewModel, new ThemeOptionFactory()),
             new SettingsViewModel(bus, bus, new KnobScaleFactory()),
+            new FoldersViewModel(bus, bus, bus),
             new SystemReportViewModel(),
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),

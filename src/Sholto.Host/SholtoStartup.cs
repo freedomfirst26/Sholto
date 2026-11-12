@@ -136,7 +136,7 @@ public sealed class SholtoStartup : IApplicationStartup
         // card apart from ordinary speakers.
         var lifecycle = _lifecycleFactory.Create(core, controllerStack.SoundCard);
         _lifecycle = lifecycle;
-        _promptsFactory.Create(vm, desktop.MainWindow!).Start();
+        _promptsFactory.Create(vm).Start();
         lifecycle.Start();
 
         _midiManager = controllerStack.Midi;

@@ -33,6 +33,7 @@ public sealed class SholtoOptions
     public IOptions<DeckViewOptions> DeckView { get; }
     public IOptions<WaveformStyleOptions> WaveformStyle { get; }
     public IOptions<StemSeparationOptions> StemSeparation { get; }
+    public IOptions<AnalysisFolderOptions> AnalysisFolder { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down.</summary>
@@ -51,5 +52,6 @@ public sealed class SholtoOptions
         DeckView = Options.Create(new DeckViewOptions());
         WaveformStyle = Options.Create(new WaveformStyleOptions());
         StemSeparation = Options.Create(new StemSeparationOptions());
+        AnalysisFolder = Options.Create(new AnalysisFolderOptions());
     }
 }

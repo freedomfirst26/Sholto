@@ -133,6 +133,7 @@ public sealed class LiveEntities(
                 new DemoWaveformFactory(), new WaveformPreviewScroll(_clock), _appThread,
                 themes, new ThemeOptionFactory()),
             new SettingsViewModel(_subscriber, _sender, new KnobScaleFactory()),
+            new FoldersViewModel(_subscriber, _sender, _asker),
             new SystemReportViewModel(),
             faceplateDock,
             new TrackListViewModel(_sender, _subscriber));

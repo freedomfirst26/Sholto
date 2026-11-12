@@ -42,95 +42,106 @@ public class AppLifecycleTests
         Assert.Equal(check.ToReported().Tools, announced.Tools);
     }
 
-    // ---- Music folder ---------------------------------------------------------------------------
+    // ---- Folders --------------------------------------------------------------------------------
+
+    private static string NewAnalysisDir() => Directory.CreateTempSubdirectory("sholto-analysis-").FullName;
+
+    /// <summary>The "interface" answering every <see cref="FoldersNeeded"/> with this pick (both null cancels).</summary>
+    private static void AnswerFolders(AppLifecycleRig rig, string? music, string? analysis) =>
+        rig.Library.Bus.Subscribe(new ActionEventHandler<FoldersNeeded>(
+            _ => rig.Folders.Handle(new ChooseFolders(music, analysis, Answer))));
 
     [Fact]
-    public async Task With_the_database_and_a_reachable_saved_folder_the_library_is_scanned_with_its_stores_and_nothing_is_asked()
+    public async Task With_the_database_and_reachable_saved_folders_the_library_is_scanned_with_its_stores_and_nothing_is_asked()
     {
         var rig = new AppLifecycleRig();
         await rig.Settings.SetAsync(SettingsKeys.MusicDir, NewMusicDir());
+        await rig.Settings.SetAsync(SettingsKeys.AnalysisDir, NewAnalysisDir());
 
         rig.Lifecycle.Start();
 
         await Eventually(() => rig.Library.Library.Rows.Count == 3);
-        Assert.Empty(rig.MusicFolderAsked.Received);
+        Assert.Empty(rig.FoldersAsked.Received);
         Assert.All(rig.Library.Library.Rows, r => Assert.NotEqual(Guid.Empty, r.TrackId));
         Assert.False(rig.Library.Library.IsUnreachable);
     }
 
     [Fact]
-    public async Task The_environment_override_is_scanned_without_asking_even_when_nothing_is_saved()
+    public async Task The_environment_overrides_are_used_without_asking_even_when_nothing_is_saved()
     {
         var rig = new AppLifecycleRig(musicDirOverride: NewMusicDir());
 
         rig.Lifecycle.Start();
 
         await Eventually(() => rig.Library.Library.Rows.Count == 3);
-        Assert.Empty(rig.MusicFolderAsked.Received);
+        Assert.Empty(rig.FoldersAsked.Received);
     }
 
     [Fact]
-    public async Task First_run_asks_for_a_folder_then_saves_it_and_scans()
+    public async Task First_run_asks_for_both_folders_then_saves_them_and_scans()
     {
         var rig = new AppLifecycleRig();
         var chosen = NewMusicDir();
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(chosen, Answer))));
+        var analysis = NewAnalysisDir();
+        AnswerFolders(rig, chosen, analysis);
 
         rig.Lifecycle.Start();
 
         await Eventually(() => rig.Library.Library.Rows.Count == 3);
-        var asked = Assert.Single(rig.MusicFolderAsked.Received);
-        Assert.Equal(MusicFolderReason.FirstRun, asked.Reason);
-        Assert.Null(asked.MissingPath);
+        var asked = Assert.Single(rig.FoldersAsked.Received);
+        Assert.Equal(FoldersReason.FirstRun, asked.Reason);
+        Assert.Null(asked.Music.Path);
         Assert.Equal(chosen, rig.Settings.Peek(SettingsKeys.MusicDir));
+        Assert.Equal(analysis, rig.Settings.Peek(SettingsKeys.AnalysisDir));
     }
 
     [Fact]
-    public async Task A_cancelled_first_run_picker_saves_nothing_and_scans_nothing()
+    public async Task A_cancelled_first_run_question_saves_nothing_and_scans_nothing()
     {
         var rig = new AppLifecycleRig();
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(null, Answer))));
+        AnswerFolders(rig, null, null);
 
         rig.Lifecycle.Start();
 
-        await Eventually(() => rig.MusicFolderAsked.Received.Count == 1);
+        await Eventually(() => rig.FoldersAsked.Received.Count == 1);
         await rig.Database.Opened;
         await Task.Delay(100);
         Assert.Empty(rig.Library.Library.Rows);
         Assert.Null(rig.Settings.Peek(SettingsKeys.MusicDir));
+        Assert.Null(rig.Settings.Peek(SettingsKeys.AnalysisDir));
     }
 
     [Fact]
-    public async Task An_unreachable_saved_folder_shows_the_banner_and_asks_again_naming_the_missing_path()
+    public async Task An_unreachable_saved_music_folder_shows_the_banner_and_asks_again_naming_the_missing_path()
     {
         var rig = new AppLifecycleRig();
         const string gone = "/media/definitely/not/mounted";
         await rig.Settings.SetAsync(SettingsKeys.MusicDir, gone);
+        await rig.Settings.SetAsync(SettingsKeys.AnalysisDir, NewAnalysisDir());
 
         rig.Lifecycle.Start();
 
-        await Eventually(() => rig.MusicFolderAsked.Received.Count == 1);
-        var asked = rig.MusicFolderAsked.Received[0];
-        Assert.Equal(MusicFolderReason.DriveNotFound, asked.Reason);
-        Assert.Equal(gone, asked.MissingPath);
+        await Eventually(() => rig.FoldersAsked.Received.Count == 1);
+        var asked = rig.FoldersAsked.Received[0];
+        Assert.Equal(FoldersReason.DriveNotFound, asked.Reason);
+        Assert.Equal(gone, asked.Music.Path);
+        Assert.Equal(FolderRowState.Missing, asked.Music.State);
         Assert.Equal(gone, rig.Library.Library.UnreachablePath);
         Assert.Empty(rig.Library.Library.Rows);
     }
 
     [Fact]
-    public async Task Cancelling_the_picker_for_an_unreachable_folder_keeps_the_saved_path_for_next_launch()
+    public async Task Cancelling_the_question_for_an_unreachable_folder_keeps_the_saved_path_for_next_launch()
     {
         var rig = new AppLifecycleRig();
         const string gone = "/media/definitely/not/mounted";
         await rig.Settings.SetAsync(SettingsKeys.MusicDir, gone);
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(null, Answer))));
+        await rig.Settings.SetAsync(SettingsKeys.AnalysisDir, NewAnalysisDir());
+        AnswerFolders(rig, null, null);
 
         rig.Lifecycle.Start();
 
-        await Eventually(() => rig.MusicFolderAsked.Received.Count == 1);
+        await Eventually(() => rig.FoldersAsked.Received.Count == 1);
         await Task.Delay(100);
         Assert.Equal(gone, rig.Settings.Peek(SettingsKeys.MusicDir));
         Assert.Empty(rig.Library.Library.Rows);
@@ -141,10 +152,11 @@ public class AppLifecycleTests
     public async Task Choosing_a_folder_for_an_unreachable_one_replaces_the_saved_path_and_clears_the_banner()
     {
         var rig = new AppLifecycleRig();
+        var analysis = NewAnalysisDir();
         await rig.Settings.SetAsync(SettingsKeys.MusicDir, "/media/definitely/not/mounted");
+        await rig.Settings.SetAsync(SettingsKeys.AnalysisDir, analysis);
         var chosen = NewMusicDir();
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(chosen, Answer))));
+        AnswerFolders(rig, chosen, analysis);
 
         rig.Lifecycle.Start();
 
@@ -157,56 +169,112 @@ public class AppLifecycleTests
     public async Task Without_the_database_nothing_is_read_or_saved_and_the_scan_runs_with_no_stores()
     {
         var rig = new AppLifecycleRig(databaseAvailable: false);
-        var chosen = NewMusicDir();
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(chosen, Answer))));
+        AnswerFolders(rig, NewMusicDir(), NewAnalysisDir());
 
         rig.Lifecycle.Start();
 
         // No saved folder can be read, so it is a first run every launch.
         await Eventually(() => rig.Library.Library.Rows.Count == 3);
-        Assert.Equal(MusicFolderReason.FirstRun, Assert.Single(rig.MusicFolderAsked.Received).Reason);
+        Assert.Equal(FoldersReason.FirstRun, Assert.Single(rig.FoldersAsked.Received).Reason);
         Assert.Null(await rig.MusicDirPreference.GetAsync());
         Assert.All(rig.Library.Library.Rows, r => Assert.Equal(Guid.Empty, r.TrackId));
     }
 
     [Fact]
-    public async Task The_menu_asks_for_a_new_folder_and_a_cancel_changes_nothing()
+    public async Task The_menu_asks_about_the_folders_and_a_cancel_changes_nothing()
     {
         var rig = new AppLifecycleRig();
         var saved = NewMusicDir();
+        var analysis = NewAnalysisDir();
         await rig.Settings.SetAsync(SettingsKeys.MusicDir, saved);
+        await rig.Settings.SetAsync(SettingsKeys.AnalysisDir, analysis);
         rig.Lifecycle.Start();
         await Eventually(() => rig.Library.Library.Rows.Count == 3);
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(null, Answer))));
+        AnswerFolders(rig, null, null);
 
-        rig.Lifecycle.Handle(new ChangeMusicFolder(Answer));
+        rig.Folders.Handle(new ChangeFolders(Answer));
 
-        await Eventually(() => rig.MusicFolderAsked.Received.Count == 1);
+        await Eventually(() => rig.FoldersAsked.Received.Count == 1);
         await Task.Delay(100);
-        Assert.Equal(MusicFolderReason.Change, rig.MusicFolderAsked.Received[0].Reason);
+        Assert.Equal(FoldersReason.Change, rig.FoldersAsked.Received[0].Reason);
         Assert.Equal(saved, rig.Settings.Peek(SettingsKeys.MusicDir));
+        Assert.Equal(analysis, rig.Settings.Peek(SettingsKeys.AnalysisDir));
         Assert.Equal(3, rig.Library.Library.Rows.Count);
     }
 
     [Fact]
-    public async Task The_menu_picks_a_new_folder_saves_it_and_rescans_even_when_it_is_the_same_one()
+    public async Task The_menu_picks_new_folders_saves_them_and_rescans_even_when_the_music_folder_is_the_same_one()
     {
         var rig = new AppLifecycleRig();
         var saved = NewMusicDir();
+        var analysis = NewAnalysisDir();
         await rig.Settings.SetAsync(SettingsKeys.MusicDir, saved);
+        await rig.Settings.SetAsync(SettingsKeys.AnalysisDir, analysis);
         rig.Lifecycle.Start();
         await Eventually(() => rig.Library.Library.Rows.Count == 3);
         var rescans = 0;
         rig.Library.Library.RowsChanged += _ => rescans++;
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(saved, Answer))));
+        AnswerFolders(rig, saved, analysis);
 
-        rig.Lifecycle.Handle(new ChangeMusicFolder(Answer));
+        rig.Folders.Handle(new ChangeFolders(Answer));
 
         await Eventually(() => rescans >= 1);
         Assert.Equal(saved, rig.Settings.Peek(SettingsKeys.MusicDir));
+    }
+
+    // ---- Folders before the output device -------------------------------------------------------
+
+    [Fact]
+    public async Task First_run_asks_the_folders_first_and_the_output_device_only_after_they_are_answered()
+    {
+        var rig = new AppLifecycleRig(devices: [Speakers, Headphones]);
+        rig.Library.Bus.Subscribe(new ActionEventHandler<OutputDeviceNeeded>(
+            _ => rig.Lifecycle.Handle(new ChooseOutputDevice("Speakers", Answer))));
+
+        rig.Lifecycle.Start();
+
+        // The device list is ready long before the folders are answered; the picker still must not open.
+        await Eventually(() => rig.FoldersAsked.Received.Count == 1 && rig.Enumerator.Calls == 1);
+        await Task.Delay(150);
+        Assert.Empty(rig.DeviceAsked.Received);
+
+        await rig.OnAppThreadAsync(() => rig.Folders.Handle(new ChooseFolders(NewMusicDir(), NewAnalysisDir(), Answer)));
+
+        await Eventually(() => rig.Audio.Started);
+        Assert.Single(rig.FoldersAsked.Received);
+        Assert.Single(rig.DeviceAsked.Received);
+        Assert.Equal("Speakers", rig.Audio.StartedOn);
+    }
+
+    [Fact]
+    public async Task A_saved_output_device_starts_audio_at_once_without_waiting_for_the_folders_question()
+    {
+        var rig = new AppLifecycleRig(devices: [Speakers, Headphones]);
+        await rig.Settings.SetAsync(SettingsKeys.OutputDevice, "Headphones");
+
+        rig.Lifecycle.Start();
+
+        await Eventually(() => rig.Audio.Started);
+        Assert.Equal("Headphones", rig.Audio.StartedOn);
+        await Eventually(() => rig.FoldersAsked.Received.Count == 1);  // still open: nobody answered it
+        Assert.Empty(rig.DeviceAsked.Received);
+    }
+
+    [Fact]
+    public async Task Cancelling_the_folders_question_still_lets_the_output_device_picker_ask()
+    {
+        var rig = new AppLifecycleRig(devices: [Speakers, Headphones]);
+        AnswerFolders(rig, null, null);
+        rig.Library.Bus.Subscribe(new ActionEventHandler<OutputDeviceNeeded>(
+            _ => rig.Lifecycle.Handle(new ChooseOutputDevice("Headphones", Answer))));
+
+        rig.Lifecycle.Start();
+
+        await Eventually(() => rig.Audio.Started);
+        Assert.Single(rig.FoldersAsked.Received);
+        Assert.Single(rig.DeviceAsked.Received);
+        Assert.Equal("Headphones", rig.Audio.StartedOn);
+        Assert.Empty(rig.Library.Library.Rows);
     }
 
     // ---- Output device --------------------------------------------------------------------------
