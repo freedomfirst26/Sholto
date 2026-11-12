@@ -6,9 +6,6 @@ C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 
 - [ ] **C259 — Key lock (master tempo).** Per-deck toggle keeps a track's pitch unchanged while its tempo moves (time-stretch, not resampling), on screen and on the FLX4 MASTER TEMPO button; off by default, real-time safe on the audio thread. Size L.
   Plan: ~/.claude/plans/sholto-impl-31-c259-key-lock-master-tempo.md (written, but its plan review never finished; re-review before building). Spec: ~/.claude/plans/sholto-launch-plan.md (Stage B2).
-- [ ] **C261 — Library backup before upgrade.** Before any database migration runs, `library.db` is copied to `library.db.bak-<old schema version>`; keeps the last 3; a failed copy stops the migration. Size S.
-  ACCEPT When opening an existing library database that has pending migrations, Sholto first writes a complete copy to `library.db.bak-<id of its last applied migration>` beside it, keeps only the 3 newest such backups, and if the copy fails no migration runs and the open fails with an error naming the backup.
-  Spec: ~/.claude/plans/sholto-launch-plan.md (Stage B2).
 - [ ] **C249 — Re-capture the site assets with `capture.sh` on the v1.2.0 build.** Size S. After C248 (v1.2.0 release).
   Spec: ~/.claude/plans/sholto-launch-plan.md (Stage D).
 - [ ] **C252 — Set Pages source to GitHub Actions, then run pages.yml.** Settings > Pages > Source = GitHub Actions, then run pages.yml (or it fires from v1.2.0). Size S. After C248, C249, C251.
@@ -19,24 +16,11 @@ C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 - [ ] **C130 — Backspin sound: anti-alias reader + speed ramp, cap 8x.**
   ACCEPT At speeds beyond 1x both in-memory providers read through a box filter over the source frames each output step covers, ramp the speed smoothly across each buffer from the previous one, and never read faster than 8x either way.
   BLOCKS the new output sound — Sebastian must confirm it is wanted; it changes `StemMixOutputPinTests` (ExpectedMixed hash) and golden `Fixtures/scratch.wav`, both outside the earlier job's files.
-- [ ] **Zero-alloc tests flaky (~1/50, 7 tests).**
-  ACCEPT Every zero-allocation test that still measures one hand-rolled window now measures five windows through AllocationWindows and passes when at most one window allocates.
-  BLOCKS acceptance wording — the earlier job finished the 7 files (cloud branch commit 8890eca, not landed) but its check "no direct GC.GetAllocatedBytesForCurrentThread" also hits `tests/Sholto.App.Audio.Tests/CueOutputRouterTests.cs:120` and `StemMixSimdTests.cs:75`; either narrow the check to the 7 files or also convert those two (needs `Sholto.App.Audio.Tests.csproj` to reference Sholto.TestSupport.Allocation).
-- [ ] **C258 — Record the mix.** Re-plan and rebuild: the cloud build was blocked, not landed.
-  BLOCKS registration location — the spec said register ToggleMixRecording with bus.Register in AppStackFactory, but tests/Sholto.App.Tests/CommandHandlersFactoryTests.cs:41-42 requires every Sholto.Data command to be registered by CommandHandlersFactory (count pinned at 66), and neither that test nor CommandHandlersFactory.cs was an owned file. Re-plan with those files owned and the registration in CommandHandlersFactory.
-  Old plan: ~/.claude/plans/sholto-impl-30-c258-record-the-mix-a.md
-- [ ] **C262 — Fix the Windows one-liner's asset filter.** `get-sholto.ps1:49` filters release assets with `-like "*win-x64.zip"`, but `release.yml` names the asset `sholto-…-windows-x64.zip`, so the documented one-liner reports "no stable Windows release yet". Match `*windows-x64.zip`. Size S.
-- [ ] **C263 — Untrack `.job/` files.** `git rm --cached` the tracked `.job/*.md` files (committed in 7145b21 and a8176a2) and add `.job/` to `.gitignore`. Size S. Sebastian approved this as a cleanup job.
-- [ ] **C264 — Output picker docs.** Add a CHANGELOG.md line under Unreleased / Improved ("The audio output picker lists your controller first, so you can send the master mix back to it after picking speakers.") and a `docs/features.md` bullet. Size S.
-- [ ] **C265 — FLX4 Shift pages follow-up.** Size M.
-  (a) Describe the four Shift pages and the `pad.beatloop.press` gesture in `ddj-flx4.guide.json`. (b) Add the CHANGELOG and `docs/features.md` lines. (c) A BEAT LOOP pad pressed during a running loop RESIZES the loop instead of exiting it (Sebastian's call, recommended default, as most DJ software does).
 - [ ] **C266 — TrackList log: drop the log-less constructor.** Migrate `tests/Sholto.Interface.MainUI.Tests/LibraryRowsViewModelTests.cs:82` and `TrackListDragRig.cs:97` to pass a log to `TrackList`, then delete its log-less constructor in `src/Sholto.App/Library/TrackList.cs`. Size S.
 
 ## Waiting on you
 
 - C130: is the new backspin output wanted (it changes the pinned mix hash and golden scratch.wav)? Default: stays parked until you confirm.
-- Zero-alloc tests: narrow the "no direct GetAllocatedBytesForCurrentThread" check to the 7 files, or also convert the two App.Audio.Tests files? Default: also convert them.
-- `.job/dod.md`, `.job/review-prompt.md` and `.job/spec.md` are tracked on main (commit 7145b21) and `.job/` is not in `.gitignore`; remove them and ignore `.job/`? Default: yes, as a small cleanup job.
 
 ## Parked
 
