@@ -9,6 +9,7 @@ namespace Sholto.Interface.MainUI.Theming;
 ///      <c>avares://Sholto.Interface.MainUI/Themes/*.json</c>.
 ///   2. User — drop additional <c>.json</c> files into
 ///      <c>$XDG_CONFIG_HOME/sholto/themes/</c> (or <c>~/.config/sholto/themes/</c>)
+///      (<c>%APPDATA%\sholto\themes\</c> on Windows)
 ///      and they're merged with the bundled list, no rebuild required.
 /// The JSON schema is documented on <see cref="SholtoThemeFactory"/>.
 /// </summary>
@@ -108,9 +109,12 @@ public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory) : ISholt
 
     /// <summary>Resolved user theme directory. Honours <c>$XDG_CONFIG_HOME</c>
     /// when set so Linux users with non-standard config layouts work without
-    /// custom code, otherwise <c>~/.config/sholto/themes/</c>.</summary>
+    /// custom code, otherwise <c>~/.config/sholto/themes/</c>. On Windows it is
+    /// <c>%APPDATA%\sholto\themes</c>.</summary>
     public string UserThemesDir()
     {
+        if (OperatingSystem.IsWindows())
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "sholto", "themes");
         var xdg = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
         var home = string.IsNullOrEmpty(xdg)
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config")

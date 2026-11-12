@@ -33,7 +33,14 @@ public sealed class SholtoStorage(IDatabaseStackFactory databases, ISholtoDbCont
         return _databases.Create(new PooledDbContextFactory<SholtoDbContext>(options));
     }
 
-    public string DefaultDbPath() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        ".local", "share", "sholto", "library.db");
+    /// <summary>Default library database path: <c>%LOCALAPPDATA%\sholto\library.db</c> on
+    /// Windows, otherwise <c>~/.local/share/sholto/library.db</c>.</summary>
+    public string DefaultDbPath()
+    {
+        if (OperatingSystem.IsWindows())
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "sholto", "library.db");
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".local", "share", "sholto", "library.db");
+    }
 }
