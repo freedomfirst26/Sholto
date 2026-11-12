@@ -12,6 +12,8 @@ public class LibraryBackupTests
 {
     private const string WalOnlyTrackPath = "/wal-only.flac";
     private const string WalOnlyTrackId = "0b5c4d1e-3f2a-4b6c-8d7e-9f0a1b2c3d4e";
+    private const string SchemaSql =
+        "SELECT group_concat(sql, ';') FROM (SELECT sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name);";
     private const string BackupPattern = "library.db.bak-*";
     private const int BackupsKept = 3;
     private const int OlderBackups = 4;
@@ -20,7 +22,7 @@ public class LibraryBackupTests
     public async Task Opening_a_library_one_migration_behind_backs_it_up_with_its_WAL_rows_first()
     {
         using var temp = new TempSqliteDatabase();
-        var (previous, _) = await CreateOneMigrationBehindAsync(temp.Path);
+        var (previous, latest) = await CreateOneMigrationBehindAsync(temp.Path);
 
         // A row committed but not checkpointed: it lives only in library.db-wal while this connection is open.
         await using var holder = OpenUnpooled(temp.Path);
@@ -28,6 +30,7 @@ public class LibraryBackupTests
         Execute(holder, "INSERT INTO Tracks (Id, Path, Title, Artist, FileSize, FileMtime, DurationSecs) " +
             $"VALUES ('{WalOnlyTrackId}', '{WalOnlyTrackPath}', 'T', 'A', 0, 0, 0);");
         Assert.Equal(0, CountWalOnlyTrackInMainFileAlone(temp.Path));
+        var schemaBefore = Scalar<string>(holder, SchemaSql);
 
         await new ContextCapturingStorage().OpenAsync(temp.Path);
 
@@ -37,7 +40,9 @@ public class LibraryBackupTests
         Assert.Equal(1, Scalar(backup, $"SELECT COUNT(*) FROM Tracks WHERE Path = '{WalOnlyTrackPath}';"));
         Assert.Equal(previous, Scalar<string>(backup,
             "SELECT MigrationId FROM __EFMigrationsHistory ORDER BY MigrationId DESC LIMIT 1;"));
-        Assert.Equal(0, Scalar(backup, "SELECT COUNT(*) FROM pragma_table_info('Markers') WHERE name = 'Slot';"));
+        Assert.Equal(0, Scalar(backup, $"SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId = '{latest}';"));
+        Assert.Equal(schemaBefore, Scalar<string>(backup, SchemaSql));
+        Assert.NotEqual(schemaBefore, Scalar<string>(holder, SchemaSql));
     }
 
     [Fact]
