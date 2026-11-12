@@ -4,9 +4,13 @@ using Sholto.Data;
 
 namespace Sholto.App.Analysis.Analyzers.Segments;
 
-/// <summary>Default <see cref="IBarFeatureExtractor"/>. Bar means of the three band peaks,
-/// kick presence (a low-band pulse at the start of each beat), bass presence (sustained low
-/// level) and spectral change (column-to-column band difference). Pure computation.</summary>
+/// <summary>Default <see cref="IBarFeatureExtractor"/>: computes per-bar features from waveform
+/// peaks and a beatgrid. Bar means of the three band peaks, kick presence (a low-band pulse at
+/// the start of each beat), bass presence (sustained low level) and spectral change
+/// (column-to-column band difference). Pure computation.</summary>
+/// <remarks>Not a factory, so it is not named one: it builds no collaborator or object recipe, it
+/// reduces peaks to per-bar statistics using <see cref="PhraseSectionOptions"/> thresholds — analysis,
+/// like its sibling <see cref="PhraseSectionAnalyzer"/>.</remarks>
 public sealed class BarFeatureExtractor(PhraseSectionOptions options) : IBarFeatureExtractor
 {
     private readonly PhraseSectionOptions _options = options;
