@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.App;
 using Sholto.Data;
 using Xunit;
@@ -150,54 +151,33 @@ public class InspectGateTests
 
         var crossfade = new SetCrossfader(0.5, From(InterfaceIds.Controller, "mixer.crossfader", "crossfader.move"));
 
-        var turnRuns = 0;
-        var globalRuns = 0;
-
-        long Measure()
+        // Each run: a 2,000-send warm-up so tiered JIT/OSR has finished, then five 2,000-send windows. A
+        // sporadic one-off runtime allocation lands in at most one window; a real per-send allocation hits all.
+        AllocationWindowsResult Run<T>(T command) where T : struct, ICommand
         {
-            turnRuns++;
-            for (var i = 0; i < 2_000; i++) bus.Send(turn);
-            var before = GC.GetAllocatedBytesForCurrentThread();
-            for (var i = 0; i < 10_000; i++) bus.Send(turn);
-            return GC.GetAllocatedBytesForCurrentThread() - before;
+            for (var i = 0; i < 2_000; i++) bus.Send(command);
+            return new AllocationWindows(5).Measure(() =>
+            {
+                for (var i = 0; i < 2_000; i++) bus.Send(command);
+            });
         }
 
+        var turnOff = Run(turn);
+        Assert.True(turnOff.AllocatingWindows <= 1, turnOff.ToString());
+        Assert.Equal(12_000, handler.Count);
         // A global command must not box either: guards against a default interface member on ICommand.
-        long MeasureGlobal()
-        {
-            globalRuns++;
-            for (var i = 0; i < 2_000; i++) bus.Send(crossfade);
-            var before = GC.GetAllocatedBytesForCurrentThread();
-            for (var i = 0; i < 10_000; i++) bus.Send(crossfade);
-            return GC.GetAllocatedBytesForCurrentThread() - before;
-        }
-
-        // One full unmeasured pass so tiered JIT/OSR has finished, then best of 3: a sporadic one-off runtime
-        // allocation must not fail the test; a real per-send allocation fails every attempt.
-        static string BestOfThree(Func<long> measure)
-        {
-            measure();
-            var results = new List<long>();
-            for (var attempt = 0; attempt < 3 && (results.Count == 0 || results[^1] != 0); attempt++)
-                results.Add(measure());
-            return results[^1] == 0 ? "" : $"allocated in every attempt: {string.Join(", ", results)} bytes";
-        }
-
-        Assert.Equal("", BestOfThree(Measure));
-        Assert.Equal(12_000 * turnRuns, handler.Count);
-        Assert.Equal("", BestOfThree(MeasureGlobal));
-        Assert.Equal(12_000 * globalRuns, crossfaderHandler.Count);
+        var globalOff = Run(crossfade);
+        Assert.True(globalOff.AllocatingWindows <= 1, globalOff.ToString());
+        Assert.Equal(12_000, crossfaderHandler.Count);
 
         bus.Send(new SetInspectMode(true, From(InterfaceIds.Faceplate)));
-        var turnsBefore = turnRuns;
-        var globalsBefore = globalRuns;
-        var turnHandled = handler.Count;
-        var globalHandled = crossfaderHandler.Count;
-        Assert.Equal("", BestOfThree(Measure));
-        Assert.Equal(turnHandled, handler.Count);
-        Assert.Equal(12_000 * (turnRuns - turnsBefore), echoes.Count);
-        Assert.Equal("", BestOfThree(MeasureGlobal));
-        Assert.Equal(globalHandled, crossfaderHandler.Count);
-        Assert.Equal(12_000 * (turnRuns - turnsBefore + globalRuns - globalsBefore), echoes.Count);
+        var turnOn = Run(turn);
+        Assert.True(turnOn.AllocatingWindows <= 1, turnOn.ToString());
+        Assert.Equal(12_000, handler.Count);
+        Assert.Equal(12_000, echoes.Count);
+        var globalOn = Run(crossfade);
+        Assert.True(globalOn.AllocatingWindows <= 1, globalOn.ToString());
+        Assert.Equal(12_000, crossfaderHandler.Count);
+        Assert.Equal(24_000, echoes.Count);
     }
 }

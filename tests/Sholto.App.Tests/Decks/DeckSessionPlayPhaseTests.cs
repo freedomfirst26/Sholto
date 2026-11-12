@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.App.Library;
@@ -127,26 +128,22 @@ public class DeckSessionPlayPhaseTests
         var start = StartEnding(rig, ports);
         var frame = 0;
 
-        long Measure(int frames)
+        void Run(int frames)
         {
-            var before = GC.GetAllocatedBytesForCurrentThread();
             for (var i = 0; i < frames; i++, frame++)
             {
                 rig.Clock.Now = start.AddMilliseconds(frame * 16);
                 rig.Session.SyncPlayPosition();
             }
-            return GC.GetAllocatedBytesForCurrentThread() - before;
         }
 
         // A full unmeasured pass so tiered JIT/OSR has finished before measuring.
-        Measure(2200);
-        // Best of 3: a sporadic one-off runtime allocation on a random frame must not fail the test; a real
-        // per-frame allocation (at least 24 B x 2000 frames) fails every attempt.
-        var results = new List<long>();
-        for (var attempt = 0; attempt < 3 && (results.Count == 0 || results[^1] != 0); attempt++)
-            results.Add(Measure(2000));
+        Run(2200);
+        // Five windows: a sporadic one-off runtime allocation on a random frame lands in at most one; a real
+        // per-frame allocation (at least 24 B a frame) hits every window.
+        var result = new AllocationWindows(5).Measure(() => Run(400));
 
-        Assert.True(results[^1] == 0, $"allocated in every attempt: {string.Join(", ", results)} bytes");
+        Assert.True(result.AllocatingWindows <= 1, result.ToString());
     }
 
     [Fact]
