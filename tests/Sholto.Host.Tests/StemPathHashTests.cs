@@ -6,7 +6,12 @@ namespace Sholto.Host.Tests;
 public class StemPathHashTests
 {
     // HashPath is the stem-directory encoding ExternalToolStackFactory owns; built as AppStackFactory builds it.
-    private readonly ExternalToolStackFactory _toolStacks = new(new ExternalToolFinderFactory(), new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory()), new ToolOutcomeFactory(), Microsoft.Extensions.Options.Options.Create(new StemSeparationOptions()));
+    private readonly ExternalToolStackFactory _toolStacks = new(
+        new ExternalToolFinderFactory(),
+        new BeatThisBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory(), Path.GetTempPath()),
+        new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory()),
+        new ToolOutcomeFactory(),
+        Microsoft.Extensions.Options.Options.Create(new StemSeparationOptions()));
 
     [Fact]
     public void SamePath_HashesSame_BothTimes()

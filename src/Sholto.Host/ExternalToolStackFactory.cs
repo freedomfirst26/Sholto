@@ -12,7 +12,9 @@ namespace Sholto.Host;
 /// <summary>
 /// Builds the <see cref="ExternalToolStack"/> once at startup: reads the environment
 /// for tool-path / cache-root overrides, resolves every tool's binary, and wires the
-/// beat and stem steps. An instance (injected into <c>SholtoStackFactory</c>) rather
+/// beat and stem steps. The beat step is Beat This! whenever <c>beat_this</c> is found,
+/// madmom only when <c>DBNDownBeatTracker</c> is found and Beat This! is not, and Beat
+/// This! again when neither is (its run then fails, naming its install command). An instance (injected into <c>SholtoStackFactory</c>) rather
 /// than a static, because it touches the world and happens exactly once.
 ///
 /// The run/lookup agreement the stem workspace closure preserves is documented on
@@ -22,12 +24,14 @@ namespace Sholto.Host;
 /// </summary>
 public sealed class ExternalToolStackFactory(
     IExternalToolFinderFactory finderFactory,
-    IBeatAnalysisStepFactory beatSteps,
+    IBeatThisBeatAnalysisStepFactory beatThisSteps,
+    IMadmomBeatAnalysisStepFactory madmomSteps,
     IToolOutcomeFactory outcomes,
     IOptions<StemSeparationOptions> stemOptions) : IExternalToolStackFactory
 {
     private readonly IExternalToolFinderFactory _finderFactory = finderFactory;
-    private readonly IBeatAnalysisStepFactory _beatSteps = beatSteps;
+    private readonly IBeatThisBeatAnalysisStepFactory _beatThisSteps = beatThisSteps;
+    private readonly IMadmomBeatAnalysisStepFactory _madmomSteps = madmomSteps;
     private readonly IToolOutcomeFactory _outcomes = outcomes;
     private readonly StemSeparationOptions _stemOptions = stemOptions.Value;
 
@@ -80,7 +84,7 @@ public sealed class ExternalToolStackFactory(
         var stemDevice = new CudaProbingStemDevice(tools.PathOrName(ExternalToolNames.Demucs), _stemOptions.CudaProbeTimeout);
         var demucsRaw = new DemucsStemAnalysisStep(tools.For(ExternalToolNames.Demucs), DemucsWorkspaceFor, stemDevice, _outcomes);
         var demucs = new CachingStemAnalysisStep(demucsRaw, demucsCache);
-        var madmom = _beatSteps.Create(tools.For(ExternalToolNames.Madmom), new NullAnalysisReporter());
+        var beats = BeatStepFor(tools.For(ExternalToolNames.BeatThis), tools.For(ExternalToolNames.Madmom));
 
         // Names the boot probe ToolSet's constructor already ran (see its own doc)
         // and reports it, rather than leaving the result thrown away after boot.
@@ -91,9 +95,16 @@ public sealed class ExternalToolStackFactory(
             demucs,
             demucsCache,
             stemDevice,
-            madmom,
+            beats,
             check);
     }
+
+    /// <summary>Beat This! when it is installed or when neither tracker is (so the
+    /// failure names Beat This!'s install command); madmom only as the fallback.</summary>
+    private IBeatAnalysisStep BeatStepFor(IExternalTool beatThis, IExternalTool madmom) =>
+        !beatThis.IsAvailable && madmom.IsAvailable
+            ? _madmomSteps.Create(madmom, new NullAnalysisReporter())
+            : _beatThisSteps.Create(beatThis, new NullAnalysisReporter());
 
     /// <summary>
     /// Turns an input path into the fixed-length, collision-free directory-name

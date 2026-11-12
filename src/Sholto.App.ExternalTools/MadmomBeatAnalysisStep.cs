@@ -8,27 +8,24 @@ namespace Sholto.App.ExternalTools;
 
 /// <summary>
 /// Beat / downbeat detection — shells out to madmom's DBNDownBeatTracker
-/// (RNN + dynamic Bayesian network). Required, no fallback.
-///
-/// Install once:
-///   sudo apt install ffmpeg
-///   uv tool install madmom-onnx
+/// (RNN + dynamic Bayesian network). The optional fallback: used only when Beat This!
+/// (<see cref="BeatThisBeatAnalysisStep"/>) is not installed. madmom's models are
+/// licensed for non-commercial use only, so it is no longer installed by default.
 /// </summary>
 public sealed class MadmomBeatAnalysisStep(IExternalTool tool, IAnalysisReporter reporter, IToolDefinition<DetectedBeats> madmomTool)
     : ExternalToolAnalysisStep(tool), IBeatAnalysisStep
 {
     public override string StepName => AnalysisSteps.Beats;
 
-    /// <summary>Single source of truth for the install command — reused verbatim by
-    /// the boot-time system check (<c>Sholto.Interface.MainUI.SholtoStackFactory.Build</c>) so the two
-    /// messages can't drift apart.</summary>
+    /// <summary>Single source of truth for madmom's install command — shown by the
+    /// boot-time system report (<see cref="SystemCheck.ToReported"/>) for the optional
+    /// fallback.</summary>
     public const string InstallCommand = "uv tool install madmom-onnx";
 
     private readonly IAnalysisReporter _reporter = reporter;
 
     /// <summary>Run madmom on the file and return its raw beat/downbeat detections.
-    /// No reporter — madmom is required and has no UI-visible step of its own; a
-    /// failure here throws and is surfaced by the caller.</summary>
+    /// A failure here throws and is surfaced by the caller.</summary>
     public async Task<DetectedBeats> AnalyzeAsync(
         string filePath, CancellationToken ct = default)
     {

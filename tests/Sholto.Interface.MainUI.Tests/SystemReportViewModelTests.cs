@@ -41,7 +41,7 @@ public class SystemReportViewModelTests
     {
         var changes = new List<string?>();
         _vm.PropertyChanged += (_, e) => changes.Add(e.PropertyName);
-        _vm.Report(Check(SystemHealth.Degraded, Tool(ExternalToolNames.Madmom, true, true), Tool(ExternalToolNames.Demucs, false, false)));
+        _vm.Report(Check(SystemHealth.Degraded, Tool(ExternalToolNames.BeatThis, true, true), Tool(ExternalToolNames.Demucs, false, false)));
         Assert.Equal(2, _vm.Rows.Count);
         Assert.True(_vm.Rows[0].IsPresent);
         Assert.True(_vm.Rows[1].IsMissing);
@@ -67,11 +67,11 @@ public class SystemReportViewModelTests
     public void Install_is_the_status_command_else_the_installer_line_and_a_present_tool_shows_its_path()
     {
         _vm.Report(Check(SystemHealth.Offline,
-            new ToolStatus(ExternalToolNames.Madmom, ToolCapabilities.Beats, true, null, "uv tool install madmom-onnx"),
+            new ToolStatus(ExternalToolNames.BeatThis, ToolCapabilities.Beats, true, null, BeatThisBeatAnalysisStep.InstallCommand),
             new ToolStatus(ExternalToolNames.Demucs, ToolCapabilities.Stems, false, null, null),
             new ToolStatus(ExternalToolNames.Ffmpeg, ToolCapabilities.Transcode, false, "/bin/demucs", null)));
 
-        Assert.Equal("uv tool install madmom-onnx", _vm.Rows[0].Install);
+        Assert.Equal(BeatThisBeatAnalysisStep.InstallCommand, _vm.Rows[0].Install);
         Assert.Equal("Run ./install.sh from the Sholto folder, then restart Sholto.", _vm.Rows[1].Install);
         Assert.Equal("/bin/demucs", _vm.Rows[2].Detail);
         Assert.Equal("", _vm.Rows[2].Install);
@@ -80,14 +80,14 @@ public class SystemReportViewModelTests
     [Fact]
     public void Headline_follows_the_severity_and_is_the_title()
     {
-        _vm.Report(Check(SystemHealth.Offline, Tool(ExternalToolNames.Madmom, true, false)));
+        _vm.Report(Check(SystemHealth.Offline, Tool(ExternalToolNames.BeatThis, true, false)));
         Assert.Equal("Beat detection is unavailable, so tracks get no BPM, beatgrid, waveform or key.", _vm.Headline);
         Assert.Equal(_vm.Headline, _vm.Title);
 
-        _vm.Report(Check(SystemHealth.Degraded, Tool(ExternalToolNames.Madmom, true, true), Tool(ExternalToolNames.Demucs, false, false)));
+        _vm.Report(Check(SystemHealth.Degraded, Tool(ExternalToolNames.BeatThis, true, true), Tool(ExternalToolNames.Demucs, false, false)));
         Assert.Equal("Sholto is running, but some optional analysis features are unavailable.", _vm.Headline);
 
-        _vm.Report(Check(SystemHealth.Healthy, Tool(ExternalToolNames.Madmom, true, true)));
+        _vm.Report(Check(SystemHealth.Healthy, Tool(ExternalToolNames.BeatThis, true, true)));
         Assert.Equal("Everything Sholto needs is installed.", _vm.Headline);
     }
 

@@ -6,14 +6,14 @@ namespace Sholto.App.ExternalTools;
 /// colour.</summary>
 public enum SystemStatus
 {
-    /// <summary>Every tool resolved.</summary>
+    /// <summary>Every capability has at least one of its tools resolved.</summary>
     Healthy,
 
-    /// <summary>Every REQUIRED tool resolved, but at least one optional one did not —
-    /// the app runs, some capability is simply absent.</summary>
+    /// <summary>Every required capability is backed, but at least one optional capability
+    /// has no tool — the app runs, that capability is simply absent.</summary>
     Degraded,
 
-    /// <summary>A required tool is missing (madmom): no beats, grid, BPM, waveform or
-    /// key for any track.</summary>
+    /// <summary>A required capability has no tool (neither Beat This! nor its madmom
+    /// fallback for beats): no beats, grid, BPM, waveform or key for any track.</summary>
     Offline,
 }

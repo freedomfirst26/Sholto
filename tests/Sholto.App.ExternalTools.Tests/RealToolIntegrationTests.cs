@@ -8,7 +8,7 @@ namespace Sholto.App.ExternalTools.Tests;
 /// <summary>
 /// End-to-end proof against the real tools on this machine — mirrors the pattern
 /// FfmpegDecodeStrategyTests uses (skip rather than fail when a tool isn't
-/// installed), so CI machines without demucs/madmom installed don't fail here.
+/// installed), so CI machines without Beat This!/demucs/madmom installed don't fail here.
 /// </summary>
 public class RealToolIntegrationTests
 {
@@ -40,12 +40,37 @@ public class RealToolIntegrationTests
     }
 
     [Fact]
+    public async Task BeatThis_real_binary_produces_beats_for_a_real_file()
+    {
+        // Built as ExternalToolStackFactory builds it (through AppStackFactory's factory,
+        // over the system temp folder). The step makes and deletes its own work dir.
+        var beatThisSession = new ConfiguredTool(_runner, _finder.Locate(ExternalToolNames.BeatThis));
+        var beatThis = new BeatThisBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory(), Path.GetTempPath())
+            .Create(beatThisSession, new NullAnalysisReporter());
+        if (!beatThis.IsAvailable) return;
+
+        var fixture = CreateSineWavFixture(6.0);
+        try
+        {
+            var (_, beats, _) = await beatThis.AnalyzeAsync(fixture);
+            // As for madmom below: a sine has no real beat, so only the postcondition
+            // Verify enforces is asserted — at least one beat read back from the file a
+            // real process wrote.
+            Assert.True(beats.Length >= 1);
+        }
+        finally
+        {
+            File.Delete(fixture);
+        }
+    }
+
+    [Fact]
     public async Task Madmom_real_binary_produces_beats_for_a_real_file()
     {
         // Built as ExternalToolStackFactory builds it. The step now derives madmom's
         // workspace (the source file's own directory) itself.
         var madmomSession = new ConfiguredTool(_runner, _finder.Locate(ExternalToolNames.Madmom));
-        var madmom = new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory()).Create(madmomSession, new NullAnalysisReporter());
+        var madmom = new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory()).Create(madmomSession, new NullAnalysisReporter());
         if (!madmom.IsAvailable) return;
 
         var fixture = CreateSineWavFixture(6.0);

@@ -39,19 +39,19 @@ public sealed class SholtoStackFactory(
 
     public SholtoStack Build()
     {
-        // Composition root for the arm's-length external tools (madmom, demucs,
+        // Composition root for the arm's-length external tools (Beat This!/madmom, demucs,
         // ffmpeg) — see ExternalToolStack for what's inside and why.
         var toolStack = _toolStackFactory.Build();
 
         // Names and logs the boot-time tool probe that ToolSet's constructor
         // already ran (see ExternalToolStack.Check) — previously discarded, which
-        // is why a missing madmom/demucs/ffmpeg install was invisible at startup.
+        // is why a missing beat tracker/demucs/ffmpeg install was invisible at startup.
         Console.WriteLine($"[Tools] system check: {toolStack.Check.Summary}");
         if (toolStack.Check.AnyRequiredMissing)
         {
             Console.WriteLine(
                 "[Tools] beat detection unavailable — no BPM, beatgrid, waveform or key for any track. " +
-                $"Install: {MadmomBeatAnalysisStep.InstallCommand}");
+                $"Install: {BeatThisBeatAnalysisStep.InstallCommand}");
         }
 
         // Composition root for audio decoding: the strategy list is built once
@@ -89,14 +89,14 @@ public sealed class SholtoStackFactory(
         // HydrateStemStateAsync, which must NEVER trigger analysis for the
         // hundreds of rows it checks at startup.
         var demucs = toolStack.Stems;
-        var madmom = toolStack.Beats;
+        var beats = toolStack.Beats;
 
         // The library database object is built first so the analysis stack can defer its
         // persistent stores on LibraryDatabase.Opened. IDeckFactory needs real (never-null)
         // provider and key/grid ports up front, but the DB opens later (the window paints
         // before InitializeServices opens it); the deferred stores await it and then forward.
         var libraryDatabase = new LibraryDatabase(_storage);
-        var analysisStack = _analysisStackFactory.Build(madmom, libraryDatabase);
+        var analysisStack = _analysisStackFactory.Build(beats, libraryDatabase);
 
         // One slot for every demucs run: the deck stage below and the re-analysis separator share it.
         var stemGate = new SemaphoreStemGate();

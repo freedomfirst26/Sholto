@@ -29,8 +29,15 @@ public sealed class AppStackFactory : IAppStackFactory
         // The app thread (the UI thread), shared by the decks, the entities and the input stack.
         var appThread = new AvaloniaAppThread();
         var toolOutcomes = new ToolOutcomeFactory();
+        // One beat-line parser, shared by both beat trackers (they write the same format).
+        var detectedBeats = new DetectedBeatsFactory();
         var stackFactory = new SholtoStackFactory(
-            new ExternalToolStackFactory(new ExternalToolFinderFactory(), new MadmomBeatAnalysisStepFactory(toolOutcomes), toolOutcomes, options.StemSeparation),
+            new ExternalToolStackFactory(
+                new ExternalToolFinderFactory(),
+                new BeatThisBeatAnalysisStepFactory(toolOutcomes, detectedBeats, Path.GetTempPath()),
+                new MadmomBeatAnalysisStepFactory(toolOutcomes, detectedBeats),
+                toolOutcomes,
+                options.StemSeparation),
             new AnalysisStackFactory(keyFactory, options.WaveformBands),
             new SholtoStorage(new DatabaseStackFactory(keyFactory), new SholtoDbContextOptionsFactory()),
             appThread,

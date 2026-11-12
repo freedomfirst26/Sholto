@@ -7,14 +7,23 @@ namespace Sholto.App.ExternalTools.Tests;
 
 public class BpmFromBeatsTests
 {
-    // BpmFromBeats now lives on the internal MadmomTool definition. It is reached the
-    // way production reaches it: the madmom step verifies DBNDownBeatTracker stdout
-    // ("TIME\tBEAT_NUMBER" per line) and the parsed tempo comes back as Bpm.
-    private async Task<double> BpmFromBeats(double[] beats)
+    // BpmFromBeats lives on DetectedBeatsFactory, the one parser both beat trackers
+    // (Beat This! and madmom) use. It is reached the way production reaches it: the
+    // beat lines ("TIME\tBEAT_NUMBER") are parsed and the tempo comes back as Bpm.
+    private Task<double> BpmFromBeats(double[] beats)
     {
+        var lines = string.Join('\n', beats.Select(b => b.ToString("R", CultureInfo.InvariantCulture) + "\t1"));
+        return Task.FromResult(new DetectedBeatsFactory().FromBeatLines(lines).Bpm);
+    }
+
+    [Fact]
+    public async Task Madmom_step_reports_the_same_tempo_through_its_stdout()
+    {
+        var beats = BeatsFromGaps(Repeat([0.5], 50)); // 120 BPM
         var stdout = string.Join('\n', beats.Select(b => b.ToString("R", CultureInfo.InvariantCulture) + "\t1"));
-        var step = new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory()).Create(new StdoutReplayTool(stdout), new NullAnalysisReporter());
-        return (await step.AnalyzeAsync("/music/track.mp3")).Bpm;
+        var step = new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory())
+            .Create(new StdoutReplayTool(stdout), new NullAnalysisReporter());
+        Assert.Equal(120.0, (await step.AnalyzeAsync("/music/track.mp3")).Bpm);
     }
 
     private static double[] BeatsFromGaps(IEnumerable<double> gaps)

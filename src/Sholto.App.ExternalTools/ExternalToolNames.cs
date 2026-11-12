@@ -27,7 +27,12 @@ namespace Sholto.App.ExternalTools;
 public static class ExternalToolNames
 {
     /// <summary>Beat and downbeat detection. Required — a track cannot play without a
-    /// beatgrid. Shipped by the <c>madmom-onnx</c> package.</summary>
+    /// beatgrid. The Beat This! CLI, shipped by the <c>beat-this</c> package.</summary>
+    public const string BeatThis = "beat_this";
+
+    /// <summary>Optional fallback beat and downbeat detection, used only when
+    /// <see cref="BeatThis"/> is not installed. Shipped by the <c>madmom-onnx</c> package
+    /// (non-commercial licence on its models).</summary>
     public const string Madmom = "DBNDownBeatTracker";
 
     /// <summary>Stem separation (drums / vocals / bass / other). Optional.</summary>

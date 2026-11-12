@@ -6,7 +6,7 @@ using Sholto.App.ExternalTools;
 namespace Sholto.Host;
 
 /// <summary>
-/// The arm's-length external tools (madmom, demucs, ffmpeg), composed once at
+/// The arm's-length external tools (Beat This! or madmom, demucs, ffmpeg), composed once at
 /// startup and handed down as a single bundle. Moved out of App.axaml.cs so the
 /// composition root's tool-resolution step isn't tangled with the rest of
 /// OnFrameworkInitializationCompleted; <see cref="ExternalToolStackFactory"/> builds it and App
