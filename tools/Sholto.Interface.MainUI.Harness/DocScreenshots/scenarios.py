@@ -97,3 +97,7 @@ write("glance-tokens",glance_open(hero)+[{"action":"type","text":"bpm:124-128 ke
 a=[{"action":"scan","dir":LIB},{"action":"controller","on":True}]+apply_theme(hero)
 a+=[{"action":"click","target":"Settings"},{"action":"wait","seconds":0.6},shot("settings-platter")]
 write("settings",a)
+# Settings ▸ Folders…: the Folders panel with its Music and Analysis rows, 2x. Cropped by compose.py.
+a=[{"action":"scan","dir":LIB},{"action":"controller","on":True}]+apply_theme(hero)
+a+=[{"action":"click","target":"Folders"},{"action":"wait","seconds":0.6},shot("folders-panel")]
+write("folders",a)

@@ -33,6 +33,31 @@ unanalysed, and it will play fine.
 The deck shows the title straight away and fills in once the audio has decoded.
 It won't play until the beat detection has finished — usually a second or two.
 
+## Folders
+
+**Settings → Folders…** opens one panel with two rows, **Music folder** and **Analysis folder**. Each row shows its path and has its own **Change…** button. Changing one never changes the other.
+
+![The Folders panel: the Music folder and Analysis folder rows, each with a Change… button, the stem size under the analysis folder, and Cancel and Continue](../pictures/folders-panel.webp)
+
+- **Music folder** — where Sholto looks for your tracks.
+- **Analysis folder** — where Sholto keeps the separated stems (drums, vocals, bass, other). They take about 175 MB per track, so a big library needs room; the row shows how much is there now. Your library data (tracks, tags, crates, markers) stays in `~/.local/share/sholto`.
+
+Press **Continue** to use the folders shown, or **Cancel** to change nothing.
+
+**New install.** The panel opens on first run, asking "Where are your music and analysis folders?". Pick your music folder and the analysis folder follows it, as a folder called **Sholto Analysis** next to it. Until you pick an analysis folder yourself, it keeps following the music folder. **Continue** works once both rows are fine.
+
+**Updating from an earlier version.** You see the panel once, titled "Choose where Sholto keeps its analysis". It says where the stems are now and how much space they take. Press **Continue** to keep that folder, or change it.
+
+**Moving the analysis folder.** Pick a new one and press **Continue**: Sholto moves your existing stems there. On the same drive this is instant. On another drive Sholto copies them, checks every file, then deletes the old copy, and the panel shows progress ("Moving stems: 12 of 29 track folders"). If something goes wrong, the old copy is kept and the panel says why. Tracks keep their ticks and are not analysed again. Decks that are already loaded keep playing.
+
+**Rules.** The analysis folder cannot be the music folder, be inside it or contain it, because Sholto would then list the stems as tracks. It must be a folder Sholto can write to. A row that breaks a rule says so in red, and **Continue** stays off.
+
+**Drive not connected.** If either folder is on a drive that isn't connected when Sholto starts, the panel opens titled "A folder can't be reached — reconnect the drive or choose another", and that row reads "Not found. Is the drive mounted?". Reconnect the drive and choose the folder again, or pick another. If you choose **Not now**, Sholto keeps the saved folders for next time; a missing music folder shows the banner over the track list (its **Choose folder…** button opens this panel), and with the analysis folder missing, stems stay off for that session. Sholto never writes them somewhere else instead.
+
+**One question at a time.** The Folders panel and the output device picker never show together. On first run the folders come first and the output device after. While one is open, **Settings → Folders…** and **Settings → Output device…** do nothing.
+
+**Environment overrides.** If `SHOLTO_MUSIC_DIR` or `SHOLTO_CACHE_ROOT` is set, that row is fixed: its button reads "Set by SHOLTO_MUSIC_DIR" or "Set by SHOLTO_CACHE_ROOT" and can't be pressed. `SHOLTO_CACHE_ROOT` sets the analysis folder and is not saved.
+
 ## Search
 
 **Keyboard:** **Space** opens search from anywhere.

@@ -300,7 +300,8 @@ public sealed class UiScenarioDriver(MainWindow window, MainViewModel vm, Gestur
 
     /// <summary>Clicks the centre of row <paramref name="index"/> of the named
     /// control. "TrackList" (the library <see cref="ListBox"/>, named in
-    /// MainWindow.axaml) is a real click; "LayoutWizard" / "Settings" do what Settings ▸ Layout Wizard… / Settings… do
+    /// MainWindow.axaml) is a real click; "LayoutWizard" / "Settings" do what Settings ▸ Layout Wizard… / Settings… do;
+    /// "Folders" shows the Folders panel as the App's answer to Settings ▸ Folders… does, over made-up folders
     /// (headless menus do not open as popups). The vocabulary stays honest about what this
     /// harness can actually reach today rather than pretending to be general.</summary>
     private void ClickTarget(string target, int index)
@@ -314,6 +315,17 @@ public sealed class UiScenarioDriver(MainWindow window, MainViewModel vm, Gestur
         if (target == "Settings")
         {
             _vm.OpenSettings();
+            Dispatcher.UIThread.RunJobs();
+            return;
+        }
+        if (target == "Folders")
+        {
+            // The question the App puts for Settings ▸ Folders… (the harness runs no lifecycle, so it is shown
+            // directly): made-up folders, both there, 5 GB of stems analysed.
+            _vm.Folders.Show(new FoldersNeeded(FoldersReason.Change,
+                new FolderRow("/media/Data/Music", FolderRowState.Ok, null),
+                new FolderRow("/media/Data/Sholto Analysis", FolderRowState.Ok, null),
+                5L * 1024 * 1024 * 1024));
             Dispatcher.UIThread.RunJobs();
             return;
         }
@@ -361,7 +373,7 @@ public sealed class UiScenarioDriver(MainWindow window, MainViewModel vm, Gestur
         }
         if (target != "TrackList")
             throw new NotSupportedException(
-                $"click target \"{target}\" isn't wired — only \"TrackList\", \"FaceplateButton\", \"LayoutWizard\", \"Settings\" and \"SystemReport\" are.");
+                $"click target \"{target}\" isn't wired — only \"TrackList\", \"FaceplateButton\", \"LayoutWizard\", \"Settings\", \"Folders\" and \"SystemReport\" are.");
 
         Dispatcher.UIThread.RunJobs();
         var listBox = _window.FindControl<ListBox>("TrackList")

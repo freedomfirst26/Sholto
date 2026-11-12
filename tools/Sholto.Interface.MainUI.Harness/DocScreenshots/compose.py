@@ -66,3 +66,5 @@ save(crop(load("glance-initials"),(100,180,1100,580),2),"glance-initials")
 save(crop(load("glance-tokens"),(100,180,1100,580),2),"glance-tokens")
 # Settings ▸ Platter feel: the panel with the Backspin time and Backspin distance knobs, 2x
 save(crop(load("settings-platter"),(280,215,920,685),2),"settings-platter-feel")
+# Settings ▸ Folders…: the Folders panel with its Music and Analysis rows, 2x
+save(crop(load("folders-panel"),(290,286,910,620),2),"folders-panel")

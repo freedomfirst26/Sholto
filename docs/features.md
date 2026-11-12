@@ -8,6 +8,9 @@ The full feature list. For what each part of the screen means, see
 - Shows everything in a sortable list: **Artist · Track · BPM · Key · Time**.
 - Analyses each track once and remembers the result, so it's instant every time after.
 - **Analyse your whole library in one go** — Settings ▸ Analyse whole library… works out the beats and key of every song not analysed yet, a couple at a time in the background, with a running count and a summary at the end. Settings ▸ Cancel library analysis stops it. Stems are still made when you load a track.
+- **Choose where the stems go** — Settings ▸ Folders… shows two rows, **Music folder** and **Analysis folder**, each with its own **Change…** button. The stems (about 175 MB per track) go in the analysis folder, so you can put them on a bigger drive; a new install suggests a **Sholto Analysis** folder next to your music. Change it later and Sholto moves the stems already made, with progress, so nothing is analysed again. If a drive isn't connected at start, Sholto asks instead of writing somewhere else.
+
+  ![The Folders panel: the Music folder and Analysis folder rows, each with a Change… button](../pictures/folders-panel.webp)
 
 More: [library.md](library.md).
 

@@ -24,7 +24,7 @@ There are two decks. Deck 1 is the upper pair (4–7), Deck 2 the lower one.
 
 - **Settings → Theme** — pick a colour theme; each entry shows its own colour swatches. See [themes.md](themes.md).
 - **Settings → Layout Wizard…** — try every theme on the whole app, then choose the waveform style (3-BAND or RGB). See [themes.md](themes.md) and [waveforms.md](waveforms.md).
-- **Settings → Music folder…** — choose the folder Sholto scans for music.
+- **Settings → Folders…** — choose the folder Sholto scans for music (**Music folder**) and the folder it keeps the separated stems in (**Analysis folder**). See [library.md](library.md#folders).
 - **Settings → Output device…** — choose which sound card or headphones Sholto plays to. Your choice is remembered.
 - **Controller icon** — opens the controller guide, a picture of your DDJ-FLX4 with every knob, pad and button explained. See [below](#your-controller).
 - **Controller dot** (far right) — green means your DDJ-FLX4 is connected. It turns red and reads **Reconnect USB** when the controller drops off; Sholto keeps trying to reconnect on its own, so if it stays red, unplug and replug the USB cable.
