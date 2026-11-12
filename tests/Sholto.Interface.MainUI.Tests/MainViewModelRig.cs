@@ -59,6 +59,8 @@ internal sealed class MainViewModelRig
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
                 themeViewModel, new ThemeOptionFactory()),
             new SettingsViewModel(Bus, Bus, new KnobScaleFactory()),
+            new FoldersViewModel(Bus, Bus, Bus, new FolderRowViewModelFactory(),
+                Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions())),
             new SystemReportViewModel(),
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),

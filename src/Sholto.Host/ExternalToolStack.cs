@@ -23,7 +23,8 @@ namespace Sholto.Host;
 /// stems built here rather than living separately: it is handed to BOTH the
 /// analysis step (so a run knows where to write) and the cache (so a lookup
 /// knows where to look) — they agree on a location because they share this one
-/// closure, not because either reaches into the other. Splitting them apart
+/// closure (which delegates to <c>ExternalToolStackFactory.StemWorkspaceFor</c>, reading the live
+/// analysis folder), not because either reaches into the other. Splitting them apart
 /// caused five days of silent stem loss (Sep 2026): a run and a lookup that
 /// compute the workspace path differently simply never see each other's output.
 ///

@@ -26,7 +26,7 @@ public sealed class OutputDeviceChooser(
     // The device master really plays on, from the last route the audio output reported (app thread only). Null until the engine starts.
     private string? _masterDevice;
 
-    public async Task StartAudioAsync()
+    public async Task StartAudioAsync(Task beforeAsking)
     {
         // P7: the devices are listed before the database is awaited.
         var allDevices = await Task.Run(() => _outputEnumerator.EnumerateOutputs()).ConfigureAwait(false);
@@ -46,7 +46,11 @@ public sealed class OutputDeviceChooser(
         var chosen = devices.FirstOrDefault(d => d.Name == savedName);
 
         if (chosen is null && devices.Count > 0)
+        {
+            // Not while the Folders panel is open: wait for its question to be settled.
+            await beforeAsking.ConfigureAwait(false);
             chosen = await RequestDeviceAsync(devices, savedName).ConfigureAwait(false);
+        }
 
         // No speaker chosen (cancelled/none): fine if the controller is here to fall back on (master+cue
         // both play from it, like before this feature). Otherwise there's genuinely nothing to play through.

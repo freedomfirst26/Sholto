@@ -167,7 +167,7 @@ public partial class MainWindow : Window, IKeyboard
             return;
         }
 
-        // Shell modals, in priority order (crate picker, system report, layout wizard, settings): the first open
+        // Shell modals, in priority order (crate picker, system report, layout wizard, settings, folders): the first open
         // one owns the keyboard. Each modal's own keys come from its view model's HandleKey; the router adds
         // Esc, Enter, Backspace and the swallow-or-pass-through rule for text.
         foreach (var modal in vm.Modals)
@@ -443,9 +443,9 @@ public partial class MainWindow : Window, IKeyboard
         if (DataContext is MainViewModel vm) vm.IsSearchOpen = true;
     }
 
-    private void OnMusicFolderClick(object? sender, RoutedEventArgs e)
+    private void OnFoldersClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is MainViewModel vm) vm.RequestChangeMusicFolder();
+        if (DataContext is MainViewModel vm) vm.RequestChangeFolders();
     }
 
 

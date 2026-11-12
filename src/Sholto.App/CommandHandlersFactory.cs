@@ -111,10 +111,13 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<AnalyzeLibrary>(core.LibraryAnalysis);
         registry.Register<CancelLibraryAnalysis>(core.LibraryAnalysis);
 
+        // The folders question's answer, the menu's change request and the check of a pick are the folders'.
+        registry.Register<ChooseFolders>(lifecycle.Folders);
+        registry.Register<ChangeFolders>(lifecycle.Folders);
+        queries.Register<CheckFolders, Task<FolderCheckResult>>(lifecycle.Folders);
+
         // The startup questions and their answers, the menu's change requests, the saved theme and waveform style.
-        registry.Register<ChooseMusicFolder>(lifecycle);
         registry.Register<ChooseOutputDevice>(lifecycle);
-        registry.Register<ChangeMusicFolder>(lifecycle);
         registry.Register<ChangeOutputDevice>(lifecycle);
         registry.Register<ChooseTheme>(lifecycle);
         registry.Register<ChooseWaveformStyle>(lifecycle);

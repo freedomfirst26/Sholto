@@ -13,6 +13,7 @@ public sealed class MainViewModelFactory(
     IEventSubscriber subscriber, IAppThread appThread, IGlanceViewModel glance, ILoadFeedbackViewModel loadFeedback,
     TrackActionsViewModel trackActions, IOutputPickerViewModel outputPicker, IDeckViewModel deck1, IDeckViewModel deck2,
     IWaveformStyleViewModel waveformStyle, ILayoutWizardViewModel layoutWizard, ISettingsViewModel settings,
+    IFoldersViewModel folders,
     ISystemReportViewModel systemReport, ICollapseToIconSequence faceplateDock, ITrackListViewModel trackList)
     : IMainViewModelFactory
 {
@@ -31,6 +32,7 @@ public sealed class MainViewModelFactory(
     private readonly IWaveformStyleViewModel _waveformStyle = waveformStyle;
     private readonly ILayoutWizardViewModel _layoutWizard = layoutWizard;
     private readonly ISettingsViewModel _settings = settings;
+    private readonly IFoldersViewModel _folders = folders;
     private readonly ISystemReportViewModel _systemReport = systemReport;
     private readonly ICollapseToIconSequence _faceplateDock = faceplateDock;
     private readonly ITrackListViewModel _trackList = trackList;
@@ -38,7 +40,7 @@ public sealed class MainViewModelFactory(
     /// <summary>Call once: the handed-in view models are wired by each call.</summary>
     public MainViewModel Create() => new(
         _themes, _rows, _sender, _subscriber, _glance, _loadFeedback, _outputPicker, _deck1, _deck2,
-        _waveformStyle, _layoutWizard, _settings, _trackList,
+        _waveformStyle, _layoutWizard, _settings, _folders, _trackList,
         new ToastViewModel(_appThread),
         new TrackActionsCoordinator(_overlays, _trackActions),
         new SystemReportCoordinator(_systemReport),

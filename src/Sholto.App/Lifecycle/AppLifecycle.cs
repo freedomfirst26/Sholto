@@ -4,6 +4,7 @@ using Sholto.App.Storage;
 using Sholto.Data;
 using Sholto.App.Decks;
 using Sholto.App.Library;
+using Sholto.App.Lifecycle.Folders;
 
 namespace Sholto.App.Lifecycle;
 
@@ -19,16 +20,18 @@ namespace Sholto.App.Lifecycle;
 /// <item>P5 the theme restore waits for <c>Opened</c>; null means no restore and no persistence. The waveform
 /// style restore and the backspin time and distance restores follow the same rule; a backspin choice made
 /// before the database opens is held and saved once it does, and wins over the saved value.</item>
-/// <item>P6 the music folder waits for <c>Opened</c>; with no database nothing is persisted and the scan runs
+/// <item>P6 the folders wait for <c>Opened</c>; with no database nothing is persisted and the scan runs
 /// with no stores.</item>
 /// <item>P7 audio lists the output devices BEFORE it awaits the database.</item>
-/// <item>P8 changing the music folder or output device skips the settings write when there is no database
+/// <item>P8 changing the folders or output device skips the settings write when there is no database
 /// (the preferences no-op).</item>
+/// <item>P9 the folders question is put before the output device's: the device picker waits until the folders
+/// are settled (answered or cancelled), unless a saved device is still there, which starts at once.</item>
 /// </list>
 /// Everything that touches the library, the bus or the decks hops onto the app thread first; the sequence
 /// itself runs on the thread pool, as it did. The theme, waveform style and backspin restore live in
-/// <see cref="ISettingsRestorer"/>, the Track List in <see cref="ITrackListPersistence"/>, the music folder in
-/// <see cref="IMusicFolderResolver"/> and the audio device in <see cref="IOutputDeviceChooser"/>.</summary>
+/// <see cref="ISettingsRestorer"/>, the Track List in <see cref="ITrackListPersistence"/>, the music and analysis
+/// folders in <see cref="ILibraryFolders"/> and the audio device in <see cref="IOutputDeviceChooser"/>.</summary>
 public sealed class AppLifecycle(
     ILibraryDatabase database,
     ILibrarySession library,
@@ -36,7 +39,7 @@ public sealed class AppLifecycle(
     IDeckHotCues hotCues,
     ISettingsRestorer settings,
     ITrackListPersistence trackListPersistence,
-    IMusicFolderResolver musicFolder,
+    ILibraryFolders folders,
     IOutputDeviceChooser outputDevice,
     IAudioOutput audioOutput,
     SystemCheck systemCheck,
@@ -49,12 +52,17 @@ public sealed class AppLifecycle(
     private readonly IDeckHotCues _hotCues = hotCues;
     private readonly ISettingsRestorer _settings = settings;
     private readonly ITrackListPersistence _trackListPersistence = trackListPersistence;
-    private readonly IMusicFolderResolver _musicFolder = musicFolder;
+    private readonly ILibraryFolders _folders = folders;
     private readonly IOutputDeviceChooser _outputDevice = outputDevice;
     private readonly IAudioOutput _audioOutput = audioOutput;
     private readonly SystemCheck _systemCheck = systemCheck;
     private readonly IAppThread _appThread = appThread;
     private readonly IEventPublisher _publisher = publisher;
+    // Completed once the startup folders question is settled (answered, cancelled, or never needed), so the output
+    // device picker is never open at the same time as the Folders panel.
+    private readonly TaskCompletionSource _foldersSettled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public ILibraryFolders Folders => _folders;
 
     public void Start()
     {
@@ -66,17 +74,18 @@ public sealed class AppLifecycle(
         _ = Task.Run(() => _database.OpenAsync(OnDatabaseOpenedAsync));
 
         // Restore the theme, waveform style and backspin feel; each restore runs on its own task so it
-        // doesn't block the music-dir resolution below.
+        // doesn't block the folders resolution below.
         _settings.Start();
 
         // Restore the Track List; a later change is saved once that is done.
         _trackListPersistence.Start();
 
-        // Resolve which folder to scan. Order: env var override -> saved setting -> first-run picker.
-        _ = Task.Run(ResolveMusicDirAsync);
+        // Settle the music and analysis folders (env override -> saved -> the Folders question), then scan.
+        _ = Task.Run(ResolveFoldersAsync);
 
-        // Pick audio output device (ask the user on first run or if the saved device is gone).
-        _ = _outputDevice.StartAudioAsync();
+        // Pick audio output device (ask the user on first run or if the saved device is gone), once the folders
+        // question is settled.
+        _ = _outputDevice.StartAudioAsync(_foldersSettled.Task);
     }
 
     public void Stop()
@@ -115,20 +124,29 @@ public sealed class AppLifecycle(
         });
     }
 
-    // The first scan, then (first launch only) the All Tracks load. A cancelled picker returns false and a
-    // menu rescan never comes through here, so neither loads All Tracks.
-    private async Task ResolveMusicDirAsync()
+    // The folders, then the first scan, then (first launch only) the All Tracks load. A cancelled question or an
+    // unreachable folder returns null and a menu rescan never comes through here, so neither loads All Tracks.
+    private async Task ResolveFoldersAsync()
     {
-        if (await _musicFolder.ResolveAndScanAsync()) await _trackListPersistence.LoadAllTracksOnFirstLaunchAsync();
+        string? musicDir;
+        try
+        {
+            musicDir = await _folders.ResolveAsync();
+        }
+        finally
+        {
+            // The question is over (or never asked): the output device picker may ask now. Before the scan, which can be long.
+            _foldersSettled.TrySetResult();
+        }
+
+        if (musicDir is null) return;  // nothing to scan: the saved path is kept for next launch
+        await _library.ScanAsync(musicDir, _database.Stores);
+        await _trackListPersistence.LoadAllTracksOnFirstLaunchAsync();
     }
 
     public void Handle(in ChooseTheme command) => _settings.Handle(command);
 
     public void Handle(in ChooseWaveformStyle command) => _settings.Handle(command);
-
-    public void Handle(in ChangeMusicFolder command) => _musicFolder.Handle(command);
-
-    public void Handle(in ChooseMusicFolder command) => _musicFolder.Handle(command);
 
     public void Handle(in ChangeOutputDevice command) => _outputDevice.Handle(command);
 

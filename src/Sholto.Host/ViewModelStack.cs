@@ -22,6 +22,7 @@ public sealed class ViewModelStack(
     IOptions<DeckViewOptions> deckView,
     IOptions<GlanceViewOptions> glanceView,
     IOptions<WaveformStyleOptions> waveformStyle,
+    IOptions<FoldersPanelOptions> foldersPanel,
     IDeckFactory decks,
     IThemeContext theme,
     IPhraseSectionAnalyzer songSegments,
@@ -33,6 +34,7 @@ public sealed class ViewModelStack(
     public IOptions<DeckViewOptions> DeckView { get; } = deckView;
     public IOptions<GlanceViewOptions> GlanceView { get; } = glanceView;
     public IOptions<WaveformStyleOptions> WaveformStyle { get; } = waveformStyle;
+    public IOptions<FoldersPanelOptions> FoldersPanel { get; } = foldersPanel;
     public IDeckFactory Decks { get; } = decks;
     public IThemeContext Theme { get; } = theme;
     public IPhraseSectionAnalyzer SongSegments { get; } = songSegments;

@@ -271,18 +271,22 @@ public sealed class MainViewModel :
     /// <summary>The Settings overlay (Settings ▸ Settings…): the backspin release knob.</summary>
     public ISettingsViewModel Settings { get; }
 
+    /// <summary>The Folders panel (Settings ▸ Folders…, first run, upgrade, drive missing): the music and analysis folders.</summary>
+    public IFoldersViewModel Folders { get; }
+
     /// <summary>The shell modals in key priority order (first open one gets the key): crate picker, system report,
-    /// layout wizard, settings. The crate picker is built lazily with the library, so it is skipped until then.
+    /// layout wizard, settings, folders. The crate picker is built lazily with the library, so it is skipped until then.
     /// Built on each read.</summary>
     public IReadOnlyList<IModal> Modals
     {
         get
         {
-            var modals = new List<IModal>(4);
+            var modals = new List<IModal>(5);
             if (CratePicker is not null) modals.Add(CratePicker);
             modals.Add(SystemReportModal);
             modals.Add(LayoutWizard);
             modals.Add(Settings);
+            modals.Add(Folders);
             return modals;
         }
     }
@@ -308,6 +312,7 @@ public sealed class MainViewModel :
                          IWaveformStyleViewModel waveformStyle,
                          ILayoutWizardViewModel layoutWizard,
                          ISettingsViewModel settings,
+                         IFoldersViewModel folders,
                          ITrackListViewModel trackList,
                          IToastViewModel toast,
                          ITrackActionsCoordinator trackActions,
@@ -323,6 +328,7 @@ public sealed class MainViewModel :
         WaveformStyle = waveformStyle;
         LayoutWizard = layoutWizard;
         Settings = settings;
+        Folders = folders;
         _themes = themes;
         _sender = sender;
         _rows = rows;
@@ -457,9 +463,14 @@ public sealed class MainViewModel :
     public void RequestReanalyzeSelected() =>
         _sender.Send(new ReanalyzeSelected(new Origin(InterfaceIds.MainUI, "library", "double-click")));
 
-    /// <summary>Menu: choose a different music folder. The App asks (the folder picker shows) and rescans.</summary>
-    public void RequestChangeMusicFolder() =>
-        _sender.Send(new ChangeMusicFolder(new Origin(InterfaceIds.MainUI, "menu", "change-music-folder")));
+    /// <summary>Menu or the unreachable-library banner: change the music and analysis folders. The App asks (the
+    /// Folders panel shows) and applies the answer. Refused while the output picker is open: the two questions are
+    /// never open together.</summary>
+    public void RequestChangeFolders()
+    {
+        if (IsOutputPickerOpen) return;
+        _sender.Send(new ChangeFolders(new Origin(InterfaceIds.MainUI, "menu", "change-folders")));
+    }
 
     /// <summary>Menu: analyse every library song not analysed yet, in the background.</summary>
     public void RequestAnalyzeLibrary() =>
@@ -469,9 +480,13 @@ public sealed class MainViewModel :
     public void RequestCancelLibraryAnalysis() =>
         _sender.Send(new CancelLibraryAnalysis(new Origin(InterfaceIds.MainUI, "menu", "cancel-library-analysis")));
 
-    /// <summary>Menu: choose a different output device. The App asks (the device picker shows) and switches.</summary>
-    public void RequestChangeOutputDevice() =>
+    /// <summary>Menu: choose a different output device. The App asks (the device picker shows) and switches.
+    /// Refused while the Folders panel is open: the two questions are never open together.</summary>
+    public void RequestChangeOutputDevice()
+    {
+        if (Folders.IsOpen) return;
         _sender.Send(new ChangeOutputDevice(new Origin(InterfaceIds.MainUI, "menu", "change-output-device")));
+    }
 
     public IDeckViewModel DeckFor(int deck) => deck == 1 ? Deck2 : Deck1;
 

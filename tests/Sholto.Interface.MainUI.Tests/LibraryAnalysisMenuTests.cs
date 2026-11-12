@@ -47,6 +47,8 @@ public class LibraryAnalysisMenuTests
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
                 themeViewModel, new ThemeOptionFactory()),
             new SettingsViewModel(_bus, _bus, new KnobScaleFactory()),
+            new FoldersViewModel(_bus, _bus, _bus, new FolderRowViewModelFactory(),
+                Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions())),
             new TrackListViewModel(_bus, _bus),
             _toast,
             new TrackActionsCoordinator(new OverlayViewModelFactory(recency, _bus, _bus, _bus, appThread), new TrackActionsViewModel()),

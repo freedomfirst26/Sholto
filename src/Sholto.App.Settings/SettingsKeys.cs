@@ -5,6 +5,8 @@ namespace Sholto.App.Settings;
 public sealed class SettingsKeys
 {
     public const string MusicDir       = "music_dir";
+    // The analysis folder: where regenerable analysis output (the demucs stems) is written, as a full path; absent = not chosen yet.
+    public const string AnalysisDir    = "analysis_dir";
     // Semantics as of the dual-sound-card master routing feature: this holds
     // the user's chosen MASTER SPEAKER (the "Choose Audio Output" picker
     // excludes the DDJ-FLX4 — it's auto-selected whenever present, for its

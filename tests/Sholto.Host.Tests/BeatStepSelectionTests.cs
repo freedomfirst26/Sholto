@@ -14,7 +14,8 @@ public class BeatStepSelectionTests
             new BeatThisBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory(), Path.GetTempPath()),
             new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory()),
             new ToolOutcomeFactory(),
-            Options.Create(new StemSeparationOptions())).Build();
+            Options.Create(new StemSeparationOptions()),
+            new AnalysisFolder()).Build();
 
     [Fact]
     public void Beat_this_is_used_when_it_is_installed_even_beside_madmom()

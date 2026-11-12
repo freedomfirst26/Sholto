@@ -62,11 +62,11 @@ public class MainViewModelTrackActionsTests
     [Fact]
     public void Modals_skip_the_crate_picker_until_the_library_is_attached_and_list_it_first_after()
     {
-        Assert.Equal<IModal>([rig.Vm.SystemReportModal, rig.Vm.LayoutWizard, rig.Vm.Settings], rig.Vm.Modals);
+        Assert.Equal<IModal>([rig.Vm.SystemReportModal, rig.Vm.LayoutWizard, rig.Vm.Settings, rig.Vm.Folders], rig.Vm.Modals);
 
         rig.Bus.Publish(new LibraryDatabaseAttached(true));
 
-        Assert.Equal<IModal>([rig.Vm.CratePicker!, rig.Vm.SystemReportModal, rig.Vm.LayoutWizard, rig.Vm.Settings], rig.Vm.Modals);
+        Assert.Equal<IModal>([rig.Vm.CratePicker!, rig.Vm.SystemReportModal, rig.Vm.LayoutWizard, rig.Vm.Settings, rig.Vm.Folders], rig.Vm.Modals);
     }
 
     [Fact]

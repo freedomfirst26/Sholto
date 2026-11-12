@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Sholto.Interface.MainUI.ViewModels"
+             x:Class="Sholto.Interface.MainUI.Views.FoldersOverlay"
+             x:DataType="vm:IFoldersViewModel"
+             Focusable="False">
+
+    <!-- The two folder rows and the working line only: ModalShell supplies the scrim, panel, title and buttons. -->
+    <StackPanel Spacing="10">
+        <ItemsControl ItemsSource="{Binding Rows}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:FolderRowViewModel">
+                    <Border CornerRadius="10" BorderThickness="1" Padding="14,10" Margin="0,0,0,10"
+                            BorderBrush="{DynamicResource SholtoBorder}"
+                            Background="{DynamicResource SholtoSurface}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Text="{Binding Label}" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SholtoTextBright}"/>
+                                <TextBlock Text="{Binding PathText}" FontFamily="monospace" FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SholtoTextBright}"/>
+                                <TextBlock Text="{Binding Problem}" IsVisible="{Binding HasProblem}"
+                                           FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SholtoStatusAttention}"/>
+                                <TextBlock Text="{Binding Detail}" IsVisible="{Binding HasDetail}"
+                                           FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SholtoTextMuted}"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" VerticalAlignment="Top"
+                                    Content="{Binding ChangeLabel}"
+                                    IsEnabled="{Binding CanChange}"
+                                    Click="OnChangeClick"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{Binding StatusText}" IsVisible="{Binding IsWorking}"
+                   FontSize="12" TextWrapping="Wrap"
+                   Foreground="{DynamicResource SholtoAccent}"/>
+    </StackPanel>
+</UserControl>

@@ -1,4 +1,5 @@
 using Xunit;
+using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.ToolBoundary;
 
 namespace Sholto.Host.Tests;
@@ -11,7 +12,8 @@ public class StemPathHashTests
         new BeatThisBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory(), Path.GetTempPath()),
         new MadmomBeatAnalysisStepFactory(new ToolOutcomeFactory(), new DetectedBeatsFactory()),
         new ToolOutcomeFactory(),
-        Microsoft.Extensions.Options.Options.Create(new StemSeparationOptions()));
+        Microsoft.Extensions.Options.Options.Create(new StemSeparationOptions()),
+        new AnalysisFolder());
 
     [Fact]
     public void SamePath_HashesSame_BothTimes()

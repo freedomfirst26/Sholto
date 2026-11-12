@@ -1,3 +1,4 @@
+using Sholto.App.Lifecycle.Folders;
 using Sholto.Data;
 
 namespace Sholto.App.Lifecycle;
@@ -6,15 +7,13 @@ namespace Sholto.App.Lifecycle;
 /// (Bench): every command is accepted and ignored.</summary>
 public sealed class NullAppLifecycle : IAppLifecycle
 {
+    public ILibraryFolders Folders { get; } = new NullLibraryFolders();
+
     public void Start() { }
 
     public void Stop() { }
 
-    public void Handle(in ChooseMusicFolder command) { }
-
     public void Handle(in ChooseOutputDevice command) { }
-
-    public void Handle(in ChangeMusicFolder command) { }
 
     public void Handle(in ChangeOutputDevice command) { }
 

@@ -15,4 +15,17 @@ public class SholtoOptionsTests
         Assert.Equal(120, options.Scratch.Value.FallbackBpm);
         Assert.Equal(options.Scratch.Value.FallbackBpm, options.GlanceView.Value.FallbackBpm);
     }
+
+    [Fact]
+    public void The_analysis_folder_options_default_to_a_sholto_analysis_folder_and_a_one_gibibyte_margin()
+    {
+        var options = new SholtoOptions().AnalysisFolder.Value;
+
+        Assert.Equal("Sholto Analysis", options.FolderName);
+        Assert.Equal(1L << 30, options.FreeSpaceMargin);
+    }
+
+    [Fact]
+    public void The_folders_panel_estimates_175_mebibytes_of_stems_per_track() =>
+        Assert.Equal(175L * 1024 * 1024, new SholtoOptions().FoldersPanel.Value.StemBytesPerTrackEstimate);
 }

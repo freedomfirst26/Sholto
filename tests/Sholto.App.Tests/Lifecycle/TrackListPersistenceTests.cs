@@ -152,15 +152,15 @@ public class TrackListPersistenceTests
     }
 
     [Fact]
-    public async Task A_cancelled_first_run_picker_does_not_load_All_Tracks()
+    public async Task A_cancelled_first_run_folders_question_does_not_load_All_Tracks()
     {
         var rig = new AppLifecycleRig();   // no saved track list = first launch, no saved folder
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            _ => rig.Lifecycle.Handle(new ChooseMusicFolder(null, Answer))));
+        rig.Library.Bus.Subscribe(new ActionEventHandler<FoldersNeeded>(
+            _ => rig.Folders.Handle(new ChooseFolders(null, null, Answer))));
 
         rig.Lifecycle.Start();
 
-        await Eventually(() => rig.MusicFolderAsked.Received.Count == 1);
+        await Eventually(() => rig.FoldersAsked.Received.Count == 1);
         await rig.Database.Opened;
         await Task.Delay(300);
         Assert.Empty(rig.TrackList.Entries);
@@ -172,14 +172,17 @@ public class TrackListPersistenceTests
     {
         var rig = new AppLifecycleRig();
         var dir = NewMusicDir();
-        // The first question (FirstRun) is cancelled, the second (Change) is answered with the folder.
-        rig.Library.Bus.Subscribe(new ActionEventHandler<MusicFolderNeeded>(
-            e => rig.Lifecycle.Handle(new ChooseMusicFolder(e.Reason == MusicFolderReason.Change ? dir : null, Answer))));
+        var analysis = Directory.CreateTempSubdirectory("sholto-analysis-").FullName;
+        // The first question (FirstRun) is cancelled, the second (Change) is answered with the folders.
+        rig.Library.Bus.Subscribe(new ActionEventHandler<FoldersNeeded>(
+            e => rig.Folders.Handle(e.Reason == FoldersReason.Change
+                ? new ChooseFolders(dir, analysis, Answer)
+                : new ChooseFolders(null, null, Answer))));
         rig.Lifecycle.Start();
-        await Eventually(() => rig.MusicFolderAsked.Received.Count == 1);
+        await Eventually(() => rig.FoldersAsked.Received.Count == 1);
         await Task.Delay(100);   // let the cancel land: a menu request is ignored while a question is open
 
-        rig.Lifecycle.Handle(new ChangeMusicFolder(Answer));
+        rig.Folders.Handle(new ChangeFolders(Answer));
 
         await Eventually(() => rig.Library.Library.Catalog.Count == 3);
         await Task.Delay(300);

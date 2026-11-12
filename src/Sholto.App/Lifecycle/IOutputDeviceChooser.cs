@@ -7,5 +7,7 @@ public interface IOutputDeviceChooser : ICommandHandler<ChangeOutputDevice>, ICo
 {
     /// <summary>Startup: lists the devices (before awaiting any preference), drops the controller's card, uses
     /// the saved device or asks, saves the choice, starts the audio output and remembers where master plays.</summary>
-    Task StartAudioAsync();
+    /// <param name="beforeAsking">Awaited before the user is asked for a device (not when the saved device is
+    /// still there): the folders question, so the two pickers are never open together.</param>
+    Task StartAudioAsync(Task beforeAsking);
 }

@@ -38,6 +38,8 @@ public sealed class SholtoOptions
     public IOptions<StemSeparationOptions> StemSeparation { get; }
     public IOptions<LoopOptions> Loop { get; }
     public IOptions<AudioTimingOptions> AudioTiming { get; }
+    public IOptions<AnalysisFolderOptions> AnalysisFolder { get; }
+    public IOptions<FoldersPanelOptions> FoldersPanel { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down.</summary>
@@ -61,5 +63,7 @@ public sealed class SholtoOptions
         // The one place the SHOLTO_LOOP_* environment overrides are read.
         Loop = Options.Create(new LoopOptionsFactory().Create());
         AudioTiming = Options.Create(new AudioTimingOptionsFactory(Environment.GetEnvironmentVariable).Create());
+        AnalysisFolder = Options.Create(new AnalysisFolderOptions());
+        FoldersPanel = Options.Create(new FoldersPanelOptions());
     }
 }

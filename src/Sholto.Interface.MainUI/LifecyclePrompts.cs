@@ -1,23 +1,22 @@
-using Avalonia.Controls;
-using Avalonia.Platform.Storage;
+using System.ComponentModel;
 using Sholto.Data;
 using Sholto.Interface.MainUI.ViewModels;
 
 namespace Sholto.Interface.MainUI;
 
 /// <summary>MainUI's half of the app lifecycle: shows the existing pickers when the App asks and sends the
-/// answer back as a command. <c>MusicFolderNeeded</c> opens the OS folder picker and answers
-/// <c>ChooseMusicFolder</c>; <c>OutputDeviceNeeded</c> shows the in-window device picker and answers
-/// <c>ChooseOutputDevice</c>. A cancelled picker answers with a null path / name. <c>SavedThemeFound</c>
-/// applies the theme the user chose last time; <c>SavedWaveformStyleFound</c> the waveform style. Call <see cref="Start"/> before the lifecycle starts, so the
-/// first question finds a listener.</summary>
+/// answer back as a command. <c>FoldersNeeded</c> opens the Folders panel, which sends <c>ChooseFolders</c>
+/// itself when the user continues or dismisses it; <c>OutputDeviceNeeded</c> shows the in-window device picker
+/// and answers <c>ChooseOutputDevice</c> (a null name when cancelled). The two are never open together: a
+/// question arriving while the other one is open waits until it closes. <c>SavedThemeFound</c> applies the
+/// theme the user chose last time; <c>SavedWaveformStyleFound</c> the waveform style. Call <see cref="Start"/>
+/// before the lifecycle starts, so the first question finds a listener.</summary>
 public sealed class LifecyclePrompts(
     IEventSubscriber subscriber,
     ICommandSender sender,
     IAppThread appThread,
-    MainViewModel viewModel,
-    Window owner) :
-    IEventHandler<MusicFolderNeeded>,
+    MainViewModel viewModel) :
+    IEventHandler<FoldersNeeded>,
     IEventHandler<OutputDeviceNeeded>,
     IEventHandler<SavedThemeFound>,
     IEventHandler<SavedWaveformStyleFound>
@@ -26,17 +25,16 @@ public sealed class LifecyclePrompts(
     private readonly ICommandSender _sender = sender;
     private readonly IAppThread _appThread = appThread;
     private readonly MainViewModel _viewModel = viewModel;
-    private readonly Window _owner = owner;
 
     public void Start()
     {
-        _subscriber.Subscribe<MusicFolderNeeded>(this);
+        _subscriber.Subscribe<FoldersNeeded>(this);
         _subscriber.Subscribe<OutputDeviceNeeded>(this);
         _subscriber.Subscribe<SavedThemeFound>(this);
         _subscriber.Subscribe<SavedWaveformStyleFound>(this);
     }
 
-    public void Handle(in MusicFolderNeeded e) => _ = AskMusicFolderAsync(e.Reason);
+    public void Handle(in FoldersNeeded e) => _ = ShowFoldersAsync(e);
 
     public void Handle(in OutputDeviceNeeded e) => _ = AskOutputDeviceAsync(e.Devices, e.CurrentName);
 
@@ -47,37 +45,52 @@ public sealed class LifecyclePrompts(
     /// <summary>Applies the style saved last time; a restore, so nothing is sent back.</summary>
     public void Handle(in SavedWaveformStyleFound e) => _viewModel.WaveformStyle.Restore(e.Id);
 
-    private async Task AskMusicFolderAsync(MusicFolderReason reason)
+    private async Task ShowFoldersAsync(FoldersNeeded question)
     {
-        var title = reason == MusicFolderReason.DriveNotFound
-            ? "Music drive not found — reconnect it, then choose your library"
-            : "Choose your music library";
-        var picked = await PickMusicFolderAsync(title);
-        _appThread.Post(() => _sender.Send(
-            new ChooseMusicFolder(picked, new Origin(InterfaceIds.MainUI, "music-folder-picker", "choose"))));
+        try
+        {
+            // Not over the output picker: the panel opens once the picker has closed.
+            while (_viewModel.IsOutputPickerOpen)
+                await ClosedAsync(_viewModel, nameof(MainViewModel.IsOutputPickerOpen), () => _viewModel.IsOutputPickerOpen);
+            _viewModel.Folders.Show(question);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Folders] could not show the Folders panel: {ex.Message}");
+        }
     }
 
     private async Task AskOutputDeviceAsync(IReadOnlyList<OutputDeviceChoice> choices, string? currentName)
     {
-        var name = await _viewModel.OutputPicker.AskAsync(choices, currentName);
-        _appThread.Post(() => _sender.Send(
-            new ChooseOutputDevice(name, new Origin(InterfaceIds.MainUI, "output-device-picker", "choose"))));
+        try
+        {
+            // Not over the Folders panel: the picker opens once the panel has closed.
+            while (_viewModel.Folders.IsOpen)
+                await ClosedAsync(_viewModel.Folders, nameof(IFoldersViewModel.IsOpen), () => _viewModel.Folders.IsOpen);
+            var name = await _viewModel.OutputPicker.AskAsync(choices, currentName);
+            _appThread.Post(() => _sender.Send(
+                new ChooseOutputDevice(name, new Origin(InterfaceIds.MainUI, "output-device-picker", "choose"))));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OutputDevice] could not ask for the output device: {ex.Message}");
+        }
     }
 
-    /// <summary>Show the OS folder picker for the user's music library. Returns the chosen absolute path, or
-    /// null if they cancelled.</summary>
-    private async Task<string?> PickMusicFolderAsync(string title)
+    /// <summary>Completes on the app thread after <paramref name="property"/> of <paramref name="source"/> next
+    /// changes with <paramref name="isOpen"/> false: posted, so the other question opens after the close has
+    /// finished rather than inside its change notification.</summary>
+    private Task ClosedAsync(INotifyPropertyChanged source, string property, Func<bool> isOpen)
     {
-        var top = TopLevel.GetTopLevel(_owner);
-        if (top is null) return null;
-        var folders = await top.StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = title,
-                AllowMultiple = false,
-            });
-        if (folders.Count == 0) return null;
-        var uri = folders[0].Path;
-        return uri.IsFile ? uri.LocalPath : uri.ToString();
+        var closed = new TaskCompletionSource();
+        PropertyChangedEventHandler? onChanged = null;
+        onChanged = (_, e) =>
+        {
+            if (e.PropertyName != property || isOpen()) return;
+            source.PropertyChanged -= onChanged;
+            _appThread.Post(() => closed.TrySetResult());
+        };
+        source.PropertyChanged += onChanged;
+        return closed.Task;
     }
 }

@@ -53,6 +53,7 @@ public sealed class SholtoStack(
     ProcessStats processStats,
     ISettingPreference themePreference,
     ISettingPreference musicDirPreference,
+    ISettingPreference analysisDirPreference,
     ISettingPreference outputDevicePreference,
     ISettingPreference waveformStylePreference,
     ISettingPreference backspinTimePreference,
@@ -77,6 +78,7 @@ public sealed class SholtoStack(
     public ProcessStats ProcessStats { get; } = processStats;
     public ISettingPreference ThemePreference { get; } = themePreference;
     public ISettingPreference MusicDirPreference { get; } = musicDirPreference;
+    public ISettingPreference AnalysisDirPreference { get; } = analysisDirPreference;
     public ISettingPreference OutputDevicePreference { get; } = outputDevicePreference;
     public ISettingPreference WaveformStylePreference { get; } = waveformStylePreference;
     public ISettingPreference BackspinTimePreference { get; } = backspinTimePreference;

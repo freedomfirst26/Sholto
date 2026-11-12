@@ -9,6 +9,7 @@ using Sholto.Interface.Controller;
 using Sholto.Interface.Keyboard;
 using Sholto.App;
 using Sholto.App.Lifecycle;
+using Sholto.App.Lifecycle.Folders;
 using Sholto.App.Performance;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.Views;
@@ -31,13 +32,17 @@ public sealed class AppStackFactory : IAppStackFactory
         var toolOutcomes = new ToolOutcomeFactory();
         // One beat-line parser, shared by both beat trackers (they write the same format).
         var detectedBeats = new DetectedBeatsFactory();
+        // The analysis folder, late-bound: it has no root until LibraryFolders settles it at startup, and stems fail
+        // closed until then.
+        var analysisFolder = new AnalysisFolder();
         var stackFactory = new SholtoStackFactory(
             new ExternalToolStackFactory(
                 new ExternalToolFinderFactory(),
                 new BeatThisBeatAnalysisStepFactory(toolOutcomes, detectedBeats, Path.GetTempPath()),
                 new MadmomBeatAnalysisStepFactory(toolOutcomes, detectedBeats),
                 toolOutcomes,
-                options.StemSeparation),
+                options.StemSeparation,
+                analysisFolder),
             new AnalysisStackFactory(keyFactory, options.WaveformBands),
             new SholtoStorage(new DatabaseStackFactory(keyFactory), new SholtoDbContextOptionsFactory()),
             appThread,
@@ -58,12 +63,17 @@ public sealed class AppStackFactory : IAppStackFactory
             stack.AnalysisStack.KeyAnalyzer, stack.Decoder, stack.Crossfade, appThread, bus, frameClock,
             new GatedStemSeparator(stack.ToolStack.Stems, stack.StemGate, stack.AnalysisStack.Reporter), options.Load, options.HotCue);
         var lifecycleFactory = new AppLifecycleFactory(
-            stack.LibraryDatabase, stack.ThemePreference, stack.MusicDirPreference, stack.OutputDevicePreference,
+            stack.LibraryDatabase, stack.ThemePreference, stack.MusicDirPreference, stack.AnalysisDirPreference,
+            analysisFolder, stack.StemGate, new StemFolderMover(new DirectoryRename(), options.AnalysisFolder),
+            new FolderCheck(options.AnalysisFolder), stack.OutputDevicePreference,
             stack.WaveformStylePreference, stack.BackspinTimePreference, stack.BackspinDistancePreference, stack.LegacyShortlistPreference,
             stack.TrackListPreference, new SavedTrackListCodec(),
             stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory(options.AudioTiming)), [stack.FlacStrategy],
             stack.PipeWireRouter, stack.DeckFormat, masterCueOutput, stack.ToolStack.Check, appThread, bus,
-            Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR"));
+            // The two environment overrides and the legacy default stem root, read here and nowhere else.
+            Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR"),
+            Environment.GetEnvironmentVariable(ExternalToolOptionsFactory.CacheRootVariable),
+            new ExternalToolOptionsFactory(new ExternalToolCatalog()).ForCurrentPlatform().CacheRoot);
         var iconFactory = new AppIconFactory();
         var entities = new LiveEntities(bus, bus, bus, bus, frameClock, appThread, iconFactory);
         return new AppStack(entities, entities, stack, options,

@@ -53,6 +53,8 @@ internal sealed class SearchOverlayRig
                 new DemoWaveformFactory(), new WaveformPreviewScroll(new ManualFrameClock()), appThread,
                 themeViewModel, new ThemeOptionFactory()),
             new SettingsViewModel(bus, bus, new KnobScaleFactory()),
+            new FoldersViewModel(bus, bus, bus, new FolderRowViewModelFactory(),
+                Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions())),
             new SystemReportViewModel(),
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),

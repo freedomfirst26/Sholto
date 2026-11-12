@@ -96,7 +96,7 @@ public sealed class SholtoStartup : IApplicationStartup
         // world brings its own seeds.
         _seeds.UseThemeCatalog(_themeCatalog);
         _seeds.UseViewModelStack(new ViewModelStack(
-            _options.Feature, _options.DeckView, _options.GlanceView, _options.WaveformStyle,
+            _options.Feature, _options.DeckView, _options.GlanceView, _options.WaveformStyle, _options.FoldersPanel,
             _stack.DeckFactory, _themeContext,
             _stack.AnalysisStack.SongSegments,
             _stack.TagRecency,
@@ -128,14 +128,14 @@ public sealed class SholtoStartup : IApplicationStartup
         var controllerStack = _controllerStackFactory.Build(_options.Controllers.Value);
         _mappingRegistry = controllerStack.MappingRegistry;
 
-        // The startup sequence (database open after this first paint, theme restore, music folder, audio
+        // The startup sequence (database open after this first paint, theme restore, folders, audio
         // output) is the headless lifecycle's; this window shows its questions. The prompts listen before
         // the lifecycle starts, so the first question finds them. The controller's sound card is built
         // before audio starts: the output picker and engine both need it to tell the controller's own
         // card apart from ordinary speakers.
         var lifecycle = _lifecycleFactory.Create(core, controllerStack.SoundCard);
         _lifecycle = lifecycle;
-        _promptsFactory.Create(vm, desktop.MainWindow!).Start();
+        _promptsFactory.Create(vm).Start();
         lifecycle.Start();
 
         _midiManager = controllerStack.Midi;
