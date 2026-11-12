@@ -10,6 +10,8 @@ namespace Sholto.App.Audio.Tests;
 /// ramp, reset mid-ramp, settled Mix 0, settled Mix 1 in 1024-frame blocks, reset inside a
 /// long block). Any change to the blend or fade maths, or to the order of its operations,
 /// changes the hash. The golden fixtures cover eq, filter and echo but never Mix or roll.
+/// The filter case is the exception: DjFilter goes through libm, so it is pinned by sampled
+/// output floats within a tolerance instead of a hash (see LibmFilterTolerance).
 /// </summary>
 public class DeckEffectOutputPinTests
 {
