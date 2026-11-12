@@ -176,7 +176,7 @@ public class DeckHotCuesTests
     }
 
     [Fact]
-    public void Preview_without_a_latch_still_pauses_back_on_the_cue_after_another_deck_latched()
+    public void Preview_without_a_latch_still_pauses_back_on_the_cue_when_only_the_other_deck_was_asked()
     {
         _rig.Load(HotCueRig.Alpha, playheadSec: 10);
         _rig.HotCues.Press(0, 1, true);
