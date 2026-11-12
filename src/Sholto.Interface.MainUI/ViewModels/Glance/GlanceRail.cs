@@ -10,19 +10,21 @@ public sealed class GlanceRail : IGlanceRail
     private readonly ITagRecency _tagRecency;
     private readonly IGlanceRailItemsFactory _itemsFactory;
     private readonly int _railLimit;
+    private readonly ILog _log;
 
     private IReadOnlyList<CrateRef> _crates = [];
     private IReadOnlyList<TagHit> _tags = [];
     private int _railGen;
 
     public GlanceRail(IQueryAsker asker, IAppThread appThread, ITagRecency tagRecency,
-        IGlanceRailItemsFactory itemsFactory, IOptions<GlanceViewOptions> options)
+        IGlanceRailItemsFactory itemsFactory, IOptions<GlanceViewOptions> options, ILogFactory logs)
     {
         _asker = asker;
         _appThread = appThread;
         _tagRecency = tagRecency;
         _itemsFactory = itemsFactory;
         _railLimit = options.Value.TagRailLimit;
+        _log = logs.Create("Glance");
     }
 
     public event Action? Changed;
@@ -63,7 +65,7 @@ public sealed class GlanceRail : IGlanceRail
                 tags = _tagRecency.OrderRecentFirst(matches, h => h.Name);
             }
         }
-        catch (Exception ex) { Console.WriteLine($"[Glance] rail search failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"rail search failed: {ex.Message}"); }
         _appThread.Post(() =>
         {
             if (gen != _railGen) return;

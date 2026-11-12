@@ -11,7 +11,7 @@ namespace Sholto.Interface.MainUI.Theming;
 public sealed class TrayFactory(IAppIconFactory icons, ILogFactory logs) : ITrayFactory
 {
     private readonly IAppIconFactory _icons = icons;
-    private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("Tray");
 
     public IDisposable Create(Window window, SholtoTheme theme)
     {
@@ -46,7 +46,7 @@ public sealed class TrayFactory(IAppIconFactory icons, ILogFactory logs) : ITray
         }
         catch (Exception e)
         {
-            Console.WriteLine($"[Tray] unavailable: {e.Message}");
+            _log.Warn($"unavailable: {e.Message}");
             return new TrayHandle(null);
         }
     }

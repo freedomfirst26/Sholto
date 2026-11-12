@@ -5,8 +5,12 @@ namespace Sholto.Interface.MainUI.Tests;
 /// <summary>Pins the user themes folder per OS: on Linux <c>$XDG_CONFIG_HOME/sholto/themes</c>,
 /// falling back to <c>~/.config/sholto/themes</c>, exactly as before; on Windows
 /// <c>%APPDATA%\sholto\themes</c>. Tests that set <c>XDG_CONFIG_HOME</c> restore it.</summary>
+[Collection(XdgConfigHomeCollection)]
 public class SholtoThemeLoaderPathTests
 {
+    /// <summary>The collection of the tests that set <c>XDG_CONFIG_HOME</c>, so they never run at once.</summary>
+    public const string XdgConfigHomeCollection = "XDG_CONFIG_HOME";
+
     private sealed class UnusedThemeFactory : ISholtoThemeFactory
     {
         public SholtoTheme Create(string json) => throw new NotSupportedException();
@@ -16,7 +20,7 @@ public class SholtoThemeLoaderPathTests
     {
         var saved = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
         Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", xdg);
-        try { return new SholtoThemeLoader(new UnusedThemeFactory()).UserThemesDir(); }
+        try { return new SholtoThemeLoader(new UnusedThemeFactory(), new RecordingLogFactory()).UserThemesDir(); }
         finally { Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", saved); }
     }
 

@@ -8,7 +8,7 @@ public class FirstDismissalsHintPolicyTests
     public void Hints_three_times_then_stops()
     {
         var counter = new FakeHintCounter();
-        var policy = new FirstDismissalsHintPolicy(3, counter);
+        var policy = new FirstDismissalsHintPolicy(3, counter, new RecordingLogFactory());
 
         for (var i = 0; i < 3; i++)
         {
@@ -23,7 +23,7 @@ public class FirstDismissalsHintPolicyTests
     [Fact]
     public async Task A_saved_count_at_the_limit_means_no_hint()
     {
-        var policy = new FirstDismissalsHintPolicy(3, new FakeHintCounter(saved: 3));
+        var policy = new FirstDismissalsHintPolicy(3, new FakeHintCounter(saved: 3), new RecordingLogFactory());
         await Task.Yield();
 
         Assert.False(policy.ShouldHint());
@@ -32,7 +32,7 @@ public class FirstDismissalsHintPolicyTests
     [Fact]
     public async Task A_saved_count_below_the_limit_leaves_the_rest()
     {
-        var policy = new FirstDismissalsHintPolicy(3, new FakeHintCounter(saved: 2));
+        var policy = new FirstDismissalsHintPolicy(3, new FakeHintCounter(saved: 2), new RecordingLogFactory());
         await Task.Yield();
 
         Assert.True(policy.ShouldHint());
@@ -43,7 +43,7 @@ public class FirstDismissalsHintPolicyTests
     [Fact]
     public void Hints_before_the_saved_count_arrives()
     {
-        var policy = new FirstDismissalsHintPolicy(3, new FakeHintCounter(saved: 3, answerAtOnce: false));
+        var policy = new FirstDismissalsHintPolicy(3, new FakeHintCounter(saved: 3, answerAtOnce: false), new RecordingLogFactory());
 
         Assert.True(policy.ShouldHint());
     }
@@ -51,8 +51,8 @@ public class FirstDismissalsHintPolicyTests
     [Fact]
     public void Two_policies_over_two_counters_are_independent()
     {
-        var a = new FirstDismissalsHintPolicy(3, new FakeHintCounter());
-        var b = new FirstDismissalsHintPolicy(3, new FakeHintCounter());
+        var a = new FirstDismissalsHintPolicy(3, new FakeHintCounter(), new RecordingLogFactory());
+        var b = new FirstDismissalsHintPolicy(3, new FakeHintCounter(), new RecordingLogFactory());
 
         for (var i = 0; i < 3; i++) a.HintShown();
 

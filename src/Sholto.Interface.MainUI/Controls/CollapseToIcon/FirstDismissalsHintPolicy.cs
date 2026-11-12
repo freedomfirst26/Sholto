@@ -1,3 +1,5 @@
+using Sholto.Data;
+
 namespace Sholto.Interface.MainUI.Controls.CollapseToIcon;
 
 /// <summary>Hints for the first <c>limit</c> dismissals ever, counted across launches. The saved count is
@@ -6,13 +8,15 @@ public sealed class FirstDismissalsHintPolicy : IHintPolicy
 {
     private readonly int _limit;
     private readonly IHintCounter _counter;
+    private readonly ILog _log;
     private int _loaded;
     private int _shownHere;
 
-    public FirstDismissalsHintPolicy(int limit, IHintCounter counter)
+    public FirstDismissalsHintPolicy(int limit, IHintCounter counter, ILogFactory logs)
     {
         _limit = limit;
         _counter = counter;
+        _log = logs.Create("FirstDismissalsHintPolicy");
         _ = LoadAsync();
     }
 
@@ -27,6 +31,6 @@ public sealed class FirstDismissalsHintPolicy : IHintPolicy
     private async Task LoadAsync()
     {
         try { Volatile.Write(ref _loaded, await _counter.CountAsync()); }
-        catch (Exception ex) { Console.WriteLine($"[FirstDismissalsHintPolicy] load failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"load failed: {ex.Message}"); }
     }
 }

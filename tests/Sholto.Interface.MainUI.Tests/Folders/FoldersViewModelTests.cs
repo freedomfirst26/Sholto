@@ -26,7 +26,7 @@ public class FoldersViewModelTests
             _checks.Add(q);
             return _check(q);
         }));
-        _vm = new FoldersViewModel(_bus, _bus, _bus, new FolderRowViewModelFactory(), Options.Create(new FoldersPanelOptions()));
+        _vm = new FoldersViewModel(_bus, _bus, _bus, new FolderRowViewModelFactory(), Options.Create(new FoldersPanelOptions()), new RecordingLogFactory());
     }
 
     private sealed class AnswerRecorder(List<ChooseFolders> sent) : ICommandHandler<ChooseFolders>

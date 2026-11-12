@@ -16,6 +16,7 @@ public sealed class GlanceRankPipeline : IGlanceRankPipeline
     private readonly IFrameClock _clock;
     private readonly int _indicatorDelayMs;
     private readonly int _indicatorMinimumMs;
+    private readonly ILog _log;
 
     private IReadOnlyList<GlanceChip> _appliedChips = [];
     private string _appliedQuery = "";
@@ -27,7 +28,7 @@ public sealed class GlanceRankPipeline : IGlanceRankPipeline
     private bool _dirty;
 
     public GlanceRankPipeline(IQueryAsker asker, IAppThread appThread, IFrameClock clock,
-        IOptions<GlanceViewOptions> options)
+        IOptions<GlanceViewOptions> options, ILogFactory logs)
     {
         _asker = asker;
         _appThread = appThread;
@@ -35,6 +36,7 @@ public sealed class GlanceRankPipeline : IGlanceRankPipeline
         var view = options.Value;
         _indicatorDelayMs = view.IndicatorDelayMs;
         _indicatorMinimumMs = view.IndicatorMinimumMs;
+        _log = logs.Create("Glance");
     }
 
     public event Action? ReassessingChanged;
@@ -98,7 +100,7 @@ public sealed class GlanceRankPipeline : IGlanceRankPipeline
     {
         RankedTracks? result = null;
         try { result = await _asker.AskAsync<RankTracks, RankedTracks>(request); }
-        catch (Exception ex) { Console.WriteLine($"[Glance] ranking failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"ranking failed: {ex.Message}"); }
         _appThread.Post(() => Apply(gen, request, chips, result));
     }
 

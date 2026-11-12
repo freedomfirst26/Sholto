@@ -15,7 +15,8 @@ public sealed class LifecyclePrompts(
     IEventSubscriber subscriber,
     ICommandSender sender,
     IAppThread appThread,
-    MainViewModel viewModel) :
+    MainViewModel viewModel,
+    ILogFactory logs) :
     IEventHandler<FoldersNeeded>,
     IEventHandler<OutputDeviceNeeded>,
     IEventHandler<SavedThemeFound>,
@@ -25,6 +26,7 @@ public sealed class LifecyclePrompts(
     private readonly ICommandSender _sender = sender;
     private readonly IAppThread _appThread = appThread;
     private readonly MainViewModel _viewModel = viewModel;
+    private readonly ILog _log = logs.Create("OutputDevice");
 
     // A question that arrived while the other one was open: shown once that one closes. Only the latest counts.
     private FoldersNeeded? _waitingFolders;
@@ -99,7 +101,7 @@ public sealed class LifecyclePrompts(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[OutputDevice] could not ask for the output device: {ex.Message}");
+            _log.Error($"could not ask for the output device: {ex.Message}");
         }
     }
 }

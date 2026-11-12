@@ -26,7 +26,7 @@ public sealed class LayoutWizardViewModel(
     private readonly IAppThread _appThread = appThread;
     private readonly IThemeViewModel _themes = themes;
     private readonly IThemeOptionFactory _themeOptionFactory = themeOptions;
-    private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("LayoutWizard");
 
     // The theme grid has four columns.
     private const int Columns = 4;
@@ -230,7 +230,7 @@ public sealed class LayoutWizardViewModel(
                     else bitmap.Dispose();
                 });
             }
-            catch (Exception ex) { Console.WriteLine($"[LayoutWizard] preview failed: {ex.Message}"); }
+            catch (Exception ex) { _log.Error($"preview failed: {ex.Message}"); }
         });
     }
 

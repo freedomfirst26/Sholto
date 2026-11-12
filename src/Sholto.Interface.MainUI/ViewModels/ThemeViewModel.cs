@@ -10,7 +10,7 @@ public sealed class ThemeViewModel : IThemeViewModel
     private readonly IThemeContext _context;
     private readonly IThemeCatalog _catalog;
     private readonly ICommandSender _sender;
-    private readonly ILogFactory _logs;
+    private readonly ILog _log;
     private SholtoTheme _shown;
     private SholtoTheme _chosen;
 
@@ -19,7 +19,7 @@ public sealed class ThemeViewModel : IThemeViewModel
         _context = context;
         _catalog = catalog;
         _sender = sender;
-        _logs = logs;
+        _log = logs.Create("Theme");
         _shown = catalog.ByName("Silence Groove");
         _chosen = _shown;
         // Make the initial theme visible to anything that reads the context before the user picks another.
@@ -59,7 +59,7 @@ public sealed class ThemeViewModel : IThemeViewModel
         var match = _catalog.All.FirstOrDefault(t => t.Name == savedName);
         if (match is null)
         {
-            Console.WriteLine($"[Theme] saved name '{savedName}' no longer exists — keeping default");
+            _log.Warn($"saved name '{savedName}' no longer exists — keeping default");
             return;
         }
         if (_chosen != match)

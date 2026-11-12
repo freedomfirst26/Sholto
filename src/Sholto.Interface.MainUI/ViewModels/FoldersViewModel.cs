@@ -17,6 +17,7 @@ public sealed class FoldersViewModel : IFoldersViewModel, IEventHandler<Analysis
     private readonly ICommandSender _sender;
     private readonly IQueryAsker _asker;
     private readonly long _stemBytesPerTrack;
+    private readonly ILog _log;
     private readonly List<FolderRowViewModel> _rows;
     private FoldersReason _reason;
     private bool _isOpen;
@@ -29,10 +30,11 @@ public sealed class FoldersViewModel : IFoldersViewModel, IEventHandler<Analysis
     private string? _stemsAt;
 
     public FoldersViewModel(IEventSubscriber subscriber, ICommandSender sender, IQueryAsker asker,
-        IFolderRowViewModelFactory rows, IOptions<FoldersPanelOptions> options)
+        IFolderRowViewModelFactory rows, IOptions<FoldersPanelOptions> options, ILogFactory logs)
     {
         _sender = sender;
         _asker = asker;
+        _log = logs.Create("Folders");
         _stemBytesPerTrack = options.Value.StemBytesPerTrackEstimate;
         Music = rows.Music();
         Analysis = rows.Analysis();
@@ -210,7 +212,7 @@ public sealed class FoldersViewModel : IFoldersViewModel, IEventHandler<Analysis
         catch (Exception ex)
         {
             // The check could not run: say so on the rows and keep Continue off until the user picks again.
-            Console.WriteLine($"[Folders] check failed: {ex.Message}");
+            _log.Error($"check failed: {ex.Message}");
             if (seq != _checkSeq) return;
             Music.ShowProblem($"Could not check the folders: {ex.Message}");
             _checkPending = false;

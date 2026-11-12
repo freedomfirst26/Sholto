@@ -13,5 +13,5 @@ public sealed class HintPolicyFactory(IQueryAsker asker, ICommandSender sender, 
     public IHintPolicy Never() => new NeverHintPolicy();
 
     public IHintPolicy FirstDismissals(string key, int count) =>
-        new FirstDismissalsHintPolicy(count, new BusHintCounter(_asker, _sender, key));
+        new FirstDismissalsHintPolicy(count, new BusHintCounter(_asker, _sender, key), _logs);
 }

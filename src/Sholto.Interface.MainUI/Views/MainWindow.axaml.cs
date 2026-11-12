@@ -33,7 +33,7 @@ public partial class MainWindow : Window, IKeyboard
     private readonly IThemeCatalog _themeCatalog;
     private readonly IModalKeyRouter _modalKeys;
     private readonly IThemeBrushesFactory _themeBrushes;
-    private readonly ILogFactory _logs;
+    private readonly ILog _log;
     private ResourceDictionary? _themeResources;
 
     /// <summary>The overlay is built by the composition root (it needs a device's guide and
@@ -45,7 +45,7 @@ public partial class MainWindow : Window, IKeyboard
         IThemeBrushesFactory themeBrushes, ILogFactory logs)
     {
         _themeBrushes = themeBrushes;
-        _logs = logs;
+        _log = logs.Create("Track");
         _faceplateOverlay = faceplateOverlay;
         _modalKeys = modalKeys;
         _themeCatalog = themeCatalog;
@@ -385,7 +385,7 @@ public partial class MainWindow : Window, IKeyboard
         // Selection only — no automatic load. User presses 1/2 (or FLX-4 LOAD 1/2)
         // to put the highlighted track on a deck.
         if (e.AddedItems is { Count: > 0 } && e.AddedItems[0] is TrackRow row)
-            Console.WriteLine($"[Track] selected {row.Title}");
+            _log.Info($"selected {row.Title}");
     }
 
     // Double-click a library row → re-run analysis on it. The single click already

@@ -82,7 +82,7 @@ public sealed class AppStackFactory : IAppStackFactory
         var iconFactory = new AppIconFactory();
         var entities = new LiveEntities(bus, bus, bus, bus, frameClock, appThread, iconFactory, logs);
         return new AppStack(entities, entities, stack, options,
-            coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread),
+            coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread, logs),
             new ThemeStackFactory(logs), new ControllerStackFactory(logs, new MidiPortOpenerFactory(options.WinMmMidi, TimeProvider.System, logs)),
             new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, hintCounter, options.Glance, logs, options.BeatJump), new PerformanceFactory(logs),
                 new ControllerInputFactory(), new KeyboardInputFactory()),

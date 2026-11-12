@@ -60,7 +60,7 @@ internal sealed class MainViewModelRig
                 themeViewModel, new ThemeOptionFactory(), new RecordingLogFactory()),
             new SettingsViewModel(Bus, Bus, new KnobScaleFactory()),
             new FoldersViewModel(Bus, Bus, Bus, new FolderRowViewModelFactory(),
-                Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions())),
+                Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions()), new RecordingLogFactory()),
             new SystemReportViewModel(),
             new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),
                 new CollapseToIconOptions("faceplate", new CollapseToIconTimingsFactory().Standard()),

@@ -9,6 +9,7 @@ public sealed class GlanceChipEditor : IGlanceChipEditor
     private readonly IAppThread _appThread;
     private readonly ITagRecency _tagRecency;
     private readonly int _railLimit;
+    private readonly ILog _log;
 
     private string _query = "";
     private IReadOnlyList<GlanceChip> _chips = [];
@@ -17,12 +18,13 @@ public sealed class GlanceChipEditor : IGlanceChipEditor
     private int _completionGen;
 
     public GlanceChipEditor(IQueryAsker asker, IAppThread appThread, ITagRecency tagRecency,
-        IOptions<GlanceViewOptions> options)
+        IOptions<GlanceViewOptions> options, ILogFactory logs)
     {
         _asker = asker;
         _appThread = appThread;
         _tagRecency = tagRecency;
         _railLimit = options.Value.TagRailLimit;
+        _log = logs.Create("Glance");
     }
 
     public event Action? QueryChanged;
@@ -115,7 +117,7 @@ public sealed class GlanceChipEditor : IGlanceChipEditor
         {
             hits = await _asker.AskAsync<SearchTags, IReadOnlyList<TagHit>>(new SearchTags(fragment, _railLimit)) ?? [];
         }
-        catch (Exception ex) { Console.WriteLine($"[Glance] tag completion failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"tag completion failed: {ex.Message}"); }
         _appThread.Post(() =>
         {
             if (gen != _completionGen || TrailingTagToken(_query) != token) return;

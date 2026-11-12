@@ -1,4 +1,5 @@
 using Avalonia.Platform;
+using Sholto.Data;
 
 namespace Sholto.Interface.MainUI.Theming;
 
@@ -13,9 +14,10 @@ namespace Sholto.Interface.MainUI.Theming;
 ///      and they're merged with the bundled list, no rebuild required.
 /// The JSON schema is documented on <see cref="SholtoThemeFactory"/>.
 /// </summary>
-public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory) : ISholtoThemeLoader
+public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory, ILogFactory logs) : ISholtoThemeLoader
 {
     private readonly ISholtoThemeFactory _themeFactory = themeFactory;
+    private readonly ILog _log = logs.Create("Themes");
 
     /// <summary>Read all bundled themes (avares://Sholto.Interface.MainUI/Themes/*.json) plus
     /// any user-supplied themes from the config dir. Bundled themes always win
@@ -38,7 +40,7 @@ public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory) : ISholt
         {
             if (bundledNames.Contains(t.Name))
             {
-                Console.WriteLine($"[Themes] skipping user theme '{t.Name}': name collides with a bundled theme");
+                _log.Warn($"skipping user theme '{t.Name}': name collides with a bundled theme");
                 continue;
             }
             list.Add(t);
@@ -57,7 +59,7 @@ public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory) : ISholt
         var manifestUri = new Uri(ManifestUri);
         if (!AssetLoader.Exists(manifestUri))
         {
-            Console.WriteLine($"[Themes] no bundled manifest at {ManifestUri}");
+            _log.Warn($"no bundled manifest at {ManifestUri}");
             yield break;
         }
 
@@ -73,7 +75,7 @@ public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory) : ISholt
             var uri = new Uri($"avares://Sholto.Interface.MainUI/Themes/{name}");
             if (!AssetLoader.Exists(uri))
             {
-                Console.WriteLine($"[Themes] manifest references missing file: {name}");
+                _log.Warn($"manifest references missing file: {name}");
                 continue;
             }
             SholtoTheme? theme = null;
@@ -85,7 +87,7 @@ public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory) : ISholt
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Themes] failed to load bundled '{name}': {ex.Message}");
+                _log.Error($"failed to load bundled '{name}': {ex.Message}");
             }
             if (theme is not null) yield return theme;
         }
@@ -101,7 +103,7 @@ public sealed class SholtoThemeLoader(ISholtoThemeFactory themeFactory) : ISholt
             try { theme = _themeFactory.Create(File.ReadAllText(path)); }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Themes] failed to load user theme '{path}': {ex.Message}");
+                _log.Error($"failed to load user theme '{path}': {ex.Message}");
             }
             if (theme is not null) yield return theme with { IsUser = true };
         }

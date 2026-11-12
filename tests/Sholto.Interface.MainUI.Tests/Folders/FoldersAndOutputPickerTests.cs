@@ -22,7 +22,7 @@ public class FoldersAndOutputPickerTests
         _deviceAnswers = _rig.Record<ChooseOutputDevice>();
         _folderChanges = _rig.Record<ChangeFolders>();
         _deviceChanges = _rig.Record<ChangeOutputDevice>();
-        new LifecyclePromptsFactory(_rig.Bus, _rig.Bus, _appThread).Create(_rig.Vm).Start();
+        new LifecyclePromptsFactory(_rig.Bus, _rig.Bus, _appThread, new RecordingLogFactory()).Create(_rig.Vm).Start();
     }
 
     private static FoldersNeeded FoldersQuestion(FoldersReason reason = FoldersReason.FirstRun) => new(reason,

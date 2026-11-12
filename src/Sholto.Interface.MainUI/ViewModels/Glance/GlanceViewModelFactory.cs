@@ -26,8 +26,8 @@ public sealed class GlanceViewModelFactory(
 
     public GlanceViewModel Create() => new(
         _sender, _asker, _subscriber, _clock, _rowSource, _header, _motion,
-        new GlanceChipEditor(_asker, _appThread, _tagRecency, _options),
-        new GlanceRankPipeline(_asker, _appThread, _clock, _options),
-        new GlanceRail(_asker, _appThread, _tagRecency, new GlanceRailItemsFactory(), _options),
+        new GlanceChipEditor(_asker, _appThread, _tagRecency, _options, _logs),
+        new GlanceRankPipeline(_asker, _appThread, _clock, _options, _logs),
+        new GlanceRail(_asker, _appThread, _tagRecency, new GlanceRailItemsFactory(), _options, _logs),
         new GlanceTrackList(_sender, _tagRecency, _clock, _options));
 }

@@ -135,7 +135,7 @@ public sealed class LiveEntities(
                 new DemoWaveformFactory(), new WaveformPreviewScroll(_clock), _appThread,
                 themes, new ThemeOptionFactory(), _logs),
             new SettingsViewModel(_subscriber, _sender, new KnobScaleFactory()),
-            new FoldersViewModel(_subscriber, _sender, _asker, new FolderRowViewModelFactory(), l.FoldersPanel),
+            new FoldersViewModel(_subscriber, _sender, _asker, new FolderRowViewModelFactory(), l.FoldersPanel, _logs),
             new SystemReportViewModel(),
             faceplateDock,
             new TrackListViewModel(_sender, _subscriber)).Create();

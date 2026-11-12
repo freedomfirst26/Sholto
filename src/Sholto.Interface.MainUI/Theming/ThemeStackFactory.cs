@@ -22,7 +22,7 @@ public sealed class ThemeStackFactory(ILogFactory logs) : IThemeStackFactory
             new ThemeDefaultColoursFactory().Create(ReadAsset("defaults.json")));
         var catalog = new ThemeCatalogFactory(
             new SholtoThemeLoader(
-                new SholtoThemeFactory(new WaveformPaletteFactory(presets, defaults), new MinimapPaletteFactory(), defaults))).Build();
+                new SholtoThemeFactory(new WaveformPaletteFactory(presets, defaults), new MinimapPaletteFactory(), defaults), _logs)).Build();
         var context = new ThemeContext(catalog);
         return new ThemeStack(catalog, context, defaults);
     }
