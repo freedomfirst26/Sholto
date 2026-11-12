@@ -6,18 +6,19 @@ public class TrackAnalysisRunPrestartTests
 {
     private const string TrackA = "/music/a.mp3";
     private const string TrackB = "/music/b.mp3";
+    private static readonly TimeSpan SignalCap = TimeSpan.FromSeconds(30);
 
     [Fact]
     public async Task Begin_load_starts_the_basic_lookup_and_the_stems_before_the_track_is_decoded()
     {
         var rig = new TrackAnalysisRunRig(stemsOverlap: true);
         rig.BeginLoad(TrackA);
-        Assert.True(SpinWait.SpinUntil(
-            () => rig.Pipeline.BeginRequested(TrackA) && rig.Pipeline.StemsRequested(TrackA), 2000));
+        await rig.Pipeline.BeginStarted(TrackA).WaitAsync(SignalCap);
+        await rig.Pipeline.StemsStarted(TrackA).WaitAsync(SignalCap);
 
         rig.Load(TrackA);
         rig.Pipeline.CompleteAll(TrackA, bpm: 123);
-        Assert.True(SpinWait.SpinUntil(() => { rig.Drain(); return rig.StemsReady.Count == 1; }, 3000));
+        await rig.SettleUntil(() => rig.StemsReady.Count == 1 && rig.DetectedBasic.Count >= 1);
         await rig.Settle();
 
         Assert.Equal(1, rig.Pipeline.BeginCount(TrackA));
@@ -30,14 +31,14 @@ public class TrackAnalysisRunPrestartTests
     {
         var rig = new TrackAnalysisRunRig(stemsOverlap: false);
         rig.BeginLoad(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.BeginRequested(TrackA), 2000));
+        await rig.Pipeline.BeginStarted(TrackA).WaitAsync(SignalCap);
         await Task.Delay(200);
         Assert.False(rig.Pipeline.StemsRequested(TrackA));
 
         rig.Load(TrackA);
         rig.Pipeline.CompleteBasicAndKey(TrackA, bpm: 123);
 
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.StemsRequested(TrackA), 2000));
+        await rig.Pipeline.StemsStarted(TrackA).WaitAsync(SignalCap);
         await rig.Settle();
     }
 
@@ -46,7 +47,7 @@ public class TrackAnalysisRunPrestartTests
     {
         var rig = new TrackAnalysisRunRig(stemsOverlap: true);
         rig.BeginLoad(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.StemsRequested(TrackA), 2000));
+        await rig.Pipeline.StemsStarted(TrackA).WaitAsync(SignalCap);
 
         rig.Pipeline.CompleteAll(TrackA, bpm: 123);
         await rig.Settle();
@@ -55,7 +56,7 @@ public class TrackAnalysisRunPrestartTests
         Assert.Empty(rig.DetectedBasic);
 
         rig.Load(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => { rig.Drain(); return rig.StemsReady.Count == 1; }, 3000));
+        await rig.SettleUntil(() => rig.StemsReady.Count == 1);
         await rig.Settle();
     }
 
@@ -64,8 +65,8 @@ public class TrackAnalysisRunPrestartTests
     {
         var rig = new TrackAnalysisRunRig(stemsOverlap: true);
         rig.BeginLoad(TrackA);
-        Assert.True(SpinWait.SpinUntil(
-            () => rig.Pipeline.BeginRequested(TrackA) && rig.Pipeline.StemsRequested(TrackA), 2000));
+        await rig.Pipeline.BeginStarted(TrackA).WaitAsync(SignalCap);
+        await rig.Pipeline.StemsStarted(TrackA).WaitAsync(SignalCap);
 
         rig.BeginLoad(TrackB);
 
@@ -74,7 +75,7 @@ public class TrackAnalysisRunPrestartTests
         rig.Pipeline.CompleteAll(TrackA, bpm: 111);
         rig.Load(TrackB);
         rig.Pipeline.CompleteAll(TrackB, bpm: 123);
-        Assert.True(SpinWait.SpinUntil(() => { rig.Drain(); return rig.StemsReady.Count == 1; }, 3000));
+        await rig.SettleUntil(() => rig.StemsReady.Count == 1 && rig.DetectedBasic.Count >= 1);
         await rig.Settle();
 
         Assert.Equal(123, Assert.Single(rig.DetectedBasic).Bpm);
@@ -86,12 +87,12 @@ public class TrackAnalysisRunPrestartTests
     {
         var rig = new TrackAnalysisRunRig(stemsOverlap: true);
         rig.BeginLoad(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.BeginRequested(TrackA), 2000));
+        await rig.Pipeline.BeginStarted(TrackA).WaitAsync(SignalCap);
 
         rig.Load(TrackB);
 
         Assert.True(rig.Pipeline.BeginToken(TrackA).IsCancellationRequested);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.BeginRequested(TrackB), 2000));
+        await rig.Pipeline.BeginStarted(TrackB).WaitAsync(SignalCap);
         await rig.Settle();
     }
 }

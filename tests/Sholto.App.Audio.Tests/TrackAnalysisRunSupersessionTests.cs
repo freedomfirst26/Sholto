@@ -7,13 +7,14 @@ public class TrackAnalysisRunSupersessionTests
 {
     private const string TrackA = "/music/a.mp3";
     private const string TrackB = "/music/b.mp3";
+    private static readonly TimeSpan SignalCap = TimeSpan.FromSeconds(30);
 
     [Fact]
     public async Task Results_of_a_superseded_load_are_not_applied_to_the_new_track()
     {
         var rig = new TrackAnalysisRunRig();
         rig.Load(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.BasicRequested(TrackA), 2000));
+        await rig.Pipeline.BasicStarted(TrackA).WaitAsync(SignalCap);
 
         rig.Load(TrackB);
         rig.Pipeline.CompleteAll(TrackA, bpm: 123);
@@ -32,9 +33,9 @@ public class TrackAnalysisRunSupersessionTests
     {
         var rig = new TrackAnalysisRunRig();
         rig.Load(TrackA);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.BasicRequested(TrackA), 2000));
+        await rig.Pipeline.BasicStarted(TrackA).WaitAsync(SignalCap);
         rig.Pipeline.CompleteBasicAndKey(TrackA, bpm: 123);
-        Assert.True(SpinWait.SpinUntil(() => rig.Pipeline.StemsRequested(TrackA), 2000));
+        await rig.Pipeline.StemsStarted(TrackA).WaitAsync(SignalCap);
         Assert.False(rig.Pipeline.StemToken(TrackA).IsCancellationRequested);
 
         rig.Load(TrackB);
@@ -53,7 +54,7 @@ public class TrackAnalysisRunSupersessionTests
         rig.Pipeline.CompleteAll(TrackA, bpm: 123);
 
         // Nothing is applied until the app thread gets to it: the pool thread only posts.
-        Assert.True(SpinWait.SpinUntil(() => rig.AppThread.Pending >= 4, 2000));
+        await rig.WaitUntil(() => rig.AppThread.Pending >= 4);
         await Task.Delay(100);
         Assert.Empty(rig.StemsReady);
         Assert.Empty(rig.DetectedBasic);
@@ -71,7 +72,7 @@ public class TrackAnalysisRunSupersessionTests
         var rig = new TrackAnalysisRunRig();
         rig.Load(TrackA);
         rig.Pipeline.CompleteAll(TrackA, bpm: 123);
-        Assert.True(SpinWait.SpinUntil(() => { rig.Drain(); return rig.StemsReady.Count == 1; }, 3000));
+        await rig.SettleUntil(() => rig.StemsReady.Count == 1 && rig.DetectedBasic.Count >= 1);
         await rig.Settle();
 
         var analysis = rig.Run.Analysis;

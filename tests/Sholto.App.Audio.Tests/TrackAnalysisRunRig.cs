@@ -69,6 +69,17 @@ internal sealed class TrackAnalysisRunRig
         }
     }
 
+    /// <summary>Wait, without draining the app thread, until <paramref name="done"/> holds; throws after 30 s.</summary>
+    public async Task WaitUntil(Func<bool> done)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (!done())
+        {
+            if (DateTime.UtcNow > deadline) throw new TimeoutException("the condition did not hold within 30 s");
+            await Task.Delay(5);
+        }
+    }
+
     /// <summary>Give an in-flight run time to apply whatever it is going to apply.</summary>
     public async Task Settle()
     {

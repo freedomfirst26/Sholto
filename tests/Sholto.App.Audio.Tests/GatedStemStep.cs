@@ -9,6 +9,7 @@ namespace Sholto.App.Audio.Tests;
 internal sealed class GatedStemStep : IStemAnalysisStep
 {
     private readonly ConcurrentDictionary<string, TaskCompletionSource> _gates = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource> _started = new();
     private int _inFlight;
     private int _maxConcurrent;
 
@@ -18,10 +19,15 @@ internal sealed class GatedStemStep : IStemAnalysisStep
 
     public bool Started(string path) => _gates.ContainsKey(path);
 
+    /// <summary>Completes when a run for <paramref name="path"/> has started (entered <see cref="AnalyzeAsync"/>).
+    /// Never from the test's own <see cref="Release"/>.</summary>
+    public Task WhenStarted(string path) => Signal(path).Task;
+
     public void Release(string path) => Gate(path).SetResult();
 
     public async Task<StemPaths> AnalyzeAsync(string filePath, IAnalysisReporter reporter, CancellationToken ct = default)
     {
+        Signal(filePath).TrySetResult();
         var now = Interlocked.Increment(ref _inFlight);
         int seen;
         while ((seen = Volatile.Read(ref _maxConcurrent)) < now &&
@@ -30,6 +36,9 @@ internal sealed class GatedStemStep : IStemAnalysisStep
         finally { Interlocked.Decrement(ref _inFlight); }
         return new StemPaths("/stems" + filePath);
     }
+
+    private TaskCompletionSource Signal(string path) =>
+        _started.GetOrAdd(path, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
 
     private TaskCompletionSource Gate(string path) =>
         _gates.GetOrAdd(path, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));

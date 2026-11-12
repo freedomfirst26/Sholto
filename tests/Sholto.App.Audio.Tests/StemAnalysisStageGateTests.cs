@@ -12,6 +12,8 @@ namespace Sholto.App.Audio.Tests;
 
 public class StemAnalysisStageGateTests
 {
+    private static readonly TimeSpan SignalCap = TimeSpan.FromSeconds(30);
+
     [Theory]
     [InlineData(StemDevice.Cuda, true)]
     [InlineData(StemDevice.Cpu, false)]
@@ -31,13 +33,13 @@ public class StemAnalysisStageGateTests
         var deckB = Stage(step, StemDevice.Cuda, gate);
 
         var runA = Task.Run(() => deckA.RunAsync(Track("/a.mp3")));
-        Assert.True(SpinWait.SpinUntil(() => step.Started("/a.mp3"), 2000));
+        await step.WhenStarted("/a.mp3").WaitAsync(SignalCap);
         var runB = Task.Run(() => deckB.RunAsync(Track("/b.mp3")));
         await Task.Delay(300);
         Assert.False(step.Started("/b.mp3"));
 
         step.Release("/a.mp3");
-        Assert.True(SpinWait.SpinUntil(() => step.Started("/b.mp3"), 2000));
+        await step.WhenStarted("/b.mp3").WaitAsync(SignalCap);
         Assert.Equal(1, step.MaxConcurrent);
 
         step.Release("/b.mp3");
@@ -52,7 +54,7 @@ public class StemAnalysisStageGateTests
         var deckA = Stage(step, StemDevice.Cuda, gate);
         var deckB = Stage(step, StemDevice.Cuda, gate);
         var runA = Task.Run(() => deckA.RunAsync(Track("/a.mp3")));
-        Assert.True(SpinWait.SpinUntil(() => step.Started("/a.mp3"), 2000));
+        await step.WhenStarted("/a.mp3").WaitAsync(SignalCap);
 
         using var cts = new CancellationTokenSource();
         var runB = Task.Run(() => deckB.RunAsync(Track("/b.mp3"), cts.Token));

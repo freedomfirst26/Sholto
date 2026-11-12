@@ -1,5 +1,6 @@
 using SoundFlow.Enums;
 using SoundFlow.Structs;
+using Sholto.TestSupport.Platform;
 using Xunit;
 
 namespace Sholto.App.Audio.Tests;
@@ -147,7 +148,10 @@ public class DeckEffectOutputPinTests
         0.00436147209f, 0.021192871f, -0.0413186699f, 0.0660348758f, -0.0827919319f, 0.0980206057f, -0.103668839f, 0.103155695f,
     ];
 
-    [Theory]
+    // Linux only: the input Tone() goes through MathF.Sin and the filter through MathF.Tanh/Tan/Exp/Log,
+    // i.e. the platform maths library (glibc libm here, the UCRT on Windows, which rounds differently).
+    // The pins were captured on glibc 2.39, so they hold on Linux only; CI pins its ubuntu leg to 24.04.
+    [LinuxOnlyTheory("The pins depend on the platform maths library (glibc 2.39 libm): Windows' UCRT sinf/tanhf round differently.")]
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]

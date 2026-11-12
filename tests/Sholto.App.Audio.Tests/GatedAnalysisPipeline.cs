@@ -23,6 +23,7 @@ internal sealed class GatedAnalysisPipeline : IAnalysisProvider, IKeyAnalyzer, I
     private readonly ConcurrentDictionary<string, int> _stemCounts = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource> _basicStarted = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource> _stemsStarted = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource> _beginStarted = new();
 
     public bool IsAvailable => true;
 
@@ -48,6 +49,9 @@ internal sealed class GatedAnalysisPipeline : IAnalysisProvider, IKeyAnalyzer, I
     /// <summary>Completes when the code under test reaches the basic gate for <paramref name="path"/>
     /// (<see cref="GetAsync"/>, or the request <see cref="Begin"/> returned). Never from the test's own Complete* calls.</summary>
     public Task BasicStarted(string path) => Started(_basicStarted, path).Task;
+
+    /// <summary>Completes when <see cref="Begin"/> (the path-only prestart) has run for <paramref name="path"/>.</summary>
+    public Task BeginStarted(string path) => Started(_beginStarted, path).Task;
 
     /// <summary>Completes when the stem stage is run for <paramref name="path"/>.</summary>
     public Task StemsStarted(string path) => Started(_stemsStarted, path).Task;
@@ -87,6 +91,7 @@ internal sealed class GatedAnalysisPipeline : IAnalysisProvider, IKeyAnalyzer, I
     {
         _begun[filePath] = ct;
         _beginCounts.AddOrUpdate(filePath, 1, (_, n) => n + 1);
+        Started(_beginStarted, filePath).TrySetResult();
         return new BasicAnalysisRequest(track => AwaitBasic(track.FilePath));
     }
 
