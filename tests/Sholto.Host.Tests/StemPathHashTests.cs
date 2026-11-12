@@ -1,6 +1,7 @@
 using Xunit;
 using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.ToolBoundary;
+using Sholto.TestSupport.Platform;
 
 namespace Sholto.Host.Tests;
 
@@ -52,7 +53,7 @@ public class StemPathHashTests
         Assert.Equal(16, hash.Length);
     }
 
-    [Fact]
+    [LinuxOnlyFact("HashPath runs Path.GetFullPath, which prefixes a drive letter to /Music/... on Windows, so the pinned hash is of a Linux path.")]
     public void KnownInput_HashesToPinnedValue()
     {
         // CONTRACT: this encoding names every stem directory on disk. Changing

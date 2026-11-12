@@ -1,10 +1,12 @@
+using Sholto.TestSupport.Platform;
+
 namespace Sholto.App.ExternalTools.Tests;
 
 public class ExternalToolOptionsTests
 {
     private readonly IExternalToolOptionsFactory _optionsFactory = new ExternalToolOptionsFactory(new ExternalToolCatalog());
 
-    [Fact]
+    [LinuxOnlyFact("Linux() joins ~/.local/bin with Path.Combine, which uses '\\' on Windows, so the '/.local/bin' check only holds on Linux.")]
     public void ForCurrentPlatform_returns_Linux_options_on_Linux()
     {
         // This suite only needs to run on Linux (per CLAUDE.md); assert Linux()

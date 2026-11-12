@@ -9,7 +9,7 @@ public class BeatThisInstallCommandTests
     [Fact]
     public void The_install_command_carries_the_python_spec_pins_and_index_of_sholto_deps()
     {
-        var deps = File.ReadAllText(Path.Combine(RepoRoot(), "sholto-deps.sh"));
+        var deps = File.ReadAllText(Path.Combine(RepoRoot(), "sholto-deps.sh")).Replace("\r", "");
 
         var expected = string.Join(' ',
             "uv tool install --python", Value(deps, "SHOLTO_PYTHON"),

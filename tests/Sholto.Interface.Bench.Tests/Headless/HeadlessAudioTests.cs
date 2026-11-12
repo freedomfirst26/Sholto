@@ -22,10 +22,19 @@ public sealed class HeadlessAudioTests : IDisposable
 
     public HeadlessAudioTests() => new ToneFixture(60, 3).WriteWav(_tone);
 
+    // Best-effort: the deck's ChunkedDataProvider FileStream (TrackLoading) keeps the loaded WAV open until the
+    // deck is unloaded, and the headless host never unloads it. Linux deletes an open file anyway; Windows throws
+    // IOException, so a leftover temp file there is swallowed rather than failing the test.
     public void Dispose()
     {
-        File.Delete(_tone);
-        File.Delete(_out);
+        TryDelete(_tone);
+        TryDelete(_out);
+    }
+
+    private void TryDelete(string path)
+    {
+        try { File.Delete(path); }
+        catch (IOException) { }
     }
 
     private IHeadlessHostFactory NewFactory()

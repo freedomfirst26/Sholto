@@ -1,6 +1,7 @@
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.ToolBoundary;
+using Sholto.TestSupport.Platform;
 
 namespace Sholto.App.ExternalTools.Tests;
 
@@ -173,7 +174,7 @@ public class ExternalToolRunnerTests
         }
     }
 
-    [Fact]
+    [LinuxOnlyFact("Checks the process is gone by reading /proc/<pid>, which only Linux has.")]
     public async Task Cancelling_the_token_kills_the_process()
     {
         if (!_shAvailable) return;

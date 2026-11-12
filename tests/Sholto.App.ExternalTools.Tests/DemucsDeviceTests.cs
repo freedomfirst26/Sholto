@@ -1,6 +1,7 @@
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.ToolBoundary;
+using Sholto.TestSupport.Platform;
 
 namespace Sholto.App.ExternalTools.Tests;
 
@@ -22,7 +23,7 @@ public class DemucsDeviceTests
         Assert.Equal(expected, args[at + 1]);
     }
 
-    [Fact]
+    [LinuxOnlyFact("ProbeRig fakes demucs as a #! script run by a /bin/sh interpreter and marks it executable with SetUnixFileMode; neither exists on Windows.")]
     public async Task Probe_reports_cuda_when_torch_in_the_demucs_interpreter_says_true()
     {
         using var rig = new ProbeRig("True");
@@ -30,7 +31,7 @@ public class DemucsDeviceTests
         Assert.Equal(StemDevice.Cuda, await rig.Device.ResolveAsync());
     }
 
-    [Fact]
+    [LinuxOnlyFact("ProbeRig fakes demucs as a #! script run by a /bin/sh interpreter and marks it executable with SetUnixFileMode; neither exists on Windows.")]
     public async Task Probe_reports_cpu_when_torch_says_false()
     {
         using var rig = new ProbeRig("False");
@@ -46,7 +47,7 @@ public class DemucsDeviceTests
         Assert.Equal(StemDevice.Cpu, await device.ResolveAsync());
     }
 
-    [Fact]
+    [LinuxOnlyFact("ProbeRig fakes demucs as a #! script run by a /bin/sh interpreter and marks it executable with SetUnixFileMode; neither exists on Windows.")]
     public async Task Probe_runs_once_however_many_callers_ask()
     {
         using var rig = new ProbeRig("True");

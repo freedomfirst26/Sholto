@@ -1,3 +1,5 @@
+using Sholto.TestSupport.Platform;
+
 namespace Sholto.App.Audio.Golden;
 
 /// <summary>
@@ -74,7 +76,7 @@ public sealed class GoldenAudioTests
         finally { File.Delete(outPath); }
     }
 
-    [Fact]
+    [LinuxOnlyFact("filter.wav depends on the platform maths library (glibc 2.39 libm's tanhf/tanf/expf/logf); Windows' UCRT rounds differently.")]
     public void FilterSweep_MatchesReference()
     {
         string outPath = TempWav();

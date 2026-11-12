@@ -7,7 +7,14 @@ public sealed class OfflineRenderFidelityTests : IDisposable
     private const int Seconds = 3;
     private readonly string _dir = Directory.CreateTempSubdirectory("bench-fidelity").FullName;
 
-    public void Dispose() => Directory.Delete(_dir, recursive: true);
+    // Best-effort: the deck's ChunkedDataProvider FileStream (TrackLoading) keeps a loaded WAV in the directory open until the
+    // deck is unloaded, and the headless host never unloads it. Linux deletes an open file anyway; Windows throws
+    // IOException, so a leftover temp file there is swallowed rather than failing the test.
+    public void Dispose()
+    {
+        try { Directory.Delete(_dir, recursive: true); }
+        catch (IOException) { }
+    }
 
     private RenderedWav RenderChirp(int sourceRate, out float[] source)
     {
