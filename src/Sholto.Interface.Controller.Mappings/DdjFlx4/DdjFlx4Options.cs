@@ -87,6 +87,15 @@ public sealed class DdjFlx4Options
     public int StemSoloDrumsPad { get; set; } = 4;
     public int StemSoloVocalsPad { get; set; } = 5;
     public int StemSoloInstrumentalPad { get; set; } = 6;
+    /// <summary>The Shift pages' pad note bases: note of pad 0 on the KEYBOARD (Shift + HOT CUE), PAD FX2
+    /// (Shift + PAD FX1), BEAT LOOP (Shift + BEAT JUMP) and KEY SHIFT (Shift + SAMPLER) pages. Match Mixxx's
+    /// DDJ-FLX4 values; not yet captured on this unit.</summary>
+    public int PadKeyboardNoteBase { get; set; } = 0x40;
+    public int PadFx2NoteBase { get; set; } = 0x50;
+    public int PadBeatLoopNoteBase { get; set; } = 0x60;
+    public int PadKeyShiftNoteBase { get; set; } = 0x70;
+    /// <summary>Beats of the loop each BEAT LOOP pad (1-8) toggles.</summary>
+    public double[] BeatLoopPadBeats { get; set; } = [0.25, 0.5, 1, 2, 4, 8, 16, 32];
 
     // --- Notes: pad pages ----------------------------------------------------------
     // The FLX-4's pad-mode buttons live on each deck's own channel
@@ -97,6 +106,13 @@ public sealed class DdjFlx4Options
     public int PadModePadFx1Note { get; set; } = 0x1E;
     public int PadModeBeatJumpNote { get; set; } = 0x20;
     public int PadModeSamplerNote { get; set; } = 0x22;
+    /// <summary>Shift + a pad-mode button: the firmware sends its own note for the chord, on the same deck
+    /// channel — Shift + HOT CUE = KEYBOARD, Shift + PAD FX1 = PAD FX2, Shift + BEAT JUMP = BEAT LOOP,
+    /// Shift + SAMPLER = KEY SHIFT. Match Mixxx's DDJ-FLX4 values; not yet captured on this unit.</summary>
+    public int PadModeKeyboardNote { get; set; } = 0x69;
+    public int PadModePadFx2Note { get; set; } = 0x6B;
+    public int PadModeBeatLoopNote { get; set; } = 0x6D;
+    public int PadModeKeyShiftNote { get; set; } = 0x6F;
     /// <summary>PAD FX1 page: note of pad 0; pad N = PadFx1NoteBase + N (captured: pads 1-3 →
     /// 0x10/0x11/0x12). Pad 0 is the echo toggle, pad 1 the roll; the rest are unmapped.</summary>
     public int PadFx1NoteBase { get; set; } = 0x10;

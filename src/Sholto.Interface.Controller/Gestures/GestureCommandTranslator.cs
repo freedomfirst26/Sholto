@@ -132,21 +132,20 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
                 _sender.Send(new HoldRoll(deck, ((ControllerEvent.RollHold)g.Source).Pressed, By("deck.pad.2", g.Id, deck)));
                 break;
             case GestureIds.PadModeHotCue:
-                _sender.Send(new SelectPadPage(deck, PadPage.HotCue, By("deck.padmode.hotcue", g.Id, deck)));
-                break;
             case GestureIds.PadModePadFx1:
-                _sender.Send(new SelectPadPage(deck, PadPage.PadFx1, By("deck.padmode.padfx1", g.Id, deck)));
-                break;
             case GestureIds.PadModeBeatJump:
-                _sender.Send(new SelectPadPage(deck, PadPage.BeatJump, By("deck.padmode.beatjump", g.Id, deck)));
-                break;
             case GestureIds.PadModeSampler:
-                _sender.Send(new SelectPadPage(deck, PadPage.Sampler, By("deck.padmode.sampler", g.Id, deck)));
+                // The page is read off the event: with Shift, the same button selects its Shift page.
+                var page = ((ControllerEvent.PadPageSelected)g.Source).Page;
+                _sender.Send(new SelectPadPage(deck, page, By(PadModeControl(g.Id), g.Id, deck)));
                 break;
 
             case GestureIds.BeatLoopToggle:
-                _sender.Send(new ToggleBeatLoop(deck, ((ControllerEvent.BeatLoopToggle)g.Source).Bars,
-                    By("deck.beatloop.toggle", g.Id, deck)));
+                if (g.Source is ControllerEvent.BeatLoopPad loopPad)
+                    _sender.Send(new ToggleBeatLoop(deck, 0, By(PadControl(loopPad.Pad), g.Id, deck), loopPad.Beats));
+                else
+                    _sender.Send(new ToggleBeatLoop(deck, ((ControllerEvent.BeatLoopToggle)g.Source).Bars,
+                        By("deck.beatloop.toggle", g.Id, deck)));
                 break;
             case GestureIds.BeatLoopHalve:
                 _sender.Send(new HalveLoop(deck, By("deck.beatloop.halve", g.Id, deck)));
@@ -195,6 +194,15 @@ internal sealed class GestureCommandTranslator(ICommandSender sender, IGestureRe
         if (_recognizer.IsShiftHeld(1)) return 1;
         return -1;
     }
+
+    /// <summary>The guide's control id of the pad-mode button behind a pad-mode gesture.</summary>
+    private string PadModeControl(string gestureId) => gestureId switch
+    {
+        GestureIds.PadModePadFx1 => "deck.padmode.padfx1",
+        GestureIds.PadModeBeatJump => "deck.padmode.beatjump",
+        GestureIds.PadModeSampler => "deck.padmode.sampler",
+        _ => "deck.padmode.hotcue",
+    };
 
     /// <summary>The guide's control id of pad <paramref name="pad"/> (0-7): <c>deck.pad.1</c> to <c>deck.pad.8</c>.</summary>
     private string PadControl(int pad) => $"deck.pad.{pad + 1}";

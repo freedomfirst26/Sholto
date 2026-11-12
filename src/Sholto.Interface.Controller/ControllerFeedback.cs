@@ -6,11 +6,12 @@ namespace Sholto.Interface.Controller;
 /// <summary>Maps App state events to the controller's LEDs, and keeps the last value of each so the
 /// lights can be repainted. Which LED shows what lives here: play state is the BEAT SYNC LED (solid
 /// while playing, blinking with the end-of-track flash), the cue buttons light with headphone/master
-/// cue, and the pad page lights one of the four pad-mode buttons and puts the hardware into the same
-/// pad mode. Pad lights are on/off only (the cue colours are shown on screen). Each page's pads: HOT
-/// CUE lights each pad with a saved cue; PAD FX1 pad 1 is the echo (lit while on) and pad 2 the roll
-/// (always lit); BEAT JUMP pads are all lit; SAMPLER pads 1-3 are lit while their stem is audible and
-/// pads 5-7 while it is the only audible one.</summary>
+/// cue, and the pad page lights its page light and puts the hardware into the same pad mode. Pad
+/// lights are on/off only (the cue colours are shown on screen). Each page's pads: HOT CUE lights each
+/// pad with a saved cue; PAD FX1 pad 1 is the echo (lit while on) and pad 2 the roll (always lit);
+/// BEAT JUMP and BEAT LOOP pads are all lit; SAMPLER pads 1-3 are lit while their stem is audible and
+/// pads 5-7 while it is the only audible one; KEYBOARD, PAD FX2 and KEY SHIFT pads have no job and stay
+/// dark.</summary>
 public sealed class ControllerFeedback(IControlSurface surface, IEventSubscriber subscriber)
     : IControllerFeedback,
       IEventHandler<DeckPlayStateChanged>, IEventHandler<StemMuteChanged>, IEventHandler<EchoChanged>,
@@ -164,12 +165,19 @@ public sealed class ControllerFeedback(IControlSurface surface, IEventSubscriber
         return true;
     }
 
-    /// <summary>The pads no event drives: the roll pad is always lit, and so is every BEAT JUMP pad.</summary>
+    /// <summary>The pads no event drives: the roll pad is always lit, and so is every BEAT JUMP and BEAT LOOP
+    /// pad; every pad of the pages with no job (KEYBOARD, PAD FX2, KEY SHIFT) is dark.</summary>
     private void PaintStaticPads(int deck)
     {
         _surface.SetPadLight(deck, PadPage.PadFx1, RollPad, PadLight.On);
         for (var pad = 0; pad < PadsPerPage; pad++)
+        {
             _surface.SetPadLight(deck, PadPage.BeatJump, pad, PadLight.On);
+            _surface.SetPadLight(deck, PadPage.BeatLoop, pad, PadLight.On);
+            _surface.SetPadLight(deck, PadPage.Keyboard, pad, PadLight.Off);
+            _surface.SetPadLight(deck, PadPage.PadFx2, pad, PadLight.Off);
+            _surface.SetPadLight(deck, PadPage.KeyShift, pad, PadLight.Off);
+        }
     }
 
     private void Unsubscribe()

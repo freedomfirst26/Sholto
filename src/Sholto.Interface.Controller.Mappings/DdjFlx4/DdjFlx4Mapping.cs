@@ -19,7 +19,7 @@ namespace Sholto.Interface.Controller.Mappings.DdjFlx4;
 public sealed class DdjFlx4Mapping : IControllerMapping
 {
     private const int PadsPerPage = 8;
-    private const int PadPageCount = 4;
+    private const int PadPageCount = 8;
 
     private readonly DdjFlx4Options _o;
 
@@ -125,7 +125,9 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
         // The press-only pads. Each page has its own note range on the same pad channel, so the pages
         // need no tracking here: BEAT JUMP pads jump by their beats, SAMPLER pads 1-3 mute and 5-7 solo
-        // Drums / Vocals / Instrumental. (HOT CUE and the PAD FX1 echo and roll pads are matched above,
+        // Drums / Vocals / Instrumental, BEAT LOOP pads toggle a loop of their beats. The KEYBOARD, PAD FX2
+        // and KEY SHIFT pads have no job: they fall through to null and send nothing.
+        // (HOT CUE and the PAD FX1 echo and roll pads are matched above,
         // since they need both edges.) The Controller tracks the active page only to know
         // which pad LEDs to repaint on a page switch (see Controller.SetPadPage).
         if (msg.Channel == _o.PadDeck0Channel || msg.Channel == _o.PadDeck1Channel)
@@ -143,10 +145,15 @@ public sealed class DdjFlx4Mapping : IControllerMapping
             if (samplerPad == _o.StemSoloDrumsPad) return new ControllerEvent.StemSolo(deck, Group: 0);
             if (samplerPad == _o.StemSoloVocalsPad) return new ControllerEvent.StemSolo(deck, Group: 1);
             if (samplerPad == _o.StemSoloInstrumentalPad) return new ControllerEvent.StemSolo(deck, Group: 2);
+
+            int loopPad = msg.Key - _o.PadBeatLoopNoteBase;
+            if ((uint)loopPad < PadsPerPage && loopPad < _o.BeatLoopPadBeats.Length)
+                return new ControllerEvent.BeatLoopPad(deck, loopPad, _o.BeatLoopPadBeats[loopPad]);
         }
 
-        // The four pad-mode buttons — switch the controller's own pad mode (on each deck's channel). Press
-        // edge only; the Controller tracks per-deck page state and LEDs.
+        // The four pad-mode buttons, alone or with Shift (the firmware sends the chord as its own note) —
+        // switch the controller's own pad mode (on each deck's channel). Press edge only; the Controller
+        // tracks per-deck page state and LEDs.
         if (msg.Channel == _o.Deck0Channel || msg.Channel == _o.Deck1Channel)
         {
             int deck = msg.Channel == _o.Deck0Channel ? 0 : 1;
@@ -294,7 +301,8 @@ public sealed class DdjFlx4Mapping : IControllerMapping
 
     /// <summary>The press simulation for a pad-mode button, as in <see cref="StartupInit"/>: NoteOn
     /// vel 0x7F then NoteOff on the deck's status byte, for the page's mode button (HOT CUE 0x1B, PAD FX1
-    /// 0x1E, BEAT JUMP 0x20 and SAMPLER 0x22; the last two match Mixxx's DDJ-FLX4 values and are not yet
+    /// 0x1E, BEAT JUMP 0x20 and SAMPLER 0x22, and the Shift chords KEYBOARD 0x69, PAD FX2 0x6B, BEAT LOOP
+    /// 0x6D and KEY SHIFT 0x6F; all but the first two match Mixxx's DDJ-FLX4 values and are not yet
     /// captured on this unit).</summary>
     public byte[]? RenderPadMode(int deck, PadPage page)
     {
@@ -312,16 +320,24 @@ public sealed class DdjFlx4Mapping : IControllerMapping
         PadPage.PadFx1 => _o.PadModePadFx1Note,
         PadPage.BeatJump => _o.PadModeBeatJumpNote,
         PadPage.Sampler => _o.PadModeSamplerNote,
+        PadPage.Keyboard => _o.PadModeKeyboardNote,
+        PadPage.PadFx2 => _o.PadModePadFx2Note,
+        PadPage.BeatLoop => _o.PadModeBeatLoopNote,
+        PadPage.KeyShift => _o.PadModeKeyShiftNote,
         _ => -1,
     };
 
-    /// <summary>The note of pad 0 of a page.</summary>
+    /// <summary>The note of pad 0 of a page. Only called for a page <see cref="PadModeNote"/> knows.</summary>
     private int PadNoteBaseOf(PadPage page) => page switch
     {
         PadPage.HotCue => _o.PadNoteBase,
         PadPage.PadFx1 => _o.PadFx1NoteBase,
         PadPage.BeatJump => _o.PadBeatJumpNoteBase,
-        _ => _o.PadSamplerNoteBase,
+        PadPage.Sampler => _o.PadSamplerNoteBase,
+        PadPage.Keyboard => _o.PadKeyboardNoteBase,
+        PadPage.PadFx2 => _o.PadFx2NoteBase,
+        PadPage.BeatLoop => _o.PadBeatLoopNoteBase,
+        _ => _o.PadKeyShiftNoteBase,
     };
 
     /// <summary>A pad LED: the pad's note echoed on its own NoteOn status byte (deck 1 pad channel 8 → 0x97,

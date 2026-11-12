@@ -10,7 +10,7 @@ public sealed class RecordingControlSurface : IControlSurface
 {
     public bool[] BeatSync { get; } = new bool[2];
     /// <summary>The last light written to each pad: deck, page, pad.</summary>
-    public PadLight[,,] Pads { get; } = new PadLight[2, 4, 8];
+    public PadLight[,,] Pads { get; } = new PadLight[2, 8, 8];
     public bool[] HeadphoneCue { get; } = new bool[2];
     public bool MasterCue { get; private set; }
     public PadPage[] Page { get; } = [PadPage.HotCue, PadPage.HotCue];

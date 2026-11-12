@@ -83,8 +83,8 @@ public abstract record ControllerEvent
     /// (±6 → ±10 → ±16 → WIDE → ±6) like Rekordbox's TEMPO RANGE.</summary>
     public record CycleTempoRange(int Deck) : ControllerEvent;
 
-    /// <summary>A pad-mode button press (HOT CUE, PAD FX1, BEAT JUMP or SAMPLER) on a deck (press edge
-    /// only). The hardware has already switched its own pad mode; the App records
+    /// <summary>A pad-mode button press (HOT CUE, PAD FX1, BEAT JUMP or SAMPLER, or one of them with Shift
+    /// for KEYBOARD, PAD FX2, BEAT LOOP or KEY SHIFT) on a deck (press edge only). The hardware has already switched its own pad mode; the App records
     /// the page and the controller lights the mode buttons from the App's event.</summary>
     public record PadPageSelected(int Deck, PadPage Page) : ControllerEvent;
 
@@ -121,4 +121,8 @@ public abstract record ControllerEvent
     /// <summary>SAMPLER page solo pad press: solo stem <paramref name="Group"/> (0 = Drums, 1 = Vocals,
     /// 2 = Instrumental).</summary>
     public record StemSolo(int Deck, int Group) : ControllerEvent;
+
+    /// <summary>BEAT LOOP page pad press (<paramref name="Pad"/> 0-7): engage a loop of
+    /// <paramref name="Beats"/> beats (1/4 to 32), or exit the loop that is running.</summary>
+    public record BeatLoopPad(int Deck, int Pad, double Beats) : ControllerEvent;
 }

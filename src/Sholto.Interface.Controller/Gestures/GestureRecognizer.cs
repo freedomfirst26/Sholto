@@ -54,12 +54,14 @@ internal sealed class GestureRecognizer : IGestureRecognizer
                 if (jt.Deck is 0 or 1) _platterTouched[jt.Deck] = jt.Touching;
                 return new Gesture(GestureIds.JogTopTouch, jt.Deck, evt);
 
+            // A Shift page is the same physical button as its plain page (Shift + BEAT JUMP = BEAT LOOP), so it
+            // is that button's gesture; the translator reads the page itself off the event.
             case ControllerEvent.PadPageSelected pp:
                 return new Gesture(pp.Page switch
                 {
-                    PadPage.PadFx1 => GestureIds.PadModePadFx1,
-                    PadPage.BeatJump => GestureIds.PadModeBeatJump,
-                    PadPage.Sampler => GestureIds.PadModeSampler,
+                    PadPage.PadFx1 or PadPage.PadFx2 => GestureIds.PadModePadFx1,
+                    PadPage.BeatJump or PadPage.BeatLoop => GestureIds.PadModeBeatJump,
+                    PadPage.Sampler or PadPage.KeyShift => GestureIds.PadModeSampler,
                     _ => GestureIds.PadModeHotCue,
                 }, pp.Deck, evt);
 
@@ -142,6 +144,9 @@ internal sealed class GestureRecognizer : IGestureRecognizer
             // ---- loops and grid
             case ControllerEvent.BeatLoopToggle bl:
                 return new Gesture(GestureIds.BeatLoopToggle, bl.Deck, evt);
+            // A BEAT LOOP pad does what the 4 BEAT button does, at the pad's own length.
+            case ControllerEvent.BeatLoopPad lp:
+                return new Gesture(GestureIds.BeatLoopToggle, lp.Deck, evt);
             case ControllerEvent.BeatLoopHalve bh:
                 return new Gesture(GestureIds.BeatLoopHalve, bh.Deck, evt);
             case ControllerEvent.BeatLoopDouble bd:

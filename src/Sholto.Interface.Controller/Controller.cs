@@ -23,8 +23,9 @@ public sealed class Controller : IControlSurface
     public ButtonWithLight Deck2Cue { get; }
     public ButtonWithLight Deck1BeatSync { get; }
     public ButtonWithLight Deck2BeatSync { get; }
-    /// <summary>The four pad-mode buttons (HOT CUE, PAD FX1, BEAT JUMP, SAMPLER) of a deck, indexed by
-    /// <c>(int)PadPage</c>. Exactly one is lit: the App's page.</summary>
+    /// <summary>The page lights of a deck, one per <see cref="PadPage"/> and indexed by <c>(int)PadPage</c>: the
+    /// four pad-mode buttons (HOT CUE, PAD FX1, BEAT JUMP, SAMPLER), then their Shift pages (KEYBOARD,
+    /// PAD FX2, BEAT LOOP, KEY SHIFT), each lit through its own note. Exactly one is lit: the App's page.</summary>
     public IReadOnlyList<ButtonWithLight> Deck1PadModes { get; }
     public IReadOnlyList<ButtonWithLight> Deck2PadModes { get; }
     public Fader Deck1Volume { get; } = new("Deck1Volume");
@@ -33,7 +34,7 @@ public sealed class Controller : IControlSurface
     // Per deck, every pad of every page: index (int)page * PadsPerPage + pad.
     private readonly LitButton<PadLight>[][] _pads;
     private const int PadsPerPage = 8;
-    private const int PageCount = 4;
+    private const int PageCount = 8;   // every PadPage
     /// <summary>High-level semantic events for the App. Every control passes through unchanged
     /// except the channel faders, which emit only after soft-takeover pickup.</summary>
     public event Action<ControllerEvent>? Action;
