@@ -1,4 +1,35 @@
-# TODO
+# Sholto — TODO
+
+## Todo
+
+C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
+
+- [ ] **C259 — Key lock (master tempo).** Per-deck toggle keeps a track's pitch unchanged while its tempo moves (time-stretch, not resampling), on screen and on the FLX4 MASTER TEMPO button; off by default, real-time safe on the audio thread. Size L.
+  Plan: ~/.claude/plans/sholto-impl-31-c259-key-lock-master-tempo.md (written, but its plan review never finished; re-review before building). Spec: ~/.claude/plans/sholto-launch-plan.md (Stage B2).
+- [ ] **C261 — Library backup before upgrade.** Before any database migration runs, `library.db` is copied to `library.db.bak-<old schema version>`; keeps the last 3; a failed copy stops the migration. Size S.
+  ACCEPT When opening an existing library database that has pending migrations, Sholto first writes a complete copy to `library.db.bak-<id of its last applied migration>` beside it, keeps only the 3 newest such backups, and if the copy fails no migration runs and the open fails with an error naming the backup.
+  Spec: ~/.claude/plans/sholto-launch-plan.md (Stage B2).
+- [ ] **C249 — Re-capture the site assets with `capture.sh` on the v1.2.0 build.** Size S. After C248 (v1.2.0 release).
+  Spec: ~/.claude/plans/sholto-launch-plan.md (Stage D).
+- [ ] **C252 — Set Pages source to GitHub Actions, then run pages.yml.** Settings > Pages > Source = GitHub Actions, then run pages.yml (or it fires from v1.2.0). Size S. After C248, C249, C251.
+  BLOCKS Pages source setting — only Sebastian can change GitHub settings
+  Spec: ~/.claude/plans/sholto-launch-plan.md (Stage D).
+- [ ] **C253 — Site live.** README link and repo homepage (`gh repo edit --homepage`); open the live URL and check the download links fetch v1.2.0 for both OSes; close C157. Size S. After C252.
+  Spec: ~/.claude/plans/sholto-launch-plan.md (Stage D).
+- [ ] **C130 — Backspin sound: anti-alias reader + speed ramp, cap 8x.**
+  ACCEPT At speeds beyond 1x both in-memory providers read through a box filter over the source frames each output step covers, ramp the speed smoothly across each buffer from the previous one, and never read faster than 8x either way.
+  BLOCKS the new output sound — Sebastian must confirm it is wanted; it changes `StemMixOutputPinTests` (ExpectedMixed hash) and golden `Fixtures/scratch.wav`, both outside the earlier job's files.
+- [ ] **Zero-alloc tests flaky (~1/50, 7 tests).**
+  ACCEPT Every zero-allocation test that still measures one hand-rolled window now measures five windows through AllocationWindows and passes when at most one window allocates.
+  BLOCKS acceptance wording — the earlier job finished the 7 files (cloud branch commit 8890eca, not landed) but its check "no direct GC.GetAllocatedBytesForCurrentThread" also hits `tests/Sholto.App.Audio.Tests/CueOutputRouterTests.cs:120` and `StemMixSimdTests.cs:75`; either narrow the check to the 7 files or also convert those two (needs `Sholto.App.Audio.Tests.csproj` to reference Sholto.TestSupport.Allocation).
+
+## Waiting on you
+
+- C130: is the new backspin output wanted (it changes the pinned mix hash and golden scratch.wav)? Default: stays parked until you confirm.
+- Zero-alloc tests: narrow the "no direct GetAllocatedBytesForCurrentThread" check to the 7 files, or also convert the two App.Audio.Tests files? Default: also convert them.
+- `.job/dod.md`, `.job/review-prompt.md` and `.job/spec.md` are tracked on main (commit 7145b21) and `.job/` is not in `.gitignore`; remove them and ignore `.job/`? Default: yes, as a small cleanup job.
+
+## Parked
 
 - [ ] **Re-instate `LoopDebug`, if offline loop-seam capture is ever needed again.**
       Removed 2026-09-12: it was a diagnostic recorder that wrote the stem-mix
