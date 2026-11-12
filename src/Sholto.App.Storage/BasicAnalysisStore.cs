@@ -3,15 +3,17 @@ using Sholto.App.Analysis;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Stores;
 using Sholto.App.Storage.Entities;
+using Sholto.Data;
 
 namespace Sholto.App.Storage;
 
 /// <summary>SQLite-backed store for BasicAnalysis. Survives app restarts.
 /// Invalidates by comparing the stored FileMtime against the on-disk mtime.</summary>
-internal sealed class BasicAnalysisStore(IDbContextFactory<SholtoDbContext> factory, IBasicAnalysisSerializer serializer) : IBasicAnalysisStore
+internal sealed class BasicAnalysisStore(IDbContextFactory<SholtoDbContext> factory, IBasicAnalysisSerializer serializer, ILog log) : IBasicAnalysisStore
 {
     private readonly IDbContextFactory<SholtoDbContext> _factory = factory;
     private readonly IBasicAnalysisSerializer _serializer = serializer;
+    private readonly ILog _log = log;
     public string Name => "database";
 
     public async Task<BasicAnalysis?> TryGetAsync(string filePath)
@@ -56,7 +58,7 @@ internal sealed class BasicAnalysisStore(IDbContextFactory<SholtoDbContext> fact
             existing.CreatedAt = DateTime.UtcNow;
         }
         await db.SaveChangesAsync();
-        Console.WriteLine($"[DB] saved basic analysis ({blob.Length} bytes) for {Path.GetFileName(filePath)}");
+        _log.Info($"saved basic analysis ({blob.Length} bytes) for {Path.GetFileName(filePath)}");
     }
 
     public async Task<IReadOnlyDictionary<string, double>> GetDetectedBpmsAsync()

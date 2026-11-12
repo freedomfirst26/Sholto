@@ -15,7 +15,7 @@ public sealed class SholtoStorage(IDatabaseStackFactory databases, ISholtoDbCont
 {
     private readonly IDatabaseStackFactory _databases = databases;
     private readonly ISholtoDbContextOptionsFactory _contextOptions = contextOptions;
-    private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("Storage");
 
     public async Task<DatabaseStack> OpenAsync(
         string? overridePath = null,
@@ -29,7 +29,7 @@ public sealed class SholtoStorage(IDatabaseStackFactory databases, ISholtoDbCont
         await using (var bootstrap = new SholtoDbContext(options))
             await bootstrap.Database.MigrateAsync(ct);
 
-        Console.WriteLine($"[Storage] opened {path}");
+        _log.Info($"opened {path}");
         return _databases.Create(new PooledDbContextFactory<SholtoDbContext>(options));
     }
 

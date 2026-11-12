@@ -36,7 +36,7 @@ public class SholtoStorageTests
                 await db.SaveChangesAsync();
             }
 
-            var cache = new BasicAnalysisStore(factory, new BasicAnalysisSerializer());
+            var cache = new BasicAnalysisStore(factory, new BasicAnalysisSerializer(), new RecordingLogFactory().Create("DB"));
             Assert.Null(await cache.TryGetAsync(trackFile));   // miss
 
             var analysis = new BasicAnalysis(

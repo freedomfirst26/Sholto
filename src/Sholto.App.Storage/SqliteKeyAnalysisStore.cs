@@ -3,17 +3,19 @@ using Sholto.App.Analysis;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Stores;
 using Sholto.App.Storage.Entities;
+using Sholto.Data;
 
 namespace Sholto.App.Storage;
 
 /// <summary>SQLite-backed store for KeyAnalysis — the system of record, not a
 /// cache; see <see cref="IKeyAnalysisStore"/>. Same shape as
 /// <see cref="BasicAnalysisStore"/>, different serializer + table.</summary>
-internal sealed class SqliteKeyAnalysisStore(IDbContextFactory<SholtoDbContext> factory, IKeyAnalysisSerializer serializer) : IKeyAnalysisStore
+internal sealed class SqliteKeyAnalysisStore(IDbContextFactory<SholtoDbContext> factory, IKeyAnalysisSerializer serializer, ILog log) : IKeyAnalysisStore
 {
     private readonly IDbContextFactory<SholtoDbContext> _factory = factory;
 
     private readonly IKeyAnalysisSerializer _serializer = serializer;
+    private readonly ILog _log = log;
 
     public async Task<KeyAnalysis?> TryGetAsync(string filePath)
     {
@@ -73,6 +75,6 @@ internal sealed class SqliteKeyAnalysisStore(IDbContextFactory<SholtoDbContext> 
             existing.CreatedAt = DateTime.UtcNow;
         }
         await db.SaveChangesAsync();
-        Console.WriteLine($"[DB] saved key {key.Key?.ToCamelot()} for {Path.GetFileName(filePath)}");
+        _log.Info($"saved key {key.Key?.ToCamelot()} for {Path.GetFileName(filePath)}");
     }
 }

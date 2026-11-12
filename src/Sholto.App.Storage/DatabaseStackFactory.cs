@@ -18,6 +18,7 @@ public sealed class DatabaseStackFactory(IKeyFactory keyFactory, ILogFactory log
     {
         var basicAnalysisSerializer = new BasicAnalysisSerializer();
         var keySerializer = new KeyAnalysisSerializer(_keyFactory);
+        var dbLog = _logs.Create("DB");
         return new DatabaseStack(
             tags: new TagService(contexts, new TagNameNormalizer()),
             crates: new CrateService(contexts),
@@ -26,8 +27,8 @@ public sealed class DatabaseStackFactory(IKeyFactory keyFactory, ILogFactory log
             tracks: new SqliteTrackCatalog(contexts),
             settings: new SqliteSettingsStore(contexts),
             tempoMultipliers: new SqliteTempoMultiplierStore(contexts),
-            basicAnalyses: new BasicAnalysisStore(contexts, basicAnalysisSerializer),
-            keyAnalyses: new SqliteKeyAnalysisStore(contexts, keySerializer),
+            basicAnalyses: new BasicAnalysisStore(contexts, basicAnalysisSerializer, dbLog),
+            keyAnalyses: new SqliteKeyAnalysisStore(contexts, keySerializer, dbLog),
             gridAdjustments: new SqliteGridAdjustmentStore(contexts));
     }
 }
