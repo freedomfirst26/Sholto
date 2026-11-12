@@ -65,15 +65,32 @@ public sealed class CudaProbingStemDevice : IStemDevice
         }
     }
 
-    /// <summary>The interpreter named on the script's <c>#!</c> line, or null if the file is not such a script.</summary>
+    /// <summary>The interpreter named on the script's <c>#!</c> line. When demucs has no <c>#!</c> line
+    /// (uv/pip's Windows <c>demucs.exe</c> launcher), the python beside it: in its own folder (a venv's
+    /// <c>Scripts\</c>), then the parent folder (a global install). Null if none is found.</summary>
     private string? InterpreterOf(string demucsBinaryPath)
     {
         if (!File.Exists(demucsBinaryPath)) return null;
         using var reader = new StreamReader(demucsBinaryPath);
         var first = reader.ReadLine();
-        if (first is null || !first.StartsWith("#!", StringComparison.Ordinal)) return null;
+        if (first is null || !first.StartsWith("#!", StringComparison.Ordinal)) return SiblingPythonOf(demucsBinaryPath);
         var interpreter = first[2..].Trim().Split(' ', 2)[0];
         // "#!/usr/bin/env python" would need its argument handled; treat it as unconfirmed.
         return Path.GetFileName(interpreter) != "env" && File.Exists(interpreter) ? interpreter : null;
+    }
+
+    private string? SiblingPythonOf(string demucsBinaryPath)
+    {
+        var folder = Path.GetDirectoryName(Path.GetFullPath(demucsBinaryPath));
+        foreach (var dir in new[] { folder, Path.GetDirectoryName(folder) })
+        {
+            if (string.IsNullOrEmpty(dir)) continue;
+            foreach (var name in new[] { "python.exe", "python3", "python" })
+            {
+                var candidate = Path.Combine(dir, name);
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
+        return null;
     }
 }
