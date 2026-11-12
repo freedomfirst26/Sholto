@@ -1,0 +1,69 @@
+name: CI
+
+# Build and test on every push and pull request, on Linux and Windows, and prove
+# a Windows self-contained publish still succeeds. No branch or tag filter here:
+# release.yml keeps its own v* tag trigger for releases.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Build
+        run: dotnet build Sholto.slnx -nologo
+
+      - name: Test
+        run: dotnet test Sholto.slnx --no-build --nologo
+
+  publish-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # Plain self-contained publish (not single-file): this only proves the
+      # win-x64 publish succeeds. Output goes to a throwaway dir in the runner temp.
+      - name: Publish win-x64 self-contained
+        run: |
+          dotnet publish src/Sholto.Host/Sholto.Host.csproj \
+            -c Release -r win-x64 --self-contained true \
+            -o "$RUNNER_TEMP/publish-smoke"
+
+      - name: Check Sholto.exe was produced
+        run: |
+          test -f "$RUNNER_TEMP/publish-smoke/Sholto.exe" \
+            || { echo "::error::Sholto.exe missing from the win-x64 publish"; exit 1; }
