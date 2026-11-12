@@ -16,7 +16,7 @@ public sealed class DbAnalysisProvider(IAnalysisProvider inner, IBasicAnalysisSt
 {
     private readonly IAnalysisProvider _inner = inner;
     private readonly IBasicAnalysisStore _store = store;
-    private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("AnalysisProvider");
 
     public Task<BasicAnalysis> GetAsync(DecodedTrack track, CancellationToken ct = default) =>
         Begin(track.FilePath, ct).CompleteAsync(track);
@@ -71,7 +71,7 @@ public sealed class DbAnalysisProvider(IAnalysisProvider inner, IBasicAnalysisSt
             var chain = ex.Message;
             for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
                 chain += $"  ->  {inner.GetType().Name}: {inner.Message}";
-            Console.WriteLine($"[AnalysisProvider] backfill to {_store.Name} failed: {chain}");
+            _log.Error($"backfill to {_store.Name} failed: {chain}");
         }
     }
 }
