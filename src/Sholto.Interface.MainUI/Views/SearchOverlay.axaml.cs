@@ -178,6 +178,14 @@ public partial class SearchOverlay : UserControl
         QueryBox.Focus();
     }
 
+    /// <summary>The Load button beside the search box: Ctrl L's add for the highlighted song, crate or tag, or the
+    /// tick's undo once it is in the Track List.</summary>
+    private void OnLoadButtonClick(object? sender, RoutedEventArgs e)
+    {
+        Glance?.ToggleTrackListLoad();
+        QueryBox.Focus();
+    }
+
     /// <summary>A click on a table row moves the view model's highlight there (the list's own selection
     /// already moved); a click while the rail was driving hands the keys back to the table.</summary>
     private void OnResultsSelectionChanged(object? sender, SelectionChangedEventArgs e)

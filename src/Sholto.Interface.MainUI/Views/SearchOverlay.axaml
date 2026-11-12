@@ -260,6 +260,51 @@
         <Style Selector="Border.loadkey.d2.filled"><Setter Property="Background" Value="{DynamicResource SholtoLoadDeck2}"/></Style>
         <Style Selector="Border.loadkey.filled > TextBlock"><Setter Property="Foreground" Value="{DynamicResource SholtoBgDeep}"/></Style>
 
+        <!-- The Load button beside the search box: a slanted outline key in the Track List violet (skewX -8, content
+             counter-skewed), like the row's Ctrl L key. It reads "In list" with a tick once the highlighted song, crate or
+             tag is in the Track List, and dims when nothing is highlighted. Fluent's hover and pressed restyle the
+             template's ContentPresenter, so the look is restated there. -->
+        <Style Selector="Button.loadbutton">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="MinWidth" Value="104"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadTrackList}"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="RenderTransform" Value="skewX(-8deg)"/>
+        </Style>
+        <Style Selector="Button.loadbutton:pointerover /template/ ContentPresenter, Button.loadbutton:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SholtoBgDeep}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoLoadTrackList}"/>
+        </Style>
+        <Style Selector="Button.loadbutton:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+        </Style>
+        <Style Selector="Button.loadbutton:disabled">
+            <Setter Property="Opacity" Value="0.45"/>
+        </Style>
+        <Style Selector="Button.loadbutton TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontFamily" Value="DejaVu Sans Mono, Consolas, monospace"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoLoadTrackList}"/>
+        </Style>
+        <Style Selector="Button.loadbutton:disabled TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
+        </Style>
+        <Style Selector="Button.loadbutton Path">
+            <Setter Property="Stroke" Value="{DynamicResource SholtoLoadTrackList}"/>
+        </Style>
+        <Style Selector="Button.loadbutton:disabled Path">
+            <Setter Property="Stroke" Value="{DynamicResource SholtoTextMuted}"/>
+        </Style>
+
         <!-- The deck's own 6 px stripe down the slot's left edge. The target's slot is washed in the deck's colour. -->
         <Style Selector="Border.stripe.d1"><Setter Property="Background" Value="{DynamicResource SholtoLoadDeck1}"/></Style>
         <Style Selector="Border.stripe.d2"><Setter Property="Background" Value="{DynamicResource SholtoLoadDeck2}"/></Style>
@@ -471,8 +516,9 @@
                     </ItemsControl>
                 </Border>
 
-                <!-- Query row: the box plus what the query was understood as. -->
+                <!-- Query row: the box plus what the query was understood as, and beside it the Load button. -->
                 <Border Grid.Row="1" Padding="12,8" BorderBrush="{DynamicResource SholtoBorder}" BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="*,Auto">
                     <Border Background="{DynamicResource SholtoBgDeep}" BorderBrush="{DynamicResource SholtoBorder}"
                             BorderThickness="1" CornerRadius="6" Padding="10,0">
                         <Grid ColumnDefinitions="Auto,Auto,*,Auto">
@@ -521,6 +567,29 @@
                             </ItemsControl>
                         </Grid>
                     </Border>
+                    <!-- Load: what Ctrl L does, on a click. Adds the highlighted song, crate or tag to the Track List, or
+                         takes it back out once it is in (the tick). -->
+                    <Button x:Name="LoadButton" Grid.Column="1" Classes="loadbutton" Margin="10,0,2,0"
+                            Click="OnLoadButtonClick"
+                            ToolTip.Tip="Add to the Track List (Ctrl L)"
+                            IsEnabled="{Binding Glance.TrackListLoadState, Converter={x:Static conv:ObjectConverters.NotEqual}, ConverterParameter={x:Static glance:GlanceLoadState.Off}}"
+                            Classes.inlist="{Binding Glance.TrackListLoadState, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={x:Static glance:GlanceLoadState.InList}}">
+                        <StackPanel Orientation="Horizontal" Spacing="7" RenderTransform="skewX(8deg)">
+                            <Panel Width="16" Height="16" VerticalAlignment="Center">
+                                <Path x:Name="LoadButtonPlusGlyph" Width="16" Height="16" Stretch="Uniform" Data="{StaticResource LoadListPlusGlyph}"
+                                      StrokeThickness="1.7" StrokeLineCap="Round"
+                                      IsVisible="{Binding Glance.TrackListLoadState, Converter={x:Static conv:ObjectConverters.NotEqual}, ConverterParameter={x:Static glance:GlanceLoadState.InList}}"/>
+                                <Path x:Name="LoadButtonTickGlyph" Width="16" Height="16" Stretch="Uniform" Data="{StaticResource LoadInListGlyph}"
+                                      StrokeThickness="1.7" StrokeLineCap="Round" StrokeJoin="Round"
+                                      IsVisible="{Binding Glance.TrackListLoadState, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={x:Static glance:GlanceLoadState.InList}}"/>
+                            </Panel>
+                            <Panel>
+                                <TextBlock Text="Load" IsVisible="{Binding Glance.TrackListLoadState, Converter={x:Static conv:ObjectConverters.NotEqual}, ConverterParameter={x:Static glance:GlanceLoadState.InList}}"/>
+                                <TextBlock Text="In list" IsVisible="{Binding Glance.TrackListLoadState, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={x:Static glance:GlanceLoadState.InList}}"/>
+                            </Panel>
+                        </StackPanel>
+                    </Button>
+                    </Grid>
                 </Border>
 
                 <!-- Body: the rail on the left, the table on the right. -->

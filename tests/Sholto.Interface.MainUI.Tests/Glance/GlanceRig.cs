@@ -55,6 +55,7 @@ internal sealed class GlanceRig
         Bus.Register(new LoggingCommandHandler<SetSearchPick>(Log));
         Bus.Register(new LoggingCommandHandler<LoadSelectedIntoDeck>(Log));
         Bus.Register(new LoggingCommandHandler<RemoveFromTrackList>(Log));
+        Bus.Register(new LoggingCommandHandler<RemoveSourceFromTrackList>(Log));
         Bus.Register(new LoggingCommandHandler<LoadSongToTrackList>(Log));
         Bus.Register(new LoggingCommandHandler<LoadCrateToTrackList>(Log));
         Bus.Register(new LoggingCommandHandler<LoadTagToTrackList>(Log));

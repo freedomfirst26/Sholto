@@ -33,6 +33,10 @@ public interface IGlanceTrackList
     /// <summary>Send what Ctrl+L would add, unless it is already in the list.</summary>
     void Load(string? highlightedPath, object? railItem);
 
+    /// <summary>The Load button on something already in the list: take the song out, or the songs only that crate or
+    /// tag brought. Does nothing when it is not in the list.</summary>
+    void Unload(string? highlightedPath, object? railItem);
+
     /// <summary>Star: remove the song from the list if it is in it, else add it.</summary>
     void Toggle(string path);
 

@@ -71,6 +71,16 @@ public sealed class GlanceTrackList : IGlanceTrackList
             _sender.Send(new LoadCrateToTrackList(item.CrateId, item.Name!, Ui("load-track-list")));
     }
 
+    public void Unload(string? highlightedPath, object? railItem)
+    {
+        if (Loadable(highlightedPath, railItem) is not { InList: true } item) return;
+        if (item.Path is { } path)
+            _sender.Send(new RemoveFromTrackList(path, Ui("load-button")));
+        else
+            _sender.Send(new RemoveSourceFromTrackList(
+                item.IsTag ? "tag:" + item.Name!.ToLowerInvariant() : $"crate:{item.CrateId}", Ui("load-button")));
+    }
+
     public void Toggle(string path)
     {
         if (_paths.Contains(path)) _sender.Send(new RemoveFromTrackList(path, Ui("star")));

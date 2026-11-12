@@ -289,6 +289,13 @@ public sealed class GlanceViewModel :
         _trackList.Load(HighlightedPath, HighlightedRailItem);
     }
 
+    public void ToggleTrackListLoad()
+    {
+        if (!IsOpen) return;
+        if (TrackListLoadState == GlanceLoadState.InList) _trackList.Unload(HighlightedPath, HighlightedRailItem);
+        else LoadToTrackList();
+    }
+
     public void ClearTrackList()
     {
         if (!IsOpen) return;

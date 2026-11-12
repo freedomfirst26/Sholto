@@ -117,6 +117,10 @@ public interface IGlanceViewModel : INotifyPropertyChanged
     /// something already in the list.</summary>
     void LoadToTrackList();
 
+    /// <summary>The Load button beside the search box: add the highlighted song, crate or tag through
+    /// <see cref="LoadToTrackList"/> (Ctrl+L), or take it back out when it is already in the Track List.</summary>
+    void ToggleTrackListLoad();
+
     /// <summary>Ctrl+Delete: the first press arms ("Ctrl Del again: clear N"); a second within about 2 s empties
     /// the Track List.</summary>
     void ClearTrackList();
