@@ -9,6 +9,7 @@ changed at the decks, not which class moved.
 
 ### New
 
+- **Sholto runs on Windows.** 64-bit Windows 10 and 11 are supported alongside Linux. Install with one line in PowerShell (`irm https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.ps1 | iex`): it fetches the new Windows zip from the release (`sholto-windows-x64.zip`), installs ffmpeg, Beat This! and demucs for you, and adds Sholto to the Start menu, no admin rights needed. Your DDJ-FLX4 works over USB through Windows' own MIDI (WinMM). Your library lives in `%LOCALAPPDATA%\sholto` and your own themes in `%APPDATA%\sholto\themes`. Sending the master to separate speakers is still Linux only. See [docs/install.md](docs/install.md#windows).
 - **Hot cues on the controller's pads.** On the HOT CUE page, press an empty pad to save a cue at the playhead, snapped to the nearest beat. Press a saved pad to jump to it: a playing deck keeps playing, a paused deck plays while you hold the pad and returns to the cue when you let go. Shift + pad deletes the cue. Each deck keeps up to eight per track, lit in their colours on the pads, and they come back when the track is loaded.
 - **Cue a deck in your headphones from the keyboard.** Press C to turn headphone cue on or off for Deck 1, Shift + C for Deck 2, just like the controller's headphone buttons.
 - **BEAT JUMP pads.** The eight pads jump 1, 2, 4 or 8 beats back or forward, in the track's own tempo.

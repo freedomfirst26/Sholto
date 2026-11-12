@@ -1,8 +1,11 @@
 # Sholto — project guide for Claude
 
 Sholto is a 2-deck DJ application: .NET 10 + AvaloniaUI 11, targeting the Pioneer
-DDJ-FLX4 controller, running on Linux (PipeWire/OSS audio). Local library, offline
-analysis, no cloud.
+DDJ-FLX4 controller, running on 64-bit Linux (PipeWire/OSS audio) and 64-bit Windows 10/11
+(FLX4 MIDI over WinMM through NAudio.Midi, `src/Sholto.Interface.Controller/WinMm/`).
+Local library, offline analysis, no cloud. On Windows the library database is at
+`%LOCALAPPDATA%\sholto\library.db` and user themes at `%APPDATA%\sholto\themes`;
+separate-speaker master routing (`PipeWireRouter`) is Linux/PipeWire only.
 
 ## Repository layout
 
@@ -193,7 +196,7 @@ Target; migration in progress.
 
 ## Keep the README and docs in sync
 
-`README.md` is a short landing page that sells Sholto to a **non-technical Linux user**:
+`README.md` is a short landing page that sells Sholto to a **non-technical Linux or Windows user**:
 hero image, install steps, feature pictures with one-line captions, licence, links. The
 detail lives in `docs/`: the full feature list in `docs/features.md`, install and
 dependencies in `docs/install.md`, the on-screen guide and keyboard table in
@@ -278,10 +281,13 @@ the change, not an afterthought. Internal-only refactors don't get a line.
    `## Unreleased` above it. Commit.
 2. `git tag -a vX.Y.Z -m "vX.Y.Z"` then `git push origin main vX.Y.Z`.
 3. `.github/workflows/release.yml` fires on the tag: it publishes a
-   self-contained linux-x64 single-file build, bundles README + LICENSE + THIRD-PARTY-NOTICES + docs/license.md +
-   install-deps.sh into `sholto-vX.Y.Z-linux-x64.tar.gz`, extracts the
+   self-contained single-file build per platform: linux-x64 (README + LICENSE + THIRD-PARTY-NOTICES +
+   docs/license.md + install-deps.sh, sholto-deps.sh, get-sholto.sh into `sholto-vX.Y.Z-linux-x64.tar.gz`) and
+   win-x64 (the same docs + install-deps.ps1, sholto-deps.ps1, get-sholto.ps1 into
+   `sholto-vX.Y.Z-windows-x64.zip`), each also as a version-less alias (`sholto-linux-x64.tar.gz`,
+   `sholto-windows-x64.zip`), extracts the
    `## vX.Y.Z` section from `CHANGELOG.md` as the release body, and creates the
-   GitHub Release with the tarball attached. If the changelog section is
+   GitHub Release with both archives attached. If the changelog section is
    missing it warns and falls back to GitHub's auto-generated commit list.
 
 Versioning: pre-1.0 semver. Bump the minor for new features, the patch for a

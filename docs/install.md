@@ -1,11 +1,15 @@
 # Installing Sholto
 
-Sholto runs on **64-bit Linux** — the installers support **Ubuntu, Mint, Pop!_OS
-and Debian**. Windows, macOS, and more controllers are on the way.
+Sholto runs on **64-bit Linux** and **64-bit Windows 10 or 11**. On Linux the
+installers support **Ubuntu, Mint, Pop!_OS and Debian**. macOS and more controllers
+are on the way.
 
-Three ways to get it. Pick one.
+- [Linux](#linux) — three ways to get it. Pick one.
+- [Windows](#windows) — one PowerShell line, or the zip by hand.
 
-## Option 1 — one command (easiest)
+## Linux
+
+### Option 1 — one command (easiest)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash
@@ -24,7 +28,7 @@ curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-shol
 Prefer to see what you're running first? Download the script, read it, then
 `bash get-sholto.sh`.
 
-## Option 2 — download the release yourself
+### Option 2 — download the release yourself
 
 The binary is **self-contained — you don't need .NET installed.**
 
@@ -55,7 +59,7 @@ The archive holds the `Sholto` program, `README.md`, `LICENSE`, `THIRD-PARTY-NOT
 `sholto-deps.sh` (the tool versions and checks `install-deps.sh` uses) and
 `get-sholto.sh`.
 
-## Option 3 — build from source
+### Option 3 — build from source
 
 ```bash
 git clone https://github.com/freedomfirst26/Sholto.git
@@ -67,6 +71,91 @@ dotnet run -c Release --project src/Sholto.Host
 `install.sh` sets up everything Sholto needs — including .NET and all the tools
 below — and is safe to re-run. It works on modern Ubuntu, Mint, Pop!_OS, and
 Debian.
+
+## Windows
+
+You need **Windows 10 or 11, 64-bit**. No admin rights and no .NET needed — the
+download is self-contained.
+
+### One line in PowerShell (easiest)
+
+Open **PowerShell** (Start menu → type *PowerShell*) and paste:
+
+```powershell
+irm https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.ps1 | iex
+```
+
+That downloads the latest release into `%LOCALAPPDATA%\Sholto\app`, installs the
+runtime tools it needs (below), adds **Sholto** to the Start menu, and launches it.
+Run the same line again later to update; your library and analysis next to `app\`
+are kept. To install somewhere else, or without launching, set one of these first,
+in the same window:
+
+```powershell
+$env:SHOLTO_DIR = "D:\Sholto"   # install here instead of %LOCALAPPDATA%\Sholto
+$env:SHOLTO_NO_RUN = "1"        # install without launching
+```
+
+### Or download the zip yourself
+
+1. Download `sholto-windows-x64.zip` (or the versioned
+   `sholto-vX.Y.Z-windows-x64.zip`) from the
+   [**latest release**](https://github.com/freedomfirst26/Sholto/releases/latest).
+2. Right-click it → **Extract All…** into a folder of its own.
+3. In that folder, install the runtime tools once:
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File install-deps.ps1
+   ```
+
+4. Double-click `Sholto.exe`.
+
+The zip holds `Sholto.exe`, `README.md`, `LICENSE`, `THIRD-PARTY-NOTICES.md`,
+`docs/license.md`, `install-deps.ps1`, `sholto-deps.ps1` (the tool versions and
+checks `install-deps.ps1` uses) and `get-sholto.ps1`.
+
+### "Windows protected your PC"
+
+Sholto's exe is not code-signed yet, so the first time you start it Windows
+SmartScreen may show a blue **"Windows protected your PC"** box. Click
+**More info**, then **Run anyway**. Windows remembers the choice for that copy of
+Sholto.
+
+### What `install-deps.ps1` installs
+
+`get-sholto.ps1` runs it for you; it is safe to re-run, and skips anything that
+already works.
+
+- **ffmpeg** (required) — the *shared* build, `Gyan.FFmpeg.Shared`, through
+  **winget**. If winget is missing, install **App Installer** from the Microsoft
+  Store and run it again.
+- **uv** — installs the Python analysis tools in their own isolated environments,
+  without touching any Python you already have.
+- **Beat This!** (required) — finds the beats; a track can't play without them.
+- **demucs** (optional) — stem separation. Add `-NoStems` to skip it.
+
+Add `-Verify` to only check that the tools really work:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File install-deps.ps1 -Verify
+```
+
+### Where Sholto keeps things on Windows
+
+- Your library database: `%LOCALAPPDATA%\sholto\library.db`
+- Analysis cache: `%LOCALAPPDATA%\sholto`
+- Your own themes: `%APPDATA%\sholto\themes`
+
+On Linux these stay where they always were (`~/.local/share/sholto/library.db`,
+`~/.config/sholto/themes`).
+
+### What's different on Windows
+
+- The **DDJ-FLX4** is picked up over USB as on Linux (Sholto talks to it through
+  Windows' built-in MIDI).
+- Playing the master to **separate speakers** while the headphone cue stays on the
+  controller is **Linux only** for now (it relies on PipeWire). On Windows, Sholto
+  plays through the one output device you pick.
 
 ## First run
 
@@ -83,8 +172,8 @@ everything works from the mouse and keyboard.
 ## What it needs
 
 `install.sh` (and `install-deps.sh` for the prebuilt binary) installs all of this
-for you on Ubuntu / Mint / Pop!_OS / Debian. On another distro, install the
-equivalents:
+for you on Ubuntu / Mint / Pop!_OS / Debian; `install-deps.ps1` does the same on
+Windows. On another distro, install the equivalents:
 
 **Required**
 - **.NET 10** — to build and run Sholto from source. The prebuilt binary does
@@ -96,7 +185,7 @@ equivalents:
   time it runs it downloads its model (about 78 MB). Its code and model are both
   MIT-licensed, so it's fine at paid gigs.
 - A normal **Linux desktop** (X11 or Wayland) and a working **sound system**
-  (PipeWire, PulseAudio, or ALSA).
+  (PipeWire, PulseAudio, or ALSA) — or **Windows 10 or 11, 64-bit**.
 
 **Optional** — Sholto runs fine without these, you just lose that one feature:
 - **demucs** — stem separation (drums / vocals / bass / other). Without it, the
@@ -109,7 +198,7 @@ equivalents:
 **Checking they actually work.** The background tools are ordinary Python
 programs, and an update to one of them can leave it installed but broken. Run
 `bash install.sh --verify` (or `bash install-deps.sh --verify` if you're on the
-prebuilt binary) and Sholto will run each one for real — it finds the beats in a
+prebuilt binary, or `install-deps.ps1 -Verify` on Windows) and Sholto will run each one for real — it finds the beats in a
 test click track and separates a test clip into four stems, rather than just
 checking the program is there. It tells you which one is broken and what you lose without it.
 
@@ -138,7 +227,8 @@ install these separately; they arrive with it.
 
 | Library | What it does for you |
 |---|---|
-| **Avalonia** | Draws the entire interface — decks, waveforms, library, every control. It's what lets Sholto look the same on any Linux desktop. |
+| **Avalonia** | Draws the entire interface — decks, waveforms, library, every control. It's what lets Sholto look the same on any Linux desktop and on Windows. |
+| **NAudio.Midi** | Talks to your DDJ-FLX4 on Windows. |
 | **SoundFlow** | Pushes audio out to your speakers, and is what makes the pitch and tempo changes sound right rather than chipmunky. |
 | **NAudio** + **NLayer** | Read WAV, FLAC and MP3 files and turn them into the samples the decks play. |
 | **z440.atl.core** | Reads the artist, title, album and artwork embedded in your files, so the library list isn't just filenames. |

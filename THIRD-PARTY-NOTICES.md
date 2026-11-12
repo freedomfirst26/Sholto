@@ -3,7 +3,8 @@
 Sholto itself is licensed under the [PolyForm Shield License 1.0.0](LICENSE) from v1.1.0 (v0.1.0 and v0.2.0 are under PolyForm Noncommercial 1.0.0 with a free grant for individuals; v0.3.0 and v1.0.0 are under the Business Source License 1.1).
 It depends on the software below, each under its own license. Nothing here is
 redistributed by Sholto unless the "Shipped" column says so — the external
-tools are installed separately by `install-deps.sh` and invoked as processes.
+tools are installed separately by `install-deps.sh` (or `install-deps.ps1` on
+Windows) and invoked as processes.
 
 ## Beat detection: Beat This! (required) and madmom (optional fallback)
 
@@ -77,6 +78,7 @@ Sholto, only installed by the installers):
 | AvaloniaUI.DiagnosticsSupport | debug-only diagnostics | MIT |
 | SoundFlow | audio engine (miniaudio) | MIT |
 | NAudio | WAV / MP3 decoding | MIT |
+| NAudio.Midi | DDJ-FLX4 MIDI on Windows (WinMM) | MIT |
 | NLayer.NAudioSupport | MP3 decoding | MIT |
 | z440.atl.core | audio tag reading | MIT |
 | Microsoft.Extensions.Options | configuration | MIT |

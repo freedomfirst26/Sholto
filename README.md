@@ -10,8 +10,10 @@ DJ software for mixing your own music — a free alternative to Rekordbox and Se
 
 ## Install
 
-**You need:** 64-bit Linux — Ubuntu, Mint, Pop!_OS or Debian. A Pioneer DDJ-FLX4 is
-optional; everything works from the mouse and keyboard.
+**You need:** 64-bit Linux (Ubuntu, Mint, Pop!_OS or Debian) or 64-bit Windows 10 or 11.
+A Pioneer DDJ-FLX4 is optional; everything works from the mouse and keyboard.
+
+### Linux
 
 **One command** — downloads the latest release into `~/sholto`, installs the tools it
 needs (asks for your password once) and starts Sholto. Run it again to update.
@@ -41,6 +43,23 @@ cd Sholto
 bash install.sh
 dotnet run -c Release --project src/Sholto.Host
 ```
+
+### Windows
+
+**One line** — open PowerShell and paste this. It installs the latest release and the
+tools it needs (no admin rights), adds Sholto to the Start menu and starts it. Run it
+again to update.
+
+```powershell
+irm https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.ps1 | iex
+```
+
+**Or by hand** — download `sholto-windows-x64.zip` from the
+[latest release](https://github.com/freedomfirst26/Sholto/releases/latest), extract it,
+run `install-deps.ps1`, then `Sholto.exe`.
+
+Sholto isn't code-signed yet, so Windows may say **"Windows protected your PC"** the
+first time: click **More info**, then **Run anyway**.
 
 More options, what gets installed, and how to check it all works: [docs/install.md](docs/install.md).
 
@@ -82,7 +101,7 @@ Beat, tempo and key detection · stem separation (drop the vocal, keep the drums
 [search](docs/search.md) by name, initials, BPM, key, tag or crate · loops, EQ, filter, headphone cue · mp3, FLAC,
 WAV, AIFF and M4A. **[Everything Sholto does →](docs/features.md)**
 
-Runs on **Linux** with the **DDJ-FLX4** today. Windows, macOS, and more controllers are on the way.
+Runs on **Linux** and **Windows 10/11** (64-bit) with the **DDJ-FLX4** today. macOS and more controllers are on the way.
 
 ## Documentation
 
