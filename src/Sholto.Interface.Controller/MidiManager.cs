@@ -10,6 +10,8 @@ namespace Sholto.Interface.Controller;
 /// <param name="mappings">The configured device mapping set, composed once at
 /// bootstrap (carries the DDJ-FLX4's wire numbers).</param>
 /// <param name="opener">Finds and opens the MIDI port for a mapping's device name.</param>
+/// <param name="logs">Makes the <c>MIDI</c> log (connect/disconnect) and the <c>MIDI raw</c> log (every message,
+/// only while <see cref="LogAllMessages"/> is on).</param>
 public sealed class MidiManager(IControllerMappings mappings, IMidiPortOpener opener, ILogFactory logs) : IMidiConnection
 {
     private IRawMidiPort? _port;
@@ -17,7 +19,8 @@ public sealed class MidiManager(IControllerMappings mappings, IMidiPortOpener op
     private CancellationTokenSource? _superCts;
     private readonly IControllerMappings _mappings = mappings;
     private readonly IMidiPortOpener _opener = opener;
-    private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("MIDI");
+    private readonly ILog _rawLog = logs.Create("MIDI raw");
 
     public event Action<ControllerEvent>? EventReceived;
 
@@ -32,7 +35,7 @@ public sealed class MidiManager(IControllerMappings mappings, IMidiPortOpener op
     /// <summary>True while a device is currently open.</summary>
     public bool IsConnected => _port is not null;
 
-    /// <summary>When true, log every incoming MIDI message to console — for mapping new controls.</summary>
+    /// <summary>When true, log every incoming MIDI message (tag <c>MIDI raw</c>) — for mapping new controls.</summary>
     public bool LogAllMessages { get; set; }
 
     /// <summary>The active device mapping, or null until <see cref="Connect"/>
@@ -68,7 +71,7 @@ public sealed class MidiManager(IControllerMappings mappings, IMidiPortOpener op
             raw.MessageReceived += OnRawMidi;
             raw.Disconnected += OnDeviceLost;
             _port = raw;
-            Console.WriteLine($"[MIDI] connected to {mapping.DeviceNameMatch} (mapping: {mapping.GetType().Name})");
+            _log.Write(LogLevel.Info, $"connected to {mapping.DeviceNameMatch} (mapping: {mapping.GetType().Name})");
             var init = mapping.StartupInit();
             if (init is not null) raw.Send(init);
             Connected?.Invoke();
@@ -83,7 +86,7 @@ public sealed class MidiManager(IControllerMappings mappings, IMidiPortOpener op
         // off-thread; the supervisor will reconnect on its next tick.
         var old = _port;
         _port = null;
-        Console.WriteLine("[MIDI] controller disconnected — retrying until it comes back");
+        _log.Write(LogLevel.Warn, "controller disconnected — retrying until it comes back");
         ConnectionLost?.Invoke();
         if (old is not null) _ = Task.Run(old.Dispose);
     }
@@ -115,7 +118,7 @@ public sealed class MidiManager(IControllerMappings mappings, IMidiPortOpener op
                 0xB0 => "CC",
                 _    => $"0x{type:X2}",
             };
-            Console.WriteLine($"[MIDI raw] ch={channel:00} {kind,-7} key/cc=0x{data1:X2}({data1,3}) val={data2,3}");
+            _rawLog.Write(LogLevel.Debug, $"ch={channel:00} {kind,-7} key/cc=0x{data1:X2}({data1,3}) val={data2,3}");
         }
 
         if (_mapping is null) return;

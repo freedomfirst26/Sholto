@@ -7,7 +7,7 @@ namespace Sholto.Interface.Controller;
 /// /proc/asound/cards and opens /dev/snd/midiC&lt;N&gt;D0 for the matching card.</summary>
 public sealed class AlsaRawMidiOpener(ILogFactory logs) : IMidiPortOpener
 {
-    private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("MIDI");
 
     public IRawMidiPort? Open(string deviceName)
     {
@@ -33,7 +33,7 @@ public sealed class AlsaRawMidiOpener(ILogFactory logs) : IMidiPortOpener
             // ReadWrite so we can send MIDI back to the controller (LED updates,
             // device startup init — see IControllerMapping.StartupInit).
             var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
-            return new AlsaRawMidi(fs);
+            return new AlsaRawMidi(fs, _log);
         }
         return null;
     }

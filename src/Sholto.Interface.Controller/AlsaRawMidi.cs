@@ -1,3 +1,5 @@
+using Sholto.Data;
+
 namespace Sholto.Interface.Controller;
 
 /// <summary>
@@ -10,6 +12,7 @@ public sealed class AlsaRawMidi : IRawMidiPort
     private readonly FileStream _stream;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _reader;
+    private readonly ILog _log;
 
     public event Action<byte, byte, byte>? MessageReceived; // status, data1, data2
 
@@ -20,9 +23,10 @@ public sealed class AlsaRawMidi : IRawMidiPort
     public event Action? Disconnected;
 
     /// <summary>Built by <see cref="AlsaRawMidiOpener"/> once the device node is open.</summary>
-    internal AlsaRawMidi(FileStream stream)
+    internal AlsaRawMidi(FileStream stream, ILog log)
     {
         _stream = stream;
+        _log = log;
         _reader = Task.Run(ReadLoop);
     }
 
@@ -37,7 +41,7 @@ public sealed class AlsaRawMidi : IRawMidiPort
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MIDI] send failed: {ex.Message}");
+            _log.Write(LogLevel.Warn, $"send failed: {ex.Message}");
         }
     }
 
