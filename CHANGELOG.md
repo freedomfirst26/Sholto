@@ -19,6 +19,7 @@ changed at the decks, not which class moved.
 
 ### Improved
 
+- **Backspins and fast scratches sound cleaner.** Playback speed now tops out at 8x, changes smoothly across each buffer instead of in steps, and is filtered beyond normal speed, so fast spins no longer buzz or alias.
 - **A BEAT LOOP pad resizes the loop that is running.** On your DDJ-FLX4's BEAT LOOP page, a pad of another length now changes the running loop to that length from the same start instead of ending it; the pad of the loop's own length still ends it, and the 4 BEAT button still turns its loop on and off.
 - **The audio output picker lists your controller first, so you can send the master mix back to it after picking speakers.**
 - **Before upgrading your library to a new version, Sholto now saves a full copy of it beside the original (`library.db.bak-…`), keeping the last three.**

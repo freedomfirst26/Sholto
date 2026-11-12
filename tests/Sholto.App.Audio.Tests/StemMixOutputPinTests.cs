@@ -16,7 +16,7 @@ public class StemMixOutputPinTests
     private const int BufferFrames = 64;
 
     // Captured on the unsplit provider.
-    private const ulong ExpectedMixed = 0xBDEFC5A27375E189UL;
+    private const ulong ExpectedMixed = 0x66439E7CDC00AD7DUL;
     private const ulong ExpectedShortLoop = 0x4FB980A71394846CUL;
 
     [Fact]

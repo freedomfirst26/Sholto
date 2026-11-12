@@ -50,6 +50,7 @@ public sealed class SholtoOptions
     public IOptions<WinMmMidiOptions> WinMmMidi { get; }
     public IOptions<ComplementOptions> Complement { get; }
     public IOptions<MixRecordingOptions> MixRecording { get; }
+    public IOptions<VarispeedOptions> Varispeed { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down. An
@@ -81,5 +82,6 @@ public sealed class SholtoOptions
         WinMmMidi = Options.Create(new WinMmMidiOptions());
         Complement = Options.Create(new ComplementOptions());
         MixRecording = Options.Create(new MixRecordingOptions());
+        Varispeed = Options.Create(new VarispeedOptions());
     }
 }

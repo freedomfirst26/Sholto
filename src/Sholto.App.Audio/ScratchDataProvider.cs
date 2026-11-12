@@ -1,4 +1,5 @@
 using System.Threading;
+using Microsoft.Extensions.Options;
 using SoundFlow.Enums;
 using SoundFlow.Interfaces;
 using SoundFlow.Metadata.Models;
@@ -42,6 +43,15 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
     private float _speed = 1f;
     public void SetSpeed(float speed) => Volatile.Write(ref _speed, speed);
 
+    // Fastest read speed either way (VarispeedOptions.MaxSpeed), read once in the
+    // constructor; a requested speed beyond it is clamped once per buffer.
+    private readonly float _maxSpeed;
+
+    // The (clamped) speed the previous buffer ended on; each buffer ramps from it
+    // to the new speed. NaN until the first buffer, which starts at its own speed.
+    // Audio-thread only.
+    private float _lastSpeed = float.NaN;
+
     // Declick on Seek — identical scheme to StemMixDataProvider (see its
     // comment): crossfade from the last emitted sample into the new audio
     // over a few ms so a jog-driven Seek doesn't click.
@@ -49,12 +59,19 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
     private int _fadeRemaining;
     private float _lastOutL, _lastOutR;
 
+    /// <summary>Provider at the default <see cref="VarispeedOptions"/>.</summary>
     public ScratchDataProvider(float[] stereoSamples, int sampleRate)
+        : this(stereoSamples, sampleRate, Options.Create(new VarispeedOptions()))
+    {
+    }
+
+    public ScratchDataProvider(float[] stereoSamples, int sampleRate, IOptions<VarispeedOptions> varispeedOptions)
     {
         if (stereoSamples is null) throw new ArgumentNullException(nameof(stereoSamples));
         _buffer = stereoSamples;
         _length = stereoSamples.Length;
         SampleRate = sampleRate;
+        _maxSpeed = (float)Math.Abs(varispeedOptions.Value.MaxSpeed);
     }
 
     // — ISoundDataProvider —
@@ -91,7 +108,11 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
             Volatile.Write(ref _fadeRemaining, FadeFrames);
         }
 
-        float speed = Volatile.Read(ref _speed);
+        // Clamp to the reader's top speed, and ramp across this buffer from the
+        // speed the last one ended on.
+        float speed = Math.Clamp(Volatile.Read(ref _speed), -_maxSpeed, _maxSpeed);
+        float startSpeed = float.IsNaN(_lastSpeed) ? speed : _lastSpeed;
+        _lastSpeed = speed;
         var samples = _buffer;
         if (samples is null) return 0;
 
@@ -100,7 +121,12 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
         double srcFrame = Volatile.Read(ref _position) / 2.0;
         int written;
 
-        if (speed < 0f)
+        if (startSpeed != speed || Math.Abs(speed) > 1f)
+        {
+            // Speed changing this buffer, or faster than 1x: ramped, box-filtered read.
+            written = ReadRamped(buffer, outFrames, startSpeed, speed, samples, maxSrcFrame, ref srcFrame);
+        }
+        else if (speed < 0f)
         {
             // Reverse (platter scratch backspin). Clamp + silence at the
             // start of the track instead of signalling end-of-stream — see
@@ -148,6 +174,66 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
         if (written == 0) EndOfStreamReached?.Invoke(this, EventArgs.Empty);
         ApplyFadeIn(buffer[..producedSamples]);
         return producedSamples;
+    }
+
+    /// <summary>Read <paramref name="outFrames"/> frames while the speed moves linearly
+    /// from <paramref name="startSpeed"/> to <paramref name="endSpeed"/>, reaching it on
+    /// the last frame. Each frame is box-filtered over the source frames its step covers.
+    /// Reverse past the start of the track goes quiet and pins at 0 (as the steady
+    /// reverse path does); forward stops at the end. Returns frames written.</summary>
+    private int ReadRamped(Span<float> buffer, int outFrames, float startSpeed, float endSpeed,
+        float[] samples, int maxSrcFrame, ref double srcFrame)
+    {
+        for (int of = 0; of < outFrames; of++)
+        {
+            float step = startSpeed + (endSpeed - startSpeed) * ((of + 1) / (float)outFrames);
+            if (step < 0f)
+            {
+                if (srcFrame <= 0.0 || maxSrcFrame < 0)
+                {
+                    buffer[of * 2] = 0f;
+                    buffer[of * 2 + 1] = 0f;
+                    srcFrame = 0.0;
+                    continue;
+                }
+            }
+            else if (srcFrame >= maxSrcFrame)
+            {
+                return of;
+            }
+            WriteBoxFilteredFrame(buffer, of, srcFrame, step, samples, maxSrcFrame);
+            srcFrame = Math.Max(0.0, srcFrame + step);
+        }
+        return outFrames;
+    }
+
+    /// <summary>One output frame read with a step of <paramref name="step"/> source
+    /// frames. Up to 1 frame per step this is the plain two-point interpolation at
+    /// <paramref name="centre"/>. Beyond that it is a box filter: the mean of
+    /// ceil(|step|) evenly spaced linear-interpolated taps spanning |step| frames,
+    /// centred on <paramref name="centre"/> (so it adds no delay and meets the plain
+    /// read seamlessly at 1x). That averages away content above the output Nyquist
+    /// that plain interpolation would alias down into a backspin.</summary>
+    private void WriteBoxFilteredFrame(Span<float> outBuf, int frameIndex, double centre, float step,
+        float[] samples, int maxSrcFrame)
+    {
+        float width = Math.Abs(step);
+        int taps = width > 1f ? (int)Math.Ceiling(width) : 1;
+        float left = 0f, right = 0f;
+        for (int k = 0; k < taps; k++)
+        {
+            double pos = taps == 1 ? centre : centre + width * ((k + 0.5) / taps - 0.5);
+            pos = Math.Clamp(pos, 0.0, maxSrcFrame);
+            int iFrame = (int)pos;
+            float frac = (float)(pos - iFrame);
+            int idx = iFrame * 2;
+            left  += samples[idx]     + frac * (samples[idx + 2] - samples[idx]);
+            right += samples[idx + 1] + frac * (samples[idx + 3] - samples[idx + 1]);
+        }
+        float scale = 1f / taps;
+        int o = frameIndex * 2;
+        outBuf[o]     = left * scale;
+        outBuf[o + 1] = right * scale;
     }
 
     /// <summary>Linear-interpolate one output frame from source frame
