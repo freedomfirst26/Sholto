@@ -46,13 +46,14 @@ public sealed class GlanceRow(TrackRow row, RankedTrack ranked, bool isInTrackLi
         }
     }
 
-    /// <summary>"Artist", then " · playing now" or " · played", then " · analysing" or " · analysis failed".</summary>
+    /// <summary>"Artist", then " · on the other deck" (the reference: the other deck's loaded track, playing or not)
+    /// or " · played", then " · analysing" or " · analysis failed".</summary>
     public string Subtitle
     {
         get
         {
             var text = Row.Artist;
-            if (IsReference) text += " · playing now";
+            if (IsReference) text += " · on the other deck";
             else if (Row.IsPlayed) text += " · played";
             if (Row.IsAnalyzing) text += " · analysing";
             else if (Row.ShowAnalysisFailed) text += " · analysis failed";

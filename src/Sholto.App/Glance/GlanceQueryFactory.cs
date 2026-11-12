@@ -7,7 +7,7 @@ namespace Sholto.App.Glance;
 public sealed class GlanceQueryFactory : IGlanceQueryFactory
 {
     private readonly Regex _bpm = new(@"^bpm:(\d{2,3})(?:-(\d{2,3}))?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private readonly Regex _key = new(@"^key:(\d{1,2}[ab])$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private readonly Regex _key = new(@"^key:((?:1[0-2]|[1-9])[ab])$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     public GlanceQuery Create(string text)
     {
@@ -27,9 +27,11 @@ public sealed class GlanceQueryFactory : IGlanceQueryFactory
                 if (m.Groups[2].Success)
                 {
                     double b = double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
-                    bpmMin = Math.Min(a, b);
-                    bpmMax = Math.Max(a, b);
-                    bpmLabel = $"BPM {a.ToString(CultureInfo.InvariantCulture)}–{b.ToString(CultureInfo.InvariantCulture)}";
+                    double min = Math.Min(a, b);
+                    double max = Math.Max(a, b);
+                    bpmMin = min;
+                    bpmMax = max;
+                    bpmLabel = $"BPM {min.ToString(CultureInfo.InvariantCulture)}–{max.ToString(CultureInfo.InvariantCulture)}";
                 }
                 else
                 {

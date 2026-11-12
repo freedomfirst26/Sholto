@@ -22,6 +22,7 @@ changed at the decks, not which class moved.
 ### Fixed
 
 - **The controller's LOAD buttons load the track highlighted in the library, even while search is open.** Loading from the keyboard or the search box still loads the search result.
+- **Search filters read the way you typed them.** A BPM range typed high to low (bpm:128-124) now shows as 124–128, a key that isn't on the Camelot wheel (key:13A) is searched as plain text instead of becoming a key filter, and the other deck's track says "on the other deck" instead of "playing now", since it may be paused.
 
 ## v1.1.0
 

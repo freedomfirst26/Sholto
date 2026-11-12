@@ -29,13 +29,13 @@ public class GlanceRowTests
     }
 
     [Fact]
-    public void The_reference_shows_no_fit_and_no_delta_and_is_playing_now()
+    public void The_reference_shows_no_fit_and_no_delta_and_is_on_the_other_deck()
     {
         var row = RowFor(GlanceRig.Track("A", "Zed"), FitLevel.Good, 0, reference: true);
 
         Assert.Equal(FitLevel.None, row.FitLevel);
         Assert.Equal("", row.TempoDeltaDisplay);
-        Assert.Equal("Zed · playing now", row.Subtitle);
+        Assert.Equal("Zed · on the other deck", row.Subtitle);
         Assert.True(row.IsFaded);
     }
 
