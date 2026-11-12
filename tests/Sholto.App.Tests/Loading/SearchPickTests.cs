@@ -56,6 +56,35 @@ public class SearchPickTests
     }
 
     [Fact]
+    public async Task A_controller_load_with_the_pick_active_loads_the_library_highlight()
+    {
+        var rig = new TrackLoaderRig(new FakeAudioFileDecoder());
+        rig.Highlight(LibrarySessionRig.Alpha);
+        rig.Pick.Handle(Pick(true, LibrarySessionRig.Charlie.FilePath));
+
+        rig.Loader.Handle(new LoadSelectedIntoDeck(0, new Origin(InterfaceIds.Controller, "deck.load", "press", 0)));
+
+        Assert.Equal(LibrarySessionRig.Alpha, rig.Library.Deck1.LoadedTrack);
+        await Eventually(() => rig.Library.Deck1.LoadState == DeckLoadState.Loaded);
+        Assert.Equal(new[] { LibrarySessionRig.Alpha.FilePath }, rig.Decoder.Decoded);
+    }
+
+    [Theory]
+    [InlineData(InterfaceIds.Keyboard)]
+    [InlineData(InterfaceIds.MainUI)]
+    public async Task A_keyboard_or_on_screen_load_with_the_pick_active_loads_the_pick(string interfaceId)
+    {
+        var rig = new TrackLoaderRig(new FakeAudioFileDecoder());
+        rig.Highlight(LibrarySessionRig.Alpha);
+        rig.Pick.Handle(Pick(true, LibrarySessionRig.Charlie.FilePath));
+
+        rig.Loader.Handle(new LoadSelectedIntoDeck(0, new Origin(interfaceId, "deck.load", "press", 0)));
+
+        Assert.Equal(LibrarySessionRig.Charlie, rig.Library.Deck1.LoadedTrack);
+        await Eventually(() => rig.Library.Deck1.LoadState == DeckLoadState.Loaded);
+    }
+
+    [Fact]
     public void An_active_pick_of_nothing_loads_nothing_and_publishes_no_LoadAccepted()
     {
         var rig = new TrackLoaderRig(new FakeAudioFileDecoder());

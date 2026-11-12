@@ -19,6 +19,10 @@ changed at the decks, not which class moved.
 - **The pads light in colour.** Echo, roll, beat jump and the stems each have a colour, and the pad lights show what is on.
 - **The controller guide describes all four pad pages.** BEAT JUMP and SAMPLER are now buttons you can click in it.
 
+### Fixed
+
+- **The controller's LOAD buttons load the track highlighted in the library, even while search is open.** Loading from the keyboard or the search box still loads the search result.
+
 ## v1.1.0
 
 ### Licence

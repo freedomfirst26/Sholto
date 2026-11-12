@@ -47,14 +47,15 @@ public sealed class TrackLoader(
     public event Action<int, Track>? Accepted;
 
     /// <summary>The track LOAD and re-analyse mean: the search pick while search is active (null picks nothing),
-    /// otherwise the highlighted library row.</summary>
-    private Track? ResolveTrack() => _pick.Active ? _pick.PickedTrack : _library.SelectedTrack;
+    /// otherwise the highlighted library row. <paramref name="usePick"/> false always takes the library row.</summary>
+    private Track? ResolveTrack(bool usePick = true) => usePick && _pick.Active ? _pick.PickedTrack : _library.SelectedTrack;
 
     /// <summary>Load the highlighted library track into a deck: show it at once, decode off the app thread,
-    /// then hand the samples to the deck. A failed decode leaves the deck usable.</summary>
+    /// then hand the samples to the deck. A failed decode leaves the deck usable. The controller never touches
+    /// search, so its LOAD takes the library highlight even while search is open; other interfaces load the pick.</summary>
     public void Handle(in LoadSelectedIntoDeck command)
     {
-        var track = ResolveTrack();
+        var track = ResolveTrack(usePick: command.Origin.InterfaceId != InterfaceIds.Controller);
         if (track is null) return;
         var deckIndex = command.Deck;
         var deck = _decks.DeckFor(deckIndex);
