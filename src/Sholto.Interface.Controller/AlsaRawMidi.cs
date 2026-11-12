@@ -2,10 +2,10 @@ namespace Sholto.Interface.Controller;
 
 /// <summary>
 /// Linux-only: reads MIDI bytes directly from /dev/snd/midiC<N>D0, parses the
-/// stream, and emits ControllerEvents. This is the sole MIDI input path — raw
-/// ALSA reads work under PipeWire/ALSA without needing a running JACK server.
+/// stream, and raises each complete message: the Linux <see cref="IRawMidiPort"/>.
+/// This is the sole Linux MIDI input path — raw ALSA reads work under PipeWire/ALSA without needing a running JACK server.
 /// </summary>
-public sealed class AlsaRawMidi : IDisposable
+public sealed class AlsaRawMidi : IRawMidiPort
 {
     private readonly FileStream _stream;
     private readonly CancellationTokenSource _cts = new();
@@ -28,7 +28,7 @@ public sealed class AlsaRawMidi : IDisposable
 
     /// <summary>Write raw MIDI bytes to the controller (LED updates, device
     /// startup init, etc.).</summary>
-    public void SendRaw(byte[] bytes)
+    public void Send(byte[] bytes)
     {
         try
         {
