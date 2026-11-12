@@ -16,10 +16,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Self-contained builds cross-publish fine from Linux, so more RIDs can
-        # be added here later without extra runners:
-        #   win-x64, linux-arm64, osx-arm64  (each becomes its own release asset).
-        rid: [linux-x64]
+        # Self-contained builds cross-publish fine from Linux, so every RID runs
+        # on this same ubuntu runner. Each entry names its archive format, the
+        # platform word used in the asset name, and the scripts it ships.
+        include:
+          - rid: linux-x64
+            platform: linux-x64
+            ext: tar.gz
+            scripts: install-deps.sh sholto-deps.sh get-sholto.sh
+          - rid: win-x64
+            platform: windows-x64
+            ext: zip
+            scripts: install-deps.ps1 sholto-deps.ps1 get-sholto.ps1
+
+    env:
+      ARCHIVE: sholto-${{ github.ref_name }}-${{ matrix.platform }}.${{ matrix.ext }}
+      ALIAS: sholto-${{ matrix.platform }}.${{ matrix.ext }}
 
     steps:
       - uses: actions/checkout@v5
@@ -44,12 +56,19 @@ jobs:
             -p:IncludeNativeLibrariesForSelfExtract=true \
             -o dist
 
+      # The version-less alias is a copy of the archive, so
+      # releases/latest/download/sholto-<platform>.<ext> always works.
       - name: Package
         run: |
-          cp README.md LICENSE THIRD-PARTY-NOTICES.md install-deps.sh sholto-deps.sh get-sholto.sh dist/
+          cp README.md LICENSE THIRD-PARTY-NOTICES.md ${{ matrix.scripts }} dist/
           mkdir -p dist/docs && cp docs/license.md dist/docs/
           rm -f dist/*.pdb
-          tar -C dist -czf sholto-${{ github.ref_name }}-${{ matrix.rid }}.tar.gz .
+          if [ "${{ matrix.ext }}" = "zip" ]; then
+            (cd dist && zip -qr "../$ARCHIVE" .)
+          else
+            tar -C dist -czf "$ARCHIVE" .
+          fi
+          cp "$ARCHIVE" "$ALIAS"
 
       # Release notes come from CHANGELOG.md: the "## <tag>" section for this tag
       # (everything up to the next "## " heading). If the section is missing,
@@ -71,6 +90,11 @@ jobs:
       - name: Attach to the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: sholto-${{ github.ref_name }}-${{ matrix.rid }}.tar.gz
+          files: |
+            ${{ env.ARCHIVE }}
+            ${{ env.ALIAS }}
+          # Release candidates (v0.9.0-rc1) publish as prereleases, so
+          # releases/latest keeps pointing at the last full release.
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
           body_path: ${{ steps.notes.outputs.found == 'true' && 'release-notes.md' || '' }}
           generate_release_notes: ${{ steps.notes.outputs.found != 'true' }}
