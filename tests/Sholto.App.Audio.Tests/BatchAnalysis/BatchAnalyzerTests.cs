@@ -13,7 +13,8 @@ public class BatchAnalyzerTests
 
     private BatchAnalyzer Analyzer(GatedAnalysisProvider provider, GatedKeyAnalyzer keys, int maxParallel) =>
         new(_decoder, provider, _basicStore, _keyStore, keys,
-            Options.Create(new BatchAnalysisOptions { MaxParallelTracks = maxParallel }));
+            Options.Create(new BatchAnalysisOptions { MaxParallelTracks = maxParallel }),
+            new RecordingLogFactory().Create("Batch"));
 
     private static async Task WaitUntil(Func<bool> condition)
     {

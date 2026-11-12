@@ -24,7 +24,7 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, boo
     private readonly PipeWireOwnPorts _ownPorts = ownPorts;
     private readonly int _processId = processId;
     private readonly bool _isLinux = isLinux;
-    private readonly ILogFactory _logs = logs;
+    private readonly ILog _log = logs.Create("PipeWire");
 
     /// <summary>True if this is Linux and <c>pw-link</c> is on PATH. Everything else
     /// here no-ops (returns null/false/empty) when this is false.</summary>
@@ -97,11 +97,11 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, boo
     public bool ApplyMasterRoute(string controllerNode, string speakerNode, out string log)
     {
         var logLines = new List<string>();
-        void Log(string s) { Console.WriteLine($"[PipeWire] {s}"); logLines.Add(s); }
+        void Log(LogLevel level, string s) { _log.Write(level, s); logLines.Add(s); }
 
         if (!IsAvailable())
         {
-            Log(_isLinux
+            Log(LogLevel.Warn, _isLinux
                 ? "pw-link not on PATH — master stays on the controller"
                 : "not on Linux — no PipeWire routing; master stays on the controller");
             log = string.Join("; ", logLines);
@@ -111,7 +111,7 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, boo
         var (fl, fr) = FindOwnOutputPorts();
         if (fl is null || fr is null)
         {
-            Log("this process's PipeWire output ports never appeared — master stays on the controller");
+            Log(LogLevel.Warn, "this process's PipeWire output ports never appeared — master stays on the controller");
             log = string.Join("; ", logLines);
             return false;
         }
@@ -124,11 +124,11 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, boo
             Run("pw-link", "-d", port, $"{controllerNode}:playback_{chan}");
             if (Run("pw-link", port, $"{speakerNode}:playback_{chan}"))
             {
-                Log($"{port} -> {speakerNode}:playback_{chan}");
+                Log(LogLevel.Info, $"{port} -> {speakerNode}:playback_{chan}");
             }
             else
             {
-                Log($"failed to link {port} -> {speakerNode}:playback_{chan}");
+                Log(LogLevel.Error, $"failed to link {port} -> {speakerNode}:playback_{chan}");
                 ok = false;
             }
         }
@@ -146,7 +146,7 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, boo
         var (fl, fr) = FindOwnOutputPorts();
         if (fl is null || fr is null)
         {
-            Console.WriteLine("[PipeWire] reset: own output ports not found — nothing to relink");
+            _log.Warn("reset: own output ports not found — nothing to relink");
             return;
         }
 
@@ -156,7 +156,7 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, boo
             foreach (var sink in speakers)
                 Run("pw-link", "-d", port, $"{sink.Node}:playback_{chan}");
             if (Run("pw-link", port, $"{controllerNode}:playback_{chan}"))
-                Console.WriteLine($"[PipeWire] {port} -> {controllerNode}:playback_{chan} (reset to controller)");
+                _log.Info($"{port} -> {controllerNode}:playback_{chan} (reset to controller)");
         }
     }
 
@@ -215,7 +215,7 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, boo
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PipeWire] '{exe} {string.Join(' ', args)}' failed: {ex.Message}");
+            _log.Error($"'{exe} {string.Join(' ', args)}' failed: {ex.Message}");
             return false;
         }
     }
@@ -233,7 +233,7 @@ public sealed class PipeWireRouter(PipeWireOwnPorts ownPorts, int processId, boo
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PipeWire] '{exe} {string.Join(' ', args)}' failed: {ex.Message}");
+            _log.Error($"'{exe} {string.Join(' ', args)}' failed: {ex.Message}");
             return null;
         }
     }

@@ -63,14 +63,16 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
         IPlaybackProviderFactory playbackProviders,
         IAppThread appThread,
         IOptions<LoopOptions> loopOptions,
-        IDeckScratchFactory scratches)
+        IDeckScratchFactory scratches,
+        ILog log)
     {
         _loops = new DeckLooping(
             stemProvider: () => _loading.StemProvider,
             analysis: () => _loading.Analysis,
             positionFrames: () => PositionFrames,
             sampleCount: () => _loading.SampleCount,
-            options: loopOptions);
+            options: loopOptions,
+            log: log);
         _loops.LoopChanged += region => LoopChanged?.Invoke(region);
 
         _grid = new DeckBeatgrid(
@@ -80,7 +82,8 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
             raiseAnalysisUpdated: () => AnalysisUpdated?.Invoke(),
             shiftLoop: _loops.ShiftLoop,
             gridStore: gridStore,
-            beatgrids: beatgrids);
+            beatgrids: beatgrids,
+            log: log);
         _grid.GridNudgedChanged += v => GridNudgedChanged?.Invoke(v);
 
         // DeckTempo is a pure model — it only computes PlaybackSpeed and
@@ -114,7 +117,8 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
 
         _transport = new TransportControl(
             player: () => _loading.Player,
-            positionFrames: () => PositionFrames);
+            positionFrames: () => PositionFrames,
+            log: log);
 
         _stems = new StemControl(stemProvider: () => _loading.StemProvider);
 
@@ -134,7 +138,8 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
             appThread: appThread,
             setDetectedBasic: _grid.SetDetectedBasic,
             setSampleCount: count => _loading.SetSampleCount(count),
-            onStemsReady: samples => _loading.SwitchToStemMode(samples));
+            onStemsReady: samples => _loading.SwitchToStemMode(samples),
+            log: log);
 
         // See TrackLoading's class doc for why this component OWNS _player/
         // the data providers/Analysis/etc. rather than taking them as
@@ -152,7 +157,8 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
             attachModifiers: _mixer.AttachModifiers,
             reapplyGain: _mixer.ReapplyGain,
             playbackSpeed: () => _pitch.PlaybackSpeed,
-            resetScratching: _scratch.ResetForNewTrack);
+            resetScratching: _scratch.ResetForNewTrack,
+            log: log);
         _loading.AnalysisUpdated += () => AnalysisUpdated?.Invoke();
     }
 

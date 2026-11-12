@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Sholto.Data;
 
 namespace Sholto.App.Audio;
 
@@ -24,7 +25,8 @@ internal sealed class DeckLooping(
     Func<TrackAnalysis> analysis,
     Func<long> positionFrames,
     Func<long> sampleCount,
-    IOptions<LoopOptions> options) : IDeckLooping
+    IOptions<LoopOptions> options,
+    ILog log) : IDeckLooping
 {
     /// <summary>Shortest allowed loop, in interleaved samples. Below this the
     /// wrap-crossfade tail has nowhere to fit.</summary>
@@ -35,6 +37,7 @@ internal sealed class DeckLooping(
     private readonly Func<long> _positionFrames = positionFrames;
     private readonly Func<long> _sampleCount = sampleCount;
     private readonly string _mode = options.Value.Mode;
+    private readonly ILog _log = log;
 
     private LoopRegion? _activeLoop;
 
@@ -56,18 +59,18 @@ internal sealed class DeckLooping(
     {
         if (_activeLoop is not null) { ExitLoop(); return; }
         var stemProvider = _stemProvider();
-        if (stemProvider is null) { Console.WriteLine("[Deck] loop: stems not loaded — ignored"); return; }
+        if (stemProvider is null) { _log.Warn("loop: stems not loaded — ignored"); return; }
         var downbeats = _analysis().Basic?.DownbeatTimes;
         if (downbeats is null || downbeats.Length < 2)
         {
-            Console.WriteLine("[Deck] loop: downbeat grid not ready — ignored");
+            _log.Warn("loop: downbeat grid not ready — ignored");
             return;
         }
 
         double bpm = _analysis().Basic?.Bpm ?? 0;
         if (bpm <= 0)
         {
-            Console.WriteLine("[Deck] loop: BPM unknown — ignored");
+            _log.Warn("loop: BPM unknown — ignored");
             return;
         }
 
@@ -158,7 +161,7 @@ internal sealed class DeckLooping(
         if (outSample > maxSample) outSample = maxSample;
         if (outSample - inSample < MinLoopLengthSamples) // sanity floor
         {
-            Console.WriteLine("[Deck] loop: computed range too small — ignored");
+            _log.Warn("loop: computed range too small — ignored");
             return;
         }
 
@@ -173,7 +176,7 @@ internal sealed class DeckLooping(
         stemProvider.SetLoop(region);
         double actualLen = (outSample - inSample) / 2.0 / AudioFileDecoder.TargetSampleRate;
         double expectedLen = bars * secondsPerBar;
-        Console.WriteLine($"[Deck] loop ON [{_mode}]: {bars} bars @ {bpm:F1} BPM, {inSec:F3}s → {outSec:F3}s, length {actualLen:F3}s (expected {expectedLen:F3}s, source: {source})");
+        _log.Info($"loop ON [{_mode}]: {bars} bars @ {bpm:F1} BPM, {inSec:F3}s → {outSec:F3}s, length {actualLen:F3}s (expected {expectedLen:F3}s, source: {source})");
         LoopChanged?.Invoke(region);
     }
 
@@ -185,14 +188,14 @@ internal sealed class DeckLooping(
         if (_activeLoop is null || stemProvider is null) return;
         var r = _activeLoop.Value;
         long newLen = r.LengthSamples / 2;
-        if (newLen < MinLoopLengthSamples) { Console.WriteLine("[Deck] loop: at minimum length"); return; }
+        if (newLen < MinLoopLengthSamples) { _log.Info("loop: at minimum length"); return; }
         // Keep loop-out frame-aligned (stereo, so even).
         newLen &= ~1L;
         var next = new LoopRegion(r.StartSample, r.StartSample + newLen);
         _activeLoop = next;
         stemProvider.BuildLoopTail(next.EndSample);
         stemProvider.SetLoop(next);
-        Console.WriteLine($"[Deck] loop ½×: now {next.LengthSamples} samples");
+        _log.Info($"loop ½×: now {next.LengthSamples} samples");
         LoopChanged?.Invoke(next);
     }
 
@@ -212,7 +215,7 @@ internal sealed class DeckLooping(
         _activeLoop = next;
         stemProvider.BuildLoopTail(next.EndSample);
         stemProvider.SetLoop(next);
-        Console.WriteLine($"[Deck] loop 2×: now {next.LengthSamples} samples");
+        _log.Info($"loop 2×: now {next.LengthSamples} samples");
         LoopChanged?.Invoke(next);
     }
 
@@ -225,7 +228,7 @@ internal sealed class DeckLooping(
         if (_activeLoop is null) return;
         _activeLoop = null;
         _stemProvider()?.SetLoop(null);
-        Console.WriteLine("[Deck] loop OFF");
+        _log.Info("loop OFF");
         LoopChanged?.Invoke(null);
     }
 

@@ -4,6 +4,7 @@ using Sholto.App.Analysis.Stores;
 using Sholto.App.Audio;
 using Sholto.App.Audio.BatchAnalysis;
 using Sholto.App.Decks;
+using Sholto.Data;
 
 namespace Sholto.App.Library;
 
@@ -16,7 +17,8 @@ public sealed class LibraryBatchAnalyzerFactory(
     IKeyAnalyzer keyAnalyzer,
     IDecks decks,
     ILibrarySession library,
-    IOptions<BatchAnalysisOptions> options) : ILibraryBatchAnalyzerFactory
+    IOptions<BatchAnalysisOptions> options,
+    ILogFactory logs) : ILibraryBatchAnalyzerFactory
 {
     private readonly IAudioFileDecoder _decoder = decoder;
     private readonly IKeyAnalysisStore _keyStore = keyStore;
@@ -24,12 +26,13 @@ public sealed class LibraryBatchAnalyzerFactory(
     private readonly IDecks _decks = decks;
     private readonly ILibrarySession _library = library;
     private readonly IOptions<BatchAnalysisOptions> _options = options;
+    private readonly ILog _log = logs.Create("Batch");
 
     public IBatchAnalyzer? Create()
     {
         var provider = _decks.Deck1.Loading.AnalysisProvider;
         var basicStore = _library.BasicAnalyses;
         if (provider is null || basicStore is null) return null;
-        return new BatchAnalyzer(_decoder, provider, basicStore, _keyStore, _keyAnalyzer, _options);
+        return new BatchAnalyzer(_decoder, provider, basicStore, _keyStore, _keyAnalyzer, _options, _log);
     }
 }

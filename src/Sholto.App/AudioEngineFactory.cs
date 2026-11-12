@@ -13,5 +13,5 @@ public sealed class AudioEngineFactory(ICueOutputRouterFactory cueRouterFactory,
 
     public AudioEngine Create(IEnumerable<INeedsAudioEngine> engineDependents, IPipeWireRouter pipeWireRouter,
         IControllerSoundCard controllerCard, AudioFormat deckFormat, params IEngineDeck[] decks) =>
-        new(engineDependents, pipeWireRouter, controllerCard, _cueRouterFactory, deckFormat, decks);
+        new(engineDependents, pipeWireRouter, controllerCard, _cueRouterFactory, deckFormat, _logs.Create("AudioEngine"), decks);
 }

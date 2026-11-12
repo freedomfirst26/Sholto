@@ -29,6 +29,7 @@ public sealed class AudioEngine : IAudioOutput
     private readonly IControllerSoundCard _controllerCard;
     private AudioPlaybackDevice? _playbackDevice;
     private readonly ICueOutputRouterFactory _cueRouterFactory;
+    private readonly ILog _log;
     private CueOutputRouter? _router;
     private bool _running;
     // MASTER CUE state, kept here so it survives a device switch (which builds a
@@ -46,8 +47,9 @@ public sealed class AudioEngine : IAudioOutput
     /// this constructor creates, the same way each deck is (see <c>Deck.AttachEngine</c>
     /// below). FLAC decoding is the only such collaborator today; the engine does not
     /// know or care which format that is.</summary>
-    public AudioEngine(IEnumerable<INeedsAudioEngine> engineDependents, IPipeWireRouter pipeWireRouter, IControllerSoundCard controllerCard, ICueOutputRouterFactory cueRouterFactory, AudioFormat deckFormat, params IEngineDeck[] decks)
+    public AudioEngine(IEnumerable<INeedsAudioEngine> engineDependents, IPipeWireRouter pipeWireRouter, IControllerSoundCard controllerCard, ICueOutputRouterFactory cueRouterFactory, AudioFormat deckFormat, ILog log, params IEngineDeck[] decks)
     {
+        _log = log;
         _deckFormat = deckFormat;
         _decks = decks;
         _pipeWireRouter = pipeWireRouter;
@@ -57,7 +59,7 @@ public sealed class AudioEngine : IAudioOutput
         _engine = miniEngine;
         _activeBackend = miniEngine.ActiveBackend.ToString();
         foreach (var dependent in engineDependents) dependent.AttachEngine(miniEngine);
-        Console.WriteLine($"[AudioEngine] active backend: {miniEngine.ActiveBackend}; decks={decks.Length}");
+        _log.Info($"active backend: {miniEngine.ActiveBackend}; decks={decks.Length}");
         foreach (var deck in _decks) deck.AttachEngine(_engine, _deckFormat);
     }
 
@@ -135,7 +137,7 @@ public sealed class AudioEngine : IAudioOutput
         _running = true;
         string mode = channels >= 4 ? "master 1-2 + headphone cue 3-4" : "stereo master (no cue bus)";
         string reported = reportedChannels > 0 ? $"{reportedChannels}ch" : "none";
-        Console.WriteLine($"[AudioEngine] backend={_activeBackend}; device={target.Name} started; reported {reported}, opened {channels}ch — {mode}; buffer={cfg.PeriodSizeInMilliseconds}ms × {cfg.Periods}");
+        _log.Info($"backend={_activeBackend}; device={target.Name} started; reported {reported}, opened {channels}ch — {mode}; buffer={cfg.PeriodSizeInMilliseconds}ms × {cfg.Periods}");
 
         if (!haveController)
         {
@@ -196,7 +198,7 @@ public sealed class AudioEngine : IAudioOutput
     {
         _masterCueActive = on;
         if (_router is not null) _router.MasterCueActive = on;
-        Console.WriteLine($"[AudioEngine] master cue {(on ? "ON" : "off")}");
+        _log.Info($"master cue {(on ? "ON" : "off")}");
     }
 
     /// <summary>Finds the controller's sound card among playback devices (matched by
@@ -222,7 +224,7 @@ public sealed class AudioEngine : IAudioOutput
         {
             var match = devices.FirstOrDefault(d => d.Name == deviceName);
             if (match.Name is not null) return match;
-            Console.WriteLine($"[AudioEngine] device '{deviceName}' not found; using default");
+            _log.Warn($"device '{deviceName}' not found; using default");
         }
         var def = devices.FirstOrDefault(d => d.IsDefault);
         if (def.Name is null)

@@ -34,7 +34,8 @@ internal sealed class TrackAnalysisRunRig
             appThread: AppThread,
             setDetectedBasic: b => { DetectedBasic.Add(b); BasicOnAppThread.Add(AppThread.IsCurrent); },
             setSampleCount: _ => { },
-            onStemsReady: s => { StemsReady.Add(s); StemsOnAppThread.Add(AppThread.IsCurrent); });
+            onStemsReady: s => { StemsReady.Add(s); StemsOnAppThread.Add(AppThread.IsCurrent); },
+            log: new RecordingLogFactory().Create("Deck"));
     }
 
     /// <summary>What <c>TrackLoading.BeginLoad</c> does to the run: a fresh <see cref="TrackAnalysis"/>, then

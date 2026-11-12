@@ -1,3 +1,4 @@
+using Sholto.Data;
 using SoundFlow.Enums;
 
 namespace Sholto.App.Audio;
@@ -18,10 +19,11 @@ namespace Sholto.App.Audio;
 /// position). <see cref="Deck.PositionFrames"/> stays on Deck, so it's
 /// likewise handed in as an accessor rather than recomputed here.
 /// </summary>
-internal sealed class TransportControl(Func<SoundFlow.Components.SoundPlayer?> player, Func<long> positionFrames) : ITransportControl
+internal sealed class TransportControl(Func<SoundFlow.Components.SoundPlayer?> player, Func<long> positionFrames, ILog log) : ITransportControl
 {
     private readonly Func<SoundFlow.Components.SoundPlayer?> _player = player;
     private readonly Func<long> _positionFrames = positionFrames;
+    private readonly ILog _log = log;
 
     /// <inheritdoc/>
     public void Play() => _player()?.Play();
@@ -33,7 +35,7 @@ internal sealed class TransportControl(Func<SoundFlow.Components.SoundPlayer?> p
     public void TogglePlay()
     {
         var player = _player();
-        if (player is null) { Console.WriteLine("[Deck] TogglePlay but no track loaded"); return; }
+        if (player is null) { _log.Info("TogglePlay but no track loaded"); return; }
         if (player.State == PlaybackState.Playing) player.Pause(); else player.Play();
     }
 

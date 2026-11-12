@@ -4,6 +4,7 @@ using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stores;
+using Sholto.Data;
 
 namespace Sholto.App.Audio.BatchAnalysis;
 
@@ -29,13 +30,15 @@ public sealed class BatchAnalyzer(
     IBasicAnalysisStore basicStore,
     IKeyAnalysisStore keyStore,
     IKeyAnalyzer keyAnalyzer,
-    IOptions<BatchAnalysisOptions> options) : IBatchAnalyzer
+    IOptions<BatchAnalysisOptions> options,
+    ILog log) : IBatchAnalyzer
 {
     private readonly IAudioFileDecoder _decoder = decoder;
     private readonly IAnalysisProvider _analysisProvider = analysisProvider;
     private readonly IBasicAnalysisStore _basicStore = basicStore;
     private readonly IKeyAnalysisStore _keyStore = keyStore;
     private readonly IKeyAnalyzer _keyAnalyzer = keyAnalyzer;
+    private readonly ILog _log = log;
     private readonly int _maxParallelTracks = Math.Max(1, options.Value.MaxParallelTracks);
     private readonly IAnalysisReporter _reporter = new NullAnalysisReporter();
 
@@ -85,7 +88,7 @@ public sealed class BatchAnalyzer(
         try { return await _basicStore.TryGetAsync(path).ConfigureAwait(false); }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Batch] basic analysis lookup failed for {path}: {ex.Message}");
+            _log.Error($"basic analysis lookup failed for {path}: {ex.Message}");
             return null;
         }
     }
@@ -95,7 +98,7 @@ public sealed class BatchAnalyzer(
         try { return await _keyStore.TryGetAsync(path).ConfigureAwait(false); }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Batch] key cache lookup failed for {path}: {ex.Message}");
+            _log.Error($"key cache lookup failed for {path}: {ex.Message}");
             return null;
         }
     }
@@ -107,6 +110,6 @@ public sealed class BatchAnalyzer(
     {
         var key = await _keyAnalyzer.AnalyzeAsync(track, _reporter, ct).ConfigureAwait(false);
         try { await _keyStore.PutAsync(track.FilePath, key).ConfigureAwait(false); }
-        catch (Exception ex) { Console.WriteLine($"[Batch] key cache write failed for {track.FilePath}: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"key cache write failed for {track.FilePath}: {ex.Message}"); }
     }
 }

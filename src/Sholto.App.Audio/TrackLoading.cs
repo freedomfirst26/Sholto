@@ -3,6 +3,7 @@ using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.Analyzers.Waveform;
+using Sholto.Data;
 using SoundFlow.Abstracts;
 using SoundFlow.Components;
 using SoundFlow.Enums;
@@ -82,6 +83,7 @@ internal sealed class TrackLoading : ITrackLoading
     private readonly Action _reapplyGain;
     private readonly Func<float> _playbackSpeed;
     private readonly Action _resetScratching;
+    private readonly ILog _log;
 
     public TrackLoading(
         IAudioFileDecoder decoder,
@@ -93,7 +95,8 @@ internal sealed class TrackLoading : ITrackLoading
         Action<IReadOnlyList<SoundModifier>> attachModifiers,
         Action reapplyGain,
         Func<float> playbackSpeed,
-        Action resetScratching)
+        Action resetScratching,
+        ILog log)
     {
         _decoder = decoder;
         _providers = providers;
@@ -105,6 +108,7 @@ internal sealed class TrackLoading : ITrackLoading
         _reapplyGain = reapplyGain;
         _playbackSpeed = playbackSpeed;
         _resetScratching = resetScratching;
+        _log = log;
 
         // Relay analysis events exactly the way Deck relays this class's own
         // AnalysisUpdated (see Deck's constructor) — one hop further down the
@@ -271,7 +275,7 @@ internal sealed class TrackLoading : ITrackLoading
         _reapplyGain();
         _currentFilePath = filePath;
 
-        Console.WriteLine($"[Deck] streaming {Path.GetFileName(filePath)} @ {provider.SampleRate}Hz; engine={_format.SampleRate}Hz; length={provider.Length} samples");
+        _log.Info($"streaming {Path.GetFileName(filePath)} @ {provider.SampleRate}Hz; engine={_format.SampleRate}Hz; length={provider.Length} samples");
 
         // BPM/key analysis for this track — see TrackAnalysisRun.KickOffAnalysisFor
         // for the decode-once-feed-both pipeline.
@@ -311,7 +315,7 @@ internal sealed class TrackLoading : ITrackLoading
         // Speed is owned by the provider (see ApplyPlaybackSpeed / ScratchRate),
         // never by SoundFlow.SoundPlayer.PlaybackSpeed (WSOLA, chops the UI).
         provider.SetSpeed(_playbackSpeed());
-        Console.WriteLine($"[Deck] loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
+        _log.Info($"loaded {stereoSamples.Length} samples @ {sampleRate}Hz; engine={_format.SampleRate}Hz {_format.Channels}ch {_format.Format}");
 
         // Analysis runs off-thread; deck plays immediately, beat grid appears when
         // ready. Basic and key run concurrently, THEN stems — deliberately sequenced
@@ -404,7 +408,7 @@ internal sealed class TrackLoading : ITrackLoading
         _player.Seek(TimeSpan.FromSeconds(Math.Max(0, posSeconds)));
 
         if (wasPlaying) _player.Play();
-        Console.WriteLine("[Deck] switched to stem-mix playback (single player)");
+        _log.Info("switched to stem-mix playback (single player)");
     }
 
     /// <inheritdoc/>

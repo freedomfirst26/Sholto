@@ -54,13 +54,15 @@ internal sealed class TrackAnalysisRun(
     IAppThread appThread,
     Action<BasicAnalysis> setDetectedBasic,
     Action<long> setSampleCount,
-    Action<StemSamples> onStemsReady) : ITrackAnalysisRun
+    Action<StemSamples> onStemsReady,
+    ILog log) : ITrackAnalysisRun
 {
     private readonly IAudioFileDecoder _decoder = decoder;
     private readonly IKeyAnalysisStore _keyStore = keyStore;
     private readonly IKeyAnalyzer _keyAnalyzer = keyAnalyzer;
     private readonly IStemStage _stems = stems;
     private readonly IAppThread _appThread = appThread;
+    private readonly ILog _log = log;
 
     // App thread only. _generation names the load the current run belongs to;
     // _cts is that run's cancellation, cancelled when the next load supersedes it.
@@ -143,7 +145,7 @@ internal sealed class TrackAnalysisRun(
                 // Cancelled runs (a newer load superseded this one) end however they end; stay silent.
                 if (!ct.IsCancellationRequested)
                 {
-                    Console.WriteLine($"[Deck] background analysis failed: {ex.Message}");
+                    _log.Error($"background analysis failed: {ex.Message}");
                 }
             }
             finally
@@ -197,7 +199,7 @@ internal sealed class TrackAnalysisRun(
         try { return _stems.IsAvailable && await _stems.CanOverlapBasicAnalysisAsync(ct); }
         catch (Exception ex)
         {
-            if (!ct.IsCancellationRequested) Console.WriteLine($"[Deck] stem device probe failed: {ex.Message}");
+            if (!ct.IsCancellationRequested) _log.Error($"stem device probe failed: {ex.Message}");
             return false;
         }
     }
@@ -219,7 +221,7 @@ internal sealed class TrackAnalysisRun(
     {
         if (generation != _generation) return;
         try { apply(); }
-        catch (Exception ex) { Console.WriteLine($"[Deck] applying analysis result failed: {ex.Message}"); }
+        catch (Exception ex) { _log.Error($"applying analysis result failed: {ex.Message}"); }
     });
 
     private async Task<KeyAnalysis?> ComputeKeyAsync(DecodedTrack track, CancellationToken ct)
@@ -227,12 +229,12 @@ internal sealed class TrackAnalysisRun(
         try
         {
             try { var cached = await _keyStore.TryGetAsync(track.FilePath); if (cached is not null) return cached; }
-            catch (Exception ex) { Console.WriteLine($"[Deck] key cache lookup failed: {ex.Message}"); }
+            catch (Exception ex) { _log.Error($"key cache lookup failed: {ex.Message}"); }
 
             var key = await _keyAnalyzer.AnalyzeAsync(track, reporter: Reporter, ct: ct);
 
             try { await _keyStore.PutAsync(track.FilePath, key); }
-            catch (Exception ex) { Console.WriteLine($"[Deck] key cache write failed: {ex.Message}"); }
+            catch (Exception ex) { _log.Error($"key cache write failed: {ex.Message}"); }
 
             return key;
         }
@@ -241,7 +243,7 @@ internal sealed class TrackAnalysisRun(
             // Cancelled runs (a newer load superseded this one) end however they end; stay silent.
             if (!ct.IsCancellationRequested)
             {
-                Console.WriteLine($"[Deck] key analysis failed: {ex.Message}");
+                _log.Error($"key analysis failed: {ex.Message}");
             }
             return null;
         }
@@ -279,7 +281,7 @@ internal sealed class TrackAnalysisRun(
         try
         {
             var basic = await basicTask;
-            Console.WriteLine($"[Deck] analysis: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
+            _log.Info($"analysis: {basic.Bpm:F1} BPM, {basic.BeatTimes.Length} beats, {basic.DownbeatTimes.Length} downbeats");
             Apply(generation, () => _setDetectedBasic(basic));
             return true;
         }
@@ -288,7 +290,7 @@ internal sealed class TrackAnalysisRun(
             // Cancelled runs (a newer load superseded this one) end however they end; stay silent.
             if (!ct.IsCancellationRequested)
             {
-                Console.WriteLine($"[Deck] background analysis failed: {ex.Message}");
+                _log.Error($"background analysis failed: {ex.Message}");
             }
             return false;
         }
@@ -300,7 +302,7 @@ internal sealed class TrackAnalysisRun(
         {
             var key = await keyTask;
             if (key is null) return false;
-            Console.WriteLine($"[Deck] key: {key.Key?.ToCamelot()}");
+            _log.Info($"key: {key.Key?.ToCamelot()}");
             Apply(generation, () => Analysis.Set(key));
             return true;
         }
@@ -309,7 +311,7 @@ internal sealed class TrackAnalysisRun(
             // Cancelled runs (a newer load superseded this one) end however they end; stay silent.
             if (!ct.IsCancellationRequested)
             {
-                Console.WriteLine($"[Deck] background analysis failed: {ex.Message}");
+                _log.Error($"background analysis failed: {ex.Message}");
             }
             return false;
         }
@@ -326,7 +328,7 @@ internal sealed class TrackAnalysisRun(
         // pay the cost the first time a track is loaded ever.
         if (!_stems.IsAvailable)
         {
-            Console.WriteLine("[Deck] stems skipped: demucs not available");
+            _log.Warn("stems skipped: demucs not available");
             return;
         }
 
@@ -347,7 +349,7 @@ internal sealed class TrackAnalysisRun(
                 // Vocal regions must be Set LAST — DeckSession subscribes to
                 // VocalRegionsReady to re-emit the deck's presence layer.
                 Analysis.Set<IReadOnlyList<VocalRegion>>(r.Vocals);
-                Console.WriteLine($"[Deck] stems ready: {Path.GetDirectoryName(r.Paths.Vocals)}");
+                _log.Info($"stems ready: {Path.GetDirectoryName(r.Paths.Vocals)}");
                 AnalysisUpdated?.Invoke();
 
                 // Auto-switch this deck to stem-mix playback so per-stem mute is live.
@@ -359,7 +361,7 @@ internal sealed class TrackAnalysisRun(
             // Cancelled runs (a newer load superseded this one) end however they end; stay silent.
             if (!ct.IsCancellationRequested)
             {
-                Console.WriteLine($"[Deck] stem analysis failed: {ex.Message}");
+                _log.Error($"stem analysis failed: {ex.Message}");
             }
         }
     }

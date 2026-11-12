@@ -70,5 +70,5 @@ public sealed class DeckFactory(
 
     private readonly IDeckScratchFactory _scratches = new DeckScratchFactory();
 
-    public IDeckPorts Create() => new DeckPorts(new Deck(_decoder, _stemStage, _reporter, _analysisProvider, _keyStore, _gridStore, _keyAnalyzer, _beatgrids, _effectFactories, _playbackProviders, _appThread, _loopOptions, _scratches));
+    public IDeckPorts Create() => new DeckPorts(new Deck(_decoder, _stemStage, _reporter, _analysisProvider, _keyStore, _gridStore, _keyAnalyzer, _beatgrids, _effectFactories, _playbackProviders, _appThread, _loopOptions, _scratches, _logs.Create("Deck")));
 }

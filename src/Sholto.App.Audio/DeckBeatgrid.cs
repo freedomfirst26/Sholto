@@ -3,6 +3,7 @@ using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Beats;
 using Sholto.App.Analysis.Stores;
 using Sholto.App.Analysis.Analyzers.Waveform;
+using Sholto.Data;
 
 namespace Sholto.App.Audio;
 
@@ -51,6 +52,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
     private readonly IGridAdjustmentStore _gridStore;
     // The one "no grid" value, handed in rather than spelled out here.
     private readonly Beatgrid _emptyGrid;
+    private readonly ILog _log;
 
     public DeckBeatgrid(
         Func<long> sampleCount,
@@ -59,7 +61,8 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         Action raiseAnalysisUpdated,
         Action<double> shiftLoop,
         IGridAdjustmentStore gridStore,
-        IBeatgridFactory beatgrids)
+        IBeatgridFactory beatgrids,
+        ILog log)
     {
         _sampleCount = sampleCount;
         _currentFilePath = currentFilePath;
@@ -68,6 +71,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         _shiftLoop = shiftLoop;
         _gridStore = gridStore;
         _emptyGrid = beatgrids.None();
+        _log = log;
         _detected = _emptyGrid;
         _effective = _emptyGrid;
     }
@@ -159,7 +163,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Deck] grid adjustment load failed: {ex.Message}");
+                _log.Error($"grid adjustment load failed: {ex.Message}");
             }
         }
     }
@@ -219,7 +223,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         _bpmOverride = Math.Abs(next - detectedBpm) < 1e-6 ? null : next;
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[Deck] BPM {(_bpmOverride is null ? "→ detected" : $"override → {_bpmOverride:F2}")} (Δ{deltaBpm:+0.00;-0.00})");
+        _log.Info($"BPM {(_bpmOverride is null ? "→ detected" : $"override → {_bpmOverride:F2}")} (Δ{deltaBpm:+0.00;-0.00})");
     }
 
     /// <inheritdoc/>
@@ -234,7 +238,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         _offsetSec += delta;
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[Deck] grid offset {beats:+#;-#;0} beat ({_offsetSec*1000:+0.0;-0.0} ms total)");
+        _log.Info($"grid offset {beats:+#;-#;0} beat ({_offsetSec*1000:+0.0;-0.0} ms total)");
     }
 
     /// <inheritdoc/>
@@ -245,7 +249,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         _offsetSec += seconds;
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[Deck] grid offset fine ({_offsetSec*1000:+0.0;-0.0} ms total)");
+        _log.Info($"grid offset fine ({_offsetSec*1000:+0.0;-0.0} ms total)");
     }
 
     /// <inheritdoc/>
@@ -255,7 +259,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         if (detected is null) return;
         if (tB < tA) (tA, tB) = (tB, tA);
         double span = tB - tA;
-        if (span < 0.5) { Console.WriteLine("[Deck] two-point: points too close — ignored"); return; }
+        if (span < 0.5) { _log.Warn("two-point: points too close — ignored"); return; }
 
         double detectedBpm = _detected.Bpm;
         double curBpm = EffectiveBpm;
@@ -271,7 +275,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         _offsetSec = tA - _detected.AnchorSec;   // make tA a downbeat
         RegenerateGrid();
         AfterAdjustment();
-        Console.WriteLine($"[Deck] two-point grid: {bars} bar(s) in {span:F3}s → {newBpm:F3} BPM, anchor {tA:F3}s");
+        _log.Info($"two-point grid: {bars} bar(s) in {span:F3}s → {newBpm:F3} BPM, anchor {tA:F3}s");
     }
 
     /// <inheritdoc/>
@@ -284,7 +288,7 @@ internal sealed class DeckBeatgrid : IDeckBeatgrid
         string? path = _currentFilePath();
         if (path is not null)
             _ = _gridStore.PutAsync(path, null, 0.0);
-        Console.WriteLine("[Deck] grid reset to detected");
+        _log.Info("grid reset to detected");
     }
 
     /// <summary>Mark nudged + persist the (override, offset) pair. Clears the
