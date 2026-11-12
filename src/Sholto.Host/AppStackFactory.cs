@@ -46,7 +46,7 @@ public sealed class AppStackFactory : IAppStackFactory
                 options.StemSeparation,
                 analysisFolder,
                 logs),
-            new AnalysisStackFactory(keyFactory, options.WaveformBands, logs),
+            new AnalysisStackFactory(keyFactory, options.WaveformBands, options.KeyAnalysis, logs),
             new SholtoStorage(new DatabaseStackFactory(keyFactory, logs), new SholtoDbContextOptionsFactory(), logs),
             appThread,
             options.Loop,

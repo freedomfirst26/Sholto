@@ -23,11 +23,12 @@ namespace Sholto.Host;
 /// <para>The <see cref="IKeyFactory"/> is handed in by the composition root because the
 /// storage factory needs the same instance.</para>
 /// </summary>
-public sealed class AnalysisStackFactory(IKeyFactory keyFactory, IOptions<WaveformBandOptions> waveformBands, ILogFactory logs) : IAnalysisStackFactory
+public sealed class AnalysisStackFactory(IKeyFactory keyFactory, IOptions<WaveformBandOptions> waveformBands, IOptions<KeyAnalysisOptions> keyAnalysis, ILogFactory logs) : IAnalysisStackFactory
 {
     private readonly ILogFactory _logs = logs;
     private readonly IKeyFactory _keyFactory = keyFactory;
     private readonly IOptions<WaveformBandOptions> _waveformBands = waveformBands;
+    private readonly IOptions<KeyAnalysisOptions> _keyAnalysis = keyAnalysis;
 
     // Pass 3v (2026-09-12): key/segment/vocal/beatgrid used to be static classes
     // (KeyAnalyzer, PhraseSectionAnalyzer, VocalRegionAnalyzer, Beatgrid);
@@ -57,7 +58,7 @@ public sealed class AnalysisStackFactory(IKeyFactory keyFactory, IOptions<Wavefo
 
         var beatgridFactory = new BeatgridFactory();
         var peaks = new WaveformPeakAnalyzer(new WaveformBandSplitterFactory(new BiquadFactory(), _waveformBands), new WaveformPeaksFactory());
-        var keyAnalyzer = new KeyAnalyzer();
+        var keyAnalyzer = new KeyAnalyzer(_keyAnalysis);
         var sectionOptions = new PhraseSectionOptions();
         var songSegments = new PhraseSectionAnalyzer(
             new BarFeatureExtractor(sectionOptions), new PhraseSectionLabeler(sectionOptions), sectionOptions);

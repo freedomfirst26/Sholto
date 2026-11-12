@@ -90,7 +90,7 @@ public sealed class BenchDeckFactory(IAudioFileDecoder decoder, IStemAnalysisSte
         analysisProvider: analysisProvider,
         keyStore: new NullKeyAnalysisStore(),
         gridStore: new NullGridAdjustmentStore(),
-        keyAnalyzer: new KeyAnalyzer(),
+        keyAnalyzer: new KeyAnalyzer(Options.Create(new KeyAnalysisOptions())),
         beatgrids: _beatgrids,
         effectFactories: _effects.Chain,
         playbackProviders: _playbackProviders,

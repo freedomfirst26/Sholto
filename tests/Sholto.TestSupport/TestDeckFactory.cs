@@ -36,7 +36,7 @@ internal sealed class TestDeckFactory : IDeckFactory
             decoder, stemStage, reporter,
             new AnalysisProvider((_, _) =>
                 throw new NotImplementedException("TestDeckFactory decks never run basic analysis.")),
-            new NullKeyAnalysisStore(), new NullGridAdjustmentStore(), new KeyAnalyzer(), new BeatgridFactory(),
+            new NullKeyAnalysisStore(), new NullGridAdjustmentStore(), new KeyAnalyzer(Options.Create(new KeyAnalysisOptions())), new BeatgridFactory(),
             new DeckEffectFactory(new TempoMath()).Chain, new PlaybackProviderFactory(Options.Create(new LoopOptions())),
             new ImmediateAppThread(), Options.Create(new LoopOptions()), new RecordingLogFactory());
         return decks.Create();

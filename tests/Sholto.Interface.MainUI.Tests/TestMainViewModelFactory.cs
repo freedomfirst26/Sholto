@@ -45,7 +45,7 @@ internal sealed class TestMainViewModelFactory
         var deck2 = sessions.Create(1);
         var core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
-            new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), decoder,
+            new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(Options.Create(new KeyAnalysisOptions())), decoder,
             new EqualPowerCrossfade(), appThread, bus, clock, new Sholto.TestSupport.UnavailableStemSeparator(),
             Microsoft.Extensions.Options.Options.Create(new LoadOptions()),
             Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions()), new RecordingLogFactory()).Build(deck1, deck2);

@@ -58,7 +58,7 @@ public sealed class HeadlessCoreFactory(IBenchDeck benchDeck, IBenchDeckFactory 
         var reporter = new AnalysisReporter(new[] { AnalysisSteps.Beats });
         var core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
-            reporter, new KeyAnalyzer(), _decoder,
+            reporter, new KeyAnalyzer(Microsoft.Extensions.Options.Options.Create(new KeyAnalysisOptions())), _decoder,
             new EqualPowerCrossfade(), _appThread, _publisher, _clock,
             new GatedStemSeparator(new NoOpStemAnalysisStep(), new SemaphoreStemGate(), reporter),
             Microsoft.Extensions.Options.Options.Create(new LoadOptions()),

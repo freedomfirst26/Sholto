@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Analysis.Reporting;
@@ -6,7 +7,7 @@ namespace Sholto.App.Analysis.Tests;
 
 public class KeyAnalyzerTests
 {
-    private readonly KeyAnalyzer _analyzer = new();
+    private readonly KeyAnalyzer _analyzer = new(Options.Create(new KeyAnalysisOptions()));
     private readonly IAnalysisReporter _reporter = new AnalysisReporter(Array.Empty<string>());
 
     /// <summary>A sustained C major triad (C4, E4, G4), stereo, at 48 kHz.</summary>

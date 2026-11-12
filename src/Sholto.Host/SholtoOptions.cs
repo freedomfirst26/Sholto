@@ -2,6 +2,7 @@ using Sholto.App.Audio;
 using Sholto.App;
 using Sholto.App.Decks;
 using Microsoft.Extensions.Options;
+using Sholto.App.Analysis.Analyzers.Keys;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.Interface.Controller.Mappings;
 using Sholto.Interface.Controller.WinMm;
@@ -31,6 +32,7 @@ public sealed class SholtoOptions
     public IOptions<MagnetismOptions> Magnetism { get; }
     public IOptions<GlanceOptions> Glance { get; }
     public IOptions<WaveformBandOptions> WaveformBands { get; }
+    public IOptions<KeyAnalysisOptions> KeyAnalysis { get; }
     public IOptions<RenderingOptions> Rendering { get; }
     public IOptions<LoadOptions> Load { get; }
     public IOptions<HotCueOptions> HotCue { get; }
@@ -56,6 +58,7 @@ public sealed class SholtoOptions
         Magnetism = Options.Create(new MagnetismOptions());
         Glance = Options.Create(new GlanceOptions());
         WaveformBands = Options.Create(new WaveformBandOptions());
+        KeyAnalysis = Options.Create(new KeyAnalysisOptions());
         Rendering = Options.Create(new RenderingOptions());
         Load = Options.Create(new LoadOptions());
         HotCue = Options.Create(new HotCueOptions());

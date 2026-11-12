@@ -27,7 +27,7 @@ internal sealed class HeadlessCore
             new TestDeckFactory(), new PhraseSectionAnalyzer(new BarFeatureExtractor(new PhraseSectionOptions()), new PhraseSectionLabeler(new PhraseSectionOptions()), new PhraseSectionOptions()), clock, appThread, bus, new RecordingLogFactory());
         Core = new CoreFactory(
             new TrackScanner(), new NullKeyAnalysisStore(), stemPresence,
-            new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(), new AudioFileDecoder([]),
+            new AnalysisReporter(new[] { AnalysisSteps.Beats }), new KeyAnalyzer(Microsoft.Extensions.Options.Options.Create(new KeyAnalysisOptions())), new AudioFileDecoder([]),
             new EqualPowerCrossfade(), appThread, bus, clock, new Sholto.TestSupport.UnavailableStemSeparator(),
             Microsoft.Extensions.Options.Options.Create(new LoadOptions()),
             Microsoft.Extensions.Options.Options.Create(new Sholto.App.Decks.HotCueOptions()), new RecordingLogFactory()).Build(sessions.Create(0), sessions.Create(1));

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Analysis.Processing;
 using Sholto.App.Analysis.Reporting;
@@ -16,10 +17,31 @@ namespace Sholto.App.Analysis.Analyzers.Keys;
 ///
 /// Default <see cref="IKeyAnalyzer"/>. Instance so a test/Bench harness can
 /// substitute a fake instead of paying the real chroma + correlation cost;
-/// it holds no state of its own.
+/// it holds no state beyond its configured <see cref="KeyAnalysisOptions"/>.
 /// </summary>
 public sealed class KeyAnalyzer : IKeyAnalyzer
 {
+    /// <summary>Semitones in an octave: the number of chroma bins, pitch classes and
+    /// key-profile entries. A fact of twelve-tone equal temperament, not a tunable.</summary>
+    private const int SemitonesPerOctave = 12;
+
+    /// <summary>MIDI note number of A4, the note <see cref="KeyAnalysisOptions.ReferencePitchHz"/> tunes.</summary>
+    private const int ReferenceMidiNote = 69;
+
+    private readonly KeyAnalysisOptions _options;
+
+    public KeyAnalyzer(IOptions<KeyAnalysisOptions> options)
+    {
+        _options = options.Value;
+        if (_options.LastMidiNote < _options.FirstMidiNote)
+            throw new ArgumentException(
+                $"LastMidiNote ({_options.LastMidiNote}) is below FirstMidiNote ({_options.FirstMidiNote}).",
+                nameof(options));
+        if (_options.FramesPerChunk < 1)
+            throw new ArgumentException(
+                $"FramesPerChunk ({_options.FramesPerChunk}) must be at least 1.", nameof(options));
+    }
+
     /// <summary>Fire-and-await wrapper: runs the heavy chroma + correlation on a
     /// background task and reports progress like the other analyzers.</summary>
     public async Task<KeyAnalysis> AnalyzeAsync(
@@ -61,13 +83,13 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
 
         // Normalise so dot-product with the profile is rotation-equivalent across tracks.
         double sum = 0;
-        for (int i = 0; i < 12; i++) sum += chroma[i];
-        if (sum > 0) for (int i = 0; i < 12; i++) chroma[i] /= sum;
+        for (int i = 0; i < SemitonesPerOctave; i++) sum += chroma[i];
+        if (sum > 0) for (int i = 0; i < SemitonesPerOctave; i++) chroma[i] /= sum;
 
         double bestScore = double.NegativeInfinity;
         int bestTonic = 0;
         bool bestMajor = true;
-        for (int tonic = 0; tonic < 12; tonic++)
+        for (int tonic = 0; tonic < SemitonesPerOctave; tonic++)
         {
             double majScore = Correlate(chroma, MajorProfile, tonic);
             if (majScore > bestScore) { bestScore = majScore; bestTonic = tonic; bestMajor = true; }
@@ -81,29 +103,31 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
     private double Correlate(double[] chroma, double[] profile, int shift)
     {
         double s = 0;
-        for (int i = 0; i < 12; i++)
-            s += chroma[i] * profile[((i - shift) % 12 + 12) % 12];
+        for (int i = 0; i < SemitonesPerOctave; i++)
+            s += chroma[i] * profile[((i - shift) % SemitonesPerOctave + SemitonesPerOctave) % SemitonesPerOctave];
         return s;
     }
 
     /// <summary>
-    /// Build a 12-bin chroma vector by running 60 Goertzel filters (12 pitch
-    /// classes × 5 octaves, C2 → B6) frame-by-frame and summing each pitch class
+    /// Build a 12-bin chroma vector by running one Goertzel filter per note from
+    /// <see cref="KeyAnalysisOptions.FirstMidiNote"/> to <see cref="KeyAnalysisOptions.LastMidiNote"/>
+    /// (by default 60 filters: 12 pitch classes × 5 octaves, C2 → B6) frame-by-frame and summing each pitch class
     /// across its octaves. 4096-sample frames at 48 kHz ≈ 85 ms — short enough
     /// to catch fast chord changes, long enough to give the filter resolution.
     /// </summary>
     private double[] ComputeChroma(float[] samples, int channels, int sampleRate, CancellationToken ct)
     {
         const int frameSize = 4096;
-        const int firstMidi = 36;   // C2
-        const int lastMidi = 95;    // B6
+        int firstMidi = _options.FirstMidiNote;
+        int lastMidi = _options.LastMidiNote;
         int numNotes = lastMidi - firstMidi + 1;
 
         // Pre-compute Goertzel coefficient (2·cos(ω)) for every note.
         var coefs = new double[numNotes];
         for (int n = 0; n < numNotes; n++)
         {
-            double freq = 440.0 * Math.Pow(2, (firstMidi + n - 69) / 12.0);
+            double freq = _options.ReferencePitchHz
+                * Math.Pow(2, (firstMidi + n - ReferenceMidiNote) / (double)SemitonesPerOctave);
             coefs[n] = 2.0 * Math.Cos(2 * Math.PI * freq / sampleRate);
         }
 
@@ -114,7 +138,7 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
         // accumulates its own partial chroma and the partials are summed in chunk order, so
         // the result is the same however the threads happen to be scheduled. Half the cores
         // at most: madmom runs beside this and must not be starved (measured: no slowdown).
-        const int framesPerChunk = 32;
+        int framesPerChunk = _options.FramesPerChunk;
         int chunkCount = (totalFrames + framesPerChunk - 1) / framesPerChunk;
         var partials = new double[chunkCount][];
         var options = new ParallelOptions
@@ -125,7 +149,7 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
 
         Parallel.For(0, chunkCount, options, chunk =>
         {
-            var partial = new double[12];
+            var partial = new double[SemitonesPerOctave];
             var mono = new float[frameSize];
             int lastFrame = Math.Min(totalFrames, (chunk + 1) * framesPerChunk);
             for (int frame = chunk * framesPerChunk; frame < lastFrame; frame++)
@@ -153,7 +177,7 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
                     double power = s1 * s1 + s2 * s2 - coef * s1 * s2;
                     if (power > 0)
                     {
-                        int pitchClass = (firstMidi + n) % 12;
+                        int pitchClass = (firstMidi + n) % SemitonesPerOctave;
                         partial[pitchClass] += Math.Sqrt(power);
                     }
                 }
@@ -161,9 +185,9 @@ public sealed class KeyAnalyzer : IKeyAnalyzer
             partials[chunk] = partial;
         });
 
-        var chroma = new double[12];
+        var chroma = new double[SemitonesPerOctave];
         foreach (var partial in partials)
-            for (int pc = 0; pc < 12; pc++) chroma[pc] += partial[pc];
+            for (int pc = 0; pc < SemitonesPerOctave; pc++) chroma[pc] += partial[pc];
 
         return chroma;
     }
