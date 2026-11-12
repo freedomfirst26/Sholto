@@ -18,11 +18,11 @@ public sealed class CudaProbingStemDevice : IStemDevice
     private const string ProbeScript = "import torch;print(torch.cuda.is_available())";
 
     private readonly Lazy<Task<StemDevice>> _device;
-    private readonly ILogFactory _logs;
+    private readonly ILog _log;
 
     public CudaProbingStemDevice(string demucsBinaryPath, TimeSpan timeout, ILogFactory logs)
     {
-        _logs = logs;
+        _log = logs.Create("Demucs");
         _device = new Lazy<Task<StemDevice>>(
             () => Task.Run(() => Probe(demucsBinaryPath, timeout)), LazyThreadSafetyMode.ExecutionAndPublication);
     }
@@ -60,7 +60,7 @@ public sealed class CudaProbingStemDevice : IStemDevice
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Demucs] CUDA probe failed, using CPU: {ex.Message}");
+            _log.Error($"CUDA probe failed, using CPU: {ex.Message}");
             return StemDevice.Cpu;
         }
     }
