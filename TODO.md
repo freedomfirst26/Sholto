@@ -25,6 +25,12 @@ C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 - [ ] **C258 — Record the mix.** Re-plan and rebuild: the cloud build was blocked, not landed.
   BLOCKS registration location — the spec said register ToggleMixRecording with bus.Register in AppStackFactory, but tests/Sholto.App.Tests/CommandHandlersFactoryTests.cs:41-42 requires every Sholto.Data command to be registered by CommandHandlersFactory (count pinned at 66), and neither that test nor CommandHandlersFactory.cs was an owned file. Re-plan with those files owned and the registration in CommandHandlersFactory.
   Old plan: ~/.claude/plans/sholto-impl-30-c258-record-the-mix-a.md
+- [ ] **C262 — Fix the Windows one-liner's asset filter.** `get-sholto.ps1:49` filters release assets with `-like "*win-x64.zip"`, but `release.yml` names the asset `sholto-…-windows-x64.zip`, so the documented one-liner reports "no stable Windows release yet". Match `*windows-x64.zip`. Size S.
+- [ ] **C263 — Untrack `.job/` files.** `git rm --cached` the tracked `.job/*.md` files (committed in 7145b21 and a8176a2) and add `.job/` to `.gitignore`. Size S. Sebastian approved this as a cleanup job.
+- [ ] **C264 — Output picker docs.** Add a CHANGELOG.md line under Unreleased / Improved ("The audio output picker lists your controller first, so you can send the master mix back to it after picking speakers.") and a `docs/features.md` bullet. Size S.
+- [ ] **C265 — FLX4 Shift pages follow-up.** Size M.
+  (a) Describe the four Shift pages and the `pad.beatloop.press` gesture in `ddj-flx4.guide.json`. (b) Add the CHANGELOG and `docs/features.md` lines. (c) A BEAT LOOP pad pressed during a running loop RESIZES the loop instead of exiting it (Sebastian's call, recommended default, as most DJ software does).
+- [ ] **C266 — TrackList log: drop the log-less constructor.** Migrate `tests/Sholto.Interface.MainUI.Tests/LibraryRowsViewModelTests.cs:82` and `TrackListDragRig.cs:97` to pass a log to `TrackList`, then delete its log-less constructor in `src/Sholto.App/Library/TrackList.cs`. Size S.
 
 ## Waiting on you
 
