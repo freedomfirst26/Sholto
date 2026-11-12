@@ -45,5 +45,5 @@ internal sealed class BeatThisTool(IToolOutcomeFactory outcomes, IDetectedBeatsF
         return _outcomes.Success(beats);
     }
 
-    private static string OutputPath(ToolInput toolInput) => Path.Combine(toolInput.WorkDir, OutputFileName);
+    private string OutputPath(ToolInput toolInput) => Path.Combine(toolInput.WorkDir, OutputFileName);
 }
