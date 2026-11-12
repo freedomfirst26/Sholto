@@ -10,5 +10,11 @@ internal sealed class RecordingDeckHotCues : IDeckHotCues
 
     public void Attach(IHotCueStore store) { }
     public void Press(int deck, int pad, bool pressed) => Calls.Add($"press {deck} {pad} {pressed}");
+    public bool LatchPreview(int deck)
+    {
+        Calls.Add($"latch {deck}");
+        return false;
+    }
+
     public void Delete(int deck, int pad) => Calls.Add($"delete {deck} {pad}");
 }

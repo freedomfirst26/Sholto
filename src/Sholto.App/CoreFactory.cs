@@ -66,7 +66,7 @@ public sealed class CoreFactory(
             new LoadGuard(_frameClock, _publisher, _loadOptions), new LoadUndo(_frameClock, _publisher, _loadOptions), _stemSeparator);
         var libraryAnalysis = new LibraryAnalysisHandler(catalog,
             new LibraryBatchAnalyzerFactory(_decoder, _keyStore, _keyAnalyzer, decks, library, _batchOptions), _appThread, _publisher);
-        return new CoreStack(decks, new PlaybackRequests(decks), new MixerSession(decks, _crossfade, _publisher), library, markers, hotCues, loader,
+        return new CoreStack(decks, new PlaybackRequests(decks, hotCues), new MixerSession(decks, _crossfade, _publisher), library, markers, hotCues, loader,
             new BackspinFeel(_publisher), searchPick, new TrackList(library, _appThread, _publisher), libraryAnalysis);
     }
 }

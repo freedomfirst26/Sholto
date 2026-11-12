@@ -111,6 +111,88 @@ public class DeckHotCuesTests
     }
 
     [Fact]
+    public void Latch_during_a_preview_keeps_the_deck_playing_after_release_with_no_seek_back()
+    {
+        _rig.Load(HotCueRig.Alpha, playheadSec: 10);
+        _rig.HotCues.Press(0, 1, true);
+        _rig.HotCues.Press(0, 1, false);
+        _rig.Park(30);
+        _rig.HotCues.Press(0, 1, true);   // preview from the cue at 10 s
+        _rig.Park(10.7);
+
+        Assert.True(_rig.HotCues.LatchPreview(0));
+        Assert.True(_rig.Deck1.IsPlaying);
+        Assert.Equal(1, _rig.Transports[0].TogglePlayCalls);
+
+        _rig.Park(11.4);   // played on while the pad is still held
+        _rig.HotCues.Press(0, 1, false);
+
+        Assert.True(_rig.Deck1.IsPlaying);
+        Assert.Equal(1, _rig.Transports[0].TogglePlayCalls);
+        Assert.Equal(11.4, _rig.Deck1.PlaybackSeconds, 6);
+        Assert.Equal(-20, Assert.Single(_rig.Transports[0].Seeks), 6);   // only the jump to the cue
+    }
+
+    [Fact]
+    public void After_a_latch_the_next_PLAY_press_pauses_as_usual()
+    {
+        var playback = new PlaybackRequests(new DeckPair(_rig.Deck1, _rig.Deck2), _rig.HotCues);
+        var brakes = new List<int>();
+        playback.BrakePauseRequested += brakes.Add;
+        _rig.Load(HotCueRig.Alpha, playheadSec: 10);
+        _rig.HotCues.Press(0, 1, true);
+        _rig.HotCues.Press(0, 1, false);
+        _rig.Park(30);
+        _rig.HotCues.Press(0, 1, true);
+        playback.OnPlayPressed(0);   // latches the preview
+        _rig.HotCues.Press(0, 1, false);
+        Assert.True(_rig.Deck1.IsPlaying);
+        Assert.Empty(brakes);
+        Assert.Equal(1, _rig.Transports[0].TogglePlayCalls);
+
+        Assert.False(_rig.Deck1.Scratch.CanScratch);   // so the usual pause is a toggle (the brake is in PlaybackRequestsTests)
+
+        playback.OnPlayPressed(0);
+        _rig.Deck1.SyncPlayPosition();   // the session follows the transport once a frame
+
+        Assert.Empty(brakes);
+        Assert.False(_rig.Deck1.IsPlaying);
+        Assert.Equal(2, _rig.Transports[0].TogglePlayCalls);
+    }
+
+    [Fact]
+    public void LatchPreview_with_no_preview_in_progress_returns_false_and_changes_nothing()
+    {
+        _rig.Load(HotCueRig.Alpha, playheadSec: 10);
+        _rig.HotCues.Press(0, 1, true);   // sets pad 1
+        _rig.HotCues.Press(0, 1, false);
+        _rig.SetPlaying(true);
+        _rig.HotCues.Press(0, 1, true);   // jump while playing: not a preview
+
+        Assert.False(_rig.HotCues.LatchPreview(0));
+        Assert.False(_rig.HotCues.LatchPreview(1));
+        Assert.True(_rig.Deck1.IsPlaying);
+        Assert.Equal(0, _rig.Transports[0].TogglePlayCalls);
+    }
+
+    [Fact]
+    public void Preview_without_a_latch_still_pauses_back_on_the_cue_after_another_deck_latched()
+    {
+        _rig.Load(HotCueRig.Alpha, playheadSec: 10);
+        _rig.HotCues.Press(0, 1, true);
+        _rig.HotCues.Press(0, 1, false);
+        _rig.Park(30);
+        _rig.HotCues.Press(0, 1, true);
+
+        Assert.False(_rig.HotCues.LatchPreview(1));   // the other deck has no preview
+        _rig.Park(10.7);
+        _rig.HotCues.Press(0, 1, false);
+
+        Assert.False(_rig.Deck1.IsPlaying);
+        Assert.Equal(10, _rig.Deck1.PlaybackSeconds, 6);
+    }
+
+    [Fact]
     public void Release_of_a_pad_that_was_not_previewing_changes_nothing()
     {
         _rig.Load(HotCueRig.Alpha, playheadSec: 10);

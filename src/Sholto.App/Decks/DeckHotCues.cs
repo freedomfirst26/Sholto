@@ -49,6 +49,13 @@ public sealed class DeckHotCues(
         else Set(deck, pad, session);
     }
 
+    public bool LatchPreview(int deck)
+    {
+        if (_previewPad[deck] < 0) return false;
+        _previewPad[deck] = -1;   // the release now finds no preview: the deck plays on
+        return true;
+    }
+
     public void Delete(int deck, int pad)
     {
         var store = _store;

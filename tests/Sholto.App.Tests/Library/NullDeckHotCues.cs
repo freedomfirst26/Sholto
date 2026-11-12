@@ -8,5 +8,6 @@ internal sealed class NullDeckHotCues : IDeckHotCues
 {
     public void Attach(IHotCueStore store) { }
     public void Press(int deck, int pad, bool pressed) { }
+    public bool LatchPreview(int deck) => false;
     public void Delete(int deck, int pad) { }
 }
