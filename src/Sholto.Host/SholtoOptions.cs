@@ -38,6 +38,7 @@ public sealed class SholtoOptions
     public IOptions<StemSeparationOptions> StemSeparation { get; }
     public IOptions<LoopOptions> Loop { get; }
     public IOptions<AudioTimingOptions> AudioTiming { get; }
+    public IOptions<VarispeedOptions> Varispeed { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down.</summary>
@@ -61,5 +62,6 @@ public sealed class SholtoOptions
         // The one place the SHOLTO_LOOP_* environment overrides are read.
         Loop = Options.Create(new LoopOptionsFactory().Create());
         AudioTiming = Options.Create(new AudioTimingOptionsFactory(Environment.GetEnvironmentVariable).Create());
+        Varispeed = Options.Create(new VarispeedOptions());
     }
 }

@@ -60,6 +60,15 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     private float _speed = 1f;
     public void SetSpeed(float speed) => Volatile.Write(ref _speed, speed);
 
+    // Fastest read speed either way (VarispeedOptions.MaxSpeed), read once in the
+    // constructor; a requested speed beyond it is clamped once per buffer.
+    private readonly float _maxSpeed;
+
+    // The (clamped) speed the previous buffer ended on; each buffer ramps from it
+    // to the new speed. NaN until the first buffer, which starts at its own speed.
+    // Audio-thread only.
+    private float _lastSpeed = float.NaN;
+
     // Active loop region (see StemLoopBounds), published by the control thread; null = no loop.
     private StemLoopBounds? _loopBounds;      // published by control thread (Volatile)
     public void SetLoop(LoopRegion? loop)
@@ -118,7 +127,14 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     // Seek declick and loop-wrap crossfade: audio-thread-only mutable structs, called in place.
     private StemFadeIn _fadeIn;
 
+    /// <summary>Provider at the default <see cref="VarispeedOptions"/>.</summary>
     public StemMixDataProvider(StemSamples stems, int sampleRate, IOptions<LoopOptions> loopOptions)
+        : this(stems, sampleRate, loopOptions, Options.Create(new VarispeedOptions()))
+    {
+    }
+
+    public StemMixDataProvider(StemSamples stems, int sampleRate, IOptions<LoopOptions> loopOptions,
+        IOptions<VarispeedOptions> varispeedOptions)
     {
         if (stems is null || stems.Drums is null || stems.Vocals is null || stems.Bass is null || stems.Other is null)
             throw new ArgumentNullException();
@@ -129,6 +145,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         SampleRate = sampleRate;
         // 48 frames per ms at 48 kHz.
         _loopFadeFrames = Math.Clamp((int)(loopOptions.Value.FadeMs * 48 + 1e-6), 24, 4800);
+        _maxSpeed = (float)Math.Abs(varispeedOptions.Value.MaxSpeed);
     }
 
     /// <summary>Set a stem's gain (0 = mute, 1 = unity). Lock-free.</summary>
@@ -177,8 +194,11 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
             _fadeIn.Arm();
         }
 
-        // Snapshot speed + gains + loop once per buffer.
-        float speed = Volatile.Read(ref _speed);
+        // Snapshot speed + gains + loop once per buffer. The speed is clamped to the
+        // reader's top speed and ramps across this buffer from where the last one ended.
+        float speed = Math.Clamp(Volatile.Read(ref _speed), -_maxSpeed, _maxSpeed);
+        float startSpeed = float.IsNaN(_lastSpeed) ? speed : _lastSpeed;
+        _lastSpeed = speed;
         float g0 = Volatile.Read(ref _g0);
         float g1 = Volatile.Read(ref _g1);
         float g2 = Volatile.Read(ref _g2);
@@ -208,7 +228,7 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         {
             int sampleOffset = written * 2;
             int produced = ReadChunk(buffer.Slice(sampleOffset),
-                outFrames - written, speed, g0, g1, g2, g3,
+                outFrames - written, startSpeed, speed, written, outFrames, g0, g1, g2, g3,
                 stems, looping, loopStartSnap, loopEndSnap);
             if (produced == 0) break;
 
@@ -259,8 +279,11 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
     /// <summary>Fill up to <paramref name="maxFrames"/> output frames, stopping
     /// at end-of-track or — when looping — at loop-out. Returns frames written.
     /// Position is advanced; the caller decides whether to wrap or break based
-    /// on where Position landed.</summary>
-    private int ReadChunk(Span<float> outBuf, int maxFrames, float speed,
+    /// on where Position landed. The speed ramps from <paramref name="startSpeed"/>
+    /// to <paramref name="speed"/> over the whole buffer of <paramref name="rampFrames"/>
+    /// frames, of which this chunk starts at frame <paramref name="rampOffset"/>.</summary>
+    private int ReadChunk(Span<float> outBuf, int maxFrames, float startSpeed, float speed,
+        int rampOffset, int rampFrames,
         float g0, float g1, float g2, float g3,
         float[][] stems, bool looping, long loopStart, long loopEnd)
     {
@@ -272,7 +295,8 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         double pos = Volatile.Read(ref _position);
         int maxSrcFrame = (_length / 2) - 2;     // need room for [n] and [n+1] interp
 
-        if (speed == 1f)
+        bool steady = startSpeed == speed;
+        if (steady && speed == 1f)
         {
             int ipos = (int)pos & ~1;            // align to a frame boundary
             // Source end for this chunk: loop-out (if looping and we're inside
@@ -306,6 +330,18 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         // source crosses loop-out (or track-end), so the caller's wrap logic
         // runs at the right moment.
         double srcFrame = pos / 2.0;
+        double boundaryFrame = looping && srcFrame * 2.0 >= loopStart && srcFrame * 2.0 < loopEnd
+            ? loopEnd / 2.0
+            : maxSrcFrame;
+
+        if (!steady || Math.Abs(speed) > 1f)
+        {
+            // Speed changing this buffer, or faster than 1x: ramped, box-filtered read.
+            int frames = ReadRampedChunk(outBuf, maxFrames, startSpeed, speed, rampOffset, rampFrames,
+                ref srcFrame, boundaryFrame, maxSrcFrame, s0, s1, s2, s3, g0, g1, g2, g3);
+            Volatile.Write(ref _position, srcFrame * 2.0);
+            return frames;
+        }
 
         if (speed < 0f)
         {
@@ -346,9 +382,6 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         // re-emitting the same frame (frac stays 0), which is the correct
         // "needle motionless" sound and, crucially, still returns a full
         // chunk so the caller never sees a false end-of-stream.
-        double boundaryFrame = looping && srcFrame * 2.0 >= loopStart && srcFrame * 2.0 < loopEnd
-            ? loopEnd / 2.0
-            : maxSrcFrame;
         int writtenFrames = 0;
         for (int of2 = 0; of2 < maxFrames; of2++)
         {
@@ -363,6 +396,77 @@ public sealed class StemMixDataProvider : ISoundDataProvider, IVarispeedProvider
         Volatile.Write(ref _position, srcFrame * 2.0);
         return writtenFrames;
     }
+
+    /// <summary>Read up to <paramref name="maxFrames"/> frames while the speed moves
+    /// linearly from <paramref name="startSpeed"/> to <paramref name="endSpeed"/> across
+    /// the buffer (reaching it on the buffer's last frame), each frame box-filtered over
+    /// the source frames its step covers. Reverse past the start of the track goes quiet
+    /// and pins at 0 (as the steady reverse path does); forward stops at
+    /// <paramref name="boundaryFrame"/> (loop-out or track end). Returns frames written
+    /// and advances <paramref name="srcFrame"/>.</summary>
+    private int ReadRampedChunk(Span<float> outBuf, int maxFrames, float startSpeed, float endSpeed,
+        int rampOffset, int rampFrames, ref double srcFrame, double boundaryFrame, int maxSrcFrame,
+        float[] s0, float[] s1, float[] s2, float[] s3,
+        float g0, float g1, float g2, float g3)
+    {
+        for (int of = 0; of < maxFrames; of++)
+        {
+            float step = startSpeed + (endSpeed - startSpeed) * ((rampOffset + of + 1) / (float)rampFrames);
+            if (step < 0f)
+            {
+                if (srcFrame <= 0.0 || maxSrcFrame < 0)
+                {
+                    outBuf[of * 2] = 0f;
+                    outBuf[of * 2 + 1] = 0f;
+                    srcFrame = 0.0;
+                    continue;
+                }
+            }
+            else if (srcFrame >= boundaryFrame || srcFrame >= maxSrcFrame)
+            {
+                return of;
+            }
+            WriteBoxFilteredFrame(outBuf, of, srcFrame, step, maxSrcFrame, s0, s1, s2, s3, g0, g1, g2, g3);
+            srcFrame = Math.Max(0.0, srcFrame + step);
+        }
+        return maxFrames;
+    }
+
+    /// <summary>One output frame (both channels, all 4 stems summed) read with a step
+    /// of <paramref name="step"/> source frames. Up to 1 frame per step this is the
+    /// plain two-point interpolation at <paramref name="centre"/>. Beyond that it is a
+    /// box filter: the mean of ceil(|step|) evenly spaced linear-interpolated taps
+    /// spanning |step| frames, centred on <paramref name="centre"/> (so it adds no
+    /// delay and meets the plain read seamlessly at 1x). Same filter as
+    /// <see cref="ScratchDataProvider"/>.</summary>
+    private void WriteBoxFilteredFrame(Span<float> outBuf, int frameIndex, double centre, float step,
+        int maxSrcFrame, float[] s0, float[] s1, float[] s2, float[] s3,
+        float g0, float g1, float g2, float g3)
+    {
+        float width = Math.Abs(step);
+        int taps = width > 1f ? (int)Math.Ceiling(width) : 1;
+        float left = 0f, right = 0f;
+        for (int k = 0; k < taps; k++)
+        {
+            double pos = taps == 1 ? centre : centre + width * ((k + 0.5) / taps - 0.5);
+            pos = Math.Clamp(pos, 0.0, maxSrcFrame);
+            int iFrame = (int)pos;
+            float frac = (float)(pos - iFrame);
+            int idx = iFrame * 2;
+            left  += Lerp(s0, idx, frac) * g0 + Lerp(s1, idx, frac) * g1
+                   + Lerp(s2, idx, frac) * g2 + Lerp(s3, idx, frac) * g3;
+            right += Lerp(s0, idx + 1, frac) * g0 + Lerp(s1, idx + 1, frac) * g1
+                   + Lerp(s2, idx + 1, frac) * g2 + Lerp(s3, idx + 1, frac) * g3;
+        }
+        float scale = 1f / taps;
+        int o = frameIndex * 2;
+        outBuf[o]     = left * scale;
+        outBuf[o + 1] = right * scale;
+    }
+
+    /// <summary>One channel of one stem, linearly interpolated between the sample at
+    /// <paramref name="idx"/> and the same channel one frame on.</summary>
+    private float Lerp(float[] stem, int idx, float frac) => stem[idx] + frac * (stem[idx + 2] - stem[idx]);
 
     /// <summary>Linear-interpolate one output frame (both channels, all 4
     /// stems summed) from source frame <paramref name="iFrame"/> /
