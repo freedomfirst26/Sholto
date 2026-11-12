@@ -1,0 +1,43 @@
+name: Pages
+
+# Publish the static site in site/ to GitHub Pages. Runs only when a full
+# (non-prerelease) GitHub Release is published, or when started by hand from
+# the Actions tab. Never on push or pull request: the site follows releases.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write           # deploy to GitHub Pages
+  id-token: write        # OIDC token that deploy-pages uses to prove the run
+
+jobs:
+  deploy:
+    # Release events for prereleases are skipped; manual runs always deploy.
+    if: github.event_name != 'release' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    # One deployment at a time; a newer run waits rather than cancelling a
+    # deployment already in progress.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
