@@ -181,6 +181,7 @@ ul.ticks li::before{content:"";flex:none;width:8px;height:8px;margin-top:6px;tra
 /* install */
 .install{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:28px;align-items:start}
 @media (max-width:900px){.install{grid-template-columns:1fr}}
+.terms{display:grid;gap:22px;min-width:0}
 .term{background:var(--bgdeep)}
 .term .head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);font:600 13px var(--body);color:var(--muted)}
 .cmd{display:flex;gap:12px;align-items:center;padding:18px 14px}
@@ -198,6 +199,7 @@ details.alt summary{cursor:pointer;padding:12px 14px;font:600 14px var(--body);c
 details.alt summary::-webkit-details-marker{display:none}
 details.alt summary::before{content:"›";color:var(--mint);font-weight:700;transition:transform .2s}
 details.alt[open] summary::before{transform:rotate(90deg)}
+details.alt p{margin:0 14px 10px;font-size:14px;color:var(--muted)}
 details.alt pre{margin:0 14px 14px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow-x:auto;font:500 13px/1.6 var(--mono)}
 .req{padding:18px}
 .req h3{font-size:20px}

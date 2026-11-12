@@ -13,7 +13,7 @@
     ['Beats that snap together','#snap','sync bpm'],
     ['Your controller, drawn on screen','#controller','FLX4'],
     ['Make it yours','#themes','themes'],
-    ['One command','#install','install'],
+    ['One command','#install','install linux windows'],
     ['Before you install','#faq','faq']
   ];
   var input = document.getElementById('jump'), hits = document.getElementById('hits'), sel = 0, shown = [];
@@ -66,14 +66,17 @@
     });
   });
 
-  // Copy the install command.
-  var btn = document.getElementById('copybtn'), pre = document.getElementById('cmd');
-  var text = 'curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash';
-  function selectIt(){ var r=document.createRange(); r.selectNodeContents(pre); var s=getSelection(); s.removeAllRanges(); s.addRange(r); }
-  btn.addEventListener('click', function(){
-    function ok(){ btn.classList.add('done'); btn.firstChild.textContent='Copied'; setTimeout(function(){ btn.classList.remove('done'); btn.firstChild.textContent='Copy'; },1800); }
-    try { navigator.clipboard.writeText(text).then(ok, function(){ selectIt(); btn.firstChild.textContent='Selected'; }); }
-    catch(_) { selectIt(); btn.firstChild.textContent='Selected'; }
+  // Copy an install command: each button copies its <pre>'s text, minus the prompt.
+  document.querySelectorAll('.copybtn[data-copy]').forEach(function(btn){
+    var pre = document.getElementById(btn.dataset.copy);
+    var text = Array.prototype.filter.call(pre.childNodes, function(n){ return !(n.classList && n.classList.contains('p')); })
+      .map(function(n){ return n.textContent; }).join('').trim();
+    function selectIt(){ var r=document.createRange(); r.selectNodeContents(pre); var s=getSelection(); s.removeAllRanges(); s.addRange(r); }
+    btn.addEventListener('click', function(){
+      function ok(){ btn.classList.add('done'); btn.firstChild.textContent='Copied'; setTimeout(function(){ btn.classList.remove('done'); btn.firstChild.textContent='Copy'; },1800); }
+      try { navigator.clipboard.writeText(text).then(ok, function(){ selectIt(); btn.firstChild.textContent='Selected'; }); }
+      catch(_) { selectIt(); btn.firstChild.textContent='Selected'; }
+    });
   });
 
   // Latest release tag: plain text stays if the request fails.

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sholto: DJ software for Linux</title>
-<meta name="description" content="Sholto: DJ software for mixing your own music on Linux and the Pioneer DDJ-FLX4. Free for everyone, including paid gigs. Source-available.">
+<title>Sholto: DJ software for Linux and Windows</title>
+<meta name="description" content="Sholto: DJ software for mixing your own music on Linux and Windows, with the Pioneer DDJ-FLX4. Free for everyone, including paid gigs. Source-available.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@800&family=JetBrains+Mono:wght@500;700&family=Saira+Semi+Condensed:wght@600;700;800&display=swap">
@@ -38,13 +38,13 @@
       <div>
         <span class="s big" aria-hidden="true"><i>S</i><i>S</i><i>S</i></span>
         <h1>Mix your own music.</h1>
-        <p class="lede">DJ software for Linux and the Pioneer DDJ-FLX4. A free alternative to Rekordbox and Serato, <em>free for everyone, paid gigs included.</em></p>
+        <p class="lede">DJ software for Linux and Windows, made for the Pioneer DDJ-FLX4. A free alternative to Rekordbox and Serato, <em>free for everyone, paid gigs included.</em></p>
         <div class="ctas">
           <a class="lk" href="#install"><span>⤓ Install</span><span class="kc">⏎</span></a>
           <a class="lk ghost" href="https://github.com/freedomfirst26/Sholto"><span>Source on GitHub</span></a>
         </div>
         <div class="facts" aria-label="At a glance">
-          <span class="kc" data-version>Latest release</span><span class="kc">64-bit Linux</span><span class="kc">DDJ-FLX4 optional</span><span class="kc">no .NET needed</span>
+          <span class="kc" data-version>Latest release</span><span class="kc">64-bit Linux</span><span class="kc">Windows 10/11</span><span class="kc">DDJ-FLX4 optional</span><span class="kc">no .NET needed</span>
         </div>
       </div>
 
@@ -228,23 +228,25 @@
     <div class="wrap">
       <div class="eyebrow"><span class="kc">⏎</span> Install</div>
       <h2 class="split">One command</h2>
-      <p>It downloads the latest release into <code>~/sholto</code>, installs the tools it needs (it asks for your password once) and starts Sholto. Run it again to update.</p>
+      <p>Paste one line. It downloads the latest release, installs the tools it needs and starts Sholto. Run it again to update.</p>
       <div class="install" style="margin-top:22px">
+        <div class="terms">
         <div class="panel term">
-          <div class="head"><span class="dot" style="background:var(--ok)"></span>Terminal · Ubuntu, Mint, Pop!_OS or Debian</div>
+          <div class="head"><span class="dot" style="background:var(--ok)"></span>Linux · Terminal · Ubuntu, Mint, Pop!_OS or Debian</div>
           <div class="cmd">
             <pre id="cmd"><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.sh | bash</pre>
-            <button class="copybtn" id="copybtn" type="button"><span>Copy</span></button>
+            <button class="copybtn" type="button" data-copy="cmd"><span>Copy</span></button>
           </div>
           <ol class="steps">
-            <li><span class="n">1</span>Finds the newest release on GitHub and downloads it, about 43&nbsp;MB.</li>
-            <li><span class="n">2</span>Installs ffmpeg, the beat detector (madmom) and stem separation (demucs).</li>
+            <li><span class="n">1</span>Finds the newest release on GitHub and downloads it into <code>~/sholto</code>, about 43&nbsp;MB.</li>
+            <li><span class="n">2</span>Installs ffmpeg, the beat detector Beat This! (required) and stem separation (demucs). It asks for your password once. madmom, an older beat detector, is optional and not installed.</li>
             <li><span class="n">3</span>Starts Sholto. It scans your Music folder; press 1 or 2 to load a track.</li>
           </ol>
           <details class="alt">
             <summary>Download it by hand</summary>
+            <p>Get <a href="https://github.com/freedomfirst26/Sholto/releases/latest/download/sholto-linux-x64.tar.gz">sholto-linux-x64.tar.gz</a>, then:</p>
             <pre>mkdir -p ~/sholto
-tar -xzf ~/Downloads/sholto-*-linux-x64.tar.gz -C ~/sholto
+tar -xzf ~/Downloads/sholto-linux-x64.tar.gz -C ~/sholto
 cd ~/sholto
 bash install-deps.sh
 ./Sholto</pre>
@@ -254,21 +256,43 @@ bash install-deps.sh
             <pre>git clone https://github.com/freedomfirst26/Sholto.git
 cd Sholto
 bash install.sh
-dotnet run -c Release --project src/Sholto.Interface.MainUI</pre>
+dotnet run -c Release --project src/Sholto.Host</pre>
           </details>
+        </div>
+        <div class="panel term" id="windows">
+          <div class="head"><span class="dot" style="background:var(--ok)"></span>Windows · PowerShell · Windows 10 or 11</div>
+          <div class="cmd">
+            <pre id="cmd-win"><span class="p">PS&gt; </span>irm https://raw.githubusercontent.com/freedomfirst26/Sholto/main/get-sholto.ps1 | iex</pre>
+            <button class="copybtn" type="button" data-copy="cmd-win"><span>Copy</span></button>
+          </div>
+          <ol class="steps">
+            <li><span class="n">1</span>Downloads the newest release into <code>%LOCALAPPDATA%\Sholto</code>. No admin rights needed.</li>
+            <li><span class="n">2</span>Installs ffmpeg, the beat detector Beat This! (required) and stem separation (demucs). madmom is optional and not installed.</li>
+            <li><span class="n">3</span>Adds Sholto to the Start menu and starts it.</li>
+          </ol>
+          <details class="alt">
+            <summary>Download it by hand</summary>
+            <p>Get <a href="https://github.com/freedomfirst26/Sholto/releases/latest/download/sholto-windows-x64.zip">sholto-windows-x64.zip</a>, unzip it into a folder of its own, then in PowerShell in that folder:</p>
+            <pre>powershell -NoProfile -ExecutionPolicy Bypass -File install-deps.ps1
+.\Sholto.exe</pre>
+          </details>
+        </div>
         </div>
         <div class="panel req">
           <h3>What you need</h3>
           <dl>
-            <div><dt>Computer</dt><dd>64-bit Linux with a desktop and sound. Ubuntu, Mint, Pop!_OS or Debian for the installer.</dd></div>
+            <div><dt>Computer</dt><dd>64-bit Linux with a desktop and sound (Ubuntu, Mint, Pop!_OS or Debian for the installer), or Windows 10/11 64-bit.</dd></div>
             <div><dt>Controller</dt><dd><span class="dot" style="background:var(--ok)"></span>Pioneer DDJ-FLX4, optional. Mouse and keyboard work.</dd></div>
             <div><dt>Graphics card</dt><dd>Optional. An NVIDIA card makes stem separation faster.</dd></div>
             <div><dt>Disk</dt><dd>About 250&nbsp;MB per track for stems, kept so they load instantly next time.</dd></div>
           </dl>
           <div class="trust">
             <a class="chip" data-version-link href="https://github.com/freedomfirst26/Sholto/releases/latest">Latest release</a>
+            <a class="chip" href="https://github.com/freedomfirst26/Sholto/releases/latest/download/sholto-linux-x64.tar.gz">⤓ Linux .tar.gz</a>
+            <a class="chip" href="https://github.com/freedomfirst26/Sholto/releases/latest/download/sholto-windows-x64.zip">⤓ Windows .zip</a>
             <a class="chip" href="https://github.com/freedomfirst26/Sholto/blob/main/CHANGELOG.md">What’s new</a>
-            <a class="chip" href="https://github.com/freedomfirst26/Sholto/blob/main/get-sholto.sh">Read the script</a>
+            <a class="chip" href="https://github.com/freedomfirst26/Sholto/blob/main/get-sholto.sh">Read the Linux script</a>
+            <a class="chip" href="https://github.com/freedomfirst26/Sholto/blob/main/get-sholto.ps1">Read the Windows script</a>
           </div>
         </div>
       </div>
@@ -281,11 +305,11 @@ dotnet run -c Release --project src/Sholto.Interface.MainUI</pre>
       <div class="eyebrow"><span class="kc">?</span> Questions</div>
       <h2 class="split">Before you install</h2>
       <div class="faq">
-        <details><summary>Is it really free?</summary><div><p>Yes, for everyone: paid gigs, streaming, teaching, and clubs or bars running it for their DJs. Sholto is source-available. Anything that competes with it (selling copies, rebranding, hosting it, or bundling it with hardware or another product) needs a commercial licence: freedomfirst26@proton.me. The beat detector (madmom) has non-commercial models under their own licence, which Sholto&rsquo;s licence does not cover.</p></div></details>
+        <details><summary>Is it really free?</summary><div><p>Yes, for everyone: paid gigs, streaming, teaching, and clubs or bars running it for their DJs. Sholto is source-available. Anything that competes with it (selling copies, rebranding, hosting it, or bundling it with hardware or another product) needs a commercial licence: freedomfirst26@proton.me. The beat detector Sholto needs, Beat This!, is MIT-licensed, code and trained model both. madmom, an older beat detector, is optional and not installed: its trained models are non-commercial under their own licence, which Sholto&rsquo;s licence does not cover.</p></div></details>
         <details><summary>Do I need a DDJ-FLX4?</summary><div><p>No. Everything works from the mouse and keyboard. Plug the FLX4 in at any time and a green dot in the top bar shows it is connected.</p></div></details>
-        <details><summary>Windows or macOS?</summary><div><p>Not yet. Sholto runs on 64-bit Linux today. Windows, macOS and more controllers are on the way.</p></div></details>
+        <details><summary>Windows or macOS?</summary><div><p>Windows, yes: Windows 10 or 11, 64-bit. Use the <a href="#windows">PowerShell line</a> or the zip. macOS, not yet; it is on the way, along with more controllers.</p></div></details>
         <details><summary>What music does it play?</summary><div><p>mp3, FLAC, WAV, AIFF and M4A/AAC from your own music folder. It analyses each track once for beats, tempo and key, then remembers.</p></div></details>
-        <details><summary>Something did not install. How do I check?</summary><div><p>Run <code>bash install-deps.sh --verify</code> in <code>~/sholto</code>. It runs each tool for real and tells you which one is broken and what you lose without it. In the app, the status dot turns amber and lists the same.</p></div></details>
+        <details><summary>Something did not install. How do I check?</summary><div><p>On Linux, run <code>bash install-deps.sh --verify</code> in <code>~/sholto</code>. On Windows, run <code>powershell -ExecutionPolicy Bypass -File install-deps.ps1 -Verify</code> in <code>%LOCALAPPDATA%\Sholto\app</code>. It runs each tool for real and tells you which one is broken and what you lose without it. In the app, the status dot turns amber and lists the same.</p></div></details>
         <details><summary>How do I update?</summary><div><p>Run the same install command again. It skips the download if you already have the newest release.</p></div></details>
       </div>
     </div>
