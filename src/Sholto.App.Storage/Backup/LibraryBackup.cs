@@ -15,6 +15,8 @@ public sealed class LibraryBackup : ILibraryBackup
     private const string BackupInfix = ".bak-";
     private const string TemporaryInfix = ".tmp-bak-";
     private const string BackupSearchSuffix = "*";
+    /// <summary>How long each backup connection waits on a locked database before giving up.</summary>
+    private const int LockTimeoutSeconds = 30;
 
     public void BackUp(string databasePath, string lastAppliedMigrationId)
     {
@@ -43,7 +45,10 @@ public sealed class LibraryBackup : ILibraryBackup
     }
 
     private string ConnectionString(string path, SqliteOpenMode mode) =>
-        new SqliteConnectionStringBuilder { DataSource = path, Mode = mode, Pooling = false }.ToString();
+        new SqliteConnectionStringBuilder
+        {
+            DataSource = path, Mode = mode, Pooling = false, DefaultTimeout = LockTimeoutSeconds,
+        }.ToString();
 
     private void DeleteOldBackups(string databasePath)
     {
