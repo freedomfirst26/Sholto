@@ -1,7 +1,7 @@
-# Job c138-controller-load-with-search: what was asked
+# Job c234-windows-installer-install-deps-ps1: what was asked
 
-**Accept (the spec):** A LOAD command from the controller loads the highlighted library track into the deck even while search is open, while keyboard and on-screen LOADs still load the search pick.
+**Accept (the spec):** A Windows user can run one PowerShell line that installs the latest Sholto Windows release under %LOCALAPPDATA%\Sholto with a Start-menu shortcut and runs install-deps.ps1, which installs ffmpeg, uv, the pinned CPU Beat This! (required, install fails without it) and demucs (optional, a failure only warns), and whose -Verify switch runs the same functional checks and exit codes as install-deps.sh --verify, with the Windows pins held equal to sholto-deps.sh by a test.
 
 The todo, verbatim:
 
-C138 — Controller LOAD with search open loads the main-list highlight Accept: A LOAD command from the controller loads the highlighted library track into the deck even while search is open, while keyboard and on-screen LOADs still load the search pick.
+C234 — Windows installer: `install-deps.ps1` + `sholto-deps.ps1` (winget ffmpeg; uv via astral `install.ps1`; pinned Beat This! CPU build required; demucs optional; `-Verify` mirrors `sholto-deps.sh`) and a `get-sholto.ps1` one-liner that downloads the latest Windows zip to `%LOCALAPPDATA%\Sholto`, runs the deps installer and adds a Start-menu shortcut. Owns those new files. **Size L.** Runs after: C160. Plan: ~/.claude/plans/sholto-launch-plan.md. Accept: A Windows user can run one PowerShell line that installs the latest Sholto Windows release under %LOCALAPPDATA%\Sholto with a Start-menu shortcut and runs install-deps.ps1, which installs ffmpeg, uv, the pinned CPU Beat This! (required, install fails without it) and demucs (optional, a failure only warns), and whose -Verify switch runs the same functional checks and exit codes as install-deps.sh --verify, with the Windows pins held equal to sholto-deps.sh by a test.
