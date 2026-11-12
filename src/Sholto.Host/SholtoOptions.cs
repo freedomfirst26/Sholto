@@ -4,6 +4,7 @@ using Sholto.App.Decks;
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers.Waveform;
 using Sholto.Interface.Controller.Mappings;
+using Sholto.Interface.Controller.WinMm;
 using Sholto.Interface.MainUI.Controls.WaveformStyles;
 
 using Sholto.Interface.MainUI;
@@ -41,6 +42,7 @@ public sealed class SholtoOptions
     public IOptions<AudioTimingOptions> AudioTiming { get; }
     public IOptions<AnalysisFolderOptions> AnalysisFolder { get; }
     public IOptions<FoldersPanelOptions> FoldersPanel { get; }
+    public IOptions<WinMmMidiOptions> WinMmMidi { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down. An
@@ -67,5 +69,6 @@ public sealed class SholtoOptions
         AudioTiming = Options.Create(new AudioTimingOptionsFactory(Environment.GetEnvironmentVariable).Create());
         AnalysisFolder = Options.Create(new AnalysisFolderOptions());
         FoldersPanel = Options.Create(new FoldersPanelOptions());
+        WinMmMidi = Options.Create(new WinMmMidiOptions());
     }
 }
