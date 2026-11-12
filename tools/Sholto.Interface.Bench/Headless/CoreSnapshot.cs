@@ -1,38 +1,49 @@
 using Sholto.App;
 using Sholto.App.Audio;
+using Sholto.App.Decks;
 
 namespace Sholto.Interface.Bench.Headless;
 
 /// <summary>Reads the core's ports and the concrete decks (for the internal members the ports do not
-/// expose: the loaded file path). Index 0 and 1 of <c>decks</c> are Deck1 and Deck2.</summary>
+/// expose: the loaded file path). Index 0 and 1 of <c>decks</c> are Deck1 and Deck2. Every per-deck key
+/// is reported for both decks as <c>Deck1.*</c> and <c>Deck2.*</c>.</summary>
 public sealed class CoreSnapshot : ICoreSnapshot
 {
-    public Dictionary<string, object?> Take(CoreStack core, IReadOnlyList<Deck> decks) => new()
+    public Dictionary<string, object?> Take(CoreStack core, IReadOnlyList<Deck> decks)
     {
-        ["Crossfader"] = core.Mixer.Crossfader,
-        ["Deck1.IsLoaded"] = core.Decks.Deck1.Loading.IsLoaded,
-        ["Deck1.IsPlaying"] = core.Decks.Deck1.Loading.IsPlaying,
-        ["Deck1.FilePath"] = decks[0].CurrentFilePath,
-        ["Deck1.PositionFrames"] = core.Decks.Deck1.Playhead.PositionFrames,
-        ["Deck1.PlayPosition"] = core.Decks.Deck1.Playhead.PlayPosition,
-        ["Deck1.Volume"] = core.Decks.Deck1.Mixer.Volume,
-        ["Deck1.TempoPosition"] = core.Decks.Deck1.Tempo.TempoPosition,
-        ["Deck1.CueActive"] = core.Decks.Deck1.Mixer.CueActive,
-        ["Deck1.EchoActive"] = core.Decks.Deck1.EchoActive,
-        ["Deck1.Loop"] = core.Decks.Deck1.Looping.ActiveLoop,
-        ["Deck1.TempoRange"] = core.Decks.Deck1.Tempo.TempoRange,
-        ["Deck2.IsLoaded"] = core.Decks.Deck2.Loading.IsLoaded,
-        ["Deck2.IsPlaying"] = core.Decks.Deck2.Loading.IsPlaying,
-        ["Deck2.FilePath"] = decks[1].CurrentFilePath,
-        ["Deck2.PositionFrames"] = core.Decks.Deck2.Playhead.PositionFrames,
-        ["Deck2.PlayPosition"] = core.Decks.Deck2.Playhead.PlayPosition,
-        ["Deck2.Volume"] = core.Decks.Deck2.Mixer.Volume,
-        ["Deck2.TempoPosition"] = core.Decks.Deck2.Tempo.TempoPosition,
-        ["Deck2.CueActive"] = core.Decks.Deck2.Mixer.CueActive,
-        ["Deck2.EchoActive"] = core.Decks.Deck2.EchoActive,
-        ["Deck2.Loop"] = core.Decks.Deck2.Looping.ActiveLoop,
-        ["Deck2.TempoRange"] = core.Decks.Deck2.Tempo.TempoRange,
-        ["Library.SelectedIndex"] = core.Library.SelectedIndex,
-        ["Library.Rows"] = core.Library.Rows.Count,
-    };
+        var snap = new Dictionary<string, object?> { ["Crossfader"] = core.Mixer.Crossfader };
+        AddDeck(snap, "Deck1", core.Decks.Deck1, decks[0]);
+        AddDeck(snap, "Deck2", core.Decks.Deck2, decks[1]);
+        snap["Library.SelectedIndex"] = core.Library.SelectedIndex;
+        snap["Library.Rows"] = core.Library.Rows.Count;
+        return snap;
+    }
+
+    private void AddDeck(Dictionary<string, object?> snap, string prefix, IDeckSession session, Deck deck)
+    {
+        snap[$"{prefix}.IsLoaded"] = session.Loading.IsLoaded;
+        snap[$"{prefix}.IsPlaying"] = session.Loading.IsPlaying;
+        snap[$"{prefix}.FilePath"] = deck.CurrentFilePath;
+        snap[$"{prefix}.PositionFrames"] = session.Playhead.PositionFrames;
+        snap[$"{prefix}.PlayPosition"] = session.Playhead.PlayPosition;
+        snap[$"{prefix}.Volume"] = session.Mixer.Volume;
+        snap[$"{prefix}.TempoPosition"] = session.Tempo.TempoPosition;
+        snap[$"{prefix}.CueActive"] = session.Mixer.CueActive;
+        snap[$"{prefix}.EchoActive"] = session.EchoActive;
+        snap[$"{prefix}.Loop"] = session.Looping.ActiveLoop;
+        snap[$"{prefix}.TempoRange"] = session.Tempo.TempoRange;
+        snap[$"{prefix}.PlayState"] = session.PlayState;
+        snap[$"{prefix}.EffectiveBpm"] = session.EffectiveBpm;
+        snap[$"{prefix}.BpmMultiplier"] = session.BpmMultiplier;
+        snap[$"{prefix}.MarkerSecsCount"] = session.MarkerSecs.Length;
+        snap[$"{prefix}.SectionsCount"] = session.Sections.Count;
+        snap[$"{prefix}.DrumsActive"] = session.DrumsActive;
+        snap[$"{prefix}.VocalsActive"] = session.VocalsActive;
+        snap[$"{prefix}.InstrumentalActive"] = session.InstrumentalActive;
+        snap[$"{prefix}.DrumsLevel"] = session.DrumsLevel;
+        snap[$"{prefix}.VocalsLevel"] = session.VocalsLevel;
+        snap[$"{prefix}.InstrumentalLevel"] = session.InstrumentalLevel;
+        snap[$"{prefix}.EditOpen"] = session.EditOpen;
+        snap[$"{prefix}.IsScratching"] = session.IsScratching;
+    }
 }

@@ -71,4 +71,64 @@ public sealed class HeadlessObservationTests : IDisposable
         Assert.Contains("Deck2.Loop", snap.Keys);
         Assert.Null(snap["Deck1.Loop"]);
     }
+
+    public static TheoryData<string> DeckFieldKeys() =>
+    [
+        "PlayState", "EffectiveBpm", "BpmMultiplier", "MarkerSecsCount", "SectionsCount",
+        "DrumsActive", "VocalsActive", "InstrumentalActive", "DrumsLevel", "VocalsLevel", "InstrumentalLevel",
+        "EditOpen", "IsScratching",
+    ];
+
+    [Theory]
+    [MemberData(nameof(DeckFieldKeys))]
+    public void Snapshot_ObservesDeckFieldOnBothDecks(string field)
+    {
+        var session = NewFactory().Create().Open();
+        var snap = new CoreSnapshot().Take(session.Core, session.Driver.Decks);
+        Assert.Contains($"Deck1.{field}", snap.Keys);
+        Assert.Contains($"Deck2.{field}", snap.Keys);
+    }
+
+    [Fact]
+    public void Snapshot_FreshDecks_ReportStoppedUnityAndAllStemsOn()
+    {
+        var session = NewFactory().Create().Open();
+        var snap = new CoreSnapshot().Take(session.Core, session.Driver.Decks);
+        Assert.Equal(PlayPhase.Stopped, snap["Deck2.PlayState"]);
+        Assert.Equal(1.0, snap["Deck2.BpmMultiplier"]);
+        Assert.Equal(0, snap["Deck2.MarkerSecsCount"]);
+        Assert.Equal(0, snap["Deck2.SectionsCount"]);
+        Assert.Equal(true, snap["Deck2.DrumsActive"]);
+        Assert.Equal(true, snap["Deck2.VocalsActive"]);
+        Assert.Equal(true, snap["Deck2.InstrumentalActive"]);
+        Assert.Equal(false, snap["Deck2.EditOpen"]);
+        Assert.Equal(false, snap["Deck2.IsScratching"]);
+    }
+
+    [Fact]
+    public void RunScenario_StemTogglesAndPause_ReportStemAndPlayStateBeforeAndAfter()
+    {
+        var scenario = new ScenarioFactory().Create(
+            "{ \"actions\": [ { \"action\": \"load\", \"deck\": 1, \"track\": " + JsonSerializer.Serialize(Path.Combine(_dir, "a.wav")) + ", \"value\": 1.0 }, " +
+            "{ \"action\": \"wait\", \"seconds\": 0.2 }, " +
+            "{ \"action\": \"gesture\", \"event\": \"StemToggle\", \"deck\": 1, \"group\": 0 }, " +
+            "{ \"action\": \"gesture\", \"event\": \"StemToggle\", \"deck\": 1, \"group\": 1 }, " +
+            "{ \"action\": \"gesture\", \"event\": \"StemToggle\", \"deck\": 1, \"group\": 0 }, " +
+            "{ \"action\": \"gesture\", \"event\": \"PlayPressed\", \"deck\": 1 } ] }");
+
+        var session = NewFactory().Create().RunScenario(scenario);
+
+        var g = session.Driver.GestureOutcomes;
+        Assert.Equal(4, g.Count);
+        Assert.Equal(true, g[0].Changed["Deck1.DrumsActive"].Before);
+        Assert.Equal(false, g[0].Changed["Deck1.DrumsActive"].After);
+        Assert.DoesNotContain("Deck1.VocalsActive", g[0].Changed.Keys);
+        Assert.Equal(true, g[1].Changed["Deck1.VocalsActive"].Before);
+        Assert.Equal(false, g[1].Changed["Deck1.VocalsActive"].After);
+        Assert.Equal(false, g[2].Changed["Deck1.DrumsActive"].Before);
+        Assert.Equal(true, g[2].Changed["Deck1.DrumsActive"].After);
+        Assert.Equal(PlayPhase.Playing, g[3].Changed["Deck1.PlayState"].Before);
+        Assert.Equal(PlayPhase.Stopped, g[3].Changed["Deck1.PlayState"].After);
+        Assert.All(g, o => Assert.DoesNotContain("Deck2.DrumsActive", o.Changed.Keys));
+    }
 }
