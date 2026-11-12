@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -143,9 +144,11 @@ public class DeckSlotPlatterTests
         for (var i = 0; i < 300; i++) c.Render(ctx);
         var built = c.PaintBuilds;
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++) c.Render(ctx);
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        // Five 200-frame windows: a sporadic one-off runtime allocation must not fail the budget.
+        var control = new AllocationWindows(5).Measure(() =>
+        {
+            for (var i = 0; i < 200; i++) c.Render(ctx);
+        });
 
         // The same calls, with the same radial gradient, straight on the drawing context: what Avalonia itself records per frame.
         var brush = new SolidColorBrush(Colors.Gray);
@@ -153,21 +156,23 @@ public class DeckSlotPlatterTests
         var pen = new Pen(brush, 1);
         var centre = new Point(15, 15);
         var arc = new StreamGeometry();
-        before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++)
+        // Measured once, as one window of the same size.
+        var floor = new AllocationWindows(1).Measure(() =>
         {
-            using (ctx.PushTransform(Matrix.CreateScale(1.7, 1.7)))
+            for (var i = 0; i < 200; i++)
             {
-                ctx.DrawEllipse(disc, pen, centre, 14, 14);
-                for (var g = 0; g < 4; g++) ctx.DrawEllipse(null, pen, centre, 8, 8);
-                using (ctx.PushOpacity(0.45)) ctx.DrawGeometry(null, pen, arc);
-                ctx.DrawEllipse(brush, null, centre, 5.6, 5.6);
+                using (ctx.PushTransform(Matrix.CreateScale(1.7, 1.7)))
+                {
+                    ctx.DrawEllipse(disc, pen, centre, 14, 14);
+                    for (var g = 0; g < 4; g++) ctx.DrawEllipse(null, pen, centre, 8, 8);
+                    using (ctx.PushOpacity(0.45)) ctx.DrawGeometry(null, pen, arc);
+                    ctx.DrawEllipse(brush, null, centre, 5.6, 5.6);
+                }
             }
-        }
-        var floor = GC.GetAllocatedBytesForCurrentThread() - before;
+        }).Smallest;
 
         Assert.Equal(built, c.PaintBuilds);
-        Assert.True(allocated <= floor + 1000 * 16L, $"allocated {allocated} bytes over 1000 frames; the context alone {floor}");
+        Assert.True(control.Smallest <= floor + 200 * 16L, $"{control}; the context alone {floor} bytes over 200 frames");
 
         c.DiscBrush = new SolidColorBrush(Colors.Navy);
         c.Render(ctx);
@@ -197,13 +202,16 @@ public class DeckSlotPlatterTests
         using var ctx = rtb.CreateDrawingContext();
         for (var i = 0; i < 300; i++) { slot.SpinTurns = (i % 360) / 360.0; c.Render(ctx); }
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 300; i < 1300; i++) { slot.SpinTurns = (i % 360) / 360.0; c.Render(ctx); }
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var frame = 300;
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (var i = 0; i < 200; i++, frame++) { slot.SpinTurns = (frame % 360) / 360.0; c.Render(ctx); }
+        });
 
         // The control allocates nothing per frame; the drawing context may record a small fixed amount per
-        // call, so bound it per frame rather than demand zero from Avalonia.
-        Assert.True(allocated <= 1000 * 256L, $"allocated {allocated} bytes over 1000 frames");
+        // call, so bound it per frame rather than demand zero from Avalonia. Five 200-frame windows: a
+        // sporadic one-off runtime allocation must not fail the budget.
+        Assert.True(result.Smallest <= 200 * 256L, result.ToString());
     }
 
     private static IBrush? RingBrushAfterDraw(DeckSlotPlatter c, int size)

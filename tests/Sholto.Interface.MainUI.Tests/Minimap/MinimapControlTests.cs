@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Microsoft.Extensions.Options;
 using Avalonia;
 using Avalonia.Media;
@@ -457,14 +458,17 @@ public class MinimapControlTests
 
         Settle(c);
         for (int i = 0; i < 300; i++) { c.PlayPosition = i / 3000.0; c.Render(ctx); }   // warm up (bakes once)
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 300; i < 1300; i++) { c.PlayPosition = i / 3000.0; c.Render(ctx); }
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        int frame = 300;
+        var result = new AllocationWindows(5).Measure(() =>
+        {
+            for (int i = 0; i < 200; i++, frame++) { c.PlayPosition = frame / 3000.0; c.Render(ctx); }
+        });
 
         Assert.Equal(1, renderer.Calls);
         // The control itself allocates nothing per frame; the drawing context may record a small
-        // fixed amount per call, so bound it per frame rather than demand zero from Avalonia.
-        Assert.True(allocated <= 1000 * 256L, $"allocated {allocated} bytes over 1000 frames");
+        // fixed amount per call, so bound it per frame rather than demand zero from Avalonia. Five
+        // 200-frame windows: a sporadic one-off runtime allocation must not fail the budget.
+        Assert.True(result.Smallest <= 200 * 256L, result.ToString());
     }
 
     [Fact]

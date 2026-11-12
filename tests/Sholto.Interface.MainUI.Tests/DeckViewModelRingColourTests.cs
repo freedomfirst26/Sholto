@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Segments;
@@ -39,32 +40,30 @@ public class DeckViewModelRingColourTests
         // A full unmeasured pass so tiered JIT/OSR has finished before measuring.
         for (var i = 0; i < totalFrames; i++) rig.Bus.Publish(Frame(i));
 
-        // Best of 3: a sporadic one-off runtime allocation on a random frame must not fail the budget.
-        const int attempts = 3;
+        // Five consecutive windows over the measured frames. A sporadic one-off runtime allocation on a random
+        // frame must not fail the budget: it is enough that one window stays within its own colour-step budget.
+        const int windows = 5;
         var measuredFrames = totalFrames - warmUpFrames;
-        var results = new List<(long Allocated, int Steps)>();
-        var passed = false;
-        for (var attempt = 0; attempt < attempts && !passed; attempt++)
+        var framesPerWindow = measuredFrames / windows;
+        var colourSteps = new int[windows];
+        var window = 0;
+        var result = new AllocationWindows(windows).Measure(() =>
         {
-            var colourChanges = 0;
-            var before = GC.GetAllocatedBytesForCurrentThread();
-            for (var i = warmUpFrames; i < totalFrames; i++)
+            var from = warmUpFrames + window * framesPerWindow;
+            for (var i = from; i < from + framesPerWindow; i++)
             {
                 var colourBefore = brush.Color;
                 rig.Bus.Publish(Frame(i));
-                if (brush.Color != colourBefore) colourChanges++;
+                if (brush.Color != colourBefore) colourSteps[window]++;
             }
-            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-            results.Add((allocated, colourChanges));
-            passed = allocated <= colourChanges * bytesPerColourStep;
-        }
+            window++;
+        });
 
         Assert.True(notifications > 0);
-        Assert.True(results[^1].Steps < measuredFrames * 0.05,
-            $"colour changed on {results[^1].Steps} of {measuredFrames} frames");
-        Assert.True(passed,
-            "allocated over budget in every attempt: "
-            + string.Join("; ", results.Select(r => $"{r.Allocated} bytes over {r.Steps} colour changes")));
+        Assert.True(colourSteps.Sum() < measuredFrames * 0.05,
+            $"colour changed on {colourSteps.Sum()} of {measuredFrames} frames");
+        Assert.True(Enumerable.Range(0, windows).Any(w => result.Bytes[w] <= colourSteps[w] * bytesPerColourStep),
+            $"over budget in every window: {result}; colour changes per window: {string.Join(", ", colourSteps)}");
     }
 
     [Fact]

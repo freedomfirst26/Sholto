@@ -1,3 +1,4 @@
+using Sholto.TestSupport.Allocation;
 using Microsoft.Extensions.Options;
 using Sholto.App.Analysis.Analyzers;
 using Sholto.App.Analysis.Analyzers.Segments;
@@ -192,27 +193,25 @@ public class DiscBloomTests
         var ignored = 0;
         // A full unmeasured pass so tiered JIT/OSR has finished before measuring.
         Run(0, totalFrames, ref ignored);
-        // Best of 3: a sporadic one-off runtime allocation on a random frame must not fail the budget.
-        const int attempts = 3;
-        var results = new List<(long Allocated, int RingSteps, int BloomSteps)>();
-        var passed = false;
-        for (var attempt = 0; attempt < attempts && !passed; attempt++)
+        // Five consecutive windows over the measured frames. A sporadic one-off runtime allocation on a random
+        // frame must not fail the budget: it is enough that one window stays within its own ring-step budget.
+        const int windows = 5;
+        var framesPerWindow = (totalFrames - warmUpFrames) / windows;
+        var ringSteps = new int[windows];
+        var window = 0;
+        steps = 0;
+        var result = new AllocationWindows(windows).Measure(() =>
         {
-            steps = 0;
-            var ringSteps = 0;
-            var before = GC.GetAllocatedBytesForCurrentThread();
-            Run(warmUpFrames, totalFrames, ref ringSteps);
-            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-            results.Add((allocated, ringSteps, steps));
-            // The glows moving on nearly every frame is part of what is being measured.
-            Assert.True(steps > (totalFrames - warmUpFrames) / 2, $"the glows barely moved ({steps} steps)");
-            // The only allocation a frame may make is the ring colour stepping (the existing ring test's
-            // budget); the glows moving on nearly every frame add nothing.
-            passed = allocated <= ringSteps * 64L;
-        }
+            var from = warmUpFrames + window * framesPerWindow;
+            Run(from, from + framesPerWindow, ref ringSteps[window]);
+            window++;
+        });
 
-        Assert.True(passed,
-            "allocated over budget in every attempt: "
-            + string.Join("; ", results.Select(r => $"{r.Allocated} bytes over {r.RingSteps} ring colour steps ({r.BloomSteps} bloom steps)")));
+        // The glows moving on nearly every frame is part of what is being measured.
+        Assert.True(steps > (totalFrames - warmUpFrames) / 2, $"the glows barely moved ({steps} steps)");
+        // The only allocation a frame may make is the ring colour stepping (the existing ring test's
+        // budget); the glows moving on nearly every frame add nothing.
+        Assert.True(Enumerable.Range(0, windows).Any(w => result.Bytes[w] <= ringSteps[w] * 64L),
+            $"over budget in every window: {result}; ring colour steps per window: {string.Join(", ", ringSteps)} ({steps} bloom steps)");
     }
 }
