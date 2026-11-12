@@ -24,6 +24,7 @@ public class SholtoThemeLoaderLogTests
         // The user themes folder is %APPDATA% on Windows, which the test must not write into.
         if (OperatingSystem.IsWindows()) return;
 
+        AvaloniaTestApp.EnsureStarted();
         var theme = new ThemeStackFactory(new RecordingLogFactory()).Build().Catalog.All[0];
         var config = Directory.CreateTempSubdirectory("sholto-theme-log-");
         var saved = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");

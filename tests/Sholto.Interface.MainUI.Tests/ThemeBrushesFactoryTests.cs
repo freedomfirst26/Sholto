@@ -108,6 +108,7 @@ public sealed class ThemeBrushesFactoryTests
     [Fact]
     public void Apply_ThemeWithoutLoad_PublishesDefaultLoadColours()
     {
+        AvaloniaTestApp.EnsureStarted();
         var stack = new ThemeStackFactory(new RecordingLogFactory()).Build();
         var factory = new SholtoThemeFactory(
             new WaveformPaletteFactory(new TestWaveformPresets().Create(), stack.Defaults), new MinimapPaletteFactory(),
