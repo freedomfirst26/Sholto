@@ -39,6 +39,9 @@ public interface ILibrarySession : ITrackSelection
     /// <summary>The tag service once the database is up; null before (or without one).</summary>
     ITagService? Tags { get; }
 
+    /// <summary>The basic-analysis store of the last scan made with the database; null before (or without one).</summary>
+    IBasicAnalysisStore? BasicAnalyses { get; }
+
     /// <summary>The crate service once the database is up; null before (or without one).</summary>
     ICrateService? Crates { get; }
 

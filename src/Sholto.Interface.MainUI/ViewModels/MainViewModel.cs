@@ -26,7 +26,8 @@ public sealed class MainViewModel :
     IEventHandler<MarkerAdded>,
     IEventHandler<TrackAddedToCrate>,
     IEventHandler<TrackLoadFailed>,
-    IEventHandler<SystemCheckReported>
+    IEventHandler<SystemCheckReported>,
+    IEventHandler<LibraryAnalysisProgressChanged>
 {
     private bool _isMagnetEligible;
 
@@ -143,6 +144,34 @@ public sealed class MainViewModel :
     /// <summary>A track could not be loaded: the deck stays usable; say so.</summary>
     void IEventHandler<TrackLoadFailed>.Handle(in TrackLoadFailed e) =>
         _toast.Show($"Couldn't load {e.Title} · Deck {e.Deck + 1}");
+
+    private bool _isLibraryAnalysisRunning;
+    /// <summary>A library analysis is running: the menu's cancel entry is enabled only then.</summary>
+    public bool IsLibraryAnalysisRunning
+    {
+        get => _isLibraryAnalysisRunning;
+        private set
+        {
+            if (_isLibraryAnalysisRunning == value) return;
+            _isLibraryAnalysisRunning = value;
+            Notify();
+        }
+    }
+
+    /// <summary>The library analysis moved on: its progress as a toast while it runs, a summary at the end.</summary>
+    void IEventHandler<LibraryAnalysisProgressChanged>.Handle(in LibraryAnalysisProgressChanged e)
+    {
+        IsLibraryAnalysisRunning = e.Running;
+        _toast.Show(e.Running ? $"Analysing library {e.Done} of {e.Total}" : LibraryAnalysisSummary(e));
+    }
+
+    private string LibraryAnalysisSummary(in LibraryAnalysisProgressChanged e)
+    {
+        if (e.Total == 0) return "Library analysis: nothing to analyse";
+        var failed = e.Failed > 0 ? $" · {e.Failed} failed" : "";
+        var verb = e.Done + e.Failed < e.Total ? "stopped" : "finished";
+        return $"Library analysis {verb} · {e.Done} of {e.Total} analysed{failed}";
+    }
 
     public IDeckViewModel Deck1 { get; }
     public IDeckViewModel Deck2 { get; }
@@ -346,6 +375,7 @@ public sealed class MainViewModel :
         subscriber.Subscribe<TrackAddedToCrate>(this);
         subscriber.Subscribe<TrackLoadFailed>(this);
         subscriber.Subscribe<SystemCheckReported>(this);
+        subscriber.Subscribe<LibraryAnalysisProgressChanged>(this);
     }
 
     private Origin Ui(string control, string gesture) => new(InterfaceIds.MainUI, control, gesture);
@@ -430,6 +460,14 @@ public sealed class MainViewModel :
     /// <summary>Menu: choose a different music folder. The App asks (the folder picker shows) and rescans.</summary>
     public void RequestChangeMusicFolder() =>
         _sender.Send(new ChangeMusicFolder(new Origin(InterfaceIds.MainUI, "menu", "change-music-folder")));
+
+    /// <summary>Menu: analyse every library song not analysed yet, in the background.</summary>
+    public void RequestAnalyzeLibrary() =>
+        _sender.Send(new AnalyzeLibrary(new Origin(InterfaceIds.MainUI, "menu", "analyze-library")));
+
+    /// <summary>Menu: stop the running library analysis.</summary>
+    public void RequestCancelLibraryAnalysis() =>
+        _sender.Send(new CancelLibraryAnalysis(new Origin(InterfaceIds.MainUI, "menu", "cancel-library-analysis")));
 
     /// <summary>Menu: choose a different output device. The App asks (the device picker shows) and switches.</summary>
     public void RequestChangeOutputDevice() =>

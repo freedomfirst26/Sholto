@@ -107,6 +107,9 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<SetBackspinTime>(core.BackspinFeel);
         registry.Register<SetBackspinDistance>(core.BackspinFeel);
         registry.Register<ReanalyzeSelected>(core.Loader);
+        // Settings ▸ Analyse whole library, and its cancel.
+        registry.Register<AnalyzeLibrary>(core.LibraryAnalysis);
+        registry.Register<CancelLibraryAnalysis>(core.LibraryAnalysis);
 
         // The startup questions and their answers, the menu's change requests, the saved theme and waveform style.
         registry.Register<ChooseMusicFolder>(lifecycle);

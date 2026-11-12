@@ -93,6 +93,8 @@ public sealed class LibrarySession : ILibrarySession
 
     public Key? HarmonyReferenceKey { get; private set; }
 
+    public IBasicAnalysisStore? BasicAnalyses { get; private set; }
+
     // ---- Scan ----------------------------------------------------------------------------------
 
     public async Task ScanAsync(string musicDir, LibraryStack? stores)
@@ -112,6 +114,7 @@ public sealed class LibrarySession : ILibrarySession
 
             if (stores is not null)
             {
+                BasicAnalyses = stores.BasicAnalyses;
                 var upsert = await stores.Tracks.UpsertAsync(scanned);
                 var pathToId = upsert.PathToId;
                 cachedIds = pathToId.ToDictionary(kv => kv.Key, kv => kv.Value);

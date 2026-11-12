@@ -4,6 +4,7 @@ using Sholto.App.Analysis.Reporting;
 using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.Stores;
 using Sholto.App.Audio;
+using Sholto.App.Audio.BatchAnalysis;
 using Sholto.App.Dsp;
 using Sholto.App.Glance;
 using Sholto.App.Library;
@@ -45,6 +46,8 @@ public sealed class CoreFactory(
     private readonly IStemSeparator _stemSeparator = stemSeparator;
     private readonly IOptions<LoadOptions> _loadOptions = loadOptions;
     private readonly IOptions<HotCueOptions> _hotCueOptions = hotCueOptions;
+    // Defaults for now; moves into SholtoOptions once that file is free to change.
+    private readonly IOptions<BatchAnalysisOptions> _batchOptions = Options.Create(new BatchAnalysisOptions());
 
     public CoreStack Build(IDeckSession deck1, IDeckSession deck2)
     {
@@ -59,7 +62,9 @@ public sealed class CoreFactory(
         var searchPick = new SearchPick(library);
         var loader = new TrackLoader(library, decks, _decoder, _keyStore, _keyAnalyzer, _reporter, _appThread, _publisher, searchPick,
             new LoadGuard(_frameClock, _publisher, _loadOptions), new LoadUndo(_frameClock, _publisher, _loadOptions), _stemSeparator);
+        var libraryAnalysis = new LibraryAnalysisHandler(catalog,
+            new LibraryBatchAnalyzerFactory(_decoder, _keyStore, _keyAnalyzer, decks, library, _batchOptions), _appThread, _publisher);
         return new CoreStack(decks, new PlaybackRequests(decks), new MixerSession(decks, _crossfade, _publisher), library, markers, hotCues, loader,
-            new BackspinFeel(_publisher), searchPick, new TrackList(library, _appThread, _publisher));
+            new BackspinFeel(_publisher), searchPick, new TrackList(library, _appThread, _publisher), libraryAnalysis);
     }
 }

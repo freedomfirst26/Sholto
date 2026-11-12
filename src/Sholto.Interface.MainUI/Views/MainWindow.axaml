@@ -120,6 +120,9 @@
                 <MenuItem Header="Theme" x:Name="ThemesMenu"/>
                 <MenuItem Header="Music folder…" Click="OnMusicFolderClick"/>
                 <MenuItem Header="Output device…" Click="OnOutputDeviceClick"/>
+                <MenuItem Header="Analyse whole library…" Click="OnAnalyzeLibraryClick"/>
+                <MenuItem Header="Cancel library analysis" Click="OnCancelLibraryAnalysisClick"
+                          IsEnabled="{Binding IsLibraryAnalysisRunning}"/>
                 <MenuItem Header="Layout Wizard…" Click="OnLayoutWizardClick"/>
                 <MenuItem Header="Settings…" Click="OnSettingsClick"/>
             </MenuItem>

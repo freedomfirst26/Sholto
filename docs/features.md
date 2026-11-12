@@ -7,6 +7,7 @@ The full feature list. For what each part of the screen means, see
 - Finds every track in your music folder — **mp3, FLAC, WAV, AIFF, and M4A/AAC** — and reads the artist, title, and other tags automatically.
 - Shows everything in a sortable list: **Artist · Track · BPM · Key · Time**.
 - Analyses each track once and remembers the result, so it's instant every time after.
+- **Analyse your whole library in one go** — Settings ▸ Analyse whole library… works out the beats and key of every song not analysed yet, a couple at a time in the background, with a running count and a summary at the end. Settings ▸ Cancel library analysis stops it. Stems are still made when you load a track.
 
 More: [library.md](library.md).
 
