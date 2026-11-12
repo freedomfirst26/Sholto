@@ -46,7 +46,7 @@ function Install-Sholto {
         if ($status -eq 404) { throw "no stable Windows release yet - see https://github.com/$repo/releases" }
         throw "could not reach GitHub to find the latest release: $($_.Exception.Message)"
     }
-    $asset = @($release.assets) | Where-Object { $_.name -like "*win-x64.zip" } | Select-Object -First 1
+    $asset = @($release.assets) | Where-Object { $_.name -like "*windows-x64.zip" } | Select-Object -First 1
     if (-not $asset) { throw "no stable Windows release yet - see https://github.com/$repo/releases" }
     $tag = $release.tag_name
 
