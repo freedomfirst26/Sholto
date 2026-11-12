@@ -10,9 +10,6 @@ namespace Sholto.Interface.MainUI.Views;
 /// <inheritdoc cref="ISearchOverlayResultsSync"/>
 internal sealed class SearchOverlayResultsSync : ISearchOverlayResultsSync
 {
-    /// <summary>How long the "fresh" class stays on the table after a result: past the 160 ms fade.</summary>
-    private const int SettleHoldMs = 260;
-
     /// <summary>How long a row that joined the Track List glows.</summary>
     private const int FlashMs = 600;
 
@@ -20,7 +17,6 @@ internal sealed class SearchOverlayResultsSync : ISearchOverlayResultsSync
     private readonly FitShimmerColumn _shimmer;
     private readonly TextBlock _emptyHint;
     private readonly TextBlock _scopeEmptyHint;
-    private readonly DispatcherTimer _settleTimer;
     private bool _syncing;
 
     public SearchOverlayResultsSync(ListBox results, FitShimmerColumn shimmer, TextBlock emptyHint, TextBlock scopeEmptyHint)
@@ -30,12 +26,6 @@ internal sealed class SearchOverlayResultsSync : ISearchOverlayResultsSync
         _emptyHint = emptyHint;
         _scopeEmptyHint = scopeEmptyHint;
         _results.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrolled);
-        _settleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SettleHoldMs) };
-        _settleTimer.Tick += (_, _) =>
-        {
-            _settleTimer.Stop();
-            _results.Classes.Set("fresh", false);
-        };
     }
 
     public void Sync(IGlanceViewModel glance)
@@ -102,16 +92,6 @@ internal sealed class SearchOverlayResultsSync : ISearchOverlayResultsSync
         _results.Classes.Set("reassessing", glance.IsReassessing);
         _shimmer.IsVisible = glance.IsReassessing;
         _shimmer.Classes.Set("running", glance.IsReassessing && glance.AnimateResults);
-    }
-
-    public void Settle(IGlanceViewModel glance)
-    {
-        if (!glance.AnimateResults) return;
-        // Off then on, so a result landing mid-settle restarts it.
-        _results.Classes.Set("fresh", false);
-        _results.Classes.Set("fresh", true);
-        _settleTimer.Stop();
-        _settleTimer.Start();
     }
 
     public void Flash(IGlanceViewModel glance, string path)

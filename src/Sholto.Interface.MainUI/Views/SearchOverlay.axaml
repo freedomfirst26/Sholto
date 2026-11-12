@@ -46,17 +46,8 @@
             </Setter>
         </Style>
 
-        <!-- Results settle: a new ranking fades up 0.45 to 1 over 160 ms. Nothing moves or resizes while it does (no
-             slide, no bar regrow): a result lands on every keystroke, and any geometry motion reads as the rows jumping.
-             The view adds "fresh" for a moment after each result when motion is wanted. -->
-        <Style Selector="ListBox.table.fresh">
-            <Style.Animations>
-                <Animation Duration="0:0:0.16" Easing="CubicEaseOut">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.45"/></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
+        <!-- A new ranking replaces the rows in place, with no fade, slide or bar regrow: a result lands on every
+             keystroke, and any motion there reads as the table flickering or the rows jumping. -->
 
         <!-- Slow path: the old rows stay at 55 %, the real bars hide and FitShimmerColumn draws neutral ones with a light
              walking down them (one 1 s loop; with reduced motion the control draws the neutral bars alone). -->

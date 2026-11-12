@@ -64,14 +64,12 @@ public partial class SearchOverlay : UserControl
         {
             _vm.Glance.PropertyChanged -= OnGlanceChanged;
             _vm.Glance.SelectAllOnOpen -= OnSelectAllOnOpen;
-            _vm.Glance.ResultsReplaced -= OnResultsReplaced;
             _vm.Glance.AddedToTrackList -= OnAddedToTrackList;
         }
         _vm = DataContext as MainViewModel;
         if (_vm is null) return;
         _vm.Glance.PropertyChanged += OnGlanceChanged;
         _vm.Glance.SelectAllOnOpen += OnSelectAllOnOpen;
-        _vm.Glance.ResultsReplaced += OnResultsReplaced;
         _vm.Glance.AddedToTrackList += OnAddedToTrackList;
         // Chips slide in only when motion is wanted; the styles key off this class.
         Classes.Set("motion", _vm.Glance.AnimateResults);
@@ -223,11 +221,6 @@ public partial class SearchOverlay : UserControl
         if (sender is Control { DataContext: GlanceChip chip }) Glance?.RemoveChip(chip);
         QueryBox.Focus();
         e.Handled = true;
-    }
-
-    private void OnResultsReplaced()
-    {
-        if (Glance is { } g) _results.Settle(g);
     }
 
     private void OnAddedToTrackList(string path)

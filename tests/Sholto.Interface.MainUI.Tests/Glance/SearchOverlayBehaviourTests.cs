@@ -120,12 +120,21 @@ public class SearchOverlayBehaviourTests
     }
 
     [Fact]
-    public void A_new_result_marks_the_table_fresh()
+    public void A_new_result_replaces_the_rows_without_marking_the_table_fresh()
     {
         var rig = Open();
         var list = rig.Overlay.FindControl<ListBox>("ResultsList")!;
+        Assert.DoesNotContain("fresh", list.Classes);
+        var replaced = 0;
+        rig.Rig.Glance.ResultsReplaced += () => replaced++;
 
-        Assert.Contains("fresh", list.Classes);
+        rig.Rig.Glance.Query = "brav";
+        rig.Rig.Tick();
+        Dispatcher.UIThread.RunJobs();
+        rig.Overlay.UpdateLayout();
+
+        Assert.True(replaced > 0);
+        Assert.DoesNotContain("fresh", list.Classes);
     }
 
     [Fact]
