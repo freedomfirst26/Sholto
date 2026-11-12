@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The recording log shared by test projects; references only Sholto.Data so any layer's tests can use it
+       without pulling in Sholto.App. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Sholto.TestSupport.Logging</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
+  </ItemGroup>
+
+</Project>

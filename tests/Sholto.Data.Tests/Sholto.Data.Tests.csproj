@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Sholto.TestSupport.Allocation\Sholto.TestSupport.Allocation.csproj" />
+    <ProjectReference Include="..\Sholto.TestSupport.Logging\Sholto.TestSupport.Logging.csproj" />
     <ProjectReference Include="..\..\src\Sholto.Data\Sholto.Data.csproj" />
   </ItemGroup>
 
