@@ -1,4 +1,5 @@
 using Sholto.App.Analysis.Harmony;
+using Sholto.App.Storage.Backup;
 
 namespace Sholto.App.Storage.Tests;
 
@@ -9,6 +10,7 @@ public class SholtoStorageDefaultPathTests
     private static SholtoStorage NewStorage() => new(
         new DatabaseStackFactory(new KeyFactory(), new RecordingLogFactory()),
         new SholtoDbContextOptionsFactory(),
+        new LibraryBackup(),
         new RecordingLogFactory());
 
     [Fact]

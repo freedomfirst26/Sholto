@@ -4,6 +4,7 @@ using Sholto.App.Audio;
 using Sholto.App.Dsp;
 using Sholto.App.Lifecycle;
 using Sholto.App.Storage;
+using Sholto.App.Storage.Backup;
 using Sholto.App.Performance;
 using Sholto.Data;
 using Sholto.Host;
@@ -60,7 +61,7 @@ internal static class Program
         var loaderDecoder = new AudioFileDecoder([new Mp3DecodeStrategy(naudioDecoding), new WavDecodeStrategy(naudioDecoding)]);
         var coreFactory = new HeadlessCoreFactory(benchDeck, deckFactory, loaderDecoder, bus, new ManualFrameClock(), appThread, logs);
         // Disposed when Main returns: deletes the temp library database the scans filled.
-        using var demoLibrary = new DemoLibrary(new SholtoStorage(new DatabaseStackFactory(new KeyFactory(), logs), new SholtoDbContextOptionsFactory(), logs));
+        using var demoLibrary = new DemoLibrary(new SholtoStorage(new DatabaseStackFactory(new KeyFactory(), logs), new SholtoDbContextOptionsFactory(), new LibraryBackup(), logs));
         var uiHost = new UiHost(
             new BenchAppFactory(headlessApp, coreFactory, bus, bus, bus, options, appThread, logs),
             deckAdvance,

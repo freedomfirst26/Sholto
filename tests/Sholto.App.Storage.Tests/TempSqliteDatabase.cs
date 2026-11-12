@@ -6,7 +6,8 @@ namespace Sholto.App.Storage.Tests;
 /// unique <c>library.db</c> in its own fresh directory under the temp folder.
 /// <see cref="Dispose"/> first releases every pooled connection — on Windows a pooled
 /// connection keeps the file locked, so deleting it would fail — then deletes the
-/// database and its WAL side files (<c>-wal</c>, <c>-shm</c>) and the directory.</summary>
+/// directory with everything in it: the database, its WAL side files (<c>-wal</c>,
+/// <c>-shm</c>) and any library backups written beside it.</summary>
 internal sealed class TempSqliteDatabase : IDisposable
 {
     private readonly string _directory;
@@ -24,9 +25,7 @@ internal sealed class TempSqliteDatabase : IDisposable
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();
-        foreach (var file in new[] { Path, Path + "-wal", Path + "-shm" })
-            if (File.Exists(file)) File.Delete(file);
-        if (Directory.Exists(_directory) && !Directory.EnumerateFileSystemEntries(_directory).Any())
-            Directory.Delete(_directory);
+        if (Directory.Exists(_directory))
+            Directory.Delete(_directory, recursive: true);
     }
 }

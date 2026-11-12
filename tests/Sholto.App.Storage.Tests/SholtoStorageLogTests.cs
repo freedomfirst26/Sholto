@@ -1,5 +1,6 @@
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Storage;
+using Sholto.App.Storage.Backup;
 using Sholto.Data;
 
 namespace Sholto.App.Storage.Tests;
@@ -12,7 +13,7 @@ public class SholtoStorageLogTests
         using var temp = new TempSqliteDatabase();
         var logs = new RecordingLogFactory();
         var storage = new SholtoStorage(
-            new DatabaseStackFactory(new KeyFactory(), logs), new SholtoDbContextOptionsFactory(), logs);
+            new DatabaseStackFactory(new KeyFactory(), logs), new SholtoDbContextOptionsFactory(), new LibraryBackup(), logs);
 
         await storage.OpenAsync(temp.Path);
 

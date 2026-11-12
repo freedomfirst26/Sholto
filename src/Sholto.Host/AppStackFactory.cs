@@ -5,6 +5,7 @@ using Sholto.Data;
 using Sholto.App.Audio;
 using Sholto.App.ExternalTools;
 using Sholto.App.Storage;
+using Sholto.App.Storage.Backup;
 using Sholto.Interface.Controller;
 using Sholto.Interface.Keyboard;
 using Sholto.App;
@@ -47,7 +48,7 @@ public sealed class AppStackFactory : IAppStackFactory
                 analysisFolder,
                 logs),
             new AnalysisStackFactory(keyFactory, options.WaveformBands, options.KeyAnalysis, logs),
-            new SholtoStorage(new DatabaseStackFactory(keyFactory, logs), new SholtoDbContextOptionsFactory(), logs),
+            new SholtoStorage(new DatabaseStackFactory(keyFactory, logs), new SholtoDbContextOptionsFactory(), new LibraryBackup(), logs),
             appThread,
             options.Loop,
             logs);

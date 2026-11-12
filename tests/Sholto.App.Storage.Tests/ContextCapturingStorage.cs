@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sholto.App.Analysis.Harmony;
 using Sholto.App.Storage;
+using Sholto.App.Storage.Backup;
 
 namespace Sholto.App.Storage.Tests;
 
@@ -16,7 +17,7 @@ internal sealed class ContextCapturingStorage : IDatabaseStackFactory
 
     public async Task<IDbContextFactory<SholtoDbContext>> OpenAsync(string path)
     {
-        await new SholtoStorage(this, new SholtoDbContextOptionsFactory(), new RecordingLogFactory()).OpenAsync(path);
+        await new SholtoStorage(this, new SholtoDbContextOptionsFactory(), new LibraryBackup(), new RecordingLogFactory()).OpenAsync(path);
         return _contexts ?? throw new InvalidOperationException("SholtoStorage did not build a database stack.");
     }
 
