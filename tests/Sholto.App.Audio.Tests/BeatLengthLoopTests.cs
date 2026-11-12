@@ -24,7 +24,7 @@ public class BeatLengthLoopTests
         var downbeats = beats.Where((_, i) => i % 4 == 0).ToArray();
         _analysis.Set(new BasicAnalysis(null!, Bpm, beats, downbeats));
         return new DeckLooping(() => _stems, () => _analysis, () => _positionFrames, () => (long)(TrackSeconds * Rate),
-            Options.Create(new LoopOptions()));
+            Options.Create(new LoopOptions()), new RecordingLogFactory().Create("Deck"));
     }
 
     [Fact]
