@@ -24,13 +24,6 @@ public sealed class TrackList : ITrackList
         Announce();
     }
 
-    /// <summary>A track list whose lines are discarded, for a caller with no log to hand it (the MainUI tests,
-    /// which this list's log migration did not own). Everything else passes its log.</summary>
-    public TrackList(ILibrarySession library, IAppThread appThread, IEventPublisher publisher)
-        : this(library, appThread, publisher, new ConsoleLog(TextWriter.Null, "TrackList"))
-    {
-    }
-
     private sealed record SourceInfo(string Key, TrackListSourceKind Kind, string Name);
 
     public event Action? Changed;

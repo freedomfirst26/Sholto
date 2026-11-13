@@ -94,7 +94,7 @@ internal sealed class TrackListDragRig
 
         // The App side: the library scanned, then the real Track List holding the three songs in order.
         await library.Library.ScanAsync("/music", library.Stack());
-        var list = new TrackList(library.Library, appThread, bus);
+        var list = new TrackList(library.Library, appThread, bus, new RecordingLogFactory().Create("TrackList"));
         bus.Register<MoveInTrackList>(list);
         var origin = new Origin(InterfaceIds.MainUI, "test", "load");
         foreach (var path in new[] { A, B, C }) list.Handle(new LoadSongToTrackList(path, origin));

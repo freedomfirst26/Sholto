@@ -79,7 +79,7 @@ public class LibraryRowsViewModelTests
         rig.Library.AttachServices(tags, rig.Crates);
         var charlie = rows.Items.Single(r => r.Title == "Charlie");
 
-        var list = new TrackList(rig.Library, new ImmediateAppThread(), rig.Bus);
+        var list = new TrackList(rig.Library, new ImmediateAppThread(), rig.Bus, new RecordingLogFactory().Create("TrackList"));
         var from = new Origin(InterfaceIds.Bench, "test", "track-list");
 
         list.Handle(new LoadTagToTrackList("peak", from));
