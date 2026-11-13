@@ -12,7 +12,8 @@ public class CueOutputRouterTests
         new MiniAudioEngine(),
         new AudioFormat { SampleRate = 48000, Channels = 2, Format = SampleFormat.F32 },
         [],
-        timingEnabled: false);
+        timingEnabled: false,
+        new Sholto.App.Audio.Recording.NullMasterTap());
 
     // One stereo frame [L=1, R=2] for brevity.
     private static float[] Stereo(float l, float r) => [l, r];

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.Intrinsics;
 using System.Threading;
+using Sholto.App.Audio.Recording;
 using SoundFlow.Abstracts;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;
@@ -29,6 +30,8 @@ namespace Sholto.App.Audio;
 internal sealed class CueOutputRouter : SoundComponent
 {
     private readonly IReadOnlyList<IMixSource> _decks;
+    /// <summary>Handed each finished device buffer, on the audio thread (the mix recording's capture).</summary>
+    private readonly IMasterTap _masterTap;
     private float[] _scratch = [];
 
     /// <summary>CALLBACK TIMING HISTOGRAM: measures how long <see cref="GenerateAudio"/>
@@ -70,11 +73,12 @@ internal sealed class CueOutputRouter : SoundComponent
     /// while a router is live, so a toggle takes effect immediately.</summary>
     public volatile bool MasterCueActive;
 
-    public CueOutputRouter(SfEngine engine, AudioFormat format, IReadOnlyList<IMixSource> decks, bool timingEnabled, bool masterCueActive = false)
+    public CueOutputRouter(SfEngine engine, AudioFormat format, IReadOnlyList<IMixSource> decks, bool timingEnabled, IMasterTap masterTap, bool masterCueActive = false)
         : base(engine, format)
     {
         _timingEnabled = timingEnabled;
         _decks = decks;
+        _masterTap = masterTap;
         MasterCueActive = masterCueActive;
         if (_timingEnabled)
         {
@@ -142,6 +146,8 @@ internal sealed class CueOutputRouter : SoundComponent
             MixDeckInto(buffer, stereo, frames, channels, mg, cg);
         }
 
+        // The finished buffer, master on ch1-2, goes to the tap once (the mix recording copies ch1-2 only).
+        _masterTap.Write(buffer, channels);
         RecordTiming();
     }
 

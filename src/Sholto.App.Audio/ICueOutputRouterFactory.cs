@@ -1,3 +1,4 @@
+using Sholto.App.Audio.Recording;
 using SoundFlow.Structs;
 using SfEngine = SoundFlow.Abstracts.AudioEngine;
 
@@ -11,4 +12,8 @@ public interface ICueOutputRouterFactory
 
     /// <param name="masterCueActive">Initial MASTER CUE state, re-applied across device switches.</param>
     internal CueOutputRouter Create(SfEngine engine, AudioFormat format, IReadOnlyList<IMixSource> decks, bool masterCueActive);
+
+    /// <param name="masterCueActive">Initial MASTER CUE state, re-applied across device switches.</param>
+    /// <param name="masterTap">Handed every finished device buffer; the same one across device switches.</param>
+    internal CueOutputRouter Create(SfEngine engine, AudioFormat format, IReadOnlyList<IMixSource> decks, bool masterCueActive, IMasterTap masterTap);
 }

@@ -1,3 +1,4 @@
+using Sholto.App.Audio.Recording;
 using Sholto.Data;
 using SoundFlow.Abstracts.Devices;
 using SoundFlow.Backends.MiniAudio;
@@ -28,6 +29,8 @@ public sealed class AudioEngine : IAudioOutput
     private readonly IControllerSoundCard _controllerCard;
     private AudioPlaybackDevice? _playbackDevice;
     private readonly ICueOutputRouterFactory _cueRouterFactory;
+    // The mix recording's tap: handed to every router Start builds, so a device switch keeps recording.
+    private readonly IMasterTap _masterTap;
     private readonly ILog _log;
     private CueOutputRouter? _router;
     private bool _running;
@@ -46,7 +49,7 @@ public sealed class AudioEngine : IAudioOutput
     /// this constructor creates, the same way each deck is (see <c>Deck.AttachEngine</c>
     /// below). FLAC decoding is the only such collaborator today; the engine does not
     /// know or care which format that is.</summary>
-    public AudioEngine(IEnumerable<INeedsAudioEngine> engineDependents, IPipeWireRouter pipeWireRouter, IControllerSoundCard controllerCard, ICueOutputRouterFactory cueRouterFactory, AudioFormat deckFormat, ILog log, params IEngineDeck[] decks)
+    public AudioEngine(IEnumerable<INeedsAudioEngine> engineDependents, IPipeWireRouter pipeWireRouter, IControllerSoundCard controllerCard, ICueOutputRouterFactory cueRouterFactory, IMasterTap masterTap, AudioFormat deckFormat, ILog log, params IEngineDeck[] decks)
     {
         _log = log;
         _deckFormat = deckFormat;
@@ -54,6 +57,7 @@ public sealed class AudioEngine : IAudioOutput
         _pipeWireRouter = pipeWireRouter;
         _controllerCard = controllerCard;
         _cueRouterFactory = cueRouterFactory;
+        _masterTap = masterTap;
         var miniEngine = new MiniAudioEngine();
         _engine = miniEngine;
         // The backend is only named once a device is open (see Start): the probe reads the
@@ -132,7 +136,7 @@ public sealed class AudioEngine : IAudioOutput
         // One router is the device's source: it pulls each deck's post-EQ stereo
         // and composes master (ch1-2) + PFL cue (ch3-4). Decks are NOT added to
         // the mixer directly (that would sum them to stereo and double-process).
-        _router = _cueRouterFactory.Create(_engine, deviceFormat, _decks, _masterCueActive);
+        _router = _cueRouterFactory.Create(_engine, deviceFormat, _decks, _masterCueActive, _masterTap);
         _playbackDevice.MasterMixer.AddComponent(_router);
         _playbackDevice.Start();
         _running = true;
