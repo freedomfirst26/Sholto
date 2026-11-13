@@ -7,6 +7,7 @@ The full feature list. For what each part of the screen means, see
 - Finds every track in your music folder — **mp3, FLAC, WAV, AIFF, and M4A/AAC** — and reads the artist, title, and other tags automatically.
 - Shows everything in a sortable list: **Artist · Track · BPM · Key · Time**.
 - Analyses each track once and remembers the result, so it's instant every time after.
+- **Your library is backed up before every upgrade** — when a new version of Sholto needs to upgrade your library, it first saves a full copy beside the original (`library.db.bak-…`), keeping the last three.
 - **Analyse your whole library in one go** — Settings ▸ Analyse whole library… works out the beats and key of every song not analysed yet, a couple at a time in the background, with a running count and a summary at the end. Settings ▸ Cancel library analysis stops it. Stems are still made when you load a track.
 - **Choose where the stems go** — Settings ▸ Folders… shows two rows, **Music folder** and **Analysis folder**, each with its own **Change…** button. The stems (about 175 MB per track) go in the analysis folder, so you can put them on a bigger drive; a new install suggests a **Sholto Analysis** folder next to your music. Change it later and Sholto moves the stems already made, with progress, so nothing is analysed again. If a drive isn't connected at start, Sholto asks instead of writing somewhere else.
 
