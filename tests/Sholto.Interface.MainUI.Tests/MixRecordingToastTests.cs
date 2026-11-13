@@ -8,7 +8,7 @@ namespace Sholto.Interface.MainUI.Tests;
 [Collection(MainViewModelCollection.Name)]
 public class MixRecordingToastTests
 {
-    private const string Path = "/home/demo/Music/2026-11-12 21-04-33.wav";
+    private const string FilePath = "/home/demo/Music/2026-11-12 21-04-33.wav";
     private const string FileName = "2026-11-12 21-04-33.wav";
 
     private readonly MainViewModelRig rig = new();
@@ -16,8 +16,8 @@ public class MixRecordingToastTests
     [Fact]
     public void Stopped_Normal_ShowsMixSaved()
     {
-        rig.Bus.Publish(new MixRecordingChanged(false, TimeSpan.FromSeconds(30), Path));
-        rig.Bus.Publish(new MixRecordingStopped(Path, null));
+        rig.Bus.Publish(new MixRecordingChanged(false, TimeSpan.FromSeconds(30), FilePath));
+        rig.Bus.Publish(new MixRecordingStopped(FilePath, null));
 
         Assert.Equal($"Mix saved: {FileName}", rig.Vm.Toast);
         Assert.Single(rig.Changed, nameof(MainViewModel.Toast));
@@ -26,8 +26,8 @@ public class MixRecordingToastTests
     [Fact]
     public void Stopped_WithReason_ShowsOnlyFailureToast()
     {
-        rig.Bus.Publish(new MixRecordingChanged(false, TimeSpan.FromSeconds(30), Path));
-        rig.Bus.Publish(new MixRecordingStopped(Path, "disk full"));
+        rig.Bus.Publish(new MixRecordingChanged(false, TimeSpan.FromSeconds(30), FilePath));
+        rig.Bus.Publish(new MixRecordingStopped(FilePath, "disk full"));
 
         Assert.StartsWith("Recording stopped: disk full", rig.Vm.Toast);
         Assert.Equal($"Recording stopped: disk full (saved {FileName})", rig.Vm.Toast);

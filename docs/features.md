@@ -49,7 +49,7 @@ More: [library.md](library.md).
 - **Magnetic beat-snap** — when both decks are playing and the beats drift close together, the jog wheel gently "holds" on the beat and both waveforms glow green; let go and the deck locks to the other one's grid. No button to arm — it just happens. More: [deck.md](deck.md#magnetic-beat-snap).
 - Pick which speakers or headphones Sholto plays to (it asks on first start, or **Settings ▸ Output device…**), and it remembers your choice. Your connected controller is listed first, as "Controller (<card name>)", so you can send the master mix back to it after picking speakers.
 - Sholto shows its icon in the system tray; click it to bring the window back.
-- **Record your mix** — click the round record button at the top right, left of the controller dot, and Sholto records everything you play to a WAV file in your Music folder, named by the date and time. The dot turns red and the time recorded so far counts up beside it; click again to stop, and a message names the saved file (or says what went wrong).
+- **Record your mix** — click the round record button at the top right, left of the controller dot, and Sholto records everything you play to a WAV file in your computer's Music folder (not your library folder), named by the date and time. The dot turns red and the time recorded so far counts up beside it; click again to stop, and a message names the saved file (or says what went wrong).
 
   ![The top bar while recording: the red record dot and 1:02:03 recorded, left of the controller dot](../pictures/record-mix.webp)
 
