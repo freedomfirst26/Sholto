@@ -6,15 +6,18 @@ using Sholto.App.Glance;
 using Sholto.App.Lifecycle;
 using Sholto.App.Library;
 using Sholto.App.Performance;
+using Sholto.App.Recording;
 
 namespace Sholto.App;
 
 /// <summary>Builds every command and query handler and registers them on the bus.</summary>
 /// <param name="beatJumpOptions">The BEAT JUMP size bounds; null takes <see cref="BeatJumpOptions"/>' defaults.</param>
+/// <param name="mixRecording">Records the mix on <see cref="ToggleMixRecording"/>; null records nothing.</param>
 public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher publisher, IHintCounter hintCounter, IOptions<GlanceOptions> glanceOptions,
-    ILogFactory logs, IOptions<BeatJumpOptions>? beatJumpOptions = null) : ICommandHandlersFactory
+    ILogFactory logs, IOptions<BeatJumpOptions>? beatJumpOptions = null, ICommandHandler<ToggleMixRecording>? mixRecording = null) : ICommandHandlersFactory
 {
     private readonly IOptions<BeatJumpOptions> _beatJumpOptions = beatJumpOptions ?? Options.Create(new BeatJumpOptions());
+    private readonly ICommandHandler<ToggleMixRecording> _mixRecording = mixRecording ?? new NullMixRecording();
     private readonly IHintCounter _hintCounter = hintCounter;
     private readonly IOptions<GlanceOptions> _glanceOptions = glanceOptions;
     private readonly IAppThread _appThread = appThread;
@@ -30,6 +33,9 @@ public sealed class CommandHandlersFactory(IAppThread appThread, IEventPublisher
         registry.Register<ToggleHeadphoneCue>(transport);
         registry.Register<ToggleMasterCue>(transport);
         registry.Register<CycleTempoRange>(transport);
+
+        // Record the master output to a WAV file, and stop.
+        registry.Register<ToggleMixRecording>(_mixRecording);
 
         var mixer = new MixerCommandHandlers(core.Decks, core.Mixer);
         registry.Register<SetCrossfader>(mixer);

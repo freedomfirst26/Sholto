@@ -3,6 +3,7 @@ using Sholto.App.Analysis.Stems;
 using Sholto.App.Analysis.ToolBoundary;
 using Sholto.Data;
 using Sholto.App.Audio;
+using Sholto.App.Audio.Recording;
 using Sholto.App.ExternalTools;
 using Sholto.App.Storage;
 using Sholto.App.Storage.Backup;
@@ -12,6 +13,7 @@ using Sholto.App;
 using Sholto.App.Lifecycle;
 using Sholto.App.Lifecycle.Folders;
 using Sholto.App.Performance;
+using Sholto.App.Recording;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.Views;
 
@@ -63,6 +65,12 @@ public sealed class AppStackFactory : IAppStackFactory
         var frameClock = new DispatcherFrameClock();
         // MASTER CUE reaches the audio engine through this once the engine exists.
         var masterCueOutput = new MasterCueOutput();
+        // The mix recording's master tap: one for the app's life, so every router the engine builds (one per
+        // output-device switch) feeds the same recording.
+        var mixRecorder = new MixRecorder();
+        var mixRecording = new MixRecording(mixRecorder, new StereoSampleRingFactory(options.MixRecording),
+            new MixRecordingPaths(options.MixRecording), new WavSinkFactory(), new MixRecordingWriterFactory(options.MixRecording),
+            bus, frameClock, logs, options.MixRecording);
         var coreFactory = new CoreFactory(
             stack.TrackScanner, stack.AnalysisStack.KeyStore, stack.ToolStack.StemCache, stack.AnalysisStack.Reporter,
             stack.AnalysisStack.KeyAnalyzer, stack.Decoder, stack.Crossfade, appThread, bus, frameClock,
@@ -73,7 +81,7 @@ public sealed class AppStackFactory : IAppStackFactory
             new FolderCheck(options.AnalysisFolder), stack.OutputDevicePreference,
             stack.WaveformStylePreference, stack.BackspinTimePreference, stack.BackspinDistancePreference, stack.LegacyShortlistPreference,
             stack.TrackListPreference, new SavedTrackListCodec(),
-            stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory(options.AudioTiming), logs), [stack.FlacStrategy],
+            stack.OutputEnumerator, new AudioEngineFactory(new CueOutputRouterFactory(options.AudioTiming), logs, mixRecorder), [stack.FlacStrategy],
             stack.PipeWireRouter, stack.DeckFormat, masterCueOutput, stack.ToolStack.Check, appThread, bus,
             // The two environment overrides and the legacy default stem root, read here and nowhere else.
             Environment.GetEnvironmentVariable("SHOLTO_MUSIC_DIR"),
@@ -85,8 +93,8 @@ public sealed class AppStackFactory : IAppStackFactory
         return new AppStack(entities, entities, stack, options,
             coreFactory, lifecycleFactory, new LifecyclePromptsFactory(bus, bus, appThread, logs),
             new ThemeStackFactory(logs), new ControllerStackFactory(logs, new MidiPortOpenerFactory(options.WinMmMidi, TimeProvider.System, logs)),
-            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, hintCounter, options.Glance, logs, options.BeatJump), new PerformanceFactory(logs),
+            new InputStackFactory(bus, bus, bus, bus, bus, new CommandHandlersFactory(appThread, bus, hintCounter, options.Glance, logs, options.BeatJump, mixRecording), new PerformanceFactory(logs),
                 new ControllerInputFactory(), new KeyboardInputFactory()),
-            masterCueOutput, frameClock, appThread, bus, new TrayFactory(iconFactory, logs), logs);
+            masterCueOutput, mixRecording, frameClock, appThread, bus, new TrayFactory(iconFactory, logs), logs);
     }
 }

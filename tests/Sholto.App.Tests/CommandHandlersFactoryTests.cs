@@ -38,7 +38,7 @@ public class CommandHandlersFactoryTests
         var commands = typeof(ICommand).Assembly.GetTypes()
             .Where(t => t.IsValueType && typeof(ICommand).IsAssignableFrom(t))
             .ToHashSet();
-        Assert.Equal(66, commands.Count);
+        Assert.Equal(67, commands.Count);
         Assert.Equal(commands, registry.Registered);
     }
 

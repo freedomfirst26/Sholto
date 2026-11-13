@@ -5,6 +5,7 @@ using Sholto.Interface.Controller;
 using Sholto.Interface.Controller.Mappings;
 using Sholto.App;
 using Sholto.App.Lifecycle;
+using Sholto.App.Recording;
 using Sholto.Interface.MainUI;
 using Sholto.Interface.MainUI.Theming;
 using Sholto.Interface.MainUI.ViewModels;
@@ -53,6 +54,7 @@ public sealed class SholtoStartup : IApplicationStartup
     private readonly IControllerStackFactory _controllerStackFactory;
     private readonly IInputStackFactory _inputStackFactory;
     private readonly IMasterCueOutput _masterCueOutput;
+    private readonly IMixRecording _mixRecording;
     private readonly IFrameClock _frameClock;
     private readonly IAppThread _appThread;
     private readonly ICommandSender _sender;
@@ -73,6 +75,7 @@ public sealed class SholtoStartup : IApplicationStartup
         _controllerStackFactory = appStack.ControllerStackFactory;
         _inputStackFactory = appStack.InputStackFactory;
         _masterCueOutput = appStack.MasterCueOutput;
+        _mixRecording = appStack.MixRecording;
         _frameClock = appStack.FrameClock;
         _appThread = appStack.AppThread;
         _sender = appStack.Sender;
@@ -189,6 +192,8 @@ public sealed class SholtoStartup : IApplicationStartup
         {
             _inputStack?.Dispose();
             _statsTimer?.Stop();
+            // Quitting mid-recording finalises the WAV before the audio engine goes.
+            if (_mixRecording.IsRecording) _mixRecording.Stop();
             _lifecycle?.Stop();
             _controller?.Dispose();
         };

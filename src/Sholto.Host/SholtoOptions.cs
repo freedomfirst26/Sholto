@@ -1,4 +1,5 @@
 using Sholto.App.Audio;
+using Sholto.App.Audio.Recording;
 using Sholto.App;
 using Sholto.App.Decks;
 using Microsoft.Extensions.Options;
@@ -48,6 +49,7 @@ public sealed class SholtoOptions
     public IOptions<FoldersPanelOptions> FoldersPanel { get; }
     public IOptions<WinMmMidiOptions> WinMmMidi { get; }
     public IOptions<ComplementOptions> Complement { get; }
+    public IOptions<MixRecordingOptions> MixRecording { get; }
 
     /// <summary>The app's configured options, at their defaults. Each composition
     /// root (Program, Bench's composers) builds one instance and hands it down. An
@@ -78,5 +80,6 @@ public sealed class SholtoOptions
         FoldersPanel = Options.Create(new FoldersPanelOptions());
         WinMmMidi = Options.Create(new WinMmMidiOptions());
         Complement = Options.Create(new ComplementOptions());
+        MixRecording = Options.Create(new MixRecordingOptions());
     }
 }
