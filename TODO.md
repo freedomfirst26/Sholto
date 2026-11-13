@@ -16,43 +16,12 @@ C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 - [ ] **C130 — Backspin sound: anti-alias reader + speed ramp, cap 8x.**
   ACCEPT At speeds beyond 1x both in-memory providers read through a box filter over the source frames each output step covers, ramp the speed smoothly across each buffer from the previous one, and never read faster than 8x either way.
   BLOCKS the new output sound — Sebastian must confirm it is wanted; it changes `StemMixOutputPinTests` (ExpectedMixed hash) and golden `Fixtures/scratch.wav`, both outside the earlier job's files.
-- [ ] **C266 — TrackList log: drop the log-less constructor.** Migrate `tests/Sholto.Interface.MainUI.Tests/LibraryRowsViewModelTests.cs:82` and `TrackListDragRig.cs:97` to pass a log to `TrackList`, then delete its log-less constructor in `src/Sholto.App/Library/TrackList.cs`. Size S.
-- [ ] **Bench render-time frame clock — headless renders advance the frame clock by the frames rendered on each wait, not by wall time (e.g. a ManualFrameClock whose Now is set by HeadlessHost/RenderSession; touches src/Sholto.Data/ManualFrameClock.cs and tools/Sholto.Interface.Bench Headless/Controller), so platter scratches and flings render faithfully offline**
-- [ ] **Backspin before/after listening pair, rerun after the Bench render-time frame clock lands — same spec as the 1745 DoD item, on the groundwork at 375e72b; resolve the C130 cherry-pick conflict in src/Sholto.Host/SholtoOptions.cs by keeping both options properties (Sebastian's default, 2026-11-12)**
 
 ## Waiting on you
 
+- Can the key lock feature (pitch stays the same when you change tempo) start building now, or should it keep waiting? Default: it keeps waiting.
+- Run your short hands-on test of Sholto on Linux and Windows, then tag the v1.2.0 release, so the website work can start. Default: the website work keeps waiting.
 - C130: is the new backspin output wanted (it changes the pinned mix hash and golden scratch.wav)? Default: stays parked until you confirm.
-- site-copy-for-linux-and-windows: .job/spec.md, dod.md and review-prompt.md are tracked on main since 7145b21 (an earlier job committed them); remove them from main and check .gitignore — another job, not this one's files. [from queue:925a6ab8]
-  - Reply (2026-11-12): done
-- windows-install-docs: `.job/*.md` files are tracked on main (since 7145b21); `.gitignore` does not ignore `.job/`. A housekeeping job should untrack them and add `.job/` to `.gitignore`. [from queue:0e7f6591]
-  - Reply (2026-11-12): done
-- logging-sholto-app-analysis: `.job/{spec,dod,review-prompt}.md` from another job are tracked on main (a8176a2) and `.job/` is not in `.gitignore`; that needs a separate cleanup job. [from queue:fd38f5a8]
-  - Reply (2026-11-12): done
-- logging-sholto-app: `.job/*.md` files are tracked on main (another job committed them); someone should `git rm --cached` them. [from queue:aa2dde3b]
-  - Reply (2026-11-12): done
-- windows-install-docs: get-sholto.ps1:49 filters assets with `-like "*win-x64.zip"`, but release.yml names the asset `sholto-…-windows-x64.zip`, which does not match that pattern ("windows-x64.zip" does not end in "win-x64.zip"). The documented one-liner will likely report "no stable Windows release yet" until get-sholto.ps1 matches `*windows-x64.zip` (not a file this job owns; needs a fix job). [from queue:2cba6adf]
-  - Reply (2026-11-12): done
-- output-picker-offers-the-controller: add a CHANGELOG.md line under Unreleased / Improved (e.g. "The audio output picker lists your controller first, so you can send the master mix back to it after picking speakers.") and a docs/features.md bullet: both are outside this job's files. [from queue:32aabcfa]
-  - Reply (2026-11-12): done
-- library-backup-before-upgrade: add to CHANGELOG.md under `## Unreleased` → `### Improved`: "Before upgrading your library to a new version, Sholto now saves a full copy of it beside the original (`library.db.bak-…`), keeping the last three." and a matching bullet in docs/features.md — those files are outside this job's OWNS. [from queue:72ad7919]
-  - Reply (2026-11-12): done
-- windows-one-liner-finds-the-windows-zip: add a CHANGELOG `### Fixed` line ("The Windows one-line installer now finds the Windows download") and a WindowsInstallerScriptsTests case pinning the asset pattern to release.yml's `platform` — both outside this job's OWNS. [from queue:f5a2603b]
-  - Reply (2026-11-12): done
-- logging-sholto-app: Migrate `tests/Sholto.Interface.MainUI.Tests/LibraryRowsViewModelTests.cs:82` and `TrackListDragRig.cs:97` to pass a log to `TrackList`, then delete its log-less constructor (`src/Sholto.App/Library/TrackList.cs`). [from queue:b3f665d4]
-  - Reply (2026-11-12): done
-- output-picker-docs: Sholto.App.Tests has a flaky test (1/653 failed once in a back-to-back full-suite run, then passed 3/3); worth finding with a repeated run on the desktop. [from queue:d4fcaf50]
-  - Reply (2026-11-12): done
-- beat-loop-pad-resizes-a-running-loop: add `src/Sholto.App.Audio/Deck.cs` to OWNS (or approve the edit): it needs one pass-through member, below, then this branch lands as is. `Deck` is the production `IDeckLooping` (`DeckPorts.Looping = deck`, `src/Sholto.App.Audio/DeckPorts.cs:10`) and forwards every loop member to `DeckLooping` (`Deck.cs:369-386`), so without the line `Sholto.App.Audio` does not compile (CS0535 at `Deck.cs:25`). [from queue:2542c761]
-  - Reply (2026-11-12): done
-- beat-loop-pad-resizes-a-running-loop: the cloud session reported blocked: spec contradicts the repo (J1, J2, J3, J4, J7): `src/Sholto.App.Audio/Deck.cs` must forward the new `IDeckLooping.ActiveLoopBeats`, and the job does not own it. Default: stays parked; the todo is queued again for a fresh session (https://claude.ai/code/session_01M34MAyH8oJJJm5aT2J1oEb) [from queue:747025f0]
-  - Reply (2026-11-12): done
-- backspin-before-after-listening-pair: the cloud session reported blocked: J3 — Bench's headless frame clock is wall time, so ScratchEngine cannot play a backspin in an offline render without a change outside the OWNS; the C130 cherry-pick also conflicts outside StemMixDataProvider.cs (in src/Sholto.Host/SholtoOptions.cs). Default: stays parked; the todo is queued again for a fresh session (https://claude.ai/code/session_01M34MB1fcDfCWdyxhWsnp4X) [from queue:7bbfa254]
-  - Reply (2026-11-12): done
-- backspin-before-after-listening-pair: Bench needs a render-time frame clock for headless renders: the clock's Now advances by the frames rendered on each "wait", not by wall time (for example a ManualFrameClock whose Now is set by HeadlessHost/RenderSession). Without it, no platter scratch or fling renders faithfully offline. Should that be its own job (it touches src/Sholto.Data/ManualFrameClock.cs and tools/Sholto.Interface.Bench/Headless|Controller), after which this job reruns on the groundwork at 375e72b? [from queue:58e54503]
-  - Reply (2026-11-12): default
-- backspin-before-after-listening-pair: The C130 cherry-pick conflicts in src/Sholto.Host/SholtoOptions.cs (both sides add an options property and its construction). OK to resolve it by keeping both when this job reruns? [from queue:267584ea]
-  - Reply (2026-11-12): default
 
 ## Parked
 
