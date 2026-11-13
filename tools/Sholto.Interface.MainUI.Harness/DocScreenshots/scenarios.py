@@ -101,3 +101,8 @@ write("settings",a)
 a=[{"action":"scan","dir":LIB},{"action":"controller","on":True}]+apply_theme(hero)
 a+=[{"action":"click","target":"Folders"},{"action":"wait","seconds":0.6},shot("folders-panel")]
 write("folders",a)
+# Record the mix: the top bar an hour into a recording (the RecordMix click target publishes the App's state),
+# the filled record dot and its H:MM:SS time left of the controller dot, 2x. Cropped by compose.py.
+a=[{"action":"scan","dir":LIB},{"action":"controller","on":True}]+apply_theme(hero)
+a+=[{"action":"click","target":"RecordMix"},shot("record-mix")]
+write("record-mix",a)

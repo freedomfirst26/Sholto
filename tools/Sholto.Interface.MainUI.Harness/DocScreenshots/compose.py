@@ -68,3 +68,6 @@ save(crop(load("glance-tokens"),(100,180,1100,580),2),"glance-tokens")
 save(crop(load("settings-platter"),(280,215,920,685),2),"settings-platter-feel")
 # Settings ▸ Folders…: the Folders panel with its Music and Analysis rows, 2x
 save(crop(load("folders-panel"),(290,286,910,620),2),"folders-panel")
+# Record the mix: the right of the top bar while recording (controller guide, the filled record dot, 1:02:03, the
+# controller dot), 2x
+save(crop(load("record-mix"),(1030,0,1200,32),2),"record-mix")
