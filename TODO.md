@@ -22,7 +22,9 @@ C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 - Can the key lock feature (pitch stays the same when you change tempo) start building now, or should it keep waiting? Default: it keeps waiting.
   - Reply (2026-11-12): default
 - Run your short hands-on test of Sholto on Linux and Windows, then tag the v1.2.0 release, so the website work can start. Default: the website work keeps waiting.
+  - Reply (2026-11-13): default
 - C130: is the new backspin output wanted (it changes the pinned mix hash and golden scratch.wav)? Default: stays parked until you confirm.
+  - Reply (2026-11-13): default
 
 ## Parked
 
