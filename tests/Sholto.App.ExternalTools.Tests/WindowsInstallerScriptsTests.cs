@@ -70,6 +70,25 @@ public class WindowsInstallerScriptsTests
         }
     }
 
+    [Fact]
+    public void Get_sholto_ps1_picks_the_windows_zip_release_yml_publishes()
+    {
+        var workflow = Read(".github/workflows/release.yml");
+        var entry = Regex.Match(workflow, @"- rid: win-x64\n\s+platform: (\S+)\n\s+ext: (\S+)");
+        Assert.True(entry.Success, "release.yml has no win-x64 matrix entry with platform and ext");
+        var (platform, ext) = (entry.Groups[1].Value, entry.Groups[2].Value);
+
+        var filter = Regex.Match(Read("get-sholto.ps1"), @"\$_\.name -like ""([^""]+)""");
+        Assert.True(filter.Success, "get-sholto.ps1 has no $_.name -like \"...\" asset filter");
+        var pattern = new Regex(
+            "^" + Regex.Escape(filter.Groups[1].Value).Replace(@"\*", ".*").Replace(@"\?", ".") + "$",
+            RegexOptions.IgnoreCase); // -like is case-insensitive
+
+        foreach (var asset in new[] { $"sholto-v1.2.3-{platform}.{ext}", $"sholto-{platform}.{ext}" })
+            Assert.True(pattern.IsMatch(asset), $"get-sholto.ps1's filter \"{filter.Groups[1].Value}\" does not match {asset}");
+        Assert.DoesNotMatch(pattern, "sholto-v1.2.3-linux-x64.tar.gz");
+    }
+
     /// <summary>Top-level <c>SHOLTO_X="value"</c> and <c>SHOLTO_X=(a b c)</c> lines, except the
     /// check-detail scratch variable, which is state, not a pin.</summary>
     private Dictionary<string, string[]> ShellAssignments(string text)
