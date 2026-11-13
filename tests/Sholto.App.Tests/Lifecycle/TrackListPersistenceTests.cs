@@ -213,6 +213,20 @@ public class TrackListPersistenceTests
     }
 
     [Fact]
+    public async Task A_song_added_before_the_saved_list_is_restored_is_saved_with_it()
+    {
+        var rig = new AppLifecycleRig(gated: true, musicDirOverride: NewMusicDir());
+        await rig.Settings.SetAsync(SettingsKeys.TrackList, SavedList(rig, AlphaPath));
+        rig.Lifecycle.Start();
+
+        // The database is held shut, so the restore has not run: this change cannot be saved yet.
+        await rig.OnAppThreadAsync(() => rig.TrackList.Handle(new LoadSongToTrackList(BravoPath, Answer)));
+        rig.Database.Release();
+
+        await Eventually(() => SavedPaths(rig).SequenceEqual(new[] { AlphaPath, BravoPath }));
+    }
+
+    [Fact]
     public async Task An_unreadable_saved_track_list_starts_empty_with_one_log_line_and_does_not_crash()
     {
         var rig = new AppLifecycleRig(musicDirOverride: NewMusicDir());

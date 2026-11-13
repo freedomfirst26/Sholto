@@ -27,6 +27,7 @@ changed at the decks, not which class moved.
 - **A crash now leaves a log behind.** If Sholto ever closes because of an error, it first writes what went wrong to a crash log file, and the next time you start it, it prints where that file is so you can send it in with a bug report.
 - **The controller's LOAD buttons load the track highlighted in the library, even while search is open.** Loading from the keyboard or the search box still loads the search result.
 - **Search filters read the way you typed them.** A BPM range typed high to low (bpm:128-124) now shows as 124–128, a key that isn't on the Camelot wheel (key:13A) is searched as plain text instead of becoming a key filter, and the other deck's track says "on the other deck" instead of "playing now", since it may be paused.
+- **A song added to the Track List while Sholto is still starting up is remembered.** Before, it showed in the list but could be missing next time you opened Sholto.
 
 ## v1.1.0
 

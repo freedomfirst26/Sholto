@@ -31,6 +31,8 @@ public sealed class TrackListPersistence(
 
     // True once the saved list was restored on a database that opened: from then on a change is saved.
     private bool _persisting;
+    // True when the list changed before saving was switched on; that change is saved once it is.
+    private bool _changedBeforePersisting;
     private bool _trackListFirstLaunch;
     private Task _trackListRestored = Task.CompletedTask;
 
@@ -47,16 +49,25 @@ public sealed class TrackListPersistence(
         if (database is null) return;
 
         var saved = await _trackListPreference.GetAsync();
+        List<TrackListEntry>? entries = null;
+        List<TrackListSource>? sources = null;
         if (saved is null)
             _trackListFirstLaunch = true;
         else if (ParseTrackList(saved) is { } list)
         {
-            var entries = list.Entries.Select(e => new TrackListEntry(e.Path, e.SourceKeys)).ToList();
-            var sources = list.Sources.Select(s => new TrackListSource(s.Key, s.Kind, s.Name, 0)).ToList();
-            await _appThread.InvokeAsync(() => _trackList.Restore(entries, sources));
+            entries = list.Entries.Select(e => new TrackListEntry(e.Path, e.SourceKeys)).ToList();
+            sources = list.Sources.Select(s => new TrackListSource(s.Key, s.Kind, s.Name, 0)).ToList();
         }
 
-        _persisting = true;
+        // Restore and switch saving on in one app-thread step, so no change can land between the two unsaved.
+        // A change made before this (a song added while starting up) was merged by the restore: save it now.
+        await _appThread.InvokeAsync(() =>
+        {
+            var changedBeforeRestore = _changedBeforePersisting;
+            if (entries is not null && sources is not null) _trackList.Restore(entries, sources);
+            _persisting = true;
+            if (changedBeforeRestore) Save();
+        });
         await MigrateShortlistAsync();
     }
 
@@ -107,7 +118,16 @@ public sealed class TrackListPersistence(
     // Raised on the app thread: snapshot the list now, write on the pool.
     private void OnTrackListChanged()
     {
-        if (!_persisting) return;
+        if (!_persisting)
+        {
+            _changedBeforePersisting = true;
+            return;
+        }
+        Save();
+    }
+
+    private void Save()
+    {
         var json = _trackListCodec.Encode(new SavedTrackList(
             _trackList.Entries.Select(e => new SavedTrackListEntry(e.Path, [.. e.SourceKeys])).ToList(),
             _trackList.Sources.Select(s => new SavedTrackListSource(s.Key, s.Kind, s.Name)).ToList()));
