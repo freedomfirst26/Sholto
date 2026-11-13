@@ -18,6 +18,7 @@ C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
   BLOCKS the new output sound — Sebastian must confirm it is wanted; it changes `StemMixOutputPinTests` (ExpectedMixed hash) and golden `Fixtures/scratch.wav`, both outside the earlier job's files.
 - [ ] **C266 — TrackList log: drop the log-less constructor.** Migrate `tests/Sholto.Interface.MainUI.Tests/LibraryRowsViewModelTests.cs:82` and `TrackListDragRig.cs:97` to pass a log to `TrackList`, then delete its log-less constructor in `src/Sholto.App/Library/TrackList.cs`. Size S.
 - [ ] **Bench render-time frame clock — headless renders advance the frame clock by the frames rendered on each wait, not by wall time (e.g. a ManualFrameClock whose Now is set by HeadlessHost/RenderSession; touches src/Sholto.Data/ManualFrameClock.cs and tools/Sholto.Interface.Bench Headless/Controller), so platter scratches and flings render faithfully offline**
+- [ ] **Backspin before/after listening pair, rerun after the Bench render-time frame clock lands — same spec as the 1745 DoD item, on the groundwork at 375e72b; resolve the C130 cherry-pick conflict in src/Sholto.Host/SholtoOptions.cs by keeping both options properties (Sebastian's default, 2026-11-12)**
 
 ## Waiting on you
 
