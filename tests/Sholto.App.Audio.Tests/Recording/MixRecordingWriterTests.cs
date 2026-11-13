@@ -61,7 +61,8 @@ public class MixRecordingWriterTests
         writer.Start();
         writer.StopAndWait(Generous);
 
-        Assert.True(sink.Flushes >= 2, $"flushes: {sink.Flushes}");
+        // Reads of 48, 48 and 4 frames: the first two each cross 40.
+        Assert.Equal(2, sink.Flushes);
     }
 
     [Fact]
@@ -92,6 +93,21 @@ public class MixRecordingWriterTests
 
         Assert.Equal("No space left on device", writer.FaultReason);
         Assert.Equal(1, sink.Disposals);
+    }
+
+    [Fact]
+    public void A_close_that_fails_on_the_stopping_thread_is_the_fault_reason()
+    {
+        var ring = new StereoSampleRing(10);
+        ring.TryWrite(Frames(4), 2);
+        var sink = new FakeWavSink { ThrowOnDispose = new IOException("No space left on device") };
+        var writer = Writer(ring, sink);
+
+        writer.Start();
+        Assert.True(writer.StopAndWait(Generous));
+
+        Assert.Equal("No space left on device", writer.FaultReason);
+        Assert.Equal(Frames(4), sink.Samples);
     }
 
     [Fact]

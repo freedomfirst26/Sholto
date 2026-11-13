@@ -50,7 +50,17 @@ public sealed class MixRecordingWriter : IMixRecordingWriter
         _stopRequested = true;
         if (_started && !_thread.Join(timeout)) return false;
         // A faulted thread has already closed the file.
-        if (_faultReason is null) _sink.Dispose();
+        if (_faultReason is not null) return true;
+        try
+        {
+            _sink.Dispose();
+        }
+        // The last bytes or the header could not reach the disk: the file stays as its last header rewrite left it,
+        // and the reason is reported like any other write failure.
+        catch (IOException e)
+        {
+            _faultReason = e.Message;
+        }
         return true;
     }
 

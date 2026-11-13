@@ -11,6 +11,7 @@ public interface IMixRecordingWriter
     /// <returns>False when the thread did not finish in time; the file is then left as it is.</returns>
     bool StopAndWait(TimeSpan timeout);
 
-    /// <summary>Why writing failed, once it has; the thread has then closed the file and exited. Null until then.</summary>
+    /// <summary>Why writing failed, once it has: a write on the thread (which then closed the file and exited), or the
+    /// final close in <see cref="StopAndWait"/>. Null until then.</summary>
     string? FaultReason { get; }
 }

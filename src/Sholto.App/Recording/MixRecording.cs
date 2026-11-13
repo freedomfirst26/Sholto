@@ -114,7 +114,10 @@ public sealed class MixRecording : IMixRecording, ICommandHandler<ToggleMixRecor
         _path = null;
 
         _recorder.Disarm();
-        if (!writer.StopAndWait(_stopTimeout))
+        bool finished = writer.StopAndWait(_stopTimeout);
+        // A write that failed during the final drain, or a close that failed, is a reason too.
+        reason ??= writer.FaultReason;
+        if (!finished)
         {
             _log.Warn(Unfinalised);
             reason ??= Unfinalised;

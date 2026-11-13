@@ -9,6 +9,8 @@ internal sealed class FakeWavSink : IWavSink
 
     public Exception? ThrowOnWrite { get; init; }
 
+    public Exception? ThrowOnDispose { get; init; }
+
     public int Flushes { get; private set; }
 
     public int Disposals { get; private set; }
@@ -23,5 +25,9 @@ internal sealed class FakeWavSink : IWavSink
 
     public void Flush() => Flushes++;
 
-    public void Dispose() => Disposals++;
+    public void Dispose()
+    {
+        Disposals++;
+        if (ThrowOnDispose is { } error) throw error;
+    }
 }

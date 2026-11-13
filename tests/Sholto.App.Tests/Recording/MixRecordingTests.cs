@@ -124,6 +124,18 @@ public class MixRecordingTests
     }
 
     [Fact]
+    public void A_writer_fault_during_the_stop_is_the_stops_reason()
+    {
+        Toggle();
+        // Raised by the final drain (or close), after the last tick: no tick sees it first.
+        _writers.Latest.FaultReason = "No space left on device";
+
+        Toggle();
+
+        Assert.Equal([new MixRecordingStopped("take-1.wav", "No space left on device")], _publisher.Of<MixRecordingStopped>());
+    }
+
+    [Fact]
     public void A_writer_that_does_not_finish_in_time_stops_with_the_unfinalised_reason()
     {
         Toggle();
