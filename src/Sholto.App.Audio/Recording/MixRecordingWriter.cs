@@ -41,8 +41,8 @@ public sealed class MixRecordingWriter : IMixRecordingWriter
 
     public void Start()
     {
-        _started = true;
         _thread.Start();
+        _started = true;
     }
 
     public bool StopAndWait(TimeSpan timeout)
