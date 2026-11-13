@@ -291,7 +291,7 @@
           "id": "beatloop.toggle",
           "verb": "press",
           "layer": "page.beatloop",
-          "result": "Starts a 1/4-beat loop, snapped to the beat. While a loop is running, any BEAT LOOP pad ends it instead. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
+          "result": "Starts a 1/4-beat loop, snapped to the beat. While a loop of another length is running, it changes that loop to this length from the same start; while a loop of this length is running, it ends it. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
         }
       ]
     },
@@ -350,7 +350,7 @@
           "id": "beatloop.toggle",
           "verb": "press",
           "layer": "page.beatloop",
-          "result": "Starts a 1/2-beat loop, snapped to the beat. While a loop is running, any BEAT LOOP pad ends it instead. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
+          "result": "Starts a 1/2-beat loop, snapped to the beat. While a loop of another length is running, it changes that loop to this length from the same start; while a loop of this length is running, it ends it. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
         }
       ]
     },
@@ -400,7 +400,7 @@
           "id": "beatloop.toggle",
           "verb": "press",
           "layer": "page.beatloop",
-          "result": "Starts a 1-beat loop, snapped to the beat. While a loop is running, any BEAT LOOP pad ends it instead. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
+          "result": "Starts a 1-beat loop, snapped to the beat. While a loop of another length is running, it changes that loop to this length from the same start; while a loop of this length is running, it ends it. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
         }
       ]
     },
@@ -441,7 +441,7 @@
           "id": "beatloop.toggle",
           "verb": "press",
           "layer": "page.beatloop",
-          "result": "Starts a 2-beat loop, snapped to the beat. While a loop is running, any BEAT LOOP pad ends it instead. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
+          "result": "Starts a 2-beat loop, snapped to the beat. While a loop of another length is running, it changes that loop to this length from the same start; while a loop of this length is running, it ends it. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
         }
       ]
     },
@@ -491,7 +491,7 @@
           "id": "beatloop.toggle",
           "verb": "press",
           "layer": "page.beatloop",
-          "result": "Starts a 4-beat loop, snapped to the beat. While a loop is running, any BEAT LOOP pad ends it instead. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
+          "result": "Starts a 4-beat loop, snapped to the beat. While a loop of another length is running, it changes that loop to this length from the same start; while a loop of this length is running, it ends it. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
         }
       ]
     },
@@ -541,7 +541,7 @@
           "id": "beatloop.toggle",
           "verb": "press",
           "layer": "page.beatloop",
-          "result": "Starts an 8-beat loop, snapped to the beat. While a loop is running, any BEAT LOOP pad ends it instead. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
+          "result": "Starts an 8-beat loop, snapped to the beat. While a loop of another length is running, it changes that loop to this length from the same start; while a loop of this length is running, it ends it. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
         }
       ]
     },
@@ -600,7 +600,7 @@
           "id": "beatloop.toggle",
           "verb": "press",
           "layer": "page.beatloop",
-          "result": "Starts a 16-beat loop, snapped to the beat. While a loop is running, any BEAT LOOP pad ends it instead. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
+          "result": "Starts a 16-beat loop, snapped to the beat. While a loop of another length is running, it changes that loop to this length from the same start; while a loop of this length is running, it ends it. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
         }
       ]
     },
@@ -650,7 +650,7 @@
           "id": "beatloop.toggle",
           "verb": "press",
           "layer": "page.beatloop",
-          "result": "Starts a 32-beat loop, snapped to the beat. While a loop is running, any BEAT LOOP pad ends it instead. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
+          "result": "Starts a 32-beat loop, snapped to the beat. While a loop of another length is running, it changes that loop to this length from the same start; while a loop of this length is running, it ends it. You reach the BEAT LOOP page with [[deck.shift]] + [[deck.padmode.beatjump]]. All eight pads stay lit."
         }
       ]
     },

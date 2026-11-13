@@ -57,7 +57,82 @@ public class LoopCommandHandlersTests
         _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 0.5));
 
         Assert.Null(_looping1.ActiveLoop);
-        Assert.Equal(["enable 1"], _looping1.Calls);
+        Assert.Equal(["exit"], _looping1.Calls);
+    }
+
+    [Fact]
+    public void An_eight_beat_pad_resizes_a_running_one_beat_loop_from_the_same_loop_in()
+    {
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 1));
+        var loopIn = Assert.NotNull(_looping1.ActiveLoop).StartSample;
+        _looping1.Calls.Clear();
+
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 8));
+
+        var loop = Assert.NotNull(_looping1.ActiveLoop);
+        Assert.Equal(loopIn, loop.StartSample);
+        Assert.Equal(8 * SamplesPerBeat, loop.LengthSamples);
+        Assert.Equal(["double", "double", "double"], _looping1.Calls);
+    }
+
+    [Fact]
+    public void A_quarter_beat_pad_resizes_a_running_four_beat_loop_from_the_same_loop_in()
+    {
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 4));
+        var loopIn = Assert.NotNull(_looping1.ActiveLoop).StartSample;
+        _looping1.Calls.Clear();
+
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 0.25));
+
+        var loop = Assert.NotNull(_looping1.ActiveLoop);
+        Assert.Equal(loopIn, loop.StartSample);
+        Assert.Equal(SamplesPerBeat / 4, loop.LengthSamples);
+        Assert.Equal(["halve", "halve", "halve", "halve"], _looping1.Calls);
+    }
+
+    [Fact]
+    public void The_pad_of_the_running_loops_length_exits_it()
+    {
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 2));
+
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 2));
+
+        Assert.Null(_looping1.ActiveLoop);
+    }
+
+    [Fact]
+    public void A_loop_halved_by_the_halve_command_counts_at_its_new_length()
+    {
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 2));
+        _handlers.Handle(new HalveLoop(0, PadOrigin));
+
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 1));
+
+        Assert.Null(_looping1.ActiveLoop);
+    }
+
+    [Fact]
+    public void A_loop_doubled_by_the_double_command_counts_at_its_new_length()
+    {
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 2));
+        _handlers.Handle(new DoubleLoop(0, PadOrigin));
+
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: 4));
+
+        Assert.Null(_looping1.ActiveLoop);
+    }
+
+    [Theory]
+    [InlineData(0.25)]
+    [InlineData(2)]
+    [InlineData(32)]
+    public void The_four_beat_button_exits_a_running_loop_of_any_length(double beats)
+    {
+        _handlers.Handle(new ToggleBeatLoop(0, 0, PadOrigin, Beats: beats));
+
+        _handlers.Handle(new ToggleBeatLoop(0, 4, PadOrigin));
+
+        Assert.Null(_looping1.ActiveLoop);
     }
 
     [Theory]

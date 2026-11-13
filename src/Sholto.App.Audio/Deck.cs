@@ -368,6 +368,9 @@ public sealed class Deck : IEngineDeck, ITransportControl, IDeckLooping, IDeckBe
     /// the UI subscribes to <see cref="LoopChanged"/>.</summary>
     public LoopRegion? ActiveLoop => _loops.ActiveLoop;
 
+    /// <summary>The running loop's length in beats. See <see cref="IDeckLooping.ActiveLoopBeats"/>.</summary>
+    public double? ActiveLoopBeats => _loops.ActiveLoopBeats;
+
     /// <summary>Fires on the thread that mutated the loop (UI / MIDI). Argument
     /// is the new region or null on exit.</summary>
     public event Action<LoopRegion?>? LoopChanged;

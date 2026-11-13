@@ -11,6 +11,7 @@ internal sealed class RecordingLooping : IDeckLooping
 
     public List<string> Calls { get; } = [];
     public LoopRegion? ActiveLoop { get; private set; }
+    public double? ActiveLoopBeats { get; private set; }
 
     public event Action<LoopRegion?>? LoopChanged;
 
@@ -18,24 +19,34 @@ internal sealed class RecordingLooping : IDeckLooping
     {
         Calls.Add($"enable {bars}");
         ActiveLoop = ActiveLoop is null ? new LoopRegion(0, bars * SamplesPerBar) : null;
+        ActiveLoopBeats = ActiveLoop is null ? null : bars * 4.0;
         LoopChanged?.Invoke(ActiveLoop);
     }
 
     public void HalveLoop()
     {
         Calls.Add("halve");
-        if (ActiveLoop is { } r) ActiveLoop = r with { EndSample = r.StartSample + r.LengthSamples / 2 };
+        if (ActiveLoop is { } r)
+        {
+            ActiveLoop = r with { EndSample = r.StartSample + r.LengthSamples / 2 };
+            ActiveLoopBeats /= 2;
+        }
     }
 
     public void DoubleLoop()
     {
         Calls.Add("double");
-        if (ActiveLoop is { } r) ActiveLoop = r with { EndSample = r.StartSample + r.LengthSamples * 2 };
+        if (ActiveLoop is { } r)
+        {
+            ActiveLoop = r with { EndSample = r.StartSample + r.LengthSamples * 2 };
+            ActiveLoopBeats *= 2;
+        }
     }
 
     public void ExitLoop()
     {
         Calls.Add("exit");
         ActiveLoop = null;
+        ActiveLoopBeats = null;
     }
 }

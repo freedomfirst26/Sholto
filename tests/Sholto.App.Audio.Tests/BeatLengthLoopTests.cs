@@ -94,4 +94,97 @@ public class BeatLengthLoopTests
 
         Assert.Null(looping.ActiveLoop);
     }
+
+    [Fact]
+    public void A_pad_of_another_length_resizes_the_running_loop_from_the_same_loop_in()
+    {
+        var looping = Make();
+        looping.ResizeOrToggleBeatLoopBeats(1);
+        var loopIn = Assert.NotNull(looping.ActiveLoop).StartSample;
+
+        looping.ResizeOrToggleBeatLoopBeats(8);
+
+        var loop = Assert.NotNull(looping.ActiveLoop);
+        Assert.Equal(loopIn, loop.StartSample);
+        Assert.Equal(8 * SamplesPerBeat, loop.LengthSamples);
+        Assert.Equal(8, looping.ActiveLoopBeats);
+        Assert.Equal(loop, _stems.ActiveLoop);
+    }
+
+    [Fact]
+    public void A_shorter_pad_shrinks_the_running_loop_from_the_same_loop_in()
+    {
+        var looping = Make();
+        looping.ResizeOrToggleBeatLoopBeats(4);
+
+        looping.ResizeOrToggleBeatLoopBeats(0.25);
+
+        var loop = Assert.NotNull(looping.ActiveLoop);
+        Assert.Equal(2 * SamplesPerBeat, loop.StartSample);
+        Assert.Equal(SamplesPerBeat / 4, loop.LengthSamples);
+    }
+
+    [Fact]
+    public void The_pad_matching_the_running_loop_exits_it()
+    {
+        var looping = Make();
+        looping.ResizeOrToggleBeatLoopBeats(2);
+
+        looping.ResizeOrToggleBeatLoopBeats(2);
+
+        Assert.Null(looping.ActiveLoop);
+        Assert.Null(looping.ActiveLoopBeats);
+        Assert.Null(_stems.ActiveLoop);
+    }
+
+    [Fact]
+    public void Halving_and_doubling_keep_the_length_in_beats()
+    {
+        var looping = Make();
+        looping.EnableBeatLoopBeats(2);
+
+        looping.HalveLoop();
+        Assert.Equal(1, looping.ActiveLoopBeats);
+        looping.DoubleLoop();
+        looping.DoubleLoop();
+        Assert.Equal(4, looping.ActiveLoopBeats);
+    }
+
+    [Fact]
+    public void A_loop_halved_to_one_beat_is_exited_by_the_one_beat_pad()
+    {
+        var looping = Make();
+        looping.ResizeOrToggleBeatLoopBeats(2);
+        looping.HalveLoop();
+
+        looping.ResizeOrToggleBeatLoopBeats(1);
+
+        Assert.Null(looping.ActiveLoop);
+    }
+
+    [Fact]
+    public void A_doubling_cut_short_by_the_track_end_leaves_the_length_unknown_and_a_pad_re_engages()
+    {
+        var looping = Make();
+        _positionFrames = (long)((TrackSeconds - 10) * Rate);   // 30 s: 10 s (20 beats) left
+        looping.ResizeOrToggleBeatLoopBeats(16);
+        looping.DoubleLoop();
+        Assert.Null(looping.ActiveLoopBeats);
+
+        looping.ResizeOrToggleBeatLoopBeats(1);
+
+        Assert.Equal(SamplesPerBeat, Assert.NotNull(looping.ActiveLoop).LengthSamples);
+        Assert.Equal(1, looping.ActiveLoopBeats);
+    }
+
+    [Fact]
+    public void With_no_loop_running_a_pad_engages_its_loop()
+    {
+        var looping = Make();
+
+        looping.ResizeOrToggleBeatLoopBeats(0.5);
+
+        Assert.Equal(SamplesPerBeat / 2, Assert.NotNull(looping.ActiveLoop).LengthSamples);
+        Assert.Equal(0.5, looping.ActiveLoopBeats);
+    }
 }

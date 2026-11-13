@@ -40,9 +40,13 @@ internal sealed class DeckLooping(
     private readonly ILog _log = log;
 
     private LoopRegion? _activeLoop;
+    private double? _activeLoopBeats;
 
     /// <inheritdoc/>
     public LoopRegion? ActiveLoop => _activeLoop;
+
+    /// <inheritdoc/>
+    public double? ActiveLoopBeats => _activeLoopBeats;
 
     /// <inheritdoc/>
     public event Action<LoopRegion?>? LoopChanged;
@@ -173,6 +177,7 @@ internal sealed class DeckLooping(
 
         var region = new LoopRegion(inSample, outSample);
         _activeLoop = region;
+        _activeLoopBeats = bars * 4.0;
         stemProvider.SetLoop(region);
         double actualLen = (outSample - inSample) / 2.0 / AudioFileDecoder.TargetSampleRate;
         double expectedLen = bars * secondsPerBar;
@@ -193,6 +198,7 @@ internal sealed class DeckLooping(
         newLen &= ~1L;
         var next = new LoopRegion(r.StartSample, r.StartSample + newLen);
         _activeLoop = next;
+        _activeLoopBeats /= 2;
         stemProvider.BuildLoopTail(next.EndSample);
         stemProvider.SetLoop(next);
         _log.Info($"loop ½×: now {next.LengthSamples} samples");
@@ -209,10 +215,13 @@ internal sealed class DeckLooping(
         long newLen = r.LengthSamples * 2;
         long maxSample = _sampleCount() * 2;
         long newOut = r.StartSample + newLen;
-        if (newOut > maxSample) newOut = maxSample;
+        bool clamped = newOut > maxSample;
+        if (clamped) newOut = maxSample;
         if (newOut <= r.StartSample) return;
         var next = new LoopRegion(r.StartSample, newOut & ~1L);
         _activeLoop = next;
+        // Cut short by the track's end, the loop is no longer a whole number of the grid's beats.
+        _activeLoopBeats = clamped ? null : _activeLoopBeats * 2;
         stemProvider.BuildLoopTail(next.EndSample);
         stemProvider.SetLoop(next);
         _log.Info($"loop 2×: now {next.LengthSamples} samples");
@@ -227,6 +236,7 @@ internal sealed class DeckLooping(
     {
         if (_activeLoop is null) return;
         _activeLoop = null;
+        _activeLoopBeats = null;
         _stemProvider()?.SetLoop(null);
         _log.Info("loop OFF");
         LoopChanged?.Invoke(null);

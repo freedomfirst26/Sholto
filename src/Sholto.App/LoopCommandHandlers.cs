@@ -16,10 +16,15 @@ public sealed class LoopCommandHandlers(IDecks decks, IDeckMarkers markers) :
     private readonly IDecks _decks = decks;
     private readonly IDeckMarkers _markers = markers;
 
-    /// <summary>A loop of the command's length in beats: whole bars from the 4 BEAT button, or any of the
-    /// BEAT LOOP pads' 1/4 to 32 beats.</summary>
-    public void Handle(in ToggleBeatLoop command) =>
-        _decks.DeckFor(command.Deck).Looping.EnableBeatLoopBeats(command.LengthBeats);
+    /// <summary>The 4 BEAT button (whole bars) toggles its loop: it engages one, or exits the loop running.
+    /// A BEAT LOOP pad (1/4 to 32 beats) engages its loop, exits a running loop of its length, and resizes
+    /// a running loop of any other length to its own.</summary>
+    public void Handle(in ToggleBeatLoop command)
+    {
+        var looping = _decks.DeckFor(command.Deck).Looping;
+        if (command.IsBeatLength) looping.ResizeOrToggleBeatLoopBeats(command.Beats);
+        else looping.EnableBeatLoopBeats(command.LengthBeats);
+    }
 
     public void Handle(in HalveLoop command) => _decks.DeckFor(command.Deck).Looping.HalveLoop();
 
