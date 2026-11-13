@@ -51,6 +51,7 @@ public class LibraryAnalysisMenuTests
                 Microsoft.Extensions.Options.Options.Create(new FoldersPanelOptions()), new RecordingLogFactory()),
             new TrackListViewModel(_bus, _bus),
             _toast,
+            new MixRecordingViewModel(_sender, _bus),
             new TrackActionsCoordinator(new OverlayViewModelFactory(recency, _bus, _bus, _bus, appThread), new TrackActionsViewModel()),
             new SystemReportCoordinator(new SystemReportViewModel()),
             new FaceplateGuideCoordinator(new CollapseToIconSequence(new FakeFrameClock(), new FixedMotionPreference(false),

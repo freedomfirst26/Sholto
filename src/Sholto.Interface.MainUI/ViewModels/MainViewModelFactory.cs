@@ -6,7 +6,7 @@ using Sholto.Interface.MainUI.ViewModels.Glance;
 namespace Sholto.Interface.MainUI.ViewModels;
 
 /// <summary>Holds the main view model's dependencies and builds it: <see cref="Create"/> makes the
-/// toast, track-actions, system-report and faceplate-guide collaborators and hands them in through the
+/// toast, record-button, track-actions, system-report and faceplate-guide collaborators and hands them in through the
 /// constructor.</summary>
 public sealed class MainViewModelFactory(
     IThemeViewModel themes, IOverlayViewModelFactory overlays, ILibraryRowsViewModel rows, ICommandSender sender,
@@ -42,6 +42,7 @@ public sealed class MainViewModelFactory(
         _themes, _rows, _sender, _subscriber, _glance, _loadFeedback, _outputPicker, _deck1, _deck2,
         _waveformStyle, _layoutWizard, _settings, _folders, _trackList,
         new ToastViewModel(_appThread),
+        new MixRecordingViewModel(_sender, _subscriber),
         new TrackActionsCoordinator(_overlays, _trackActions),
         new SystemReportCoordinator(_systemReport),
         new FaceplateGuideCoordinator(_faceplateDock));

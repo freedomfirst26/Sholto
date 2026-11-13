@@ -27,7 +27,8 @@ public sealed class MainViewModel :
     IEventHandler<TrackAddedToCrate>,
     IEventHandler<TrackLoadFailed>,
     IEventHandler<SystemCheckReported>,
-    IEventHandler<LibraryAnalysisProgressChanged>
+    IEventHandler<LibraryAnalysisProgressChanged>,
+    IEventHandler<MixRecordingStopped>
 {
     private bool _isMagnetEligible;
 
@@ -144,6 +145,20 @@ public sealed class MainViewModel :
     /// <summary>A track could not be loaded: the deck stays usable; say so.</summary>
     void IEventHandler<TrackLoadFailed>.Handle(in TrackLoadFailed e) =>
         _toast.Show($"Couldn't load {e.Title} · Deck {e.Deck + 1}");
+
+    /// <summary>The top bar's record button and elapsed time.</summary>
+    public IMixRecordingViewModel MixRecording { get; }
+
+    /// <summary>A recording attempt ended: one toast names the saved file, the failure, or both.</summary>
+    void IEventHandler<MixRecordingStopped>.Handle(in MixRecordingStopped e) => _toast.Show(MixRecordingStoppedText(e));
+
+    private string MixRecordingStoppedText(in MixRecordingStopped e)
+    {
+        var fileName = Path.GetFileName(e.FilePath);
+        if (e.Reason is null) return $"Mix saved: {fileName}";
+        if (e.FilePath is null) return $"Couldn't start recording: {e.Reason}";
+        return $"Recording stopped: {e.Reason} (saved {fileName})";
+    }
 
     private bool _isLibraryAnalysisRunning;
     /// <summary>A library analysis is running: the menu's cancel entry is enabled only then.</summary>
@@ -315,6 +330,7 @@ public sealed class MainViewModel :
                          IFoldersViewModel folders,
                          ITrackListViewModel trackList,
                          IToastViewModel toast,
+                         IMixRecordingViewModel mixRecording,
                          ITrackActionsCoordinator trackActions,
                          ISystemReportCoordinator systemReport,
                          IFaceplateGuideCoordinator faceplate)
@@ -334,6 +350,7 @@ public sealed class MainViewModel :
         _rows = rows;
         OutputPicker = outputPicker;
         _toast = toast;
+        MixRecording = mixRecording;
         _trackActions = trackActions;
         _systemReport = systemReport;
         _faceplate = faceplate;
@@ -382,6 +399,7 @@ public sealed class MainViewModel :
         subscriber.Subscribe<TrackLoadFailed>(this);
         subscriber.Subscribe<SystemCheckReported>(this);
         subscriber.Subscribe<LibraryAnalysisProgressChanged>(this);
+        subscriber.Subscribe<MixRecordingStopped>(this);
     }
 
     private Origin Ui(string control, string gesture) => new(InterfaceIds.MainUI, control, gesture);

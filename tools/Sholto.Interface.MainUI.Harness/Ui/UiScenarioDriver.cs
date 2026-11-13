@@ -340,6 +340,14 @@ public sealed class UiScenarioDriver(MainWindow window, MainViewModel vm, Gestur
             Dispatcher.UIThread.RunJobs();
             return;
         }
+        if (target == "RecordMix")
+        {
+            // The App's state an hour into a recording (the harness's toggle handler is a no-op): the record dot
+            // filled and the elapsed time showing. A made-up demo path, never a real one.
+            _publisher.Publish(new MixRecordingChanged(true, new TimeSpan(1, 2, 3), "/home/demo/Music/2026-11-12 21-04-33.wav"));
+            Dispatcher.UIThread.RunJobs();
+            return;
+        }
         if (target == "CratePicker")
         {
             // Settings ▸ the library's Add to crate: needs a scanned library (the first row is the track), the
@@ -373,7 +381,7 @@ public sealed class UiScenarioDriver(MainWindow window, MainViewModel vm, Gestur
         }
         if (target != "TrackList")
             throw new NotSupportedException(
-                $"click target \"{target}\" isn't wired — only \"TrackList\", \"FaceplateButton\", \"LayoutWizard\", \"Settings\", \"Folders\" and \"SystemReport\" are.");
+                $"click target \"{target}\" isn't wired — only \"TrackList\", \"FaceplateButton\", \"LayoutWizard\", \"Settings\", \"Folders\", \"SystemReport\" and \"RecordMix\" are.");
 
         Dispatcher.UIThread.RunJobs();
         var listBox = _window.FindControl<ListBox>("TrackList")

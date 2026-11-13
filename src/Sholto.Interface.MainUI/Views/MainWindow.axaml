@@ -78,6 +78,33 @@
                            FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
             </StackPanel>
         </Border>
+        <!-- Record the mix: a round button left of the status dot, hollow when idle and filled red while
+             recording, then the recorded time (H:MM:SS), shown only while recording. Both come from the App's
+             MixRecordingChanged; the click only asks the App to start or stop. -->
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6"
+                    VerticalAlignment="Center" Margin="0,0,12,0">
+            <Button x:Name="RecordMixButton" Command="{Binding MixRecording.Toggle}"
+                    Classes.recording="{Binding MixRecording.IsRecording}"
+                    Background="Transparent" BorderThickness="0" Padding="2"
+                    Cursor="Hand" ToolTip.Tip="Record the mix" VerticalAlignment="Center">
+                <Button.Styles>
+                    <Style Selector="Button#RecordMixButton Ellipse.record">
+                        <Setter Property="Fill" Value="Transparent"/>
+                        <Setter Property="Stroke" Value="{DynamicResource SholtoTextBright}"/>
+                    </Style>
+                    <Style Selector="Button#RecordMixButton.recording Ellipse.record">
+                        <Setter Property="Fill" Value="{DynamicResource SholtoStatusError}"/>
+                        <Setter Property="Stroke" Value="{DynamicResource SholtoStatusError}"/>
+                    </Style>
+                </Button.Styles>
+                <Ellipse Classes="record" Width="12" Height="12" StrokeThickness="1.4"/>
+            </Button>
+            <TextBlock Text="{Binding MixRecording.ElapsedText}"
+                       IsVisible="{Binding MixRecording.IsRecording}"
+                       FontFamily="monospace" FontSize="11" FontWeight="SemiBold"
+                       Foreground="{DynamicResource SholtoTextBright}"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
         <!-- Controller guide entry point. The ONLY way to open the Faceplate overlay —
              deliberately no keyboard shortcut. A mini controller, white outline (a
              stroke, no fill) so it reads as chrome rather than competing with the
