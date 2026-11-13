@@ -1,12 +1,5 @@
 using System.Text.Json;
-using Microsoft.Extensions.Options;
-using Sholto.App.Analysis.Analyzers;
-using Sholto.App.Analysis.Analyzers.Waveform;
-using Sholto.App.Audio;
-using Sholto.App.Dsp;
-using Sholto.Data;
 using Sholto.Interface.Bench.Headless;
-using Sholto.Interface.Bench.Rendering;
 using Sholto.Interface.Bench.Scenario;
 
 namespace Sholto.Interface.Bench.Tests.Headless;
@@ -22,19 +15,7 @@ public sealed class HeadlessSessionDisposeTests : IDisposable
 
     public void Dispose() => File.Delete(_wav);
 
-    private IHeadlessHostFactory NewFactory()
-    {
-        var naudio = new NAudioDecoding();
-        var decoder = new AudioFileDecoder([new Mp3DecodeStrategy(naudio), new WavDecodeStrategy(naudio)]);
-        var appThread = new ImmediateAppThread();
-        var deckFactory = new BenchDeckFactory(
-            decoder,
-            new NoOpStemAnalysisStep(),
-            new AnalysisProvider((_, _) => throw new NotSupportedException("not used")),
-            Options.Create(new WaveformBandOptions()),
-            appThread, new RecordingLogFactory());
-        return new HeadlessHostFactory(new BenchDeck(deckFactory), deckFactory, decoder, new DeckAdvance(deckFactory), appThread, new EqualPowerCrossfade(), new RecordingLogFactory());
-    }
+    private IHeadlessHostFactory NewFactory() => new HeadlessTestHostFactory().Create();
 
     private HeadlessSession RunLoadScenario() =>
         NewFactory().Create().RunScenario(new ScenarioFactory().Create(

@@ -42,11 +42,14 @@ public sealed class RenderSession : IDisposable
     /// them to the WAV. Call any Deck mutator (Volume, SetEq, SetFilter,
     /// SetEcho, ScratchRate/EndScratch, ...) between calls to script a
     /// timeline finer than the load/gain/play/crossfader/wait scenario
-    /// vocabulary allows.</summary>
-    public void Advance(TimeSpan span)
+    /// vocabulary allows. Returns the duration actually rendered: whole frames
+    /// divided by the device sample rate, which can fall just short of
+    /// <paramref name="span"/>.</summary>
+    public TimeSpan Advance(TimeSpan span)
     {
         long frames = (long)(span.TotalSeconds * _sampleRate);
         _renderer.RenderFrames(_router, _writer, frames, _channels);
+        return TimeSpan.FromSeconds((double)frames / _sampleRate);
     }
 
     public void Dispose()

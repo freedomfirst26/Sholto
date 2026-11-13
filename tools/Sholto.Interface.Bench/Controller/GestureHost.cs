@@ -14,9 +14,12 @@ namespace Sholto.Interface.Bench.Controller;
 /// puppeteer.
 ///
 /// <para>The manual clock ticks the performance tick and then the controller input exactly as
-/// production's does, so hold/timeout gestures (e.g. browse-hold) go through the real code path —
-/// they just need real wall-clock time between calls to <see cref="Pump"/>/<see cref="SendGesture"/>
-/// to become due, same as they would against the real 16 ms timer.</para>
+/// production's does, so hold/timeout gestures (e.g. browse-hold) and platter physics (scratch release,
+/// fling coast) go through the real code path. Built by <see cref="IGestureHostFactory.Create"/> the clock
+/// reads wall time, so those need real time between calls to <see cref="Pump"/>/<see cref="SendGesture"/>
+/// to become due, same as against the real 16 ms timer. Built by
+/// <see cref="IGestureHostFactory.CreateForRender"/> for an offline render, it reads rendered time
+/// instead: the render advances it by the audio each wait renders, so gesture timing matches the WAV.</para>
 /// </summary>
 /// <param name="surface">The scripted control surface the stack listens to.</param>
 /// <param name="clock">The manual frame clock the stack ticks on.</param>

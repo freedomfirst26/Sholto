@@ -10,7 +10,7 @@ namespace Sholto.Interface.Bench.Headless;
 /// <summary>
 /// The headless interface. Composes the app's core with no window (<see cref="IHeadlessCoreFactory"/>),
 /// puts the controller-driven input stack over it (<see cref="IHeadlessInputStackFactory"/>) on an
-/// immediate app thread and a manual frame clock, and runs a scenario: deck-level actions (load / gain /
+/// immediate app thread and a manual frame clock (wall time, or rendered time when rendering a WAV), and runs a scenario: deck-level actions (load / gain /
 /// play / crossfader / wait) land on the two decks behind the core's deck sessions, while
 /// scan / gesture / midi go through <see cref="HeadlessScenarioDriver"/> — gestures as controller events
 /// through the real input stack, so as Commands on the bus.
@@ -70,11 +70,14 @@ public sealed class HeadlessHost(
 
     public HeadlessSession RunScenario(Scenario.Scenario scenario, string outWavPath)
     {
-        var (headless, session) = OpenCore();
+        var gestures = _gestureHostFactory.CreateForRender();
+        var (headless, session) = OpenCore(gestures);
 
         using var render = new RenderSession(_renderer, _routers, [headless.Deck1, headless.Deck2], headless.Engine, _deckFactory.DeckFormat, outWavPath);
         var decks = new Dictionary<int, Deck> { [1] = session.Deck1, [2] = session.Deck2 };
-        var runner = new ScenarioRunner(decks, advance: render.Advance, _crossfade)
+        // The gesture clock moves by exactly what was rendered, before the wait's Pump, so the scratch
+        // engine and recognizer see the WAV's time, not how fast the render ran.
+        var runner = new ScenarioRunner(decks, advance: span => gestures.Clock.Advance(render.Advance(span)), _crossfade)
         {
             OnUiAction = session.Driver.Handle,
         };
@@ -83,12 +86,11 @@ public sealed class HeadlessHost(
         return session;
     }
 
-    public HeadlessSession Open() => OpenCore().Session;
+    public HeadlessSession Open() => OpenCore(_gestureHostFactory.Create()).Session;
 
-    private (HeadlessCore Core, HeadlessSession Session) OpenCore()
+    private (HeadlessCore Core, HeadlessSession Session) OpenCore(GestureHost gestures)
     {
         var headless = _coreFactory.Build();
-        var gestures = _gestureHostFactory.Create();
         _stackFactory.Build(headless.Core, gestures, _appThread);
         var driver = new HeadlessScenarioDriver(
             headless.Core, gestures, [headless.Deck1, headless.Deck2], _gestureFactory, _snapshot, _diff);
