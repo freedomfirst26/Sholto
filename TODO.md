@@ -4,6 +4,7 @@
 
 C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 
+- [ ] **screenshot paste test (delete me)**
 - [ ] **C259 — Key lock (master tempo).** Per-deck toggle keeps a track's pitch unchanged while its tempo moves (time-stretch, not resampling), on screen and on the FLX4 MASTER TEMPO button; off by default, real-time safe on the audio thread. Size L.
   Plan: ~/.claude/plans/sholto-impl-31-c259-key-lock-master-tempo.md (written, but its plan review never finished; re-review before building). Spec: ~/.claude/plans/sholto-launch-plan.md (Stage B2).
 - [ ] **C249 — Re-capture the site assets with `capture.sh` on the v1.2.0 build.** Size S. After C248 (v1.2.0 release).
