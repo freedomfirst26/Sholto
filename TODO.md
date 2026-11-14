@@ -4,18 +4,7 @@
 
 C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 
-- [ ] **C259 — Key lock (master tempo).** Per-deck toggle keeps a track's pitch unchanged while its tempo moves (time-stretch, not resampling), on screen and on the FLX4 MASTER TEMPO button; off by default, real-time safe on the audio thread. Size L.
-  Plan: ~/.claude/plans/sholto-impl-31-c259-key-lock-master-tempo.md (written, but its plan review never finished; re-review before building). Spec: ~/.claude/plans/sholto-launch-plan.md (Stage B2).
-- [ ] **C249 — Re-capture the site assets with `capture.sh` on the v1.2.0 build.** Size S. After C248 (v1.2.0 release).
-  Spec: ~/.claude/plans/sholto-launch-plan.md (Stage D).
-- [ ] **C252 — Set Pages source to GitHub Actions, then run pages.yml.** Settings > Pages > Source = GitHub Actions, then run pages.yml (or it fires from v1.2.0). Size S. After C248, C249, C251.
-  BLOCKS Pages source setting — only Sebastian can change GitHub settings
-  Spec: ~/.claude/plans/sholto-launch-plan.md (Stage D).
-- [ ] **C253 — Site live.** README link and repo homepage (`gh repo edit --homepage`); open the live URL and check the download links fetch v1.2.0 for both OSes; close C157. Size S. After C252.
-  Spec: ~/.claude/plans/sholto-launch-plan.md (Stage D).
-- [ ] **C130 — Backspin sound: anti-alias reader + speed ramp, cap 8x.**
-  ACCEPT At speeds beyond 1x both in-memory providers read through a box filter over the source frames each output step covers, ramp the speed smoothly across each buffer from the previous one, and never read faster than 8x either way.
-  BLOCKS the new output sound — Sebastian must confirm it is wanted; it changes `StemMixOutputPinTests` (ExpectedMixed hash) and golden `Fixtures/scratch.wav`, both outside the earlier job's files.
+- [ ] **The board vm should only be accssible from tailscale**
 
 ## Waiting on you
 
