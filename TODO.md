@@ -5,7 +5,6 @@
 C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 
 - [ ] **Can you turn tailscale on immich vm**
-- [ ] **The board vm should only be accssible from tailscale**
 
 ## Waiting on you
 
