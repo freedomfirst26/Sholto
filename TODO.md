@@ -4,8 +4,6 @@
 
 C249, C252 and C253 run in that order, after the v1.2.0 release (C248).
 
-- [ ] **undo test B (delete me)**
-- [ ] **undo test A (delete me)**
 - [ ] **Can you turn tailscale on immich vm** — homelab, not Sholto: VM 104 needs Tailscale back on for phones; the board VM cannot reach Proxmox or the LAN. [desktop]
 
 ## Waiting on you
