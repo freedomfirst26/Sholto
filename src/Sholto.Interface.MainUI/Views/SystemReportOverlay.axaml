@@ -5,46 +5,141 @@
              x:DataType="vm:ISystemReportViewModel"
              Focusable="False">
 
-    <!-- The tool rows only: ModalShell supplies the scrim, panel, headline, Close button and hint. -->
-    <ItemsControl ItemsSource="{Binding Rows}" Margin="-6,0">
-        <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:SystemReportRow">
-                <Grid ColumnDefinitions="18,*" Margin="6,5">
-                    <TextBlock Grid.Column="0" Text="●" FontSize="11"
-                               VerticalAlignment="Top" Margin="0,3,0,0"
-                               Foreground="{DynamicResource SholtoStatusOk}"
-                               IsVisible="{Binding IsPresent}"/>
-                    <TextBlock Grid.Column="0" Text="●" FontSize="11"
-                               VerticalAlignment="Top" Margin="0,3,0,0"
-                               Foreground="{DynamicResource SholtoStatusAttention}"
-                               IsVisible="{Binding IsMissing}"/>
-                    <StackPanel Grid.Column="1" Spacing="1">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="{Binding Capability}"
-                                       FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource SholtoTextBright}"/>
-                            <TextBlock Text="{Binding ToolName}"
-                                       FontSize="13"
-                                       Foreground="{DynamicResource SholtoTextMuted}"/>
-                            <TextBlock Text="{Binding StatusText}"
-                                       FontSize="12" FontWeight="Bold"
-                                       Foreground="{DynamicResource SholtoTextMuted}"/>
+    <UserControl.Resources>
+        <!-- Geometry, not colour. The warning triangle is the same shape as the search overlay's DeckSlotWarnGlyph. -->
+        <StreamGeometry x:Key="ReportWarnGlyph">M8,1.5L15,14.5H1Z M7.25,6H8.75V10H7.25Z M7.25,11.25H8.75V12.75H7.25Z</StreamGeometry>
+        <StreamGeometry x:Key="ReportOkGlyph">F0 M8,1A7,7 0 1 0 8,15A7,7 0 1 0 8,1Z M7,10.6L4.4,8L5.4,7L7,8.6L10.6,5L11.6,6Z</StreamGeometry>
+        <StreamGeometry x:Key="ReportTickGlyph">M2.5,8.2L3.7,7L6.3,9.6L12.3,3.6L13.5,4.8L6.3,12Z</StreamGeometry>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.banner.attention">
+            <Setter Property="Background" Value="{DynamicResource SholtoStatusWarnTint}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoStatusWarn}"/>
+        </Style>
+        <Style Selector="Border.banner.healthy">
+            <Setter Property="Background" Value="{DynamicResource SholtoStatusOkTint}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoStatusOk}"/>
+        </Style>
+        <Style Selector="Border.banner.attention Path.verdict">
+            <Setter Property="Fill" Value="{DynamicResource SholtoStatusWarn}"/>
+        </Style>
+        <Style Selector="Border.banner.attention TextBlock.verdict">
+            <Setter Property="Foreground" Value="{DynamicResource SholtoStatusWarn}"/>
+        </Style>
+        <Style Selector="Border.banner.healthy Path.verdict">
+            <Setter Property="Fill" Value="{DynamicResource SholtoStatusOk}"/>
+        </Style>
+        <Style Selector="Border.banner.healthy TextBlock.verdict">
+            <Setter Property="Foreground" Value="{DynamicResource SholtoStatusOk}"/>
+        </Style>
+        <Style Selector="Button.copy">
+            <Setter Property="Background" Value="{DynamicResource SholtoSurfaceRaised}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextMuted}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+        </Style>
+        <Style Selector="Button.copy:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <!-- The body only: ModalShell supplies the scrim, panel, eyebrow, Close button and hint. -->
+    <StackPanel Spacing="10">
+        <Border Classes="banner" Classes.attention="{Binding NeedsAttention}" Classes.healthy="{Binding IsHealthy}"
+                CornerRadius="6" Padding="12,10" BorderThickness="3,0,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Path Grid.Column="0" Classes="verdict" Width="18" Height="18" Stretch="Uniform"
+                      VerticalAlignment="Top" Margin="0,1,10,0"
+                      Data="{StaticResource ReportWarnGlyph}" IsVisible="{Binding NeedsAttention}"/>
+                <Path Grid.Column="0" Classes="verdict" Width="18" Height="18" Stretch="Uniform"
+                      VerticalAlignment="Top" Margin="0,1,10,0"
+                      Data="{StaticResource ReportOkGlyph}" IsVisible="{Binding IsHealthy}"/>
+                <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Classes="verdict" Text="{Binding VerdictTitle}" FontSize="14" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding Headline}" FontSize="12.5" TextWrapping="Wrap"
+                               Foreground="{DynamicResource SholtoTextBright}"/>
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding ReadyCount}" FontSize="12" Margin="12,2,0,0"
+                           VerticalAlignment="Top" Foreground="{DynamicResource SholtoTextMuted}"/>
+            </Grid>
+        </Border>
+
+        <ItemsControl ItemsSource="{Binding Capabilities}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Spacing="6"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SystemReportCapability">
+                    <Border CornerRadius="8" Padding="10,8" BorderThickness="1" BorderBrush="Transparent"
+                            Classes.missing="{Binding IsMissing}">
+                        <Border.Styles>
+                            <Style Selector="Border.missing">
+                                <Setter Property="Background" Value="{DynamicResource SholtoSurface}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource SholtoBorder}"/>
+                            </Style>
+                        </Border.Styles>
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="20,*,Auto">
+                                <Path Grid.Column="0" Width="14" Height="14" Stretch="Uniform"
+                                      VerticalAlignment="Top" Margin="0,3,0,0" HorizontalAlignment="Left"
+                                      Fill="{DynamicResource SholtoStatusOk}"
+                                      Data="{StaticResource ReportTickGlyph}" IsVisible="{Binding IsReady}"/>
+                                <Ellipse Grid.Column="0" Width="12" Height="12"
+                                         VerticalAlignment="Top" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                         Stroke="{DynamicResource SholtoTextMuted}" StrokeThickness="1.5"
+                                         IsVisible="{Binding IsMissing}"/>
+                                <StackPanel Grid.Column="1" Spacing="1">
+                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SholtoTextBright}"/>
+                                    <TextBlock Text="{Binding Detail}" FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource SholtoTextMuted}"/>
+                                    <TextBlock Text="{Binding ToolLine}" FontFamily="monospace" FontSize="11.5"
+                                               TextWrapping="Wrap" Foreground="{DynamicResource SholtoTextMuted}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0"
+                                            VerticalAlignment="Top">
+                                    <Border IsVisible="{Binding IsFallback}" BorderThickness="1" CornerRadius="4"
+                                            Padding="5,1" BorderBrush="{DynamicResource SholtoBorder}">
+                                        <TextBlock Text="fallback" FontSize="10.5" FontWeight="Bold"
+                                                   Foreground="{DynamicResource SholtoTextMuted}"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="Bold"
+                                               Classes.ready="{Binding IsReady}">
+                                        <TextBlock.Styles>
+                                            <Style Selector="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource SholtoTextBright}"/>
+                                            </Style>
+                                            <Style Selector="TextBlock.ready">
+                                                <Setter Property="Foreground" Value="{DynamicResource SholtoStatusOk}"/>
+                                            </Style>
+                                        </TextBlock.Styles>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Spacing="4" IsVisible="{Binding HasFix}">
+                                <TextBlock Text="{Binding FixLabel}" FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SholtoTextBright}"/>
+                                <Border Background="{DynamicResource SholtoBgDeep}" BorderThickness="1"
+                                        BorderBrush="{DynamicResource SholtoBorder}" CornerRadius="6" Padding="10,8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <TextBlock Grid.Column="0" Text="$ " FontFamily="monospace" FontSize="12"
+                                                   Foreground="{DynamicResource SholtoTextMuted}"/>
+                                        <SelectableTextBlock Grid.Column="1" Text="{Binding FixCommand}"
+                                                             FontFamily="monospace" FontSize="12" TextWrapping="Wrap"
+                                                             Foreground="{DynamicResource SholtoTextBright}"/>
+                                        <Button Grid.Column="2" Classes="copy" Content="Copy" Margin="8,0,0,0"
+                                                Click="OnCopyClick"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
                         </StackPanel>
-                        <TextBlock Text="{Binding Detail}"
-                                   FontSize="12" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource SholtoTextMuted}"/>
-                        <Border IsVisible="{Binding IsMissing}"
-                                CornerRadius="4" Padding="7,2" Margin="0,3,0,0"
-                                HorizontalAlignment="Left"
-                                Background="{DynamicResource SholtoBgDeep}">
-                            <TextBlock Text="{Binding Install}"
-                                       FontFamily="monospace" FontSize="12"
-                                       TextWrapping="Wrap"
-                                       Foreground="{DynamicResource SholtoTextBright}"/>
-                        </Border>
-                    </StackPanel>
-                </Grid>
-            </DataTemplate>
-        </ItemsControl.ItemTemplate>
-    </ItemsControl>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
 </UserControl>

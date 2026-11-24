@@ -46,7 +46,7 @@ public class MainViewModelSystemReportTests
         rig.Bus.Publish(rig.MissingTool());
         Assert.True(rig.Vm.SystemDegraded);
         Assert.Contains(nameof(MainViewModel.SystemDegraded), rig.Changed);
-        Assert.Single(rig.Vm.SystemReportModal.Rows);
+        Assert.Single(rig.Vm.SystemReportModal.Capabilities);
 
         rig.Changed.Clear();
         rig.Bus.Publish(new SystemCheckReported([], SystemHealth.Healthy));

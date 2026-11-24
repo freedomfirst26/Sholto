@@ -9,7 +9,7 @@ namespace Sholto.Interface.MainUI.ViewModels;
 public sealed class SystemReportViewModel : ISystemReportViewModel
 {
     private SystemCheckReported? _report;
-    private IReadOnlyList<SystemReportRow> _rows = [];
+    private IReadOnlyList<SystemReportCapability> _capabilities = [];
     private bool _isOpen;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -32,13 +32,30 @@ public sealed class SystemReportViewModel : ISystemReportViewModel
     public void Report(SystemCheckReported report)
     {
         _report = report;
-        _rows = [.. report.Tools.Select(t => new SystemReportRow(t))];
-        Notify(nameof(Rows));
+        _capabilities = [.. report.Tools.GroupBy(t => t.Capability).Select(g => new SystemReportCapability([.. g]))];
+        Notify(nameof(Capabilities));
         Notify(nameof(Headline));
-        Notify(nameof(Title));
+        Notify(nameof(VerdictTitle));
+        Notify(nameof(ReadyCount));
+        Notify(nameof(IsHealthy));
+        Notify(nameof(NeedsAttention));
+        Notify(nameof(KeyHint));
     }
 
-    public IReadOnlyList<SystemReportRow> Rows => _rows;
+    public IReadOnlyList<SystemReportCapability> Capabilities => _capabilities;
+
+    public string VerdictTitle => _report?.Health switch
+    {
+        SystemHealth.Offline => "Beat detection is off",
+        SystemHealth.Degraded => "Running with gaps",
+        _ => "All set",
+    };
+
+    public string ReadyCount => $"{_capabilities.Count(c => c.IsReady)} of {_capabilities.Count} ready";
+
+    public bool IsHealthy => !NeedsAttention;
+
+    public bool NeedsAttention => _report?.Health is SystemHealth.Degraded or SystemHealth.Offline;
 
     public string Headline => _report?.Health switch
     {
@@ -49,17 +66,19 @@ public sealed class SystemReportViewModel : ISystemReportViewModel
         _ => "Everything Sholto needs is installed.",
     };
 
-    public string Eyebrow => "●  SYSTEM REPORT";
+    public string Eyebrow => "SYSTEM REPORT";
 
-    public ModalTone Tone => ModalTone.Attention;
+    public ModalTone Tone => ModalTone.Accent;
 
-    public string Title => Headline;
+    public string Title => "";
 
     public string? Subtitle => null;
 
-    public string KeyHint => "Tools are looked up once at startup — restart Sholto after installing.";
+    public string KeyHint => NeedsAttention
+        ? "Restart Sholto after installing. Tools are checked once at startup."
+        : "Tools are checked once at startup.";
 
-    public ModalWidth Width => ModalWidth.Narrow;
+    public ModalWidth Width => ModalWidth.Regular;
 
     public ModalButtons Buttons { get; } = new("Close", null, null);
 

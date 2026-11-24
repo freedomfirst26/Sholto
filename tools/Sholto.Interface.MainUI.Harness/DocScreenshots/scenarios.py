@@ -106,3 +106,7 @@ write("folders",a)
 a=[{"action":"scan","dir":LIB},{"action":"controller","on":True}]+apply_theme(hero)
 a+=[{"action":"click","target":"RecordMix"},shot("record-mix")]
 write("record-mix",a)
+# System report: the amber dot's report on a degraded machine (beats on the fallback, stems missing), 2x. Cropped by compose.py.
+a=[{"action":"scan","dir":LIB},{"action":"controller","on":True}]+apply_theme(hero)
+a+=[{"action":"click","target":"SystemReport"},{"action":"wait","seconds":0.6},shot("system-report")]
+write("system-report",a)

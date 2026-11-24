@@ -19,6 +19,7 @@ changed at the decks, not which class moved.
 
 ### Improved
 
+- **The system report is easier to read.** A coloured banner at the top says at a glance whether everything is fine; each feature shows Ready or Not available, a feature running on its fallback no longer looks broken, and install commands have a Copy button.
 - **Backspins and fast scratches sound cleaner.** Playback speed now tops out at 8x, changes smoothly across each buffer instead of in steps, and is filtered beyond normal speed, so fast spins no longer buzz or alias.
 - **A BEAT LOOP pad resizes the loop that is running.** On your DDJ-FLX4's BEAT LOOP page, a pad of another length now changes the running loop to that length from the same start instead of ending it; the pad of the loop's own length still ends it, and the 4 BEAT button still turns its loop on and off.
 - **The audio output picker lists your controller first, so you can send the master mix back to it after picking speakers.**

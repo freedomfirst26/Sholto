@@ -71,3 +71,5 @@ save(crop(load("folders-panel"),(290,286,910,620),2),"folders-panel")
 # Record the mix: the right of the top bar while recording (controller guide, the filled record dot, 1:02:03, the
 # controller dot), 2x
 save(crop(load("record-mix"),(1030,0,1200,32),2),"record-mix")
+# System report: the whole panel (verdict banner, three capability cards), 2x
+save(crop(load("system-report"),(290,128,910,772),2),"system-report")
