@@ -49,10 +49,6 @@ public sealed class ScratchOptions
     /// release and a soft landing; higher is a sharper lurch then a longer crawl.</summary>
     public double CoastShape { get; set; } = 2.0;
 
-    /// <summary>When above 0, the fling coast falls off exponentially, <c>v(t) = R + G·exp(−k·t/T)</c>, with
-    /// k = this value (a fast drop, then a long slow tail), instead of the power curve. 0 keeps the power curve.</summary>
-    public double CoastExponentialRate { get; set; } = 8.0;
-
     /// <summary>Peak |rate| at which fling strength is 1. Strength g = sqrt(|peak| / this), clamped, scales the
     /// backspin distance, so a harder fling goes further in the same time.</summary>
     public double FlingReferencePeak { get; set; } = 10.0;
