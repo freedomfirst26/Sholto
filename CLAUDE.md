@@ -296,13 +296,9 @@ the source of truth.
 
 ## graphify
 
-These rules apply only when graphify-out/graph.json exists (it is gitignored and built locally, so fresh clones and cloud sessions have none); otherwise ignore this section and use grep as usual.
+The Graphify MCP server (`graphify`, registered locally: `python -m graphify.serve graphify-out/graph.json`) is the one query path; do not use the `graphify` CLI query/path/explain commands.
 
-When built, the knowledge graph at graphify-out/ has god nodes, community structure, and cross-file relationships.
-
-Rules:
-- When graphify-out/graph.json exists, run `graphify query "<question>"` before your first grep, search or source-file read for a codebase question, and put this rule in every subagent prompt that explores code. Read raw files only for lines the graph or an earlier read already located. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. When the answer is under a Markdown heading, `graphify section "<heading>"` prints that section's text, so the .md need not be opened. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
-- A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
+- When the graphify MCP tools are available (`query_graph`, `get_node`, `get_neighbors`, `get_community`, `god_nodes`, `shortest_path`, `get_section`), call `query_graph` before the first grep or source read for a codebase question, then read only the files it names. Put this rule in every subagent prompt that explores code.
+- When the tools are not available (fresh clones, cloud sessions: `graphify-out/` is gitignored), use grep as usual.
+- After modifying code, if `graphify-out/graph.json` exists, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn.
