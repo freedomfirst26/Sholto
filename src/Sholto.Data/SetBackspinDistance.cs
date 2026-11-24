@@ -12,5 +12,5 @@ public readonly record struct SetBackspinDistance(double Beats, Origin Origin) :
     public const double Max = 16.0;
 
     /// <summary>The stock rewind, in beats (half a bar).</summary>
-    public const double Default = 2.0;
+    public const double Default = 3.0;
 }

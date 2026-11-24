@@ -222,7 +222,10 @@ public sealed class ScratchEngine : IScratchEngine
                         _options.FlingStrengthMin, _options.FlingStrengthMax);
                     double distance = beats * beatSec * strength;
                     double p = _options.CoastShape;
-                    double launch = Math.Min((p + 1) * distance / seconds, _options.MaxLaunchRate);
+                    double k = _options.CoastExponentialRate;
+                    double launch = Math.Min(k > 0
+                        ? distance * k / (seconds * (1 - Math.Exp(-k)))
+                        : (p + 1) * distance / seconds, _options.MaxLaunchRate);
                     st.Timed = true;
                     st.CoastElapsed = 0;
                     st.CoastSeconds = seconds;
@@ -251,9 +254,19 @@ public sealed class ScratchEngine : IScratchEngine
                 }
                 double p = _options.CoastShape;
                 double t1 = Math.Min(t0 + dt, st.CoastSeconds);
-                double rest0 = Math.Pow(1 - t0 / st.CoastSeconds, p + 1);
-                double rest1 = Math.Pow(1 - t1 / st.CoastSeconds, p + 1);
-                st.Velocity = st.CoastRest + st.CoastGap * st.CoastSeconds / (p + 1) * (rest0 - rest1) / dt;
+                double ek = _options.CoastExponentialRate;
+                if (ek > 0)
+                {
+                    double e0 = Math.Exp(-ek * t0 / st.CoastSeconds);
+                    double e1 = Math.Exp(-ek * t1 / st.CoastSeconds);
+                    st.Velocity = st.CoastRest + st.CoastGap * st.CoastSeconds / ek * (e0 - e1) / dt;
+                }
+                else
+                {
+                    double rest0 = Math.Pow(1 - t0 / st.CoastSeconds, p + 1);
+                    double rest1 = Math.Pow(1 - t1 / st.CoastSeconds, p + 1);
+                    st.Velocity = st.CoastRest + st.CoastGap * st.CoastSeconds / (p + 1) * (rest0 - rest1) / dt;
+                }
                 st.CoastElapsed = t1;
                 if (_options.Log)
                     _log.Info($"COAST v={st.Velocity,7:F2} pos={session.Playhead.PlayPosition,7:F3}");
