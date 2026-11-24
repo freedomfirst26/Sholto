@@ -17,3 +17,6 @@ TestResults/
 
 # Per-job working files (cloud job briefs and reports)
 .job/
+
+# Graphify output (generated, rebuilt locally; never commit)
+graphify-out/

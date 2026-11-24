@@ -1,0 +1,29 @@
+# Graphify scan rules for Sholto (gitignore syntax). Code-only: the graph is built
+# from C#/Python/shell source with local tree-sitter, never an LLM pass over docs/media.
+# Build output and published binaries
+bin/
+obj/
+dist/
+TestResults/
+# Assets and the landing site
+pictures/
+site/
+# Docs and media are kept out so even the /graphify skill cannot send them to an LLM
+docs/
+*.md
+*.txt
+*.rst
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.svg
+*.ico
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.mp4
+*.webm
