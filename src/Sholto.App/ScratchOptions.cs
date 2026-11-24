@@ -49,6 +49,10 @@ public sealed class ScratchOptions
     /// release and a soft landing; higher is a sharper lurch then a longer crawl.</summary>
     public double CoastShape { get; set; } = 2.0;
 
+    /// <summary>After a fling comes to rest, stay parked (silent) for this many beats, then resume at full
+    /// speed. 0 resumes at once.</summary>
+    public double DropInHoldBeats { get; set; } = 1.0;
+
     /// <summary>Peak |rate| at which fling strength is 1. Strength g = sqrt(|peak| / this), clamped, scales the
     /// backspin distance, so a harder fling goes further in the same time.</summary>
     public double FlingReferencePeak { get; set; } = 10.0;

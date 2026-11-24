@@ -42,6 +42,8 @@ public sealed class ScratchState
     public double CoastGap;
     /// <summary>Resting rate R the timed coast settles at: forward speed for a forward fling on a playing deck, else 0.</summary>
     public double CoastRest;
+    /// <summary>Seconds of silent hold left after a fling has come to rest.</summary>
+    public double HoldRemaining;
     /// <summary>True while a vinyl-brake pause is in flight: when the coast reaches rest, the deck is paused
     /// instead of resuming.</summary>
     public bool PauseAtEnd;
