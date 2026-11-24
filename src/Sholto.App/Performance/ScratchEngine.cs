@@ -173,19 +173,6 @@ public sealed class ScratchEngine : IScratchEngine
         if (dt <= 0) dt = 1.0 / 60.0;
         st.LastFlushAt = now;
 
-        if (st.HoldRemaining > 0)
-        {
-            // Silent hold after a fling: the platter sits parked, then the track slams back in.
-            st.HoldRemaining -= dt;
-            if (st.HoldRemaining <= 0)
-            {
-                st.HoldRemaining = 0;
-                FinishCoast(deck, st, session);
-            }
-            else session.Scratch.ScratchRate(0);
-            return;
-        }
-
         // Hand on = the touch sensor says so, OR ticks are still arriving (a
         // flung platter keeps ticking after the hand has lifted — that free
         // spin is the real backspin, so it counts as "still driving"). The
@@ -259,15 +246,6 @@ public sealed class ScratchEngine : IScratchEngine
                 double t0 = st.CoastElapsed;
                 if (t0 >= st.CoastSeconds)
                 {
-                    if (_options.DropInHoldBeats > 0)
-                    {
-                        double holdBpm = session.SourceBpm * session.BpmMultiplier;
-                        if (session.SourceBpm <= 0 || holdBpm <= 0) holdBpm = _options.FallbackBpm;
-                        st.Timed = false;
-                        st.HoldRemaining = _options.DropInHoldBeats * 60.0 / holdBpm;
-                        session.Scratch.ScratchRate(0);
-                        return;
-                    }
                     FinishCoast(deck, st, session);
                     return;
                 }

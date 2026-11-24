@@ -121,13 +121,7 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
         double srcFrame = Volatile.Read(ref _position) / 2.0;
         int written;
 
-        if (speed == 0f && startSpeed == 0f)
-        {
-            // Parked platter: true silence instead of a held frame.
-            buffer.Clear();
-            written = outFrames;
-        }
-        else if (startSpeed != speed || Math.Abs(speed) > 1f)
+        if (startSpeed != speed || Math.Abs(speed) > 1f)
         {
             // Speed changing this buffer, or faster than 1x: ramped, box-filtered read.
             written = ReadRamped(buffer, outFrames, startSpeed, speed, samples, maxSrcFrame, ref srcFrame);
