@@ -11,5 +11,5 @@ public sealed class VarispeedOptions
     /// backspin asks for up to <c>ScratchOptions.MaxLaunchRate</c>) is read at this speed
     /// instead. Default 8: past that a backspin is pure whoosh and the box filter would
     /// average ever more source frames per output frame for no audible gain.</summary>
-    public double MaxSpeed { get; set; } = 32;
+    public double MaxSpeed { get; set; } = 8;
 }
