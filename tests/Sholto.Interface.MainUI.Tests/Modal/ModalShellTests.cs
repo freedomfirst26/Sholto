@@ -192,6 +192,19 @@ public class ModalShellTests
     }
 
     [Fact]
+    public void The_title_row_collapses_when_the_title_is_empty()
+    {
+        var modal = new FakeModalContent { Title = "Something" };
+        var shell = Shell(modal);
+        var title = shell.FindControl<TextBlock>("TitleText")!;
+        Assert.True(title.IsVisible);
+
+        modal.Title = "";
+        modal.Raise(nameof(IModalContent.Title));
+        Assert.False(title.IsVisible);
+    }
+
+    [Fact]
     public void Tone_attention_sets_the_eyebrows_attention_class()
     {
         var modal = new FakeModalContent { Tone = ModalTone.Accent };

@@ -39,6 +39,9 @@ More: [library.md](library.md).
 - **Key detection** — every track gets its musical key (with the Camelot code) so you can mix in harmony.
 - **Stem separation** — splits a track into its parts (vocals, drums, bass, and the rest) so you can drop out the vocal or bring back the beat, live.
 - A small progress bar shows a track being analysed, and a check mark when it's ready.
+- **A system report when something is missing** — if a helper Sholto uses for beats, stems or M4A/AAC playback isn't installed, a small amber dot appears at the top right. Click it for a report: a coloured banner says at a glance whether everything is fine, and each feature shows **Ready** or **Not available**. A feature running on its backup (for example beats from madmom when Beat This! is missing) shows Ready with a "fallback" tag. Each fix comes with the exact command and a **Copy** button; restart Sholto after installing.
+
+  ![The system report: an amber "Running with gaps" banner, beats ready on a fallback with an optional install command, stem separation not available with ./install.sh, and M4A / AAC ready](../pictures/system-report.webp)
 
 ## Playing and mixing
 - **Two decks** you can play, scrub, and mix independently.

@@ -138,6 +138,7 @@ public partial class ModalShell : UserControl
         primary.IsEnabled = modal.CanConfirm;
 
         this.FindControl<TextBlock>("EyebrowText")!.Classes.Set("attention", modal.Tone == ModalTone.Attention);
+        this.FindControl<TextBlock>("TitleText")!.IsVisible = !string.IsNullOrEmpty(modal.Title);
         this.FindControl<TextBlock>("SubtitleText")!.IsVisible = modal.Subtitle is not null;
         this.FindControl<TextBlock>("HintText")!.IsVisible = !string.IsNullOrEmpty(modal.KeyHint);
         this.FindControl<Border>("Panel")!.Width = modal.Width switch

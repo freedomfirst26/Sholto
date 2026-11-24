@@ -15,6 +15,15 @@ public class SystemCheckTests
         new(ExternalToolNames.Demucs, ToolCapabilities.Stems, false, present ? "/usr/bin/demucs" : null);
 
     [Fact]
+    public void The_catalog_lists_the_preferred_beat_tool_before_its_fallback()
+    {
+        // The system report treats the first tool of a capability as the preferred one, in this order.
+        var beats = new ExternalToolCatalog().Descriptors.Where(d => d.Capability == ToolCapabilities.Beats).Select(d => d.Name);
+
+        Assert.Equal([ExternalToolNames.BeatThis, ExternalToolNames.Madmom], beats);
+    }
+
+    [Fact]
     public void ToReported_carries_every_field_both_beat_install_commands_and_the_degraded_health()
     {
         var check = new SystemCheck([BeatThis(true), Madmom(false), Demucs(false)]);

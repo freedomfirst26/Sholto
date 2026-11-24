@@ -331,11 +331,13 @@ public sealed class UiScenarioDriver(MainWindow window, MainViewModel vm, Gestur
         }
         if (target == "SystemReport")
         {
-            // A degraded boot-time probe (demucs and ffmpeg missing), then the amber dot's own entry point.
+            // A degraded boot-time probe, the usual real-world mix (Beat This! and demucs missing, madmom and ffmpeg
+            // there), then the amber dot's own entry point.
             _publisher.Publish(new SystemCheck([
-                new ToolPresence(ExternalToolNames.Madmom, "beats", true, "/usr/bin/madmom"),
+                new ToolPresence(ExternalToolNames.BeatThis, "beats", true, null),
+                new ToolPresence(ExternalToolNames.Madmom, "beats", false, "/usr/bin/DBNDownBeatTracker"),
                 new ToolPresence(ExternalToolNames.Demucs, "stems", false, null),
-                new ToolPresence(ExternalToolNames.Ffmpeg, "transcode", false, null)]).ToReported());
+                new ToolPresence(ExternalToolNames.Ffmpeg, "transcode", false, "/usr/bin/ffmpeg")]).ToReported());
             _vm.OpenSystemReport();
             Dispatcher.UIThread.RunJobs();
             return;

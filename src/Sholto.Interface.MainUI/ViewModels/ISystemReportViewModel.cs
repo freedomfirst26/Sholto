@@ -3,7 +3,7 @@ using Sholto.Interface.MainUI.Controls.Modal;
 
 namespace Sholto.Interface.MainUI.ViewModels;
 
-/// <summary>The system report overlay (the amber status dot): one row per external tool and a headline on
+/// <summary>The system report overlay (the amber status dot): one card per capability, a verdict banner on
 /// how much of Sholto works. Read-only; a single Close button. Whether the dot is amber, and so whether
 /// <see cref="Open"/> is called at all, is <c>MainViewModel</c>'s call.</summary>
 public interface ISystemReportViewModel : IModalContent
@@ -17,10 +17,21 @@ public interface ISystemReportViewModel : IModalContent
     /// <summary>Hide the report.</summary>
     void Close();
 
-    /// <summary>One row per tool; empty until <see cref="Report"/> runs.</summary>
-    IReadOnlyList<SystemReportRow> Rows { get; }
+    /// <summary>One card per capability, in first-seen order; empty until <see cref="Report"/> runs.</summary>
+    IReadOnlyList<SystemReportCapability> Capabilities { get; }
 
-    /// <summary>What the report leads with: the one place the offline / degraded distinction shows. It is
-    /// also the modal's <see cref="IModalContent.Title"/>.</summary>
+    /// <summary>The banner's sentence: the one place the offline / degraded distinction is spelled out.</summary>
     string Headline { get; }
+
+    /// <summary>The banner's bold verdict word(s).</summary>
+    string VerdictTitle { get; }
+
+    /// <summary>"N of M ready" over the capabilities.</summary>
+    string ReadyCount { get; }
+
+    /// <summary>True when the banner is green.</summary>
+    bool IsHealthy { get; }
+
+    /// <summary>True when the banner is amber (degraded or offline).</summary>
+    bool NeedsAttention { get; }
 }
