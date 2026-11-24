@@ -12,5 +12,5 @@ public readonly record struct SetBackspinTime(double Seconds, Origin Origin) : I
     public const double Max = 3.0;
 
     /// <summary>The stock coast, in seconds.</summary>
-    public const double Default = 2.5;
+    public const double Default = 0.6;
 }

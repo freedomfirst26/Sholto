@@ -171,7 +171,6 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
         Volatile.Write(ref _position, srcFrame * 2.0);
 
         int producedSamples = written * 2;
-        ApplyDarkening(buffer[..producedSamples], startSpeed, speed);
         if (written == 0) EndOfStreamReached?.Invoke(this, EventArgs.Empty);
         ApplyFadeIn(buffer[..producedSamples]);
         return producedSamples;
@@ -250,31 +249,6 @@ public sealed class ScratchDataProvider : ISoundDataProvider, IVarispeedProvider
         int o = frameIndex * 2;
         outBuf[o]     = la + frac * (lb - la);
         outBuf[o + 1] = ra + frac * (rb - ra);
-    }
-
-    // Experiment: two cascaded one-pole low-passes whose cutoff follows |speed|, 18 kHz at DarkFastSpeed and
-    // above down to 300 Hz at rest. Off at exactly 1x playback.
-    private const float DarkTopHz = 18000f, DarkBottomHz = 300f, DarkFastSpeed = 4f;
-    private float _lpL1, _lpL2, _lpR1, _lpR2;
-
-    private void ApplyDarkening(Span<float> samples, float startSpeed, float endSpeed)
-    {
-        int frames = samples.Length / 2;
-        if (frames == 0) return;
-        if (startSpeed == 1f && endSpeed == 1f) { _lpL1 = _lpL2 = _lpR1 = _lpR2 = 0f; return; }
-        for (int f = 0; f < frames; f++)
-        {
-            float sp = Math.Abs(startSpeed + (endSpeed - startSpeed) * ((f + 1) / (float)frames));
-            float x = Math.Min(1f, sp / DarkFastSpeed);
-            float hz = DarkBottomHz * MathF.Pow(DarkTopHz / DarkBottomHz, x);
-            float a = 1f - MathF.Exp(-2f * MathF.PI * hz / SampleRate);
-            _lpL1 += a * (samples[f * 2] - _lpL1);
-            _lpL2 += a * (_lpL1 - _lpL2);
-            _lpR1 += a * (samples[f * 2 + 1] - _lpR1);
-            _lpR2 += a * (_lpR1 - _lpR2);
-            samples[f * 2] = _lpL2;
-            samples[f * 2 + 1] = _lpR2;
-        }
     }
 
     public void Seek(int offset)
